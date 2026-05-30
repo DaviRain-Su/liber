@@ -2,6 +2,7 @@
 // external key). Lens/persona-aware system prompts + selected-sentence context.
 import type { Env } from "./types";
 import { aiChat } from "./aiProvider";
+import { agentEnabled, runCompanionAgent } from "./agent";
 
 const LENS_PROMPT: Record<string, string> = {
   companion: "你是「书友」，一个温和、博学的通读陪伴者。陪读者一句句读懂经典，不剧透后文。",
@@ -34,7 +35,9 @@ export interface CompanionInput {
   history?: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
-export async function companionReply(env: Env, opts: CompanionInput): Promise<{ text: string; ref: string; error?: boolean }> {
+export interface CompanionReply { text: string; ref: string; error?: boolean; steps?: Array<{ tool: string; args: any; ok: boolean }> }
+
+export async function companionReply(env: Env, opts: CompanionInput): Promise<CompanionReply> {
   const persona = LENS_PROMPT[opts.lens] || LENS_PROMPT.companion;
   const sys =
     `${persona}\n` +
@@ -42,9 +45,22 @@ export async function companionReply(env: Env, opts: CompanionInput): Promise<{ 
     (opts.context ? `读者正就这一句提问：「${opts.context}」。` : "") +
     `\n请用简体中文回答，克制、具体，2–5 句，不要寒暄。`;
 
+  const history = (opts.history || []).slice(-8);
+
+  // Agent path: when enabled + a tool-capable provider, let the book companion
+  // actually read passages / look up cross-book echoes / search before answering.
+  if (agentEnabled(env)) {
+    try {
+      const agentSys = sys + "\n你可以调用工具读正文、查跨书呼应、看热门划线、检索馆藏；先查证再作答，不要凭空编造。";
+      const r = await runCompanionAgent(env, { system: agentSys, history, question: opts.question });
+      if (r.text) return { text: r.text, ref: LENS_REF[opts.lens] || LENS_REF.companion, steps: r.steps };
+      // empty answer → fall through to single-shot
+    } catch { /* fall through to single-shot below */ }
+  }
+
   const messages = [
     { role: "system", content: sys },
-    ...(opts.history || []).slice(-8),
+    ...history,
     { role: "user", content: opts.question },
   ];
 

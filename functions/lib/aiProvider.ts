@@ -52,6 +52,54 @@ export async function aiChat(env: Env, messages: ChatMsg[], opts: ChatOpts = {})
   return String(res?.response ?? "").trim();
 }
 
+// Whether the active provider supports function/tool calling (drives the agent
+// loop). Workers AI tool-calling is weak/inconsistent, so we only claim it for
+// the OpenAI-compatible providers.
+export function supportsTools(env: Env): boolean {
+  const p = provider(env);
+  return p === "deepseek" || p === "openai-compat";
+}
+
+export interface RawToolCall { id: string; name: string; args: any }
+export interface RawReply { content: string; toolCalls: RawToolCall[] }
+
+// Tool-capable chat. `messages` is the raw OpenAI-shaped array (may include
+// assistant tool_calls and {role:"tool"} results). Returns the assistant's text
+// plus any tool calls it wants run. Only meaningful for OpenAI-compat providers;
+// for Workers AI it returns text only (no tool calls).
+export async function aiChatRaw(env: Env, messages: any[], opts: ChatOpts & { tools?: any[] } = {}): Promise<RawReply> {
+  const p = provider(env);
+  const model = env.AI_MODEL || DEFAULTS[p] || DEFAULTS["workers-ai"];
+  const maxTokens = opts.maxTokens ?? 700;
+  const temperature = opts.temperature ?? 0.7;
+
+  if (p === "deepseek" || p === "openai-compat") {
+    const base = p === "deepseek" ? (env.AI_BASE_URL || "https://api.deepseek.com") : (env.AI_BASE_URL || "https://api.openai.com");
+    const apiKey = env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+    if (!apiKey) throw new Error(`${p}: missing API key`);
+    const body: any = { model, messages, max_tokens: maxTokens, temperature, stream: false };
+    if (opts.tools && opts.tools.length) { body.tools = opts.tools; body.tool_choice = "auto"; }
+    const res = await fetch(`${base.replace(/\/$/, "")}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${p} ${res.status}`);
+    const j: any = await res.json();
+    const msg = j?.choices?.[0]?.message || {};
+    const toolCalls: RawToolCall[] = (msg.tool_calls || []).map((tc: any) => {
+      let args = {};
+      try { args = JSON.parse(tc.function?.arguments || "{}"); } catch { /* leave {} */ }
+      return { id: tc.id, name: tc.function?.name, args };
+    });
+    return { content: String(msg.content ?? "").trim(), toolCalls };
+  }
+
+  // Workers AI: text only
+  const res: any = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature });
+  return { content: String(res?.response ?? "").trim(), toolCalls: [] };
+}
+
 // Which provider/model is active — handy for the Agent View / debugging.
 export function activeProvider(env: Env): { provider: string; model: string } {
   const p = provider(env);
