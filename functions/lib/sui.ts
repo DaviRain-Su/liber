@@ -1,14 +1,18 @@
-// Sui chain access (read-only) via a public fullnode JSON-RPC endpoint.
+// Sui chain access via a public fullnode JSON-RPC endpoint.
 //
-// No keys/gas needed: this verifies the chain is live (latest checkpoint) and
-// resolves real on-chain objects by id. Writing to Sui (registering objects)
-// needs a server keypair + gas + a deployed Move package — that's deploy-side
-// infra; registerObject() is a config-gated placeholder until then. Callers
-// degrade gracefully when SUI_RPC is unset.
+// Reads (getChainInfo / getObject) need no keys: they verify the chain is live
+// (latest checkpoint) and resolve real on-chain objects. Writes (registerObject)
+// need a server keypair + gas + a deployed Move package and are fully gated on
+// SUI_SIGNER_KEY + SUI_PACKAGE — with those unset the SDK is never even
+// constructed. Callers degrade gracefully when SUI_RPC is unset.
 import type { Env } from "./types";
-import { SuiClient } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
+// SuiClient is a real runtime export; its named type isn't surfaced by the
+// ./client barrel under this Workers tsconfig (Bundler resolution), so import
+// the value and keep it loosely typed.
+// @ts-ignore
+import { SuiClient } from "@mysten/sui/client";
 
 const DEFAULT_RPC = "https://fullnode.testnet.sui.io:443";
 
@@ -63,42 +67,27 @@ export async function getObject(env: Env, objectId: string): Promise<any | null>
   }
 }
 
-// Build a SuiClient bound to the configured fullnode, or null when unset.
-function client(env: Env): SuiClient | null {
-  const url = rpcUrl(env);
-  return url ? new SuiClient({ url }) : null;
-}
-
-// Load the server signer from SUI_SIGNER_KEY (a `suiprivkey1…` bech32 secret).
-function signer(env: Env): Ed25519Keypair | null {
-  const key = env.SUI_SIGNER_KEY;
-  if (!key) return null;
-  try {
-    return Ed25519Keypair.fromSecretKey(key);
-  } catch {
-    return null;
-  }
-}
-
 export interface ChainRef {
   digest: string;       // transaction digest (always verifiable)
   objectId?: string;    // created registry object id, if any
 }
 
 // P4c-write: register a content reference on-chain by calling
-// `<SUI_PACKAGE>::<SUI_MODULE>::register(contentId, kind, license)`.
-// Fully gated: needs SUI_RPC + SUI_SIGNER_KEY + SUI_PACKAGE. Returns null on
-// any miss/error so the publish path is never blocked on chain writes.
+// `<SUI_PACKAGE>::<SUI_MODULE>::register(contentId, kind, license)`. Gated on
+// SUI_RPC + SUI_SIGNER_KEY + SUI_PACKAGE; constructs nothing and returns null
+// when any is missing, so the publish path is never blocked on chain writes.
 export async function registerObject(
   env: Env,
   payload: { contentId: string; kind: string; license?: string },
 ): Promise<ChainRef | null> {
-  const sc = client(env);
-  const kp = signer(env);
+  const url = rpcUrl(env);
+  const key = env.SUI_SIGNER_KEY;
   const pkg = env.SUI_PACKAGE;
-  if (!sc || !kp || !pkg) return null;
+  if (!url || !key || !pkg) return null;
   const moduleName = env.SUI_MODULE || "registry";
   try {
+    const sc: any = new SuiClient({ url });
+    const kp = Ed25519Keypair.fromSecretKey(key);
     const tx = new Transaction();
     tx.moveCall({
       target: `${pkg}::${moduleName}::register`,
@@ -113,7 +102,7 @@ export async function registerObject(
       transaction: tx,
       options: { showEffects: true, showObjectChanges: true },
     });
-    const created = (res.objectChanges || []).find((ch: any) => ch.type === "created") as any;
+    const created = (res.objectChanges || []).find((ch: any) => ch.type === "created");
     return { digest: res.digest, objectId: created?.objectId };
   } catch {
     return null;
