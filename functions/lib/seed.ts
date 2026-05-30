@@ -9,6 +9,7 @@ const s = seed as Record<string, any>;
 export const BOOKS = s.BOOKS as any[];
 export const CHAPTERS = s.CHAPTERS as any[];
 export const TOC = s.TOC as any[];
+export const BOOK_CONTENT = s.BOOK_CONTENT as Record<string, { toc: any[]; chapters: any[] }>;
 export const ANNOTATIONS = s.ANNOTATIONS as Record<string, any[]>;
 export const HIGHLIGHTS = s.HIGHLIGHTS as any[];
 export const REVIEWS = s.REVIEWS as any[];

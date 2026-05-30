@@ -22,14 +22,14 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
   const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
   const [detail, setDetail] = React.useState(() => ({
     book: seedBook,
-    toc: seedBook.id === "daodejing" ? window.TOC : null,
+    toc: (window.BOOK_CONTENT?.[seedBook.id]?.toc) || null,
     highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null,
     reviews: seedBook.id === "daodejing" ? window.REVIEWS : null,
   }));
   React.useEffect(() => {
     const fallback = {
       book: seedBook,
-      toc: seedBook.id === "daodejing" ? window.TOC : null,
+      toc: (window.BOOK_CONTENT?.[seedBook.id]?.toc) || null,
       highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null,
       reviews: seedBook.id === "daodejing" ? window.REVIEWS : null,
     };

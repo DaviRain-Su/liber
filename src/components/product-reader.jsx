@@ -202,20 +202,23 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation
 function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const missingBook = { id: bookId, t: "未找到该书", a: "", sub: "", cls: "ink", seal: "书" };
   const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
-  const seedChapters = seedBook.id === "daodejing" ? window.CHAPTERS : [];
+  const seedContentFor = (id) => (window.BOOK_CONTENT && window.BOOK_CONTENT[id]) || null;
+  const seedContent = seedContentFor(seedBook.id);
+  const seedChapters = seedContent?.chapters || [];
   const [book, setBook] = useS(seedBook);
   const [chapters, setChapters] = useS(seedChapters);
-  const [toc, setToc] = useS(seedBook.id === "daodejing" ? window.TOC : []);
+  const [toc, setToc] = useS(seedContent?.toc || []);
   const [cIdx, setCIdx] = useS(() => {
     const i = seedChapters.findIndex(c => c.n === startChapter);
     return i >= 0 ? i : 0;
   });
   useE(() => {
     const nextSeed = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
-    const nextSeedChapters = nextSeed.id === "daodejing" ? window.CHAPTERS : [];
+    const nextContent = seedContentFor(nextSeed.id);
+    const nextSeedChapters = nextContent?.chapters || [];
     setBook(nextSeed);
     setChapters(nextSeedChapters);
-    setToc(nextSeed.id === "daodejing" ? window.TOC : []);
+    setToc(nextContent?.toc || []);
     const seedIdx = nextSeedChapters.findIndex(c => c.n === startChapter);
     setCIdx(seedIdx >= 0 ? seedIdx : 0);
     if (!window.liberApi) return;
@@ -234,7 +237,8 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     }).catch(() => {});
     return () => { live = false; };
   }, [bookId, startChapter]);
-  const ch = chapters[cIdx] || chapters[0] || { n: 1, title: "暂无正文", paras: [[{ id: `${book.id}-empty`, t: "这本书还没有入库正文。" }]] };
+  const noText = !chapters.length;
+  const ch = chapters[cIdx] || chapters[0] || { n: 1, title: "暂无正文", paras: [] };
   const chapterCount = chapters.length || 1;
 
   useE(() => {
@@ -594,6 +598,30 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
             onRelocated={setEpubLocation}
             onUnavailable={onEpubUnavailable}
           />
+        ) : noText ? (
+          <div className="rd-scroll" ref={scrollRef}>
+            <div className="rd-empty">
+              <div className="rd-empty-seal" style={{ background: book.cls ? undefined : "var(--accent)" }}>{book.seal || "书"}</div>
+              <h1 className="rd-empty-h">《{book.t}》的正文还在入库中</h1>
+              {hasEpub ? (
+                <>
+                  <p className="rd-empty-p">这本书有原版 EPUB，可以直接打开阅读。</p>
+                  <div className="rd-empty-actions">
+                    <button className="btn btn-primary" onClick={() => setReadMode("epub")}>{I.book} 打开 EPUB 阅读版</button>
+                    <button className="btn btn-ghost" onClick={onClose}>返回书库</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="rd-empty-p">Liber 只收录 CC0 / 公共领域文本，这本书的逐句精读版正在录入。</p>
+                  <p className="rd-empty-p rd-empty-sub">可以先读《道德经》《论语》《孙子兵法》——它们已经有逐句正文，支持划线、批注和问 AI。</p>
+                  <div className="rd-empty-actions">
+                    <button className="btn btn-primary" onClick={onClose}>返回书库</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="rd-scroll" ref={scrollRef}>
             <div className="rd-col" key={`${book.id}-${ch.n}`} onMouseUp={onMouseUp}>
