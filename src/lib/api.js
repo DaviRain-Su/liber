@@ -52,6 +52,7 @@ export const api = {
     logout: async () => { try { await post("/auth/logout"); } finally { setToken(null); } },
     nonce: () => post("/auth/nonce"),
     verify: (payload) => post("/auth/verify", payload),
+    updateMe: (payload) => put("/auth/me", payload),
     cliStart: () => post("/auth/cli/start"),
     cliPoll: (deviceCode) => get(`/auth/cli/poll/${encodeURIComponent(deviceCode)}`),
     cliApprove: (deviceCode) => post("/auth/cli/approve", { deviceCode }),

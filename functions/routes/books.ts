@@ -125,7 +125,7 @@ books.post("/books/ingest", async (c) => {
   const auth = await ingestAuth(c);
   if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   const body = await c.req.json();
-  if (!body.text && body.sourceUrl) {
+  if (!body.text && !body.epubBase64 && !body.chapters?.length && body.sourceUrl) {
     const res = await fetch(body.sourceUrl);
     if (!res.ok) return c.json({ error: `源文本下载失败：${res.status}` }, 400);
     body.text = await res.text();

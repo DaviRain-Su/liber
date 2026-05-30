@@ -133,6 +133,10 @@
   .pf-frow-main .bio{ display: none; }
   .pf-frow-main .nm{ font-size: 18px; }
   .pf-back{ top: 12px; }
+  .pf-edit-modal{ width: 100%; max-width: 100%; height: 100%; max-height: 100vh; top: 0; left: 0; transform: none; border-radius: 0; }
+  .pf-edit-body{ grid-template-columns: 1fr; }
+  .pf-edit-body label:nth-child(4){ grid-column: auto; }
+  .pf-edit-colors{ align-items: flex-start; flex-direction: column; }
 
   /* ---- SHELF ---- */
   .sh-stats{ grid-template-columns: 1fr 1fr; }

@@ -18,6 +18,7 @@ const DEFAULTS = {
   source: "https://www.gutenberg.org/ebooks/132",
   license: "PUBLIC-DOMAIN",
   expect: "war",
+  category: "文学 · 经典",
 };
 
 function usage() {
@@ -26,7 +27,7 @@ function usage() {
 Usage:
   node scripts/real-content-smoke.mjs [--publish] [--api-url <url>] [--id <id>]
     [--epub-url <url>] [--source <url>] [--license PUBLIC-DOMAIN|CC0-1.0]
-    [--expect <search-term>] [--json] [--quiet]
+    [--category <category>] [--expect <search-term>] [--json] [--quiet]
 
 Default fixture:
   Project Gutenberg #132, The Art of War, PUBLIC-DOMAIN.
@@ -175,7 +176,7 @@ async function main() {
   const info = await progress.step("inspect EPUB", () => inspectEpub(epubPath));
   const license = await progress.step("verify license", async () => verifyPublishLicense(info, { source: options.source, license: options.license }));
   const manifest = await progress.step("create manifest", () => createBookManifest(epubPath, { source: options.source, license: options.license }));
-  const payload = await progress.step("create ingest payload", () => createIngestPayload(manifest, { id: options.id, category: "文学 · 经典" }));
+  const payload = await progress.step("create ingest payload", () => createIngestPayload(manifest, { id: options.id, category: options.category }));
   const plan = await progress.step("create publish plan", async () => dryRunPublishPlan(manifest, { apiUrl: options.apiUrl, ingestPayload: payload }));
 
   let publish = null;
@@ -184,7 +185,7 @@ async function main() {
     publish = await progress.step("POST /api/books/ingest", () => publishBookManifest(manifest, {
       apiUrl: options.apiUrl,
       id: options.id,
-      category: "文学 · 经典",
+      category: options.category,
     }));
   }
 

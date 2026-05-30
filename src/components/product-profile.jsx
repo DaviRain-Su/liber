@@ -32,7 +32,7 @@ function useFollowSet(){
   return set;
 }
 
-function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
+function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpdated }){
   const isMe = !userId || userId === window.ME.name || userId === authUser?.id;
 
   /* my own identity, hydrated from the signed-in account / backend */
@@ -61,6 +61,10 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
   const [tab, setTab] = useSp("shelf"); // shelf | finished | notes | following
   const [catalog, setCatalog] = useSp(() => getCatalogBooks());
   const [summary, setSummary] = useSp(null);
+  const [editOpen, setEditOpen] = useSp(false);
+  const [editForm, setEditForm] = useSp({ name:"", handle:"", bio:"", seal:"", color:"#3a4fb0" });
+  const [editSaving, setEditSaving] = useSp(false);
+  const [editError, setEditError] = useSp("");
   const [, refreshShelf] = useSp(0);
   useEpf(() => {
     const offCatalog = subscribeCatalog((books) => setCatalog(books));
@@ -111,6 +115,33 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
   }, [isMe]);
 
   const person = isMe ? me : (remotePerson || seedPerson);
+  const openEdit = () => {
+    setEditForm({
+      name: me.name || "",
+      handle: me.handle || "",
+      bio: me.bio || "",
+      seal: me.seal || "",
+      color: me.color || "#3a4fb0",
+    });
+    setEditError("");
+    setEditOpen(true);
+  };
+  const saveEdit = () => {
+    if (!window.liberApi?.auth?.updateMe || editSaving) return;
+    setEditSaving(true);
+    setEditError("");
+    window.liberApi.auth.updateMe(editForm)
+      .then((r) => {
+        if (r?.user) {
+          setMe((m) => ({ ...m, ...r.user, stats: r.user.stats || m.stats }));
+          setHasAccount(true);
+          if (onProfileUpdated) onProfileUpdated();
+        }
+        setEditOpen(false);
+      })
+      .catch((err) => setEditError(err?.message || "保存失败"))
+      .finally(() => setEditSaving(false));
+  };
 
   if (!person){
     return (
@@ -190,7 +221,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
               {isMe ? (
                 hasAccount ? (
                   <>
-                    <button className="btn btn-primary">编辑资料</button>
+                    <button className="btn btn-primary" onClick={openEdit}>编辑资料</button>
                     <button className="btn btn-ghost" onClick={onLogout}>退出登录</button>
                   </>
                 ) : (
@@ -277,7 +308,55 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
           )}
         </div>
       </div>
+      {editOpen && (
+        <EditProfileModal
+          form={editForm}
+          setForm={setEditForm}
+          saving={editSaving}
+          error={editError}
+          onSave={saveEdit}
+          onClose={() => !editSaving && setEditOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+function EditProfileModal({ form, setForm, saving, error, onSave, onClose }){
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const colors = ["#3a4fb0", "#1f8a5b", "#9a5b2e", "#7a3d6b", "#b0553a", "#334155"];
+  return (
+    <>
+      <div className="drawer-scrim" style={{ zIndex: 872 }} onClick={onClose}/>
+      <div className="pf-edit-modal">
+        <div className="pf-edit-head">
+          <div>
+            <div className="wm-kick">编辑资料</div>
+            <div className="wm-sub">这些信息会显示在公开读者主页、批注和共读里。</div>
+          </div>
+          <span className="x" onClick={onClose}>{I.x}</span>
+        </div>
+        <div className="pf-edit-body">
+          <label><span>昵称</span><input value={form.name} maxLength={32} onChange={(e)=>set("name", e.target.value)} placeholder="你的昵称"/></label>
+          <label><span>Handle</span><input value={form.handle} maxLength={32} onChange={(e)=>set("handle", e.target.value)} placeholder="@reader"/></label>
+          <label><span>印章</span><input value={form.seal} maxLength={2} onChange={(e)=>set("seal", e.target.value)} placeholder="读"/></label>
+          <label><span>简介</span><textarea value={form.bio} maxLength={160} onChange={(e)=>set("bio", e.target.value)} placeholder="简单介绍你的阅读兴趣"/></label>
+          <div className="pf-edit-colors">
+            <span>头像颜色</span>
+            <div>
+              {colors.map((c) => (
+                <button key={c} className={form.color === c ? "on" : ""} style={{ background:c }} onClick={()=>set("color", c)} aria-label={c}/>
+              ))}
+            </div>
+          </div>
+          {error && <div className="pf-edit-error">{error}</div>}
+        </div>
+        <div className="pf-edit-foot">
+          <button className="btn btn-ghost" onClick={onClose} disabled={saving}>取消</button>
+          <button className="btn btn-primary" onClick={onSave} disabled={saving}>{saving ? "保存中…" : "保存"}</button>
+        </div>
+      </div>
+    </>
   );
 }
 

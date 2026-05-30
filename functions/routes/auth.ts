@@ -7,6 +7,7 @@ import {
   pollCliDevice, requireUser, createCliPublishToken,
 } from "../lib/auth";
 import { readingStats } from "../lib/reading-summary";
+import { run } from "../lib/db";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -88,6 +89,29 @@ auth.get("/me", async (c) => {
   if (user.is_guest) return c.json({ user: null });
   const stats = await readingStats(c.env, uid);
   return c.json({ user: { ...user, wallet: user.sui_address, stats } });
+});
+
+auth.put("/me", async (c) => {
+  const uid = requireUser(c);
+  const user = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ error: "需要登录后才能编辑资料" }, 401);
+  const body = await c.req.json();
+  const clean = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const name = clean(body.name, 32) || user.name || "读者";
+  const handleRaw = clean(body.handle, 32).replace(/^@+/, "");
+  const handleSlug = handleRaw.replace(/[^\p{L}\p{N}_-]/gu, "").slice(0, 24);
+  const handle = handleSlug ? `@${handleSlug}` : user.handle || `@${uid.slice(0, 8)}`;
+  const bio = clean(body.bio, 160);
+  const color = /^#[0-9a-f]{6}$/i.test(String(body.color || "")) ? String(body.color) : user.color || "#3a4fb0";
+  const seal = clean(body.seal, 2).slice(0, 2) || name.slice(0, 1) || "读";
+  await run(
+    c.env.DB,
+    `UPDATE users SET name = ?, handle = ?, bio = ?, color = ?, seal = ? WHERE id = ?`,
+    name, handle, bio, color, seal, uid,
+  );
+  const next = await getUser(c.env, uid);
+  const stats = await readingStats(c.env, uid);
+  return c.json({ user: { ...next, wallet: next?.sui_address, stats } });
 });
 
 export default auth;

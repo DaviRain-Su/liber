@@ -204,6 +204,25 @@
 .pf-frow-main .meta{ font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 .pf-frow .pf-follow{ flex-shrink: 0; }
 
+/* ---- edit profile modal ---- */
+.pf-edit-modal{ position: fixed; z-index: 876; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 560px; max-width: 94vw; max-height: 88vh; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--hair); border-radius: 16px; box-shadow: 0 40px 90px rgba(33,27,21,.42); overflow: hidden; animation: notePop .18s ease; }
+.pf-edit-head{ display: flex; align-items: center; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--hair-2); }
+.pf-edit-head .x{ margin-left: auto; color: var(--ink-3); cursor: pointer; }
+.pf-edit-head .x:hover{ color: var(--accent); }
+.pf-edit-body{ padding: 22px 24px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 15px 14px; }
+.pf-edit-body label{ display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.pf-edit-body label span, .pf-edit-colors > span{ font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.pf-edit-body input, .pf-edit-body textarea{ width: 100%; box-sizing: border-box; font: inherit; color: var(--ink); background: var(--paper-2); border: 1px solid var(--hair); border-radius: 8px; outline: none; padding: 10px 11px; }
+.pf-edit-body input:focus, .pf-edit-body textarea:focus{ border-color: var(--accent-line); background: var(--paper); }
+.pf-edit-body textarea{ min-height: 96px; resize: vertical; line-height: 1.55; }
+.pf-edit-body label:nth-child(4){ grid-column: 1 / -1; }
+.pf-edit-colors{ grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pf-edit-colors div{ display: flex; gap: 8px; }
+.pf-edit-colors button{ width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: 0 1px 4px rgba(33,27,21,.18); }
+.pf-edit-colors button.on{ border-color: var(--ink); outline: 2px solid var(--paper); }
+.pf-edit-error{ grid-column: 1 / -1; font-size: 13px; color: #b23a26; background: color-mix(in oklab, #b23a26 9%, var(--paper)); border: 1px solid color-mix(in oklab, #b23a26 25%, transparent); border-radius: 8px; padding: 9px 11px; }
+.pf-edit-foot{ display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--hair); background: var(--paper-2); }
+
 /* ---- provenance: visit-profile button ---- */
 .pd-visit{ width: 100%; margin-top: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-family: var(--mono); font-size: 12px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 8px; padding: 9px 12px; cursor: pointer; transition: background .15s; }
 .pd-visit:hover{ background: color-mix(in oklab, var(--accent) 16%, var(--paper)); }

@@ -204,7 +204,7 @@ function App(){
           {route.screen === "detail" && <Detail bookId={route.bookId} onOpenReader={openReader} onOpenCert={(id) => setRoute({ screen:"cert", bookId:id })} onBack={() => setRoute({ screen:"library" })} onOpenAgents={() => setRoute({ screen:"agents" })} />}
           {route.screen === "notes" && <Notebook onOpenBook={openBook} />}
           {route.screen === "social" && <Social onOpenBook={openBook} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} onContinue={(c) => openReader(c.book, undefined, c)} />}
-          {route.screen === "profile" && <Profile key={route.userId || "me"} userId={route.userId} onOpenBook={openBook} onBack={() => setRoute({ screen: route.from || "library" })} authUser={authUser} onLogout={logout} />}
+          {route.screen === "profile" && <Profile key={route.userId || "me"} userId={route.userId} onOpenBook={openBook} onBack={() => setRoute({ screen: route.from || "library" })} authUser={authUser} onLogout={logout} onProfileUpdated={refreshAuth} />}
           {route.screen === "cert" && <Certificate bookId={route.bookId} onBack={() => setRoute({ screen:"detail", bookId:route.bookId })} onOpenBook={openReader} />}
           {route.screen === "shelf" && <Shelf onOpenBook={openBook} onOpenReader={openReader} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} />}
           {route.screen === "groups" && <GroupsList onOpenGroup={(id) => setRoute({ screen:"group", groupId:id })} onBack={() => setRoute({ screen:"social" })} />}
