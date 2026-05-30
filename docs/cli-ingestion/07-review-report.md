@@ -13,5 +13,8 @@
 Implemented and locally verified with:
 
 - `npm run test:cli`
+- `npm run pack:cli`
 - `npm run typecheck`
 - `npm run build`
+- `npm pack` to `/private/tmp` plus temporary install and `liber license explain`
+- `npm publish --dry-run` inside `packages/liber-cli`

@@ -7,9 +7,12 @@
   rejection, manifest generation, and dry-run publish.
 - Commit: implement Node standard-library EPUB parser.
 - Commit: implement CLI command routing and JSON/text output.
+- Commit: split the CLI into standalone npm package `packages/liber-cli`.
+- Commit: verify `npm pack --dry-run` contains only distributable files.
 - Commit: enforce license policy in backend ingest.
 - Commit: update README and BACKEND references.
-- Commit: run `npm run test:cli`, `npm run typecheck`, and `npm run build`.
+- Commit: run `npm run test:cli`, `npm run pack:cli`, `npm run typecheck`,
+  and `npm run build`.
 
 ## Constraints
 

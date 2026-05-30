@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 
@@ -12,9 +13,10 @@ import {
   dryRunPublishPlan,
   inspectEpub,
   verifyPublishLicense,
-} from "../../cli/liber-core.mjs";
+} from "../src/liber-core.mjs";
 
 const execFileAsync = promisify(execFile);
+const CLI_PATH = fileURLToPath(new URL("../bin/liber.mjs", import.meta.url));
 
 const CRC_TABLE = new Uint32Array(256).map((_, n) => {
   let c = n;
@@ -207,12 +209,11 @@ test("CLI publish requires --dry-run", async () => {
   const manifestPath = path.join(dir, "manifest.json");
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-  const cli = path.resolve("bin/liber.mjs");
-  const result = await execFileAsync(process.execPath, [cli, "book", "publish", manifestPath, "--dry-run"]);
+  const result = await execFileAsync(process.execPath, [CLI_PATH, "book", "publish", manifestPath, "--dry-run"]);
   assert.match(result.stdout, /Dry-run publish plan/);
 
   await assert.rejects(
-    () => execFileAsync(process.execPath, [cli, "book", "publish", manifestPath]),
+    () => execFileAsync(process.execPath, [CLI_PATH, "book", "publish", manifestPath]),
     /Non-dry-run publish is not implemented/,
   );
 

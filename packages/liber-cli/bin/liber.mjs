@@ -7,7 +7,7 @@ import {
   MANIFEST_SCHEMA,
   verifyPublishLicense,
   writeBookManifest,
-} from "../cli/liber-core.mjs";
+} from "../src/liber-core.mjs";
 
 function usage() {
   return `Liber CLI

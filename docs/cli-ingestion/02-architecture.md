@@ -2,11 +2,12 @@
 
 ## Components
 
-- `bin/liber.mjs`: executable CLI entrypoint.
-- `cli/liber-core.mjs`: reusable Node implementation for EPUB inspection,
-  license validation, manifest creation, and publish dry-runs.
+- `packages/liber-cli`: standalone npm package named `liber-cli`.
+- `packages/liber-cli/bin/liber.mjs`: executable CLI entrypoint.
+- `packages/liber-cli/src/liber-core.mjs`: reusable Node implementation for
+  EPUB inspection, license validation, manifest creation, and publish dry-runs.
 - `functions/lib/license.ts`: backend enforcement for the same publish policy.
-- `test/cli/*.test.mjs`: Node test coverage for the local tool.
+- `packages/liber-cli/test/*.test.mjs`: Node test coverage for the package.
 
 ## Data Flow
 
@@ -31,3 +32,4 @@ publish policy.
 - The CLI uses Node standard library only.
 - License strings are normalized before being stored or sent on-chain.
 - Unknown or restrictive licenses fail closed.
+- The root app stays private; only `packages/liber-cli` is publishable.

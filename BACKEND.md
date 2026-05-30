@@ -157,7 +157,8 @@ Related endpoints:
 
 Run `npm run cli -- book inspect <file.epub>` and
 `npm run cli -- book package <file.epub> --source <url> --license CC0-1.0 --out <manifest.json>`
-before ingesting real books. The CLI emits `--json` output for agents and
+before ingesting real books. The CLI lives in the standalone npm package
+`packages/liber-cli` (`liber-cli` on npm), emits `--json` output for agents, and
 supports `book publish <manifest.json> --dry-run` for storage/API/registry
 planning; non-dry-run publishing is deliberately not enabled in this first
 slice.

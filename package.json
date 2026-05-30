@@ -4,16 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Liber — 永存的开放图书馆. A decentralized, AI-agent-friendly reading platform for CC0 books.",
-  "bin": {
-    "liber": "./bin/liber.mjs"
-  },
+  "workspaces": [
+    "packages/liber-cli"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
-    "cli": "node bin/liber.mjs",
-    "test:cli": "node --test test/cli/*.test.mjs",
+    "cli": "npm --workspace liber-cli run cli --",
+    "test:cli": "npm --workspace liber-cli test",
+    "pack:cli": "npm --cache ./.npm-cache --workspace liber-cli pack --dry-run",
     "test": "npm run typecheck && npm run test:cli",
     "dev:api": "npm run build && wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy",

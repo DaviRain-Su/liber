@@ -2,6 +2,15 @@
 
 ## Commands
 
+## Package Contract
+
+- npm package name: `liber-cli`.
+- CLI binary: `liber`.
+- Published files: `bin/`, `src/`, `README.md`, `LICENSE`.
+- Runtime: Node.js `>=20`.
+- Dependencies: none beyond Node standard library.
+- Public API export: `import { inspectEpub } from "liber-cli"`.
+
 ### `liber license explain`
 
 Prints the publish policy. Exit `0`.

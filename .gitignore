@@ -10,3 +10,4 @@ move/build/
 *.log
 npm-debug.log*
 .gstack/
+.npm-cache/

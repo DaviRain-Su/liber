@@ -120,7 +120,7 @@ Liber's publish policy is intentionally narrow: publishable source books must be
 all-rights-reserved content are rejected because they add downstream attribution,
 share-alike, non-commercial, or unclear reuse obligations.
 
-Use the local CLI before calling the admin ingest endpoint:
+Use the CLI before calling the admin ingest endpoint. In this repo:
 
 ```bash
 npm run cli -- license explain
@@ -133,6 +133,14 @@ npm run cli -- book package ./books/dao.epub \
   --license PUBLIC-DOMAIN \
   --out ./books/dao.liber-manifest.json
 npm run cli -- book publish ./books/dao.liber-manifest.json --dry-run
+```
+
+The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
+can be published to npm and installed by curators or agents:
+
+```bash
+npm install -g liber-cli
+liber book inspect ./books/dao.epub --json
 ```
 
 Use the admin ingest endpoint after setting `ADMIN_TOKEN`:

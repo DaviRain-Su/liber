@@ -8,6 +8,7 @@
 - `verify-license` accepts explicit `PUBLIC-DOMAIN`.
 - `package` writes a manifest with schema `liber.book-manifest.v1`.
 - `publish --dry-run` prints a plan and exits `0`.
+- `npm pack --dry-run` succeeds for the standalone package.
 
 ## Boundary
 
@@ -21,3 +22,5 @@
 - Unknown license evidence is rejected.
 - Wrong file extension is irrelevant; invalid ZIP still fails.
 - `publish` without `--dry-run` exits non-zero.
+- The root application package remains private while `packages/liber-cli` is
+  publishable.
