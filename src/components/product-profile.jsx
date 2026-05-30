@@ -8,6 +8,18 @@ import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
    (others). Others get a working 关注/已关注 button; my own profile gets
    编辑资料 / 退出 + a 关注中 list of the friends I follow. */
 const { useState: useSp, useEffect: useEpf } = React;
+const EMPTY_ME = {
+  name: "未登录读者",
+  handle: "@login",
+  color: "#3a4fb0",
+  seal: "读",
+  bio: "登录后可同步书架、笔记、关注和链上记录。",
+  wallet: "未连接钱包",
+  stats: { read:0, finished:0, lines:0, notes:0, agreed:0, followers:0, following:0 },
+  reading: [],
+  finished: [],
+  publicNotes: [],
+};
 
 /* live view of who I follow, synced across the app */
 function useFollowSet(){
@@ -21,10 +33,10 @@ function useFollowSet(){
 }
 
 function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
-  const isMe = !userId || userId === window.ME.name;
+  const isMe = !userId || userId === window.ME.name || userId === authUser?.id;
 
   /* my own identity, hydrated from the signed-in account / backend */
-  const [me, setMe] = useSp(window.ME);
+  const [me, setMe] = useSp(authUser ? window.ME : EMPTY_ME);
   const [hasAccount, setHasAccount] = useSp(!!authUser);
   useEpf(() => {
     if (authUser) {
@@ -39,6 +51,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
         setMe(m => ({ ...m, ...r.user, stats: r.user.stats || m.stats }));
         setHasAccount(true);
       } else {
+        setMe(EMPTY_ME);
         setHasAccount(false);
       }
     }).catch(() => {});
@@ -61,14 +74,50 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
     return () => { live = false; };
   }, [isMe]);
 
-  const person = isMe ? me : (window.PEOPLE || {})[userId];
+  const seedPerson = !isMe ? (window.PEOPLE || {})[userId] : null;
+  const [remotePerson, setRemotePerson] = useSp(null);
+  const [remoteFollowing, setRemoteFollowing] = useSp(false);
+  const [profileLoading, setProfileLoading] = useSp(false);
+  useEpf(() => {
+    setRemotePerson(null);
+    setRemoteFollowing(false);
+    setProfileLoading(false);
+    if (isMe || seedPerson || !userId || !window.liberApi?.readers?.get) return;
+    let live = true;
+    setProfileLoading(true);
+    window.liberApi.readers.get(userId)
+      .then((r) => {
+        if (!live) return;
+        setRemotePerson(r?.person || null);
+        setRemoteFollowing(!!r?.following);
+      })
+      .catch(() => { if (live) setRemotePerson(null); })
+      .finally(() => { if (live) setProfileLoading(false); });
+    return () => { live = false; };
+  }, [isMe, seedPerson, userId]);
+
+  const [remoteFollowingList, setRemoteFollowingList] = useSp([]);
+  useEpf(() => {
+    if (!isMe || !window.liberApi?.readers?.following) return;
+    let live = true;
+    const load = () => {
+      window.liberApi.readers.following()
+        .then((r) => { if (live && Array.isArray(r?.readers)) setRemoteFollowingList(r.readers); })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener("liber-following", load);
+    return () => { live = false; window.removeEventListener("liber-following", load); };
+  }, [isMe]);
+
+  const person = isMe ? me : (remotePerson || seedPerson);
 
   if (!person){
     return (
       <div className="app-screen">
         <div className="pf"><div className="pf-wrap" style={{ paddingTop:60 }}>
           <button className="btn btn-ghost" onClick={onBack}>{I.left} 返回</button>
-          <p className="muted" style={{ marginTop:24, fontSize:18 }}>没有找到这位读者的主页。</p>
+          <p className="muted" style={{ marginTop:24, fontSize:18 }}>{profileLoading ? "正在加载读者主页…" : "没有找到这位读者的主页。"}</p>
         </div></div>
       </div>
     );
@@ -83,8 +132,8 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
     : (person.reading || []).map(r => ({ ...byId(r.id), at:r.at })).filter(b => b && b.id);
   const finished = (person.finished || []).map(byId).filter(Boolean);
   const realStats = isMe && summary?.stats
-    ? { ...person.stats, ...summary.stats, followers: 0, following: followSet.length }
-    : person.stats;
+    ? { ...person.stats, ...summary.stats, followers: person.stats?.followers || 0, following: remoteFollowingList.length || person.stats?.following || 0 }
+    : person.stats || {};
 
   /* normalize public notes to {q,t,book,chap,when};
      for my own profile, only surface notes whose book is in the live catalog */
@@ -95,17 +144,29 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
     ? (window.SEED_HL || []).filter(h => h.note && catalogTitles.has(h.book)).map(h => ({ q:h.t, t:h.note, book:h.book, chap:h.chap, when:h.when }))
     : (person.publicNotes || []);
 
-  const following = !isMe && followSet.includes(person.name);
-  const onToggleFollow = () => window.toggleFollow(person.name);
+  const following = !isMe && (person.id ? remoteFollowing : followSet.includes(person.name));
+  const onToggleFollow = () => {
+    if (person.id && window.liberApi?.readers?.follow) {
+      window.liberApi.readers.follow(person.id).then((r) => {
+        setRemoteFollowing(!!r?.following);
+        setRemotePerson((p) => p ? ({ ...p, stats: { ...(p.stats || {}), followers: r?.followerCount ?? p.stats?.followers ?? 0 } }) : p);
+        window.dispatchEvent(new Event("liber-following"));
+      }).catch(() => {});
+      return;
+    }
+    window.toggleFollow(person.name);
+  };
 
   /* live counts */
-  const followingCount = isMe ? followSet.length : (realStats.following || 0);
-  const followerCount = isMe ? realStats.followers : (realStats.followers || 0) + (following ? 1 : 0);
+  const followingCount = isMe ? (remoteFollowingList.length || followSet.length) : (realStats.following || 0);
+  const followerCount = isMe ? realStats.followers : (person.id ? (realStats.followers || 0) : (realStats.followers || 0) + (following ? 1 : 0));
 
   const Stat = ({ n, l }) => <div className="pf-stat"><div className="n">{n}</div><div className="l">{l}</div></div>;
 
   /* people I follow, as full records */
-  const followedPeople = followSet.map(n => (window.PEOPLE || {})[n]).filter(Boolean);
+  const followedPeople = remoteFollowingList.length
+    ? remoteFollowingList
+    : followSet.map(n => (window.PEOPLE || {})[n]).filter(Boolean);
 
   return (
     <div className="app-screen">
@@ -204,7 +265,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
           {tab === "following" && isMe && (
             <div className="pf-follow-list">
               {followedPeople.map(p => (
-                <FollowRow key={p.name} p={p} following={followSet.includes(p.name)} />
+                <FollowRow key={p.id || p.name} p={p} following />
               ))}
               {followedPeople.length === 0 && (
                 <div className="pf-empty">
@@ -222,15 +283,23 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
 
 /* one row in my 关注中 list */
 function FollowRow({ p, following }){
+  const target = p.id ? { userId: p.id, name: p.name } : p.name;
+  const toggle = () => {
+    if (p.id && window.liberApi?.readers?.follow) {
+      window.liberApi.readers.follow(p.id).finally(() => window.dispatchEvent(new Event("liber-following")));
+    } else {
+      window.toggleFollow(p.name);
+    }
+  };
   return (
     <div className="pf-frow">
-      <span className="ava" style={{ background:p.color }} onClick={()=>window.openProfile(p.name)}>{p.seal}</span>
-      <div className="pf-frow-main" onClick={()=>window.openProfile(p.name)}>
+      <span className="ava" style={{ background:p.color }} onClick={()=>window.openProfile(target)}>{p.seal}</span>
+      <div className="pf-frow-main" onClick={()=>window.openProfile(target)}>
         <div className="nm">{p.name} <span className="hd">{p.handle}</span></div>
         <div className="bio">{p.bio}</div>
-        <div className="meta">{p.stats.followers.toLocaleString()} 关注者 · 读完 {p.stats.finished} 本</div>
+        <div className="meta">{(p.stats?.followers || 0).toLocaleString()} 关注者 · 读完 {p.stats?.finished || 0} 本</div>
       </div>
-      <button className={following ? "btn btn-ghost pf-follow on" : "btn btn-primary pf-follow"} onClick={()=>window.toggleFollow(p.name)}>
+      <button className={following ? "btn btn-ghost pf-follow on" : "btn btn-primary pf-follow"} onClick={toggle}>
         {following ? "已关注" : "+ 关注"}
       </button>
     </div>

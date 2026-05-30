@@ -46,7 +46,8 @@ function App(){
     window.addEventListener("liber-show-onboarding", o);
     /* click an avatar anywhere → open that reader's profile, remembering where we came from */
     const p = (e) => { setReader(null); setSearch(false); setAgentView(null);
-      setRoute(r => ({ screen:"profile", userId: e.detail, from: r.screen === "profile" ? r.from : r.screen })); };
+      const d = typeof e.detail === "object" && e.detail ? e.detail : { userId: e.detail };
+      setRoute(r => ({ screen:"profile", userId: d.userId || d.name, from: r.screen === "profile" ? r.from : r.screen })); };
     window.addEventListener("liber-open-profile", p);
     return () => { window.removeEventListener("liber-device", h); window.removeEventListener("liber-show-onboarding", o); window.removeEventListener("liber-open-profile", p); };
   }, []);

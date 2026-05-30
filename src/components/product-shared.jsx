@@ -59,7 +59,7 @@ function Cover({ book, className = "", style }){
 /* ---- Top app bar ---- */
 function AppBar({ active, onNav, onHome, onToggleTheme, isDark, onSearch, onProfile, onAgentView, agentOn, user, onLogout }){
   const links = [["library","书库"],["charts","榜单"],["shelf","我的书架"],["notes","笔记"],["social","共读"]];
-  const ava = user?.seal || user?.name?.slice(0, 1) || "林";
+  const ava = user?.seal || user?.name?.slice(0, 1) || "读";
   return (
     <div className="appbar">
       <div className="brand" onClick={onHome || (() => onNav("library"))} title="回到首页">
@@ -112,17 +112,31 @@ function MobileTabBar({ active, onNav }){
 }
 
 /* ---- Profile navigation + follow store (shared via window across screens) ---- */
-function canOpenProfile(name){
-  return !!((window.PEOPLE && window.PEOPLE[name]) || (window.ME && name === window.ME.name));
+function profileTarget(input){
+  if (!input) return null;
+  if (typeof input === "object") {
+    const userId = input.userId || input.id;
+    const name = input.name || input.u;
+    if (userId || name) return { userId, name };
+    return null;
+  }
+  const name = String(input);
+  if (name.startsWith("u_")) return { userId: name };
+  if ((window.PEOPLE && window.PEOPLE[name]) || (window.ME && name === window.ME.name)) return { name };
+  return null;
 }
-function openProfile(name){
-  if (!canOpenProfile(name)) return;
-  window.dispatchEvent(new CustomEvent("liber-open-profile", { detail: name }));
+function canOpenProfile(input){
+  return !!profileTarget(input);
+}
+function openProfile(input){
+  const target = profileTarget(input);
+  if (!target) return;
+  window.dispatchEvent(new CustomEvent("liber-open-profile", { detail: target }));
 }
 const FOLLOW_KEY = "liber.following";
 function readFollow(){
-  try { const v = JSON.parse(localStorage.getItem(FOLLOW_KEY)); return Array.isArray(v) ? v : (window.FOLLOW_SEED || []); }
-  catch { return window.FOLLOW_SEED || []; }
+  try { const v = JSON.parse(localStorage.getItem(FOLLOW_KEY)); return Array.isArray(v) ? v : []; }
+  catch { return []; }
 }
 function writeFollow(list){
   localStorage.setItem(FOLLOW_KEY, JSON.stringify(list));

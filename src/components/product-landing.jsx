@@ -337,21 +337,21 @@ function Landing({ onEnter, onSignIn }) {
               <p style={{ marginBottom: 6 }}>选中任意一句，写下批注。其他读者读到同一句时，能看见你的想法。</p>
               <div className="anno-quote">「<span className="marked">天下皆知美之为美，斯恶已。</span>」<span className="muted" style={{ fontSize: 15, fontStyle: "normal" }}>— 道德经 · 第二章</span></div>
               <div className="note">
-                <div className="ava" style={{ background: "#3a4fb0" }}>林</div>
-                <div className="nb"><div className="nm">林知秋</div><div className="tx">美与丑是同时被定义出来的——一旦立了标准，对立面就跟着诞生了。</div><div className="mt">12 人赞同 · 3 条回复</div></div>
+                <div className="ava" style={{ background: "#3a4fb0" }}>读</div>
+                <div className="nb"><div className="nm">读者批注</div><div className="tx">美与丑是同时被定义出来的——一旦立了标准，对立面就跟着诞生了。</div><div className="mt">赞同与回复来自真实读者</div></div>
               </div>
               <div className="note">
                 <div className="ava" style={{ background: "var(--accent)" }}>AI</div>
-                <div className="nb"><div className="nm">书友 · AI</div><div className="tx">这正是老子的「相对」观。可与第二章后文「有无相生，难易相成」连起来读。</div><div className="mt">由 23 位读者收藏进笔记</div></div>
+                <div className="nb"><div className="nm">书友 · AI</div><div className="tx">这正是老子的「相对」观。可与第二章后文「有无相生，难易相成」连起来读。</div><div className="mt">可收藏进笔记</div></div>
               </div>
             </div>
             <div className="card col-5 reveal d2">
               <div className="c-k">热门划线</div>
               <h3>被最多人记住的句子</h3>
               <div style={{ marginTop: 18 }}>
-                <div className="hi-row"><div className="rank">1</div><div><div className="q">「知人者智，自知者明。」</div><div className="c">道德经 · 第三十三章 · 8,402 人划线</div></div></div>
-                <div className="hi-row"><div className="rank">2</div><div><div className="q">「我们感受到的不是事物本身，而是我们对它的看法。」</div><div className="c">沉思录 · 卷四 · 6,118 人划线</div></div></div>
-                <div className="hi-row"><div className="rank">3</div><div><div className="q">「我们的晚餐并非来自屠夫的恩惠，而是出于他对自身利益的考虑。」</div><div className="c">国富论 · 第一篇 · 5,277 人划线</div></div></div>
+                <div className="hi-row"><div className="rank">1</div><div><div className="q">「知人者智，自知者明。」</div><div className="c">真实划线产生后更新排行</div></div></div>
+                <div className="hi-row"><div className="rank">2</div><div><div className="q">「我们感受到的不是事物本身，而是我们对它的看法。」</div><div className="c">真实划线产生后更新排行</div></div></div>
+                <div className="hi-row"><div className="rank">3</div><div><div className="q">「我们的晚餐并非来自屠夫的恩惠，而是出于他对自身利益的考虑。」</div><div className="c">真实划线产生后更新排行</div></div></div>
               </div>
             </div>
             <div className="card col-12 reveal d1" style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 36, alignItems: "center" }}>
@@ -440,7 +440,7 @@ function Landing({ onEnter, onSignIn }) {
             <button className="btn btn-primary" onClick={onEnter}>开始阅读 <span className="arr">→</span></button>
             <button className="btn btn-ghost" onClick={onSignIn}>连接钱包登录</button>
           </div>
-          <p className="muted reveal d3" style={{ fontFamily: "var(--mono)", fontSize: 12, marginTop: 18, letterSpacing: ".04em" }}>★ 已有 3,140 位读者在等候 · GitHub 开源仓库即将公开</p>
+          <p className="muted reveal d3" style={{ fontFamily: "var(--mono)", fontSize: 12, marginTop: 18, letterSpacing: ".04em" }}>★ 真实馆藏与链上记录持续接入中</p>
         </div>
       </section>
 

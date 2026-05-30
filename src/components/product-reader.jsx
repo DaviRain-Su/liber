@@ -10,6 +10,9 @@ import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks } from "../lib/ca
    others' annotations, AI companion drawer, TOC, settings, progress.
    Three layouts: classic | archive | immersive. */
 const { useState: useS, useEffect: useE, useRef: useR, useCallback: useCb } = React;
+const profileRef = (x) => x?.userId ? { userId:x.userId, name:x.u || x.name } : (x?.u || x?.name || x);
+const canProfile = (x) => window.canOpenProfile(profileRef(x));
+const openProfile = (x) => window.openProfile(profileRef(x));
 
 /* ---- AI canned brain (mode-aware) ---- */
 const AI_MODES = [
@@ -281,7 +284,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const addNote = (sid) => {
     if (!noteDraft.trim()) return;
     const text = noteDraft.trim();
-    setNotes(prev => ({ ...prev, [sid]: [ ...(prev[sid]||[]), { u:"林知秋", color:"#3a4fb0", t: text, up:0, replies:0, mine:true } ] }));
+    setNotes(prev => ({ ...prev, [sid]: [ ...(prev[sid]||[]), { u:"你", color:"#3a4fb0", t: text, up:0, replies:0, mine:true } ] }));
     if (window.liberApi) window.liberApi.reading.note(book.id, sid, text).catch(() => {});
     setNoteDraft("");
   };
@@ -477,7 +480,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
               <div className="np-list">
                 {list.map((n,i) => (
                   <div className="np-note" key={i}>
-                    <div className={"ava"+(n.ai?" agent":"")+(!n.ai&&window.canOpenProfile(n.u)?" ava-link":"")} style={{ background: n.color }} onClick={!n.ai&&window.canOpenProfile(n.u)?()=>window.openProfile(n.u):undefined}>{n.ai ? "AI" : n.u[0]}</div>
+                    <div className={"ava"+(n.ai?" agent":"")+(!n.ai&&canProfile(n)?" ava-link":"")} style={{ background: n.color }} onClick={!n.ai&&canProfile(n)?()=>openProfile(n):undefined}>{n.ai ? "AI" : n.u[0]}</div>
                     <div>
                       <ProvBadge note={n} mine={n.mine}/>
                       <div className="tx">{n.t}</div>
@@ -628,7 +631,7 @@ function ShareComposer({ book, ch, aiCtx, feed, continueConvo, onClose, onPublis
   const draftConvo = {
     id: "draft", form, bookT: book.t, seal: book.seal, chap: `第 ${ch.n} 章 · ${ch.title}`,
     quote, title: msgs.find(m=>m.r==="q")?.t, insight,
-    author: { name: window.ME?.name || "林知秋", ava: window.ME?.seal || "林", color: window.ME?.color || "#3a4fb0" },
+    author: { name: "你", ava: "读", color: "#3a4fb0" },
     forks: 0, agree: 0, comments: 0, saves: 0, when: "刚刚", msgs,
   };
 

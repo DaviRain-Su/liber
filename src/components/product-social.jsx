@@ -15,22 +15,27 @@ function branchConvo(convo, path){
   const tip = path[path.length - 1];
   return {
     ...convo,
-    author: { name: tip.name, ava: tip.ava, color: tip.color },
+    author: { id: tip.userId, userId: tip.userId, name: tip.name, ava: tip.ava, color: tip.color },
     msgs: [...(convo.msgs || []), ...path.map(n => ({ r: "q", t: n.q }))],
     branchOf: convo.id,
     branchName: tip.name,
   };
 }
 
+const profileRef = (x) => x?.userId ? { userId:x.userId, name:x.u || x.name } : (x?.u || x?.name || x);
+const canProfile = (x) => window.canOpenProfile(profileRef(x));
+const openProfile = (x) => window.openProfile(profileRef(x));
+
 function Social({ onOpenBook, onOpenGroup, onContinue }){
   const [tab, setTab] = useSs("feed"); // feed | convos | groups
   const [thread, setThread] = useSs(null); // open discussion overlay
   const hasLiveCatalog = getCatalogBooks().some((b) => b.dynamic);
+  const allowSeedFallback = !window.liberApi && !hasLiveCatalog;
   const [apiFeed, setApiFeed] = useSs(null);
   const [apiGroups, setApiGroups] = useSs(null);
-  const feed = apiFeed || (hasLiveCatalog ? [] : window.FEED || []);
-  const hot = hasLiveCatalog ? [] : window.HIGHLIGHTS || [];
-  const groups = apiGroups || (hasLiveCatalog ? [] : window.GROUPS || []);
+  const feed = apiFeed || (allowSeedFallback ? window.FEED || [] : []);
+  const hot = allowSeedFallback ? window.HIGHLIGHTS || [] : [];
+  const groups = apiGroups || (allowSeedFallback ? window.GROUPS || [] : []);
   /* shared conversations: backend (/api/shares) with localStorage+seed fallback */
   let published = []; try { published = JSON.parse(localStorage.getItem("liber.shared")) || []; } catch {}
   const [apiConvos, setApiConvos] = useSs(null);
@@ -40,7 +45,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
     window.liberApi.feed().then(r => { if (r && Array.isArray(r.feed)) setApiFeed(r.feed); }).catch(() => {});
     window.liberApi.groups.list().then(r => { if (r && Array.isArray(r.groups)) setApiGroups(r.groups); }).catch(() => {});
   }, []);
-  const convos = apiConvos || [...published, ...(hasLiveCatalog ? [] : window.SHARED_CONVOS || [])];
+  const convos = apiConvos || [...published, ...(allowSeedFallback ? window.SHARED_CONVOS || [] : [])];
   const [expanded, setExpanded] = useSs(null);   // convo id
   const [forkTree, setForkTree] = useSs(null);   // convo whose tree is open
   const [saved, setSaved] = useSs(() => { try { return JSON.parse(localStorage.getItem("liber.saved.convos")) || []; } catch { return []; } });
@@ -163,13 +168,12 @@ function EmptySocial({ text, compact }){
 }
 
 function FeedCard({ f, onOpenThread, onOpenBook, onOpenGroup }){
-  const who = f.u;
-  const canOpen = window.canOpenProfile(who);
+  const canOpen = canProfile(f);
   const head = (
     <div className="fc-top">
-      <div className={"ava"+(canOpen?" ava-link":"")} style={{ background:f.color }} onClick={canOpen?()=>window.openProfile(who):undefined}>{f.u==="书友 · AI"?"AI":f.u[0]}</div>
+      <div className={"ava"+(canOpen?" ava-link":"")} style={{ background:f.color }} onClick={canOpen?()=>openProfile(f):undefined}>{f.u==="书友 · AI"?"AI":f.u[0]}</div>
       <div className="fc-who">
-        <div className={"fc-u"+(canOpen?" name-link":"")} onClick={canOpen?()=>window.openProfile(who):undefined}>{f.u}</div>
+        <div className={"fc-u"+(canOpen?" name-link":"")} onClick={canOpen?()=>openProfile(f):undefined}>{f.u}</div>
         <div className="fc-act">
           {f.kind==="anno" && <>批注了 <b>{f.book}</b> · {f.chap}</>}
           {f.kind==="highlight" && <>划线了 <b>{f.book}</b> · {f.chap}</>}
@@ -208,7 +212,7 @@ function ThreadOverlay({ thread, onClose }){
   const add = () => {
     if(!draft.trim()) return;
     const text = draft.trim();
-    setReplies(r => [...r, { u:"林知秋", color:"#3a4fb0", when:"刚刚", t:text, up:0, mine:true }]);
+    setReplies(r => [...r, { u:"你", color:"#3a4fb0", when:"刚刚", t:text, up:0, mine:true }]);
     if (window.liberApi && thread.key) window.liberApi.thread.reply(thread.key, text).catch(() => {});
     setDraft("");
   };
@@ -223,9 +227,9 @@ function ThreadOverlay({ thread, onClose }){
         <div className="tm-quote">「{thread.quote}」</div>
         <div className="tm-body">
           <div className="tm-note root">
-            <div className={"ava"+(window.canOpenProfile(thread.root.u)?" ava-link":"")} style={{ background:thread.root.color }} onClick={window.canOpenProfile(thread.root.u)?()=>window.openProfile(thread.root.u):undefined}>{thread.root.u[0]}</div>
+            <div className={"ava"+(canProfile(thread.root)?" ava-link":"")} style={{ background:thread.root.color }} onClick={canProfile(thread.root)?()=>openProfile(thread.root):undefined}>{thread.root.u[0]}</div>
             <div className="nb2">
-              <div className="nm"><span className={window.canOpenProfile(thread.root.u)?"name-link":""} onClick={window.canOpenProfile(thread.root.u)?()=>window.openProfile(thread.root.u):undefined}>{thread.root.u}</span> <span className="when">{thread.root.when}</span></div>
+              <div className="nm"><span className={canProfile(thread.root)?"name-link":""} onClick={canProfile(thread.root)?()=>openProfile(thread.root):undefined}>{thread.root.u}</span> <span className="when">{thread.root.when}</span></div>
               <div className="tx">{thread.root.t}</div>
               <div className="mt"><span>{I.up} 赞同 {thread.root.up}</span><span>回复</span></div>
             </div>
@@ -233,9 +237,9 @@ function ThreadOverlay({ thread, onClose }){
           <div className="tm-replies">
             {replies.map((r,i) => (
               <div className="tm-note" key={i}>
-                <div className={"ava"+(window.canOpenProfile(r.u)?" ava-link":"")} style={{ background:r.color }} onClick={window.canOpenProfile(r.u)?()=>window.openProfile(r.u):undefined}>{r.ai?"AI":r.u[0]}</div>
+                <div className={"ava"+(canProfile(r)?" ava-link":"")} style={{ background:r.color }} onClick={canProfile(r)?()=>openProfile(r):undefined}>{r.ai?"AI":r.u[0]}</div>
                 <div className="nb2">
-                  <div className="nm"><span className={window.canOpenProfile(r.u)?"name-link":""} onClick={window.canOpenProfile(r.u)?()=>window.openProfile(r.u):undefined}>{r.u}</span>{r.mine&&" · 你"} <span className="when">{r.when}</span></div>
+                  <div className="nm"><span className={canProfile(r)?"name-link":""} onClick={canProfile(r)?()=>openProfile(r):undefined}>{r.u}</span>{r.mine&&" · 你"} <span className="when">{r.when}</span></div>
                   <div className="tx">{r.t}</div>
                   <div className="mt"><span>{I.up} 赞同 {r.up}</span><span>回复</span></div>
                 </div>
@@ -265,7 +269,7 @@ function CommentsPanel({ targetType, targetId }){
   }, [targetId]);
   const add = () => {
     const t = draft.trim(); if (!t) return;
-    setList(l => [ ...(l || []), { id:"local"+Date.now(), u:"林知秋", color:"#3a4fb0", t, up:0, when:"刚刚", mine:true } ]);
+    setList(l => [ ...(l || []), { id:"local"+Date.now(), u:"你", color:"#3a4fb0", t, up:0, when:"刚刚", mine:true } ]);
     if (window.liberApi) window.liberApi.comments.add(targetType, targetId, t).catch(() => {});
     setDraft("");
   };
@@ -288,9 +292,9 @@ function CommentsPanel({ targetType, targetId }){
         {list && list.length === 0 && <div style={{ fontSize:13, opacity:.55, fontStyle:"italic" }}>还没有评论。来写第一条。</div>}
         {list && list.map(cm => (
           <div style={row} key={cm.id}>
-            <span style={av(cm.color || "#3a4fb0")}>{String(cm.u || "读")[0]}</span>
+            <span className={canProfile(cm) ? "ava-link" : ""} style={av(cm.color || "#3a4fb0")} onClick={canProfile(cm) ? () => openProfile(cm) : undefined}>{cm.seal || String(cm.u || "读")[0]}</span>
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:12, opacity:.6 }}>{cm.u}{cm.mine && " · 你"} <span style={{ marginLeft:6 }}>{cm.when}</span>{cm.walrus && <span title={cm.walrus} style={{ marginLeft:6, color:"var(--accent)" }}>· 已存证</span>}</div>
+              <div style={{ fontSize:12, opacity:.6 }}><span className={canProfile(cm) ? "name-link" : ""} onClick={canProfile(cm) ? () => openProfile(cm) : undefined}>{cm.u}</span>{cm.mine && " · 你"} <span style={{ marginLeft:6 }}>{cm.when}</span>{cm.walrus && <span title={cm.walrus} style={{ marginLeft:6, color:"var(--accent)" }}>· 已存证</span>}</div>
               <div style={{ fontSize:14, lineHeight:1.6 }}>{cm.t}</div>
               <div style={{ fontSize:12, marginTop:2, cursor:"pointer", color: upvoted.includes(cm.id) ? "var(--accent)" : "inherit", opacity:.7, display:"inline-flex", alignItems:"center", gap:3 }} onClick={() => upvote(cm.id)}>{I.up} 赞同 {cm.up || 0}</div>
             </div>

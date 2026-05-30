@@ -78,6 +78,13 @@ export const api = {
   annotations: (bookId, sid) => get(`/annotations/${bookId}/${sid}`),
   feed: () => get("/feed"),
 
+  readers: {
+    list: () => get("/readers"),
+    get: (id) => get(`/readers/${encodeURIComponent(id)}`),
+    following: () => get("/readers/following"),
+    follow: (id) => post(`/readers/${encodeURIComponent(id)}/follow`),
+  },
+
   shares: {
     list: () => get("/shares"),
     publish: (payload) => post("/shares", payload),

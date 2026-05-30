@@ -11,16 +11,11 @@ function buildSentenceIndex(){
   (window.CHAPTERS||[]).forEach(c => c.paras.flat().forEach(s => out.push({ t:s.t, book:"道德经", bookId:"daodejing", chap:"第"+c.n+"章", n:c.n })));
   return out;
 }
-const PEOPLE = [
-  { u:"沈砚", color:"#2e7d57", bio:"睡前读一章，三周读完道德经", lines:182 },
-  { u:"周慕白", color:"#9a5b2e", bio:"被苏格拉底模式反问着读完", lines:240 },
-  { u:"叶临", color:"#7a3d6b", bio:"喜欢看别人在同句旁的批注", lines:96 },
-  { u:"陈砚之", color:"#b0553a", bio:"古典经济学共读发起人", lines:311 },
-];
 
 function SearchOverlay({ initial, onClose, onOpenBook }){
   const [q, setQ] = useSse(initial || "");
   const [apiRes, setApiRes] = useSse(null);
+  const [readers, setReaders] = useSse([]);
   const [catalog, setCatalog] = useSse(() => getCatalogBooks());
   const inputRef = useRse(null);
   const sentences = useMse(() => buildSentenceIndex(), []);
@@ -31,6 +26,12 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
     loadCatalogBooks().then(setCatalog).catch(() => {});
     return off;
   }, []);
+  useEse(() => {
+    if (!window.liberApi?.readers?.list) return;
+    window.liberApi.readers.list()
+      .then((r) => { if (Array.isArray(r?.readers)) setReaders(r.readers); })
+      .catch(() => {});
+  }, []);
 
   const term = q.trim();
   useEse(() => {
@@ -40,13 +41,14 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
     return () => clearTimeout(id);
   }, [term]);
   const useApi = apiRes && apiRes.term === term;
+  const allowSeedFallback = !window.liberApi;
   const books = term
-    ? (useApi && Array.isArray(apiRes.books) ? apiRes.books : catalog.filter(b => b.t.includes(term) || b.a.includes(term) || (b.sub || "").toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term)))
-    : catalog.slice(0,4);
+    ? (useApi && Array.isArray(apiRes.books) ? apiRes.books : allowSeedFallback ? catalog.filter(b => b.t.includes(term) || b.a.includes(term) || (b.sub || "").toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term)) : [])
+    : (allowSeedFallback ? catalog : catalog.filter(b => b.dynamic)).slice(0,4);
   const sents = term
-    ? (useApi && Array.isArray(apiRes.sentences) ? apiRes.sentences : sentences.filter(s => s.t.includes(term)))
+    ? (useApi && Array.isArray(apiRes.sentences) ? apiRes.sentences : allowSeedFallback ? sentences.filter(s => s.t.includes(term)) : [])
     : [];
-  const people = term ? PEOPLE.filter(p => p.u.includes(term) || p.bio.includes(term)) : [];
+  const people = term ? readers.filter(p => (p.name || "").includes(term) || (p.handle || "").includes(term) || (p.bio || "").includes(term)) : [];
   const empty = term && !books.length && !sents.length && !people.length;
 
   const hi = (text) => {
@@ -98,10 +100,10 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
             <div className="sm-sec">
               <div className="sm-h">读者 · {people.length}</div>
               {people.map((p,i) => (
-                <div className="sm-person" key={i}>
-                  <div className="ava" style={{background:p.color}}>{p.u[0]}</div>
-                  <div><div className="nm">{hi(p.u)}</div><div className="pb">{hi(p.bio)} · {p.lines} 划线</div></div>
-                  <button className="btn btn-ghost sm-follow">关注</button>
+                <div className="sm-person" key={p.id || i} onClick={() => { window.openProfile({ userId:p.id, name:p.name }); onClose(); }}>
+                  <div className="ava" style={{background:p.color}}>{p.seal || String(p.name || "读")[0]}</div>
+                  <div><div className="nm">{hi(p.name || "读者")}</div><div className="pb">{hi(p.bio || "")} · {p.stats?.lines || 0} 划线</div></div>
+                  <button className="btn btn-ghost sm-follow" onClick={(e) => { e.stopPropagation(); window.liberApi?.readers?.follow?.(p.id).catch(()=>{}); }}>关注</button>
                 </div>
               ))}
             </div>

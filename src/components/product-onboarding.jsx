@@ -50,7 +50,7 @@ function Onboarding({ onFinish }){
   };
   const passkey = () => {
     setConnecting("passkey");
-    setTimeout(() => { setConnecting(null); setAccount({ wallet:"通行密钥", addr:"passkey · 林知秋" }); setStep(3); }, 1200);
+    setTimeout(() => { setConnecting(null); setAccount({ wallet:"通行密钥", addr:"passkey" }); setStep(3); }, 1200);
   };
   const togglePick = (k) => setPicks(p => p.includes(k) ? p.filter(x=>x!==k) : [...p, k]);
 

@@ -15,12 +15,19 @@ const CC_ICO = {
   x: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m6 6 12 12M18 6 6 18"/></svg>,
 };
 
+const profileRef = (x) => x?.userId || x?.id ? { userId:x.userId || x.id, name:x.name } : (x?.name || x);
+const canProfile = (x) => window.canOpenProfile(profileRef(x));
+const openProfile = (x) => window.openProfile(profileRef(x));
+
 function CCForkTree({ convo, onOpenTree }){
-  const cs = [["沈","#2e7d57"],["周","#9a5b2e"],["叶","#7a3d6b"]];
+  const nodes = [];
+  const collect = (arr = []) => arr.forEach((n) => { nodes.push(n); collect(n.children || []); });
+  collect(convo.tree || []);
+  const cs = nodes.slice(0, 3).map((n) => [n.ava || String(n.name || "读")[0], n.color || "#3a4fb0"]);
   const clickable = !!(onOpenTree && convo.forks > 0);
   return (
     <div className={"cf-tree"+(clickable?" link":"")} onClick={clickable ? (e)=>{ e.stopPropagation(); onOpenTree(convo); } : undefined}>
-      <span className="dots">{cs.map(([n,c],i)=><i key={i} style={{background:c}}>{n}</i>)}</span>
+      {cs.length > 0 && <span className="dots">{cs.map(([n,c],i)=><i key={i} style={{background:c}}>{n}</i>)}</span>}
       被 {convo.forks} 人接着问过{clickable && " · 看对话树"}
     </div>
   );
@@ -64,8 +71,8 @@ function ConvoCardForm({ convo, expanded, onToggleExpand, onFork, onSave, saved,
       {!expanded && convo.msgs.length>3 && <div className="more-turns" onClick={onToggleExpand}>展开全部 {convo.msgs.length} 条对话 ↓</div>}
       <CCFoot convo={convo} onFork={onFork} onSave={onSave} saved={saved} onComment={onComment} onVote={onVote} voted={voted}/>
       <div className="cf-byline">
-        {window.canOpenProfile(convo.author.name)
-          ? <><span className="ava ava-link" style={{background:convo.author.color}} onClick={()=>window.openProfile(convo.author.name)}>{convo.author.ava}</span><span className="name-link" onClick={()=>window.openProfile(convo.author.name)}>{convo.author.name}</span> 在读《{convo.bookT}》时问出</>
+        {canProfile(convo.author)
+          ? <><span className="ava ava-link" style={{background:convo.author.color}} onClick={()=>openProfile(convo.author)}>{convo.author.ava}</span><span className="name-link" onClick={()=>openProfile(convo.author)}>{convo.author.name}</span> 在读《{convo.bookT}》时问出</>
           : <><span className="ava" style={{background:convo.author.color}}>{convo.author.ava}</span>一位读者在读《{convo.bookT}》时问出</>}
       </div>
     </div>
@@ -128,9 +135,9 @@ function TreeNode({ node, onFork, depth, path = [] }){
   return (
     <div className="ft-node">
       <div className="ft-card">
-        <span className={"ava"+(window.canOpenProfile(node.name)?" ava-link":"")} style={{ background: node.color }} onClick={window.canOpenProfile(node.name)?()=>window.openProfile(node.name):undefined}>{node.ava}</span>
+        <span className={"ava"+(canProfile(node)?" ava-link":"")} style={{ background: node.color }} onClick={canProfile(node)?()=>openProfile(node):undefined}>{node.ava}</span>
         <div className="ft-body">
-          <div className="ft-top"><span className={"nm"+(window.canOpenProfile(node.name)?" name-link":"")} onClick={window.canOpenProfile(node.name)?()=>window.openProfile(node.name):undefined}>{node.name}</span><span className="ft-meta">{CC_ICO.up} {node.agree} · 被 {node.forks} 人接着问</span></div>
+          <div className="ft-top"><span className={"nm"+(canProfile(node)?" name-link":"")} onClick={canProfile(node)?()=>openProfile(node):undefined}>{node.name}</span><span className="ft-meta">{CC_ICO.up} {node.agree} · 被 {node.forks} 人接着问</span></div>
           <div className="ft-q">从这里问起：「{node.q}」</div>
           <div className="ft-acts">
             <span onClick={() => onFork(node, here)}>接着 ta 的问 →</span>
@@ -162,7 +169,7 @@ function ForkTreeModal({ convo, onClose, onFork }){
         </div>
         <div className="ft-rootcard">
           <div className="ft-root-q">「{convo.title || convo.insight || convo.msgs[0].t}」</div>
-          <div className="ft-root-by"><span className={"ava"+(window.canOpenProfile(convo.author.name)?" ava-link":"")} style={{background:convo.author.color}} onClick={window.canOpenProfile(convo.author.name)?()=>window.openProfile(convo.author.name):undefined}>{convo.author.ava}</span>原对话 · <span className={window.canOpenProfile(convo.author.name)?"name-link":""} onClick={window.canOpenProfile(convo.author.name)?()=>window.openProfile(convo.author.name):undefined}>{convo.author.name}</span> · {convo.msgs.length} 条</div>
+          <div className="ft-root-by"><span className={"ava"+(canProfile(convo.author)?" ava-link":"")} style={{background:convo.author.color}} onClick={canProfile(convo.author)?()=>openProfile(convo.author):undefined}>{convo.author.ava}</span>原对话 · <span className={canProfile(convo.author)?"name-link":""} onClick={canProfile(convo.author)?()=>openProfile(convo.author):undefined}>{convo.author.name}</span> · {convo.msgs.length} 条</div>
         </div>
         <div className="ft-tree">
           {tree.length === 0
