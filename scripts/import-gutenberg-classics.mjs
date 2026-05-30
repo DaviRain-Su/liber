@@ -170,6 +170,12 @@ const BOOKS = [
   { id: "america-monogatari-gutenberg-ja", pg: 35327, lang: "ja", title: "あめりか物語", category: "日本語 · 小説", expect: "あめりか" },
   { id: "doko-e-gutenberg-ja", pg: 32941, lang: "ja", title: "何處へ", category: "日本語 · 小説", expect: "何處" },
   { id: "horadanshaku-tabi-gutenberg-ja", pg: 34084, lang: "ja", title: "法螺男爵旅土産", category: "日本語 · 小説", expect: "法螺男爵" },
+  { id: "kumon-no-ran-gutenberg-ja", pg: 39287, lang: "ja", title: "苦悶の欄", category: "日本語 · 小説", expect: "苦悶" },
+  { id: "geshukunin-gutenberg-ja", pg: 32978, lang: "ja", title: "下宿人", category: "日本語 · 小説", expect: "下宿人" },
+  { id: "junkyo-shishu-gutenberg-ja", pg: 38697, lang: "ja", title: "殉情詩集", category: "日本語 · 詩集", expect: "殉情" },
+  { id: "akuma-gutenberg-ja", pg: 37605, lang: "ja", title: "惡魔", category: "日本語 · 小説", expect: "惡魔" },
+  { id: "zoku-akuma-gutenberg-ja", pg: 37626, lang: "ja", title: "續惡魔", category: "日本語 · 小説", expect: "續惡魔" },
+  { id: "luther-catechism-gutenberg-ja", pg: 2592, lang: "ja", title: "マルチン・ルターの小信仰問答書", category: "日本語 · 宗教", expect: "ルター" },
 
   { id: "duhovnye-ody-gutenberg-ru", pg: 14741, lang: "ru", title: "Духовные оды", category: "Русский · Поэзия", expect: "Духовные" },
   { id: "pan-tadeusz-gutenberg-pl", pg: 31536, lang: "pl", title: "Pan Tadeusz", category: "Polski · Poezja", expect: "Tadeusz" },
