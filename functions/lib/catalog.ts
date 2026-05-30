@@ -3,6 +3,7 @@ import { all, first, run, id, now } from "./db";
 import { putBlob, getBlob } from "./storage";
 import { chain } from "./chains";
 import * as S from "./seed";
+import { assertPublishableLicense } from "./license";
 
 const COVER_CLASSES = ["ink", "cinnabar", "cream", "indigo", "jade", "slate"];
 
@@ -250,6 +251,7 @@ export async function searchDynamic(env: Env, term: string) {
 export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: string | null) {
   const title = compact(input.title);
   if (!title) throw new Error("书名不能为空");
+  const license = assertPublishableLicense(input.license);
   const bookId = safeId(input.id, title);
   const chapters = (input.chapters?.length ? input.chapters : parseTextChapters(input.text || ""))
     .map((ch, idx) => ({ n: ch.n || idx + 1, title: compact(ch.title) || `第 ${ch.n || idx + 1} 章`, text: chapterText(ch) }))
@@ -278,12 +280,12 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
     id: bookId,
     title,
     author: compact(input.author) || "佚名",
-    license: input.license || "CC0-1.0",
+    license,
     sourceUrl: input.sourceUrl || null,
     chapters: refs.map((r) => ({ n: r.n, title: r.title, walrus: r.ref.walrus, size: r.ref.size })),
   };
   const manifestRef = await putBlob(env, `book/${bookId}/manifest`, JSON.stringify(manifest), "application/json");
-  const chainRef = await chain(env).registerObject(env, { contentId: manifestRef.walrus, kind: "book", license: input.license || "CC0-1.0" });
+  const chainRef = await chain(env).registerObject(env, { contentId: manifestRef.walrus, kind: "book", license });
   const suiIndex = chainRef?.objectId || chainRef?.digest || manifestRef.sui_index;
   if (chainRef) await run(env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, suiIndex, manifestRef.key);
 
@@ -304,7 +306,7 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
        sui_index = excluded.sui_index, updated_at = excluded.updated_at`,
     bookId, title, input.subtitle || "", input.author || "佚名", input.category || "文学 · 诗",
     input.lang || "中文", input.year || "", chapters.length, words, coverClassFor(bookId), input.title[0] || "书",
-    input.blurb || chapters[0].text.slice(0, 90), input.description || "", input.license || "CC0-1.0",
+    input.blurb || chapters[0].text.slice(0, 90), input.description || "", license,
     input.sourceUrl || null, input.featured ? 1 : 0, manifestRef.key, manifestRef.walrus, manifestRef.arweave,
     suiIndex, createdBy || null, now(), now(),
   );

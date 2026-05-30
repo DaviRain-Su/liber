@@ -113,7 +113,27 @@ Future schema changes: add a new SQL file under `migrations/`, wire it into the
 deploys. For local full-stack dev (`wrangler pages dev` + local D1/KV/R2), see
 [BACKEND.md](BACKEND.md).
 
-### Importing Real CC0 Books
+### Importing Real CC0 / Public Domain Books
+
+Liber's publish policy is intentionally narrow: publishable source books must be
+`CC0-1.0` or `PUBLIC-DOMAIN`. `CC BY`, `CC BY-SA`, `CC BY-NC`, unknown, and
+all-rights-reserved content are rejected because they add downstream attribution,
+share-alike, non-commercial, or unclear reuse obligations.
+
+Use the local CLI before calling the admin ingest endpoint:
+
+```bash
+npm run cli -- license explain
+npm run cli -- book inspect ./books/dao.epub --json
+npm run cli -- book verify-license ./books/dao.epub \
+  --source https://example.org/dao.epub \
+  --license PUBLIC-DOMAIN
+npm run cli -- book package ./books/dao.epub \
+  --source https://example.org/dao.epub \
+  --license PUBLIC-DOMAIN \
+  --out ./books/dao.liber-manifest.json
+npm run cli -- book publish ./books/dao.liber-manifest.json --dry-run
+```
 
 Use the admin ingest endpoint after setting `ADMIN_TOKEN`:
 
@@ -133,7 +153,8 @@ curl -XPOST https://<your-domain>/api/books/ingest \
 
 The backend stores chapter blobs in R2, publishes to Walrus when configured,
 writes searchable metadata to D1, and registers the manifest on Sui when
-`SUI_RPC + SUI_SIGNER_KEY + SUI_PACKAGE` are present.
+`SUI_RPC + SUI_SIGNER_KEY + SUI_PACKAGE` are present. The backend also enforces
+the same license allowlist, so direct API calls cannot bypass the CLI policy.
 
 ### Stablecoin Subscriptions
 

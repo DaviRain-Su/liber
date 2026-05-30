@@ -151,9 +151,16 @@ Related endpoints:
 - `GET /api/books/:id/proof` — Walrus/Arweave/Sui live reachability + latest Sui checkpoint.
 - `GET /api/sui/object/:id` — resolve a real on-chain object (read-only).
 - `GET /api/blobs/:key` — look up a user-published blob (works/shares) + Walrus availability.
-- `POST /api/books/ingest` — **admin** (Bearer `ADMIN_TOKEN`): import a CC0 book from `{ chapters }`, `{ text }`, or `{ sourceUrl }`; stores chapter blobs, D1 metadata, manifest, and optional Sui registry object.
+- `POST /api/books/ingest` — **admin** (Bearer `ADMIN_TOKEN`): import a `CC0-1.0` or `PUBLIC-DOMAIN` book from `{ chapters }`, `{ text }`, or `{ sourceUrl }`; stores chapter blobs, D1 metadata, manifest, and optional Sui registry object. Other licenses are rejected server-side.
 - `POST /api/books/:id/ingest` — **admin** (Bearer `ADMIN_TOKEN`): publish chapter text to Walrus + manifest.
 - `GET /api/books/:id/content/:n` — serve chapter text from Walrus when ingested, else seed.
+
+Run `npm run cli -- book inspect <file.epub>` and
+`npm run cli -- book package <file.epub> --source <url> --license CC0-1.0 --out <manifest.json>`
+before ingesting real books. The CLI emits `--json` output for agents and
+supports `book publish <manifest.json> --dry-run` for storage/API/registry
+planning; non-dry-run publishing is deliberately not enabled in this first
+slice.
 
 Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
 (real Sui personal-message signature check via `@mysten/sui`). Frontend flow in
