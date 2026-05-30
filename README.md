@@ -161,10 +161,13 @@ The CLI extracts chapters from the EPUB spine, applies additional logical
 chapter splitting for common Gutenberg classics, and publishes through chunked
 ingest (`/api/books/ingest/begin`, `/chapter`, `/finalize`) so large books do
 not time out. Server-side ingest still enforces the same license policy. The
-original EPUB is uploaded as the canonical storage asset; extracted plain text
-chapters are reader/search derivatives. The backend stores both layers, plus a
-JSON manifest, in R2/Walrus when configured. Sui stores only the content
-reference and provenance metadata, not the full book bytes.
+original EPUB is kept as the archival source asset; extracted plain text
+chapters are reader/search derivatives. For frontend reading, the API can
+generate `/api/books/:id/reader.epub` from those stored chapters, with a clean
+OPF/NCX/nav table of contents, because many source EPUBs have incomplete
+navigation metadata. The backend stores the original source layer, chapter
+layer, plus a JSON manifest, in R2/Walrus when configured. Sui stores only the
+content reference and provenance metadata, not the full book bytes.
 
 For a repeatable real-content smoke test, run:
 

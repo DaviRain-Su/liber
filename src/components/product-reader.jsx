@@ -78,6 +78,13 @@ function applyEpubTheme(rendition, { font, size, lead, rtheme }) {
       "margin": "0 0 1em 0 !important",
       "text-indent": "1.25em !important",
     },
+    "p.footnote": {
+      "border-left": "2px solid rgba(169, 77, 53, .28) !important",
+      "color": "#6d6255 !important",
+      "font-size": ".86em !important",
+      "padding-left": ".8em !important",
+      "text-indent": "0 !important",
+    },
     img: {
       "max-width": "100% !important",
       "height": "auto !important",
@@ -96,7 +103,7 @@ function hasOriginalEpub(book) {
 }
 
 function readerModeKey(bookId) {
-  return `liber.reader.mode.v2.${bookId || "unknown"}`;
+  return `liber.reader.mode.v3.${bookId || "unknown"}`;
 }
 
 function defaultReaderMode(book) {
@@ -130,7 +137,7 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation
     let rendition = null;
     setStatus("loading");
     setError("");
-    const source = `/api/books/${encodeURIComponent(bookId)}/source.epub`;
+    const source = `/api/books/${encodeURIComponent(bookId)}/reader.epub`;
 
     import("epubjs").then((mod) => {
       if (cancelled) return null;
@@ -185,7 +192,7 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation
       <div className="rd-epub-host" ref={hostRef}/>
       {status !== "ready" && (
         <div className={`rd-epub-status ${status}`}>
-          {status === "error" ? error : "正在打开原版 EPUB…"}
+          {status === "error" ? error : "正在打开 EPUB 阅读版…"}
         </div>
       )}
     </div>
@@ -334,7 +341,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const [echo, setEcho] = useS(null);   // {sid, text} for cross-book echoes
   const onEpubUnavailable = useCb(() => {
     setReadMode("text", { persist: false });
-    setToast("原版 EPUB 暂时无法打开，已切到文本索引");
+    setToast("EPUB 阅读版暂时无法打开，已切到文本索引");
   }, [setReadMode]);
 
   /* AI state */
@@ -564,7 +571,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         <button className="icon-btn" onClick={onClose} title="返回 (Esc)">{I.left}</button>
         <div className="rd-title">
           <span className="bk">{book.t}</span>
-          <span className="ch">{readMode === "epub" ? `原版 EPUB${activeEpubItem?.title ? ` · ${activeEpubItem.title}` : ""}` : `第 ${ch.n} 章 · ${ch.title}`}</span>
+          <span className="ch">{readMode === "epub" ? `EPUB${activeEpubItem?.title ? ` · ${activeEpubItem.title}` : ""}` : `第 ${ch.n} 章 · ${ch.title}`}</span>
         </div>
         <div className="spacer"/>
         <button className={`rd-tool ${tocOpen?"on":""}`} onClick={() => { setTocOpen(v=>!v); setSetOpen(false); }}>{I.list} 目录</button>
@@ -657,7 +664,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <div className="pg-fill" style={{ width: readMode === "epub" ? "0%" : (prog*100)+"%" }}/>
           <div className="pg-dot" style={{ left: readMode === "epub" ? "0%" : (prog*100)+"%" }}/>
         </div>
-        <div className="pg-label">{readMode === "epub" ? "原版 EPUB" : `第 ${ch.n} 章 · 全书 ${pct}%`}</div>
+        <div className="pg-label">{readMode === "epub" ? "EPUB 阅读" : `第 ${ch.n} 章 · 全书 ${pct}%`}</div>
       </div>
 
       {/* selection popover */}

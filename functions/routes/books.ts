@@ -9,6 +9,7 @@ import {
   getBook,
   getChapters,
   getChapterText,
+  getReaderEpub,
   getToc,
   hasLibraryBooks,
   ingestBook,
@@ -52,6 +53,24 @@ books.get("/books/:id/chapters", async (c) => {
   const chapters = await getChapters(c.env, b.id);
   const toc = await getToc(c.env, b.id);
   return c.json({ chapters, toc });
+});
+
+books.get("/books/:id/reader.epub", async (c) => {
+  const bookId = c.req.param("id");
+  const b = await getBook(c.env, bookId);
+  if (!b) return c.json({ error: "未找到该书" }, 404);
+  const bytes = await getReaderEpub(c.env, b.id);
+  if (!bytes) return c.json({ error: "暂无可生成的 EPUB 阅读版" }, 404);
+  const filename = `${b.id}-reader.epub`;
+  const utf8Name = encodeURIComponent(`${b.t || b.id}-reader.epub`);
+  return new Response(bytes, {
+    headers: {
+      "Content-Type": "application/epub+zip",
+      "Content-Disposition": `inline; filename="${filename}"; filename*=UTF-8''${utf8Name}`,
+      "Cache-Control": "public, max-age=3600",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 });
 
 books.get("/books/:id/source.epub", async (c) => {

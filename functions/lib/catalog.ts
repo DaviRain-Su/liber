@@ -402,7 +402,9 @@ export function normalizeBook(row: any) {
     license: row.license ?? "CC0-1.0",
     sourceUrl: row.source_url ?? row.sourceUrl ?? "",
     hasEpub: Boolean(
-      row.has_epub
+      row.id
+      || row.has_epub
+      || row.hasEpub
       || /^https:\/\/www\.gutenberg\.org\/ebooks\/\d+$/i.test(row.source_url ?? row.sourceUrl ?? "")
       || /^https:\/\/.+\.epub(?:\?.*)?$/i.test(row.source_url ?? row.sourceUrl ?? ""),
     ),
@@ -477,6 +479,264 @@ export async function getChapterText(env: Env, bookId: string, n: number) {
     if (ch) return { source: "seed", n, title: ch.title, text: ch.paras.flat().map((s: any) => s.t).join("\n") };
   }
   return null;
+}
+
+function xmlEscape(value: string): string {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function xhtmlParagraph(block: string): string {
+  const raw = String(block || "").trim();
+  const html = raw.split("\n").map((line) => xmlEscape(line.trim())).filter(Boolean).join("<br/>");
+  const klass = /^\d{1,3}[.、]\s+[\p{Script=Han}]{1,8}\s*[:：]/u.test(raw) ? ` class="footnote"` : "";
+  return html ? `<p${klass}>${html}</p>` : "";
+}
+
+function chapterXhtml(bookTitle: string, lang: string, ch: { n: number; title: string; text: string }): string {
+  const blocks = normalizeTextBlocks(ch.text, ch.title || `第 ${ch.n} 章`);
+  const body = blocks.map(xhtmlParagraph).filter(Boolean).join("\n");
+  return `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${lang}">
+<head>
+  <title>${xmlEscape(ch.title || bookTitle)}</title>
+  <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>
+<body>
+  <section epub:type="chapter">
+    <h1>${xmlEscape(ch.title || `第 ${ch.n} 章`)}</h1>
+    ${body || `<p>${xmlEscape(ch.text || "")}</p>`}
+  </section>
+</body>
+</html>`;
+}
+
+function readerEpubFiles(book: { id: string; title: string; author: string; lang: string }, chapters: Array<{ n: number; title: string; text: string }>) {
+  const id = `liber-${book.id}`;
+  const title = xmlEscape(book.title);
+  const author = xmlEscape(book.author || "佚名");
+  const lang = xmlEscape(book.lang || "zh");
+  const chapterItems = chapters.map((ch, i) => ({ id: `c${i + 1}`, href: `chapter-${ch.n}.xhtml`, ch }));
+  const manifestItems = chapterItems.map((item) =>
+    `    <item id="${item.id}" href="${item.href}" media-type="application/xhtml+xml"/>`,
+  ).join("\n");
+  const spineItems = chapterItems.map((item) => `    <itemref idref="${item.id}"/>`).join("\n");
+  const navItems = chapterItems.map((item) =>
+    `      <li><a href="${item.href}">${xmlEscape(item.ch.title || `第 ${item.ch.n} 章`)}</a></li>`,
+  ).join("\n");
+  const ncxItems = chapterItems.map((item, i) => `    <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">
+      <navLabel><text>${xmlEscape(item.ch.title || `第 ${item.ch.n} 章`)}</text></navLabel>
+      <content src="${item.href}"/>
+    </navPoint>`).join("\n");
+
+  return [
+    { name: "mimetype", data: "application/epub+zip" },
+    { name: "META-INF/container.xml", data: `<?xml version="1.0" encoding="utf-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>` },
+    { name: "OEBPS/styles.css", data: `body {
+  color: #2d261f;
+  font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+  line-height: 1.85;
+  margin: 0;
+  padding: 2rem 8%;
+}
+h1 {
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0 0 1.6rem;
+  text-align: center;
+}
+p {
+  margin: 0 0 1em;
+  text-indent: 2em;
+}
+p.footnote {
+  border-left: 2px solid #d7c8ad;
+  color: #6d6255;
+  font-size: .86em;
+  padding-left: .8em;
+  text-indent: 0;
+}` },
+    { name: "OEBPS/nav.xhtml", data: `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${lang}">
+<head>
+  <title>${title}</title>
+  <link rel="stylesheet" type="text/css" href="styles.css"/>
+</head>
+<body>
+  <nav epub:type="toc" id="toc">
+    <h1>${title}</h1>
+    <ol>
+${navItems}
+    </ol>
+  </nav>
+</body>
+</html>` },
+    { name: "OEBPS/toc.ncx", data: `<?xml version="1.0" encoding="utf-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="${lang}">
+  <head>
+    <meta name="dtb:uid" content="${xmlEscape(id)}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle><text>${title}</text></docTitle>
+  <navMap>
+${ncxItems}
+  </navMap>
+</ncx>` },
+    { name: "OEBPS/content.opf", data: `<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">${xmlEscape(id)}</dc:identifier>
+    <dc:title>${title}</dc:title>
+    <dc:creator>${author}</dc:creator>
+    <dc:language>${lang}</dc:language>
+    <meta property="dcterms:modified">2026-05-31T00:00:00Z</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="css" href="styles.css" media-type="text/css"/>
+${manifestItems}
+  </manifest>
+  <spine toc="ncx">
+${spineItems}
+  </spine>
+</package>` },
+    ...chapterItems.map((item) => ({
+      name: `OEBPS/${item.href}`,
+      data: chapterXhtml(book.title, lang, item.ch),
+    })),
+  ];
+}
+
+let crcTable: Uint32Array | null = null;
+
+function crc32(data: Uint8Array): number {
+  if (!crcTable) {
+    crcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n += 1) {
+      let c = n;
+      for (let k = 0; k < 8; k += 1) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      crcTable[n] = c >>> 0;
+    }
+  }
+  let crc = 0xffffffff;
+  for (const byte of data) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((sum, part) => sum + part.byteLength, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.byteLength;
+  }
+  return out;
+}
+
+function zipStore(files: Array<{ name: string; data: string | Uint8Array }>): Uint8Array {
+  const encoder = new TextEncoder();
+  const localParts: Uint8Array[] = [];
+  const centralParts: Uint8Array[] = [];
+  let offset = 0;
+  const dosTime = 0;
+  const dosDate = ((2026 - 1980) << 9) | (5 << 5) | 31;
+
+  for (const file of files) {
+    const name = encoder.encode(file.name);
+    const data = typeof file.data === "string" ? encoder.encode(file.data) : file.data;
+    const crc = crc32(data);
+    const local = new Uint8Array(30 + name.byteLength);
+    const l = new DataView(local.buffer);
+    l.setUint32(0, 0x04034b50, true);
+    l.setUint16(4, 20, true);
+    l.setUint16(6, 0, true);
+    l.setUint16(8, 0, true);
+    l.setUint16(10, dosTime, true);
+    l.setUint16(12, dosDate, true);
+    l.setUint32(14, crc, true);
+    l.setUint32(18, data.byteLength, true);
+    l.setUint32(22, data.byteLength, true);
+    l.setUint16(26, name.byteLength, true);
+    l.setUint16(28, 0, true);
+    local.set(name, 30);
+    localParts.push(local, data);
+
+    const central = new Uint8Array(46 + name.byteLength);
+    const c = new DataView(central.buffer);
+    c.setUint32(0, 0x02014b50, true);
+    c.setUint16(4, 20, true);
+    c.setUint16(6, 20, true);
+    c.setUint16(8, 0, true);
+    c.setUint16(10, 0, true);
+    c.setUint16(12, dosTime, true);
+    c.setUint16(14, dosDate, true);
+    c.setUint32(16, crc, true);
+    c.setUint32(20, data.byteLength, true);
+    c.setUint32(24, data.byteLength, true);
+    c.setUint16(28, name.byteLength, true);
+    c.setUint16(30, 0, true);
+    c.setUint16(32, 0, true);
+    c.setUint16(34, 0, true);
+    c.setUint16(36, 0, true);
+    c.setUint32(38, 0, true);
+    c.setUint32(42, offset, true);
+    central.set(name, 46);
+    centralParts.push(central);
+    offset += local.byteLength + data.byteLength;
+  }
+
+  const centralOffset = offset;
+  const central = concatBytes(centralParts);
+  const end = new Uint8Array(22);
+  const e = new DataView(end.buffer);
+  e.setUint32(0, 0x06054b50, true);
+  e.setUint16(4, 0, true);
+  e.setUint16(6, 0, true);
+  e.setUint16(8, files.length, true);
+  e.setUint16(10, files.length, true);
+  e.setUint32(12, central.byteLength, true);
+  e.setUint32(16, centralOffset, true);
+  e.setUint16(20, 0, true);
+  return concatBytes([...localParts, central, end]);
+}
+
+export async function getReaderEpub(env: Env, bookId: string): Promise<Uint8Array | null> {
+  const book = await getBook(env, bookId);
+  if (!book) return null;
+  const rows = await all<any>(
+    env.DB,
+    `SELECT n, title, blob_key, text_preview FROM library_chapters WHERE book_id = ? ORDER BY n ASC`,
+    bookId,
+  );
+  if (!rows.length) return null;
+  const chapters: Array<{ n: number; title: string; text: string }> = [];
+  for (const row of rows) {
+    const buf = await getBlob(env, row.blob_key);
+    const text = (buf ? new TextDecoder().decode(buf) : row.text_preview || "").trim();
+    if (text) chapters.push({ n: Number(row.n), title: row.title || `第 ${row.n} 章`, text });
+  }
+  if (!chapters.length) return null;
+  return zipStore(readerEpubFiles({
+    id: book.id,
+    title: book.t || bookId,
+    author: book.a || "佚名",
+    lang: book.lang || "zh",
+  }, chapters));
 }
 
 export async function searchDynamic(env: Env, term: string) {
