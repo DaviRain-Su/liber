@@ -41,6 +41,9 @@ export interface Env {
   AI_BASE_URL?: string;
   // Free-tier monthly AI request quota (default 60); 'pro' subscribers unlimited.
   AI_FREE_MONTHLY?: string;
+  // Agentic book companion (functions/lib/agent.ts); needs a tool-capable provider.
+  AGENT_ENABLED?: string;     // "true" to enable
+  AGENT_MAX_TURNS?: string;   // default 6, max 12
 }
 
 // Hono context variables set by the auth middleware.
