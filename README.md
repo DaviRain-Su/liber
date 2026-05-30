@@ -1,0 +1,81 @@
+# Liber — 永存的开放图书馆
+
+A decentralized, **AI-agent-friendly** reading platform for CC0 public-domain
+books. Books are imagined as permanently stored on decentralized networks
+(Walrus / Arweave / IPFS) and indexed on Sui; every highlight, annotation, and
+AI conversation is an addressable, citable, forkable public object.
+
+This repo is a **high-fidelity, clickable product prototype** — the full core
+journey plus the social, notebook, and "open / agent-friendly" layers.
+
+> Design medium: this started life as an HTML/CSS/JS prototype from
+> [Claude Design](https://claude.ai/design). It has been ported here into a real
+> **Vite + React** application (see [Architecture](#architecture)).
+
+## Running it
+
+```bash
+npm install
+npm run dev      # start the Vite dev server (prints a local URL)
+npm run build    # production build → dist/
+npm run preview  # serve the production build
+```
+
+Fonts load from Google Fonts (via a CSS `@import`), so the dev/preview server
+needs network access for the typography to render exactly.
+
+## What's in it
+
+The app opens on a first-run **onboarding / wallet sign-in** flow, then lands in
+the library. The full surface:
+
+| Area | Screens |
+| --- | --- |
+| **Main journey** | Library (browse / filter / featured) → Book detail (TOC, on-chain proof, popular highlights, reviews) → **full-screen Reader** |
+| **Reader interactions** | select → highlight / annotate / ask-AI / cross-book "echoes"; AI companion drawer with summonable community "lenses"; others' annotations inline; TOC + progress; reading settings; three layouts (classic / archive / immersive) |
+| **Social / co-reading** | activity feed, shareable AI-conversation cards (对话卡 / 金句卡) with fork-trees and PNG export, discussion threads, co-reading groups |
+| **Personal** | Notebook (AI summaries, highlight archive, Markdown/HTML export, write-a-CC0-essay), My Shelf, Profile |
+| **Open / agent layer** | on-chain certificate page, global search, **Agent View** (MCP/structured representation of any page), provenance badges (human vs signed AI agent), Agent Square directory, open rankings (`liber.get_charts`) |
+
+Highlights, annotations, reading position, published works, and onboarding state
+persist in `localStorage`. The top nav's sun/moon button toggles light/dark.
+
+## Architecture
+
+```
+index.html                 # Vite entry → /src/main.jsx
+src/
+  main.jsx                 # mounts <App> and the <LiberTweaks> island; imports the stylesheets
+  data/product-data.js     # all catalogue/content data (named exports + window bootstrap)
+  styles/*.css             # design system + per-screen styles (imported in cascade order)
+  components/*.jsx          # one ES module per screen/component, with explicit imports/exports
+```
+
+### Port notes (prototype → production build)
+
+The original prototype loaded React + Babel from a CDN and shared one global
+scope across many `<script type="text/babel">` files, wiring components together
+through `window`. The port keeps the **component bodies byte-for-byte identical**
+(so the design is reproduced exactly) and changes only how the pieces connect:
+
+- **Components** were converted from `window`-globals into real **ES modules**
+  with explicit `import` / `export`. JSX is compiled by `@vitejs/plugin-react`
+  (Babel-standalone is dropped).
+- **Data** (`product-data.js`) is a real module with **named exports** that also
+  bootstraps `window.*` on load. Screens still read `window.BOOKS` etc., so the
+  data is a single bootstrapped singleton — initialized once before render.
+- **Styles** are imported in `main.jsx` in the original `<link>` order to
+  preserve the cascade.
+
+The design system is the prototype's own cohesive language — 古籍 × 朱砂 × 档案
+(cinnabar `#c0432b`, warm paper, Cormorant / EB Garamond / IBM Plex Mono, paper
+grain, hairline rules). The `Liber` wordmark and tokens live in
+`src/styles/liber.css`.
+
+### The Tweaks island
+
+`src/components/product-tweaks.jsx` (the floating Tweaks panel: reader layout,
+accent color, display font, dark mode, paper grain, device preview, replay
+onboarding) is a **design-time affordance**. It activates via the Claude Design
+host's `postMessage` protocol, so in a standalone deployment it stays dormant —
+theme switching is still available from the top navigation bar.
