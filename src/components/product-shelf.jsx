@@ -1,21 +1,28 @@
 import React from "react";
 import { I, Cover } from "./product-shared.jsx";
 import { getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
-import { shelfCollections, shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
+import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
+import { loadMyBooklists, createBooklist, subscribeBooklists } from "../lib/booklists.js";
 
-/* product-shelf.jsx — My Shelf: reading hub. Stats + reading/want/finished + collections. */
+/* product-shelf.jsx — My Shelf: reading hub. Stats + reading/want/finished + 书单. */
 const { useState: useShf, useEffect: useEff } = React;
 
-function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
+function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }){
   const me = window.ME;
   const [catalog, setCatalog] = useShf(() => getCatalogBooks());
   const [summary, setSummary] = useShf(null);
   const [apiGroups, setApiGroups] = useShf([]);
   const [, refreshShelf] = useShf(0);
+  const [myLists, setMyLists] = useShf(null);
+  const [creating, setCreating] = useShf(false);
+  const [newName, setNewName] = useShf("");
   useEff(() => {
     const offCatalog = subscribeCatalog((books) => setCatalog(books));
     const offShelf = subscribeShelf(() => refreshShelf((n) => n + 1));
-    return () => { offCatalog(); offShelf(); };
+    const loadLists = () => loadMyBooklists().then(setMyLists);
+    loadLists();
+    const offLists = subscribeBooklists(loadLists);
+    return () => { offCatalog(); offShelf(); offLists(); };
   }, []);
   useEff(() => {
     if (!window.liberApi) return;
@@ -31,8 +38,14 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
   const finished = (me.finished||[]).map(byId).filter(Boolean);
   const joinedIds = new Set(summary?.joinedGroupIds || []);
   const groups = apiGroups.filter((g) => joinedIds.has(g.id) || g.joined);
-  const collections = shelfCollections(me.collections, catalog);
   const [tab, setTab] = useShf("reading");
+  const createList = async () => {
+    const n = newName.trim();
+    if (!n) return;
+    const list = await createBooklist({ name: n });
+    setNewName(""); setCreating(false);
+    if (list?.id && onOpenBooklist) onOpenBooklist(list.id);
+  };
   const stats = summary?.stats || { streak: 0, weekRead: 0, yearFinished: 0, lines: 0 };
 
   const pct = (b) => (b.at && b.at.match(/(\d+)%/)) ? b.at.match(/(\d+)%/)[1] : "0";
@@ -126,19 +139,32 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
                 {groups.length === 0 && <div className="pf-empty">你还没有加入共读小组。</div>}
               </div>
 
-              {/* collections */}
+              {/* 书单 — real, backend-backed (D1), shareable + forkable */}
               <div className="sh-card">
                 <div className="shc-h">我的书单</div>
-                {collections.map(c => (
-                  <div className="sh-coll" key={c.id}>
+                {myLists == null && <div className="pf-empty">加载中…</div>}
+                {myLists && myLists.length === 0 && !creating && (
+                  <div className="pf-empty">还没有书单。新建一个，把喜欢的书收进来。</div>
+                )}
+                {myLists && myLists.map(c => (
+                  <div className="sh-coll sh-coll-link" key={c.id} onClick={() => onOpenBooklist && onOpenBooklist(c.id)}>
                     <div className="coll-stack">
-                      {c.books.map((bid,i) => { const b=byId(bid); return b ? <span key={bid} className={`coll-sp ${b.cls}`} style={{zIndex:9-i, marginLeft:i?-14:0}}>{b.seal}</span> : null; })}
+                      {(c.books || []).slice(0,4).map((bid,i) => { const b=byId(bid); return b ? <span key={bid} className={`coll-sp ${b.cls}`} style={{zIndex:9-i, marginLeft:i?-14:0}}>{b.seal}</span> : null; })}
                     </div>
-                    <div className="coll-mid"><div className="cn">{c.name}</div><div className="cd">{c.desc}</div></div>
-                    <span className="cc-n">{c.books.length} 本</span>
+                    <div className="coll-mid"><div className="cn">{c.name}</div><div className="cd">{c.desc || "—"}</div></div>
+                    <span className="cc-n">{c.count != null ? c.count : (c.books||[]).length} 本</span>
                   </div>
                 ))}
-                <button className="btn btn-ghost btn-block" style={{marginTop:14}}>＋ 新建书单</button>
+                {creating ? (
+                  <div className="sh-coll-create">
+                    <input autoFocus className="bl-search" placeholder="新书单名称…" value={newName} maxLength={40}
+                      onChange={e=>setNewName(e.target.value)}
+                      onKeyDown={e=>{ if(e.key==="Enter") createList(); if(e.key==="Escape"){ setCreating(false); setNewName(""); } }} />
+                    <button className="btn btn-primary" disabled={!newName.trim()} onClick={createList}>创建</button>
+                  </div>
+                ) : (
+                  <button className="btn btn-ghost btn-block" style={{marginTop:14}} onClick={()=>setCreating(true)}>＋ 新建书单</button>
+                )}
               </div>
             </aside>
           </div>

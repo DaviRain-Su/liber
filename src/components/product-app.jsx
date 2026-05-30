@@ -10,6 +10,7 @@ import { Social } from "./product-social.jsx";
 import { Profile } from "./product-profile.jsx";
 import { Certificate } from "./product-certificate.jsx";
 import { Shelf } from "./product-shelf.jsx";
+import { Booklist } from "./product-booklist.jsx";
 import { Group, GroupsList } from "./product-group.jsx";
 import { AgentSquare } from "./product-agents.jsx";
 import { Charts } from "./product-charts.jsx";
@@ -25,6 +26,7 @@ const { useState: useSt, useEffect: useEf, useCallback: useCb } = React;
 const IS_PHONE_PREVIEW = new URLSearchParams(location.search).get("vp") === "phone";
 const CLI_AUTH = new URLSearchParams(location.search).get("cli_auth");
 const CLI_AUTH_CODE = new URLSearchParams(location.search).get("code");
+const SHARED_BOOKLIST = new URLSearchParams(location.search).get("booklist");
 
 function App(){
   if (CLI_AUTH) return <CliAuth deviceCode={CLI_AUTH} userCode={CLI_AUTH_CODE} />;
@@ -33,10 +35,10 @@ function App(){
      sees. A visitor skips it only after completing onboarding or explicitly
      choosing "开始阅读"; neither path creates or displays a guest identity. */
   const [entered, setEntered] = useSt(
-    () => localStorage.getItem("liber.onboarded") === "1" || localStorage.getItem("liber.reader.entered") === "1"
+    () => SHARED_BOOKLIST != null || localStorage.getItem("liber.onboarded") === "1" || localStorage.getItem("liber.reader.entered") === "1"
   );
-  /* onboarding gate */
-  const [onboarded, setOnboarded] = useSt(() => localStorage.getItem("liber.onboarded") === "1");
+  /* onboarding gate (a shared booklist link opens straight into a read-only view) */
+  const [onboarded, setOnboarded] = useSt(() => SHARED_BOOKLIST != null || localStorage.getItem("liber.onboarded") === "1");
   /* phone preview overlay (outer instance only) */
   const [phonePreview, setPhonePreview] = useSt(false);
   useEf(() => {
@@ -54,6 +56,7 @@ function App(){
 
   /* route: {screen:'library'|'detail', bookId} ; reader is an overlay */
   const [route, setRoute] = useSt(() => {
+    if (SHARED_BOOKLIST) return { screen:"booklist", listId: SHARED_BOOKLIST };
     try { return JSON.parse(localStorage.getItem("liber.route")) || { screen:"library" }; }
     catch { return { screen:"library" }; }
   });
@@ -182,6 +185,7 @@ function App(){
   };
   const openReader = (bookId, startChapter, continueConvo) => setReader({ bookId, startChapter, continueConvo });
   const openBookFromOverlay = (bookId) => { setRoute({ screen:"detail", bookId }); };
+  const openBooklist = (listId) => { setReader(null); setSearch(false); setRoute({ screen:"booklist", listId }); };
 
   /* gate: show the landing page until the visitor enters. */
   if (!entered) {
@@ -193,7 +197,7 @@ function App(){
       {!onboarded && <Onboarding onFinish={() => setOnboarded(true)} />}
       {!reader && (
         <>
-          <AppBar active={({detail:"library", group:"social", groups:"social", cert:"library"})[route.screen] || route.screen}
+          <AppBar active={({detail:"library", group:"social", groups:"social", cert:"library", booklist:"shelf"})[route.screen] || route.screen}
             onNav={(k) => setRoute({ screen: k === "library" ? "library" : k })}
             onHome={returnHome}
             onToggleTheme={toggleTheme} isDark={dark}
@@ -206,12 +210,13 @@ function App(){
           {route.screen === "social" && <Social onOpenBook={openBook} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} onContinue={(c) => openReader(c.book, undefined, c)} />}
           {route.screen === "profile" && <Profile key={route.userId || "me"} userId={route.userId} onOpenBook={openBook} onBack={() => setRoute({ screen: route.from || "library" })} authUser={authUser} onLogout={logout} onProfileUpdated={refreshAuth} />}
           {route.screen === "cert" && <Certificate bookId={route.bookId} onBack={() => setRoute({ screen:"detail", bookId:route.bookId })} onOpenBook={openReader} />}
-          {route.screen === "shelf" && <Shelf onOpenBook={openBook} onOpenReader={openReader} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} />}
+          {route.screen === "shelf" && <Shelf onOpenBook={openBook} onOpenReader={openReader} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} onOpenBooklist={openBooklist} />}
+          {route.screen === "booklist" && <Booklist listId={route.listId} onBack={() => setRoute({ screen:"shelf" })} onOpenBook={openBook} />}
           {route.screen === "groups" && <GroupsList onOpenGroup={(id) => setRoute({ screen:"group", groupId:id })} onBack={() => setRoute({ screen:"social" })} />}
           {route.screen === "group" && <Group groupId={route.groupId} onBack={() => setRoute({ screen:"social" })} onOpenReader={openReader} />}
           {route.screen === "agents" && <AgentSquare onBack={() => setRoute({ screen:"library" })} />}
           {route.screen === "charts" && <Charts onOpenBook={openBook} onBack={() => setRoute({ screen:"library" })} onAgentCharts={(ctx) => setAgentView({ charts: ctx })} />}
-          <MobileTabBar active={({detail:"library", group:"social", groups:"social", cert:"library", notes:"notes"})[route.screen] || route.screen}
+          <MobileTabBar active={({detail:"library", group:"social", groups:"social", cert:"library", notes:"notes", booklist:"shelf"})[route.screen] || route.screen}
             onNav={(k) => setRoute({ screen: k })} />
         </>
       )}

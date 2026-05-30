@@ -41,9 +41,10 @@ async function req(method, path, body) {
 const get = (p) => req("GET", p);
 const post = (p, b) => req("POST", p, b);
 const put = (p, b) => req("PUT", p, b);
+const del = (p) => req("DELETE", p);
 
 export const api = {
-  get, post, put,
+  get, post, put, del,
   health: () => get("/health"),
 
   auth: {
@@ -74,6 +75,19 @@ export const api = {
     highlight: (bookId, sid, color) => put(`/reading/${bookId}/highlight`, { sid, color }),
     note: (bookId, sid, text, isPublic = true) => post(`/reading/${bookId}/note`, { sid, text, public: isPublic }),
     progress: (bookId, chapterN, percent) => put(`/reading/${bookId}/progress`, { chapter_n: chapterN, percent }),
+  },
+
+  // 书单 (booklists): user-curated, D1-backed, shareable + forkable.
+  booklists: {
+    list: (bookId) => get("/booklists" + (bookId ? `?bookId=${encodeURIComponent(bookId)}` : "")),
+    get: (id) => get(`/booklists/${id}`),
+    create: (payload) => post("/booklists", payload),
+    update: (id, payload) => put(`/booklists/${id}`, payload),
+    remove: (id) => del(`/booklists/${id}`),
+    addItem: (id, bookId, note) => post(`/booklists/${id}/items`, { bookId, note }),
+    removeItem: (id, bookId) => del(`/booklists/${id}/items/${encodeURIComponent(bookId)}`),
+    fork: (id) => post(`/booklists/${id}/fork`),
+    save: (id) => post(`/booklists/${id}/save`),
   },
 
   annotations: (bookId, sid) => get(`/annotations/${bookId}/${sid}`),
