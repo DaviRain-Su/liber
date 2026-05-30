@@ -11,6 +11,10 @@ export interface Env {
   R2: R2Bucket;
   AI: WorkersAI;
   SESSION_TTL?: string;
+  // Decentralized storage endpoints (optional; storage.ts falls back to R2 when unset).
+  WALRUS_PUBLISHER?: string;
+  WALRUS_AGGREGATOR?: string;
+  ARWEAVE_GATEWAY?: string;
 }
 
 // Hono context variables set by the auth middleware.

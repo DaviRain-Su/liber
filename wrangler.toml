@@ -22,3 +22,12 @@ bucket_name = "liber-content"
 
 [ai]
 binding = "AI"
+
+# Decentralized-storage endpoints (public, not secrets). Left blank so storage
+# falls back to R2 until you opt in. To use the public Walrus testnet, set:
+#   WALRUS_PUBLISHER  = "https://publisher.walrus-testnet.walrus.space"
+#   WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
+[vars]
+WALRUS_PUBLISHER = ""
+WALRUS_AGGREGATOR = ""
+ARWEAVE_GATEWAY = ""
