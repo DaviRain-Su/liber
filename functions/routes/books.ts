@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import * as S from "../lib/seed";
 import { getChainInfo, getObject } from "../lib/sui";
+import { putBlob, getBlob } from "../lib/storage";
 
 const books = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -89,6 +90,43 @@ books.get("/search", (c) => {
     ? Object.entries(idx).filter(([, v]) => v.t.includes(term)).map(([sid, v]) => ({ sid, t: v.t, book: "道德经", bookId: "daodejing", chap: v.chap }))
     : [];
   return c.json({ books: matched, sentences: sentences.slice(0, 8) });
+});
+
+// ---- Book text on decentralized storage ----
+
+// Admin-gated ingest: publish a book's available chapter text to Walrus (+R2),
+// recording one blob per chapter plus a manifest. Disabled (401) unless
+// ADMIN_TOKEN is configured and presented as a bearer token.
+books.post("/books/:id/ingest", async (c) => {
+  const admin = c.env.ADMIN_TOKEN;
+  const auth = c.req.header("Authorization");
+  if (!admin || auth !== `Bearer ${admin}`) return c.json({ error: "需要管理员令牌" }, 401);
+  const b = S.bookById(c.req.param("id"));
+  if (!b) return c.json({ error: "未找到该书" }, 404);
+  const chapters = b.id === "daodejing" ? S.CHAPTERS : [];
+  if (!chapters.length) return c.json({ error: "暂无可入库的正文" }, 400);
+
+  const refs: Array<{ n: number; title: string; walrus: string; size: number }> = [];
+  for (const ch of chapters) {
+    const text = ch.paras.flat().map((s: any) => s.t).join("\n");
+    const ref = await putBlob(c.env, `book/${b.id}/ch/${ch.n}`, text, "text/plain; charset=utf-8");
+    refs.push({ n: ch.n, title: ch.title, walrus: ref.walrus, size: ref.size });
+  }
+  const manifest = JSON.stringify({ book: b.id, title: b.t, license: "CC0-1.0", chapters: refs });
+  const mref = await putBlob(c.env, `book/${b.id}/manifest`, manifest, "application/json");
+  return c.json({ ok: true, book: b.id, manifest: mref.walrus, chapters: refs });
+});
+
+// Serve a chapter's text from storage (Walrus/R2) when ingested, else from seed.
+books.get("/books/:id/content/:n", async (c) => {
+  const b = S.bookById(c.req.param("id"));
+  if (!b) return c.json({ error: "未找到该书" }, 404);
+  const n = Number(c.req.param("n"));
+  const buf = await getBlob(c.env, `book/${b.id}/ch/${n}`);
+  if (buf) return c.json({ source: "walrus", n, text: new TextDecoder().decode(buf) });
+  const ch = (b.id === "daodejing" ? S.CHAPTERS : []).find((x: any) => x.n === n);
+  if (!ch) return c.json({ error: "未找到该章" }, 404);
+  return c.json({ source: "seed", n, title: ch.title, text: ch.paras.flat().map((s: any) => s.t).join("\n") });
 });
 
 export default books;

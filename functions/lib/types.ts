@@ -17,6 +17,8 @@ export interface Env {
   ARWEAVE_GATEWAY?: string;
   // Sui fullnode JSON-RPC (read-only chain verification; optional).
   SUI_RPC?: string;
+  // Bearer secret enabling the admin-only book-text ingest endpoint (optional).
+  ADMIN_TOKEN?: string;
 }
 
 // Hono context variables set by the auth middleware.
