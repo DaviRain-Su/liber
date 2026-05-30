@@ -1,5 +1,6 @@
 import React from "react";
 import { Cover, I } from "./product-shared.jsx";
+import { CommentsPanel } from "./product-social.jsx";
 
 /* product-detail.jsx — Book detail page. */
 function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
@@ -8,6 +9,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
   const toc = hasContent ? window.TOC : null;
   const highlights = hasContent ? window.HIGHLIGHTS : null;
   const reviews = hasContent ? window.REVIEWS : null;
+  const [cmtOpen, setCmtOpen] = React.useState(false);
 
   return (
     <div className="app-screen">
@@ -143,6 +145,16 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
                   ))}
                 </div>
               )}
+
+              {/* discussion — generic comments on the book (D1 → Walrus/Sui) */}
+              <div className="dsec">
+                <div className="dsec-h">
+                  <span className="t">讨论</span>
+                  <span className="c">读这本书的人在聊什么</span>
+                  <span className="more" onClick={() => setCmtOpen(o => !o)}>{cmtOpen ? "收起 ↑" : "展开 / 发表评论 ↓"}</span>
+                </div>
+                {cmtOpen && <CommentsPanel targetType="book" targetId={book.id} />}
+              </div>
             </div>
           </div>
         </div>
