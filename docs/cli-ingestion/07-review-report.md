@@ -22,6 +22,8 @@ Implemented and locally verified with:
   EPUB hash mismatch rejection, and non-dry-run publish with injected fetch.
 - Browser auth device-flow core test covers start/poll/approved token handling.
 - Private-key auth core test covers local nonce signing and CLI token exchange.
+- Real-content smoke script validates the default public-domain EPUB and probes
+  live API reads without writing unless `--publish` is explicit.
 
 ## Release Automation
 

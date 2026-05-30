@@ -163,6 +163,17 @@ text chapters are reader/search derivatives. The backend stores both layers,
 plus a JSON manifest, in R2/Walrus when configured. Sui stores only the content
 reference and provenance metadata, not the full book bytes.
 
+For a repeatable real-content smoke test, run:
+
+```bash
+npm run smoke:real-content -- --json
+```
+
+That downloads Project Gutenberg #132 (The Art of War), validates the
+public-domain EPUB, builds the ingest payload with the original EPUB included,
+and probes the live API without writing. Add `-- --publish` only after
+`liber auth browser`, `liber auth key`, or `ADMIN_TOKEN` is configured locally.
+
 The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
 can be published to npm and installed by curators or agents. It requires
 Node.js `>=22`:

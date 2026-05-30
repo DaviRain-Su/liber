@@ -19,6 +19,8 @@
 - Private-key auth signs a nonce locally and exchanges the wallet session for a
   CLI publish token.
 - `npm pack --dry-run` succeeds for the standalone package.
+- Real-content smoke downloads a public-domain EPUB, packages it, includes the
+  original EPUB bytes, and probes the live API without writing by default.
 
 ## Boundary
 
@@ -38,5 +40,7 @@
 - Publishing fails if the EPUB file no longer matches the packaged manifest
   hash.
 - Raw-hex private keys fail without an explicit key scheme.
+- Real-content smoke requires `--publish` before it writes to the live ingest
+  endpoint.
 - The root application package remains private while `packages/liber-cli` is
   publishable.

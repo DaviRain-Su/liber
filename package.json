@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
     "cli": "npm --workspace liber-cli run cli --",
+    "smoke:real-content": "node scripts/real-content-smoke.mjs",
     "test:cli": "npm --workspace liber-cli test",
     "pack:cli": "npm --cache ./.npm-cache --workspace liber-cli pack --dry-run",
     "test": "npm run typecheck && npm run test:cli",

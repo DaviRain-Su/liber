@@ -13,6 +13,9 @@
 - Commit: update README and BACKEND references.
 - Commit: run `npm run test:cli`, `npm run pack:cli`, `npm run typecheck`,
   and `npm run build`.
+- Commit: add a repeatable real-content smoke test that downloads a known
+  public-domain EPUB, builds the ingest payload, and optionally publishes it to
+  the live API when local publish auth exists.
 
 ## Constraints
 

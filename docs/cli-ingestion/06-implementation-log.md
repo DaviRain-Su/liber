@@ -19,3 +19,6 @@
   locally, receives a wallet session, then exchanges it for a CLI publish token.
 - Publish payloads now include the original EPUB bytes, and backend ingest
   stores that EPUB alongside extracted chapter text and the JSON manifest.
+- Added `npm run smoke:real-content`, a repeatable Project Gutenberg EPUB smoke
+  test that defaults to read-only mode and can publish after local auth is
+  configured.

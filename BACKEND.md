@@ -159,9 +159,14 @@ Run `npm run cli -- book inspect <file.epub>` and
 `npm run cli -- book package <file.epub> --source <url> --license CC0-1.0 --out <manifest.json>`
 before ingesting real books. The CLI lives in the standalone npm package
 `packages/liber-cli` (`liber-cli` on npm), emits `--json` output for agents, and
-supports `book publish <manifest.json> --dry-run` for storage/API/registry
-planning; non-dry-run publishing is deliberately not enabled in this first
-slice.
+supports both `book publish <manifest.json> --dry-run` for
+storage/API/registry planning and non-dry-run publishing when a local CLI
+publish token or `ADMIN_TOKEN` is configured.
+
+Run `npm run smoke:real-content -- --json` for a read-only live smoke test
+against Project Gutenberg #132. Add `-- --publish` only after local publish
+auth is configured; it will import that EPUB into the live catalogue and then
+probe `/api/books/:id`, `/content/1`, search, and proof.
 
 Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
 (real Sui personal-message signature check via `@mysten/sui`). Frontend flow in
