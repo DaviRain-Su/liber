@@ -26,6 +26,7 @@ const BOOKS = [
   { id: "hanfeizi-gutenberg-zh", pg: 24049, lang: "zh", title: "韩非子", category: "中文 · 法家", expect: "韩非子" },
   { id: "tangshi300-gutenberg-zh", pg: 52323, lang: "zh", title: "唐诗三百首", category: "中文 · 诗歌", expect: "唐诗" },
   { id: "suitang-yanyi-gutenberg-zh", pg: 23835, lang: "zh", title: "隋唐演義", category: "中文 · 古典小说", expect: "隋唐演義" },
+  { id: "niehaihua-gutenberg-zh", pg: 25128, lang: "zh", title: "孽海花", category: "中文 · 古典小说", expect: "孽海花" },
 
   { id: "alice-wonderland-gutenberg-en", pg: 11, lang: "en", title: "Alice's Adventures in Wonderland", category: "English · Fiction", expect: "Alice" },
   { id: "pride-prejudice-gutenberg-en", pg: 1342, lang: "en", title: "Pride and Prejudice", category: "English · Fiction", expect: "Pride" },
@@ -78,6 +79,13 @@ const BOOKS = [
   { id: "tarzan-apes-gutenberg-en", pg: 78, lang: "en", title: "Tarzan of the Apes", category: "English · Adventure", expect: "Tarzan" },
   { id: "red-badge-courage-gutenberg-en", pg: 73, lang: "en", title: "The Red Badge of Courage", category: "English · Fiction", expect: "Courage" },
   { id: "around-world-gutenberg-en", pg: 103, lang: "en", title: "Around the World in Eighty Days", category: "English · Adventure", expect: "World" },
+  { id: "scarlet-letter-gutenberg-en", pg: 33, lang: "en", title: "The Scarlet Letter", category: "English · Fiction", expect: "Scarlet Letter" },
+  { id: "middlemarch-gutenberg-en", pg: 145, lang: "en", title: "Middlemarch", category: "English · Fiction", expect: "Middlemarch" },
+  { id: "room-view-gutenberg-en", pg: 2641, lang: "en", title: "A Room with a View", category: "English · Fiction", expect: "Room with a View" },
+  { id: "hound-baskervilles-gutenberg-en", pg: 2852, lang: "en", title: "The Hound of the Baskervilles", category: "English · Detective", expect: "Baskervilles" },
+  { id: "sign-four-gutenberg-en", pg: 2097, lang: "en", title: "The Sign of the Four", category: "English · Detective", expect: "Sign of the Four" },
+  { id: "souls-black-folk-gutenberg-en", pg: 408, lang: "en", title: "The Souls of Black Folk", category: "English · Essays", expect: "Souls" },
+  { id: "narrative-douglass-gutenberg-en", pg: 23, lang: "en", title: "Narrative of the Life of Frederick Douglass", category: "English · Memoir", expect: "Douglass" },
   { id: "art-of-war-gutenberg", pg: 132, lang: "en", title: "The Art of War", category: "English · Strategy", expect: "Art of War" },
 
   { id: "madame-bovary-gutenberg-fr", pg: 14155, lang: "fr", title: "Madame Bovary", category: "Français · Roman", expect: "Bovary" },
@@ -108,6 +116,7 @@ const BOOKS = [
   { id: "lazarillo-gutenberg-es", pg: 320, lang: "es", title: "Lazarillo de Tormes", category: "Español · Novela", expect: "Lazarillo" },
   { id: "crimen-castigo-gutenberg-es", pg: 61851, lang: "es", title: "El crimen y el castigo", category: "Español · Novela", expect: "castigo" },
   { id: "argonautas-gutenberg-es", pg: 25640, lang: "es", title: "Los argonautas", category: "Español · Novela", expect: "argonautas" },
+  { id: "odisea-gutenberg-es", pg: 58221, lang: "es", title: "La Odisea", category: "Español · Épica", expect: "Odisea" },
 
   { id: "dom-casmurro-gutenberg-pt", pg: 55752, lang: "pt", title: "Dom Casmurro", category: "Português · Romance", expect: "Casmurro" },
   { id: "bras-cubas-gutenberg-pt", pg: 54829, lang: "pt", title: "Memórias Póstumas de Brás Cubas", category: "Português · Romance", expect: "Braz" },
@@ -121,6 +130,7 @@ const BOOKS = [
   { id: "vildanden-gutenberg-no", pg: 13041, lang: "no", title: "Vildanden", category: "Norsk · Drama", expect: "Vildanden" },
   { id: "sult-gutenberg-no", pg: 30027, lang: "no", title: "Sult", category: "Norsk · Roman", expect: "Sult" },
   { id: "pelle-erobreren-1-gutenberg-da", pg: 76563, lang: "da", title: "Pelle Erobreren 1: Barndom", category: "Dansk · Roman", expect: "Pelle" },
+  { id: "kongens-fald-gutenberg-da", pg: 36942, lang: "da", title: "Kongens Fald", category: "Dansk · Roman", expect: "Kongens Fald" },
 
   { id: "rashomon-gutenberg-ja", pg: 1982, lang: "ja", title: "羅生門", category: "日本語 · 小説", expect: "羅生門" },
   { id: "kumogata-monsho-gutenberg-ja", pg: 35018, lang: "ja", title: "雲形紋章", category: "日本語 · 小説", expect: "雲形紋章" },
