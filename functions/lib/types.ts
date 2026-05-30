@@ -29,8 +29,18 @@ export interface Env {
   EVM_REGISTRY?: string;     // deployed registry contract address
   // Bearer secret enabling the admin-only book-text ingest endpoint (optional).
   ADMIN_TOKEN?: string;
-  // Override the AI book-companion model (any Workers AI text model id; optional).
+  // AI provider gateway (functions/lib/aiProvider.ts):
+  //   AI_PROVIDER: "workers-ai" (default) | "deepseek" | "openai-compat"
+  //   AI_MODEL: provider-specific model id (optional; each provider has a default)
+  //   AI_API_KEY / DEEPSEEK_API_KEY: secret for hosted providers
+  //   AI_BASE_URL: override endpoint (e.g. a Cloudflare AI Gateway OpenAI-compat URL)
+  AI_PROVIDER?: string;
   AI_MODEL?: string;
+  AI_API_KEY?: string;
+  DEEPSEEK_API_KEY?: string;
+  AI_BASE_URL?: string;
+  // Free-tier monthly AI request quota (default 60); 'pro' subscribers unlimited.
+  AI_FREE_MONTHLY?: string;
 }
 
 // Hono context variables set by the auth middleware.
