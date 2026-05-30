@@ -3,7 +3,7 @@ import { I } from "./product-shared.jsx";
 
 /* product-charts.jsx — open rankings: today / 7-day / 30-day,
    by reads / highlights / conversations. Full screen + compact library band. */
-const { useState: useCh } = React;
+const { useState: useCh, useEffect: useEffC } = React;
 
 const CH_WINDOWS = [["today","今日"],["week","近 7 天"],["month","近 30 天"]];
 const CH_METRICS = [["reads","在读"],["lines","划线"],["convos","对话"],["surge","飙升"]];
@@ -26,14 +26,21 @@ function Charts({ onOpenBook, onBack, onAgentCharts }){
   const [win, setWin] = useCh("today");
   const [metric, setMetric] = useCh("reads");
   const byId = (id) => (window.BOOKS||[]).find(b => b.id === id);
-  const surgeMap = (window.SURGE || {})[win] || {};
-  const data = ((window.CHARTS || {})[win] || []).map(r => ({ ...r, surge: surgeMap[r.id] ?? 0 }));
+  /* live rankings from the backend (seed baseline + event aggregation), seed fallback */
+  const [live, setLive] = useCh(null);
+  useEffC(() => {
+    if (!window.liberApi) return;
+    window.liberApi.charts(win).then(r => { if (r && Array.isArray(r.rows)) setLive(r); }).catch(() => {});
+  }, [win]);
+  const useLive = live && live.window === win;
+  const surgeMap = (useLive ? live.surge : (window.SURGE || {})[win]) || {};
+  const data = ((useLive ? live.rows : (window.CHARTS || {})[win]) || []).map(r => ({ ...r, surge: surgeMap[r.id] ?? 0 }));
   const ranked = rankBy(data, metric);
   const readTop3 = rankBy(data, "reads").slice(0,3).map(r=>r.id);
   const max = Math.max(...ranked.map(r => r[metric]), 1);
   const metricLabel = CH_METRICS.find(m=>m[0]===metric)[1];
-  const hot = (window.CHARTS||{}).hotToday;
-  const sentences = [...(window.HOT_SENTENCES||[])].sort((a,b)=>b.liners-a.liners);
+  const hot = (useLive && live.hotToday) || (window.CHARTS||{}).hotToday;
+  const sentences = [...((useLive && live.sentences) || window.HOT_SENTENCES || [])].sort((a,b)=>b.liners-a.liners);
 
   return (
     <div className="app-screen">
@@ -133,7 +140,9 @@ function Charts({ onOpenBook, onBack, onAgentCharts }){
 /* compact band for the library */
 function ChartsBand({ onOpenBook, onOpenCharts }){
   const [win, setWin] = useCh("today");
-  const data = (window.CHARTS || {})[win] || [];
+  const [rows, setRows] = useCh(null);
+  useEffC(() => { if (!window.liberApi) return; window.liberApi.charts(win).then(r => { if (r && Array.isArray(r.rows)) setRows(r.rows); }).catch(() => {}); }, [win]);
+  const data = rows || (window.CHARTS || {})[win] || [];
   const ranked = rankBy(data, "reads").slice(0,5);
   const byId = (id) => (window.BOOKS||[]).find(b => b.id === id);
   return (

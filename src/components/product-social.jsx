@@ -3,7 +3,7 @@ import { I } from "./product-shared.jsx";
 import { ConvoArtifact, ForkTreeModal } from "./product-convocard.jsx";
 
 /* product-social.jsx — co-reading: feed, popular highlights, shared convos, discussion thread. */
-const { useState: useSs } = React;
+const { useState: useSs, useEffect: useEffS } = React;
 
 function Social({ onOpenBook, onOpenGroup, onContinue }){
   const [tab, setTab] = useSs("feed"); // feed | convos | groups
@@ -11,13 +11,21 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
   const feed = window.FEED || [];
   const hot = window.HIGHLIGHTS || [];
   const groups = window.GROUPS || [];
-  /* shared conversations: user-published (localStorage) + seeds */
+  /* shared conversations: backend (/api/shares) with localStorage+seed fallback */
   let published = []; try { published = JSON.parse(localStorage.getItem("liber.shared")) || []; } catch {}
-  const convos = [...published, ...(window.SHARED_CONVOS || [])];
+  const [apiConvos, setApiConvos] = useSs(null);
+  useEffS(() => {
+    if (!window.liberApi) return;
+    window.liberApi.shares.list().then(r => { if (r && Array.isArray(r.shares)) setApiConvos(r.shares); }).catch(() => {});
+  }, []);
+  const convos = apiConvos || [...published, ...(window.SHARED_CONVOS || [])];
   const [expanded, setExpanded] = useSs(null);   // convo id
   const [forkTree, setForkTree] = useSs(null);   // convo whose tree is open
   const [saved, setSaved] = useSs(() => { try { return JSON.parse(localStorage.getItem("liber.saved.convos")) || []; } catch { return []; } });
-  const toggleSave = (id) => setSaved(s => { const n = s.includes(id) ? s.filter(x=>x!==id) : [...s, id]; localStorage.setItem("liber.saved.convos", JSON.stringify(n)); return n; });
+  const toggleSave = (id) => {
+    setSaved(s => { const n = s.includes(id) ? s.filter(x=>x!==id) : [...s, id]; localStorage.setItem("liber.saved.convos", JSON.stringify(n)); return n; });
+    if (window.liberApi) window.liberApi.shares.save(id).catch(() => {});
+  };
 
   return (
     <div className="app-screen">
@@ -39,7 +47,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
               </div>
 
               {tab === "feed" && feed.map((f,i) => (
-                <FeedCard key={i} f={f} onOpenThread={() => setThread(window.THREAD)} onOpenBook={onOpenBook}
+                <FeedCard key={i} f={f} onOpenThread={() => setThread({ ...window.THREAD, key: "daodejing:c2-s1" })} onOpenBook={onOpenBook}
                   onOpenGroup={f.kind==="group" ? () => onOpenGroup("daoist-read") : null} />
               ))}
 
@@ -153,7 +161,17 @@ function FeedCard({ f, onOpenThread, onOpenBook, onOpenGroup }){
 function ThreadOverlay({ thread, onClose }){
   const [replies, setReplies] = useSs(thread.replies);
   const [draft, setDraft] = useSs("");
-  const add = () => { if(!draft.trim()) return; setReplies(r => [...r, { u:"林知秋", color:"#3a4fb0", when:"刚刚", t:draft.trim(), up:0, mine:true }]); setDraft(""); };
+  useEffS(() => {
+    if (!window.liberApi || !thread.key) return;
+    window.liberApi.thread.get(thread.key).then(r => { if (r && Array.isArray(r.replies) && r.replies.length) setReplies(prev => [...prev, ...r.replies]); }).catch(() => {});
+  }, []);
+  const add = () => {
+    if(!draft.trim()) return;
+    const text = draft.trim();
+    setReplies(r => [...r, { u:"林知秋", color:"#3a4fb0", when:"刚刚", t:text, up:0, mine:true }]);
+    if (window.liberApi && thread.key) window.liberApi.thread.reply(thread.key, text).catch(() => {});
+    setDraft("");
+  };
   return (
     <>
       <div className="drawer-scrim" style={{ zIndex:860 }} onClick={onClose}/>
