@@ -103,11 +103,28 @@ function hasReaderEpub(book) {
 }
 
 function readerModeKey(bookId) {
-  return `liber.reader.mode.v3.${bookId || "unknown"}`;
+  return `liber.reader.mode.v4.${bookId || "unknown"}`;
 }
 
 function defaultReaderMode(book) {
-  return hasReaderEpub(book) ? "epub" : "text";
+  return "text";
+}
+
+function storedReaderMode(book) {
+  try {
+    return localStorage.getItem(readerModeKey(book?.id)) === "text" ? "text" : defaultReaderMode(book);
+  } catch {
+    return defaultReaderMode(book);
+  }
+}
+
+function readStoredMap(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key));
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
 }
 
 function flattenEpubToc(items = [], depth = 0, out = []) {
@@ -265,7 +282,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     window.addEventListener("liber-reader-layout", h);
     return () => window.removeEventListener("liber-reader-layout", h);
   }, []);
-  const [readMode, setReadModeState] = useS(() => localStorage.getItem(readerModeKey(seedBook.id)) || defaultReaderMode(seedBook));
+  const [readMode, setReadModeState] = useS(() => storedReaderMode(seedBook));
   const epubControl = useR(null);
   const [epubToc, setEpubToc] = useS([]);
   const [epubLocation, setEpubLocation] = useS(null);
@@ -274,14 +291,16 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     setReadModeState((prev) => {
       const value = typeof next === "function" ? next(prev) : next;
       if (options.persist !== false) {
-        try { localStorage.setItem(readerModeKey(book.id), value); } catch { /* ignore */ }
+        try {
+          if (value === "text") localStorage.setItem(readerModeKey(book.id), value);
+          else localStorage.removeItem(readerModeKey(book.id));
+        } catch { /* ignore */ }
       }
       return value;
     });
   }, [book.id]);
   useE(() => {
-    const stored = localStorage.getItem(readerModeKey(book.id));
-    setReadModeState(stored || defaultReaderMode(book));
+    setReadModeState(storedReaderMode(book));
     setEpubToc([]);
     setEpubLocation(null);
   }, [book.id, book.dynamic, book.hasEpub]);
@@ -306,8 +325,15 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
 
   /* highlights + user notes (persisted per book) */
   const hlKey = "liber.hl."+book.id, ntKey = "liber.nt."+book.id;
-  const [hls, setHls]   = useS(() => { try { return JSON.parse(localStorage.getItem(hlKey)) || {}; } catch { return {}; } });
-  const [notes, setNotes] = useS(() => { try { return JSON.parse(localStorage.getItem(ntKey)) || {}; } catch { return {}; } });
+  const [hls, setHls]   = useS(() => readStoredMap(hlKey));
+  const [notes, setNotes] = useS(() => readStoredMap(ntKey));
+  const [heat, setHeat] = useS({});
+  useE(() => {
+    setHls(readStoredMap("liber.hl."+book.id));
+    setNotes(readStoredMap("liber.nt."+book.id));
+    setHeat({});
+    setSrvAnno({});
+  }, [book.id]);
   useE(() => { localStorage.setItem(hlKey, JSON.stringify(hls)); }, [hls]);
   useE(() => { localStorage.setItem(ntKey, JSON.stringify(notes)); }, [notes]);
 
@@ -326,6 +352,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         }
         return merged;
       });
+      if (r.heat && typeof r.heat === "object") setHeat(r.heat);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [book.id]);
@@ -408,14 +435,51 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const applyHl = (color) => {
     if (!sel) return;
     const sids = sel.sids;
-    setHls(prev => { const n = { ...prev }; sids.forEach(id => n[id] = color); return n; });
+    const clearing = color == null;
+    const before = hls;
+    setHls(prev => {
+      const n = { ...prev };
+      sids.forEach(id => {
+        if (clearing) delete n[id];
+        else n[id] = color;
+      });
+      return n;
+    });
+    setHeat(prev => {
+      const next = { ...prev };
+      sids.forEach(id => {
+        if (clearing) {
+          if (before[id]) next[id] = Math.max(0, Number(next[id] || 1) - 1);
+        } else if (!before[id]) {
+          next[id] = Number(next[id] || 0) + 1;
+        }
+        if (!next[id]) delete next[id];
+      });
+      return next;
+    });
     if (window.liberApi) sids.forEach(id => window.liberApi.reading.highlight(book.id, id, color).catch(() => {}));
     window.getSelection().removeAllRanges();
     setSel(null);
   };
   const startNote = () => {
     if (!sel) return;
-    setHls(prev => { const n = { ...prev }; sel.sids.forEach(id => { if(!n[id]) n[id] = "hl-user"; }); return n; });
+    const sids = sel.sids;
+    const before = hls;
+    setHls(prev => {
+      const n = { ...prev };
+      sids.forEach(id => { if(!n[id]) n[id] = "hl-user"; });
+      return n;
+    });
+    setHeat(prev => {
+      const next = { ...prev };
+      sids.forEach(id => {
+        if (!before[id]) next[id] = Number(next[id] || 0) + 1;
+      });
+      return next;
+    });
+    if (window.liberApi) sids.forEach(id => {
+      if (!before[id]) window.liberApi.reading.highlight(book.id, id, "hl-user").catch(() => {});
+    });
     const sid = sel.sids[0];
     const r = { x: sel.x, y: sel.y + 26, sid };
     window.getSelection().removeAllRanges();
@@ -469,6 +533,8 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     setNoteDraft("");
   };
 
+  const heatCountFor = (sid) => Math.max(Number(heat[sid] || 0), hls[sid] ? 1 : 0);
+
   /* ---- AI send — live Workers AI, falling back to the canned brain ---- */
   const sendAI = (text) => {
     const q = (text != null ? text : draft).trim();
@@ -511,7 +577,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const jumpTo = (n) => { const i = chapters.findIndex(c => c.n === n); if (i >= 0){ setReadMode("text"); setCIdx(i); setTocOpen(false); } };
   const jumpEpubTo = useCb((href) => {
     if (!href || !epubControl.current?.display) return;
-    setReadMode("epub");
+    setReadMode("epub", { persist: false });
     epubControl.current.display(href);
     setTocOpen(false);
   }, [setReadMode]);
@@ -528,15 +594,22 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
 
   /* ---- render one sentence ---- */
   const renderSentence = (s) => {
-    const hasAnno = !!(window.ANNOTATIONS[s.id] || notes[s.id]);
     const cnt = annoFor(s.id).length;
+    const hasAnno = cnt > 0;
+    const lineHeat = heatCountFor(s.id);
     const cls = ["rd-sentence"];
     if (hls[s.id]) cls.push(hls[s.id]);
     if (hasAnno) cls.push("has-anno");
+    if (lineHeat > 0) cls.push("has-heat");
     return (
       <span key={s.id} className={cls.join(" ")} data-sid={s.id}
         onClick={hasAnno ? (e) => openNotePop(s.id, e) : undefined}>
         {s.t}
+        {lineHeat > 0 && (
+          <span className="hl-heat" title={`${lineHeat} 人划线`}>
+            {I.hl}<span>{lineHeat}</span>
+          </span>
+        )}
         {hasAnno && cnt > 0 && (
           <span className="anno-marker" onClick={(e) => { e.stopPropagation(); openNotePop(s.id, e); }}>{cnt}</span>
         )}
@@ -579,7 +652,10 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         </div>
         <div className="spacer"/>
         <button className={`rd-tool ${tocOpen?"on":""}`} onClick={() => { setTocOpen(v=>!v); setSetOpen(false); }}>{I.list} 目录</button>
-        <button className={`rd-tool ${readMode==="epub"?"on":""}`} disabled={!hasEpub} title={hasEpub ? "EPUB 阅读版" : "暂无 EPUB 阅读版"} onClick={() => setReadMode(m => m === "epub" ? "text" : "epub")}>{I.book} EPUB</button>
+        <div className="rd-mode-toggle" role="group" aria-label="阅读模式">
+          <button className={`rd-tool ${readMode==="text"?"on":""}`} title="互动阅读版" onClick={() => setReadMode("text")}>{I.note} 互动</button>
+          <button className={`rd-tool ${readMode==="epub"?"on":""}`} disabled={!hasEpub} title={hasEpub ? "EPUB 阅读版" : "暂无 EPUB 阅读版"} onClick={() => setReadMode("epub", { persist: false })}>{I.book} EPUB</button>
+        </div>
         <button className={`rd-tool ${setOpen?"on":""}`} id="rd-set-btn" onClick={() => { setSetOpen(v=>!v); setTocOpen(false); }}>{I.type} 显示</button>
         <button className={`rd-tool ${aiOpen?"on":""}`} onClick={() => { setAiOpen(v=>!v); if(layout==="archive") setRailTab("ai"); }}>{I.spark} AI 书友</button>
       </div>
@@ -701,6 +777,9 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <span className="swatch" style={{ background:"var(--accent)" }} title="朱砂" onClick={() => applyHl("hl-user")}/>
           <span className="swatch" style={{ background:"#e3b54a" }} title="赭黄" onClick={() => applyHl("hl-yellow")}/>
           <span className="swatch" style={{ background:"#5aa36e" }} title="松绿" onClick={() => applyHl("hl-green")}/>
+          {sel.sids.some(id => hls[id]) && (
+            <button className="clear-hl" title="取消划线" onClick={() => applyHl(null)}>{I.x} 取消</button>
+          )}
           <span className="sep"/>
           <button onClick={startNote}>{I.note} 批注</button>
           <button onClick={askAI}>{I.spark} 问 AI</button>
@@ -713,11 +792,16 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
       {notePop && (() => {
         const list = annoFor(notePop.sid);
         const sObj = ch.paras.flat().find(x => x.id === notePop.sid);
+        const lineHeat = heatCountFor(notePop.sid);
         return (
           <>
             <div className="drawer-scrim" style={{ background:"transparent", zIndex:835 }} onClick={() => setNotePop(null)}/>
             <div className="note-pop" style={{ left: Math.min(Math.max(notePop.x,180), window.innerWidth-180), top: notePop.y, transform:"translateX(-50%)" }}>
-              <div className="np-head">{list.length} 条批注 <span className="x" onClick={() => setNotePop(null)}>{I.x}</span></div>
+              <div className="np-head">
+                {list.length} 条批注
+                {lineHeat > 0 && <span className="np-heat">{I.hl}{lineHeat} 人划线</span>}
+                <span className="x" onClick={() => setNotePop(null)}>{I.x}</span>
+              </div>
               {sObj && <div className="np-quote">「{sObj.t}」</div>}
               <div className="np-list">
                 {list.map((n,i) => (

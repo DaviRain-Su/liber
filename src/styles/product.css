@@ -237,6 +237,11 @@ button{ font-family: inherit; }
 .rd-tool:disabled{ opacity: .45; cursor: not-allowed; }
 .rd-tool:disabled:hover{ background: transparent; color: var(--ink-2); }
 .rd-tool svg{ flex-shrink: 0; }
+.rd-mode-toggle{
+  display: inline-flex; align-items: center; gap: 2px; padding: 2px;
+  border: 1px solid var(--hair-2); border-radius: 6px; background: color-mix(in oklab, var(--paper) 72%, transparent);
+}
+.rd-mode-toggle .rd-tool{ height: 32px; padding: 0 10px; border-radius: 4px; }
 
 /* reading region split: text + (optional) right rail */
 .rd-body{ flex: 1; display: flex; min-height: 0; position: relative; }
@@ -272,7 +277,20 @@ button{ font-family: inherit; }
 .rd-sentence.hl-green{ background: color-mix(in oklab, #5aa36e 26%, transparent); box-shadow: 0 1px 0 color-mix(in oklab,#5aa36e 50%, transparent); }
 /* sentence with others' annotations -> dotted underline + marker */
 .rd-sentence.has-anno{ border-bottom: 2px dotted var(--accent-line); cursor: pointer; }
-.rd-sentence.has-note{ position: relative; }
+.rd-sentence.has-note,
+.rd-sentence.has-heat{ position: relative; }
+.hl-heat{
+  display: inline-flex; align-items: center; justify-content: center; gap: 2px;
+  font-family: var(--mono); font-size: 10px; line-height: 1; vertical-align: super;
+  min-width: 22px; height: 17px; border-radius: 999px; margin-left: 3px; padding: 0 5px;
+  background: color-mix(in oklab, #e3b54a 25%, transparent); color: #8b5d0f;
+  border: 1px solid color-mix(in oklab, #e3b54a 48%, transparent);
+  user-select: none;
+}
+.hl-heat svg{ width: 10px; height: 10px; flex-shrink: 0; }
+.reader[data-rtheme="night"] .hl-heat{
+  background: rgba(227,181,74,.14); color: #e6c875; border-color: rgba(227,181,74,.32);
+}
 .anno-marker{
   display: inline-flex; align-items: center; justify-content: center;
   font-family: var(--mono); font-size: 10px; vertical-align: super;
@@ -297,6 +315,7 @@ button{ font-family: inherit; }
   transition: background .14s;
 }
 .sel-pop button:hover{ background: rgba(255,255,255,.13); }
+.sel-pop .clear-hl{ color: #f0c9c1; }
 .sel-pop .sep{ width: 1px; align-self: stretch; background: rgba(255,255,255,.16); margin: 4px 2px; }
 .sel-pop .swatch{ width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.4); cursor: pointer; }
 .sel-pop .swatch:hover{ transform: scale(1.12); }
@@ -309,6 +328,8 @@ button{ font-family: inherit; }
 @keyframes notePop{ from{ opacity:0; transform: translateY(8px);} to{ opacity:1; transform:none;} }
 .note-pop .np-head{ display:flex; align-items:center; gap:8px; padding: 12px 16px; border-bottom: 1px solid var(--hair-2); font-family: var(--mono); font-size: 11px; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); }
 .note-pop .np-head .x{ margin-left:auto; cursor:pointer; color: var(--ink-3); }
+.note-pop .np-head .np-heat{ display:inline-flex; align-items:center; gap:4px; color: var(--accent); letter-spacing:.04em; text-transform:none; }
+.note-pop .np-head .np-heat svg{ width: 12px; height: 12px; }
 .note-pop .np-quote{ font-family: var(--display); font-style: italic; font-size: 16px; color: var(--ink); padding: 14px 16px 6px; }
 .note-pop .np-list{ max-height: 320px; overflow-y: auto; }
 .np-note{ display: flex; gap: 11px; padding: 14px 16px; border-top: 1px solid var(--hair-2); }
