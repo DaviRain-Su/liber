@@ -6,11 +6,13 @@ import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 /* product-notebook.jsx — your highlights/notes archive + AI chapter summaries + export. */
 const { useState: useSn, useMemo: useMemoN, useEffect: useEffN } = React;
 
-/* gather the reader's real highlights + notes from localStorage + backend, merged with seeds */
-function gatherHighlights(serverReading = {}){
+/* gather the reader's real highlights + notes from localStorage + backend, merged with seeds only in demo mode */
+function gatherHighlights(serverReading = {}, summary = null){
   const out = [];
+  if (Array.isArray(summary?.highlights)) return summary.highlights;
   const catalogTitles = new Set(getCatalogBooks().map((b) => b.t));
-  (window.SEED_HL || []).forEach(h => { if (catalogTitles.has(h.book)) out.push({ ...h, seed:true }); });
+  const hasLive = getCatalogBooks().some((b) => b.dynamic);
+  if (!hasLive) (window.SEED_HL || []).forEach(h => { if (catalogTitles.has(h.book)) out.push({ ...h, seed:true }); });
   getCatalogBooks().forEach(b => {
     let hl = {}, nt = {};
     try { hl = JSON.parse(localStorage.getItem("liber.hl."+b.id)) || {}; } catch {}
@@ -45,7 +47,9 @@ function gatherHighlights(serverReading = {}){
 
 function Notebook({ onOpenBook }){
   const [serverReading, setServerReading] = useSn({});
-  const all = useMemoN(() => gatherHighlights(serverReading), [serverReading]);
+  const [summary, setSummary] = useSn(null);
+  const hasLiveCatalog = getCatalogBooks().some((b) => b.dynamic);
+  const all = useMemoN(() => gatherHighlights(serverReading, summary), [serverReading, summary]);
   const books = useMemoN(() => ["全部", ...Array.from(new Set(all.map(h => h.book)))], [all]);
   const [bookF, setBookF] = useSn("全部");
   const [typeF, setTypeF] = useSn("summary"); // summary | highlight | note | work
@@ -58,6 +62,7 @@ function Notebook({ onOpenBook }){
   }, []);
   useEffN(() => {
     if (!window.liberApi) return;
+    window.liberApi.reading.summary().then((r) => setSummary(r)).catch(() => {});
     let live = true;
     Promise.all(getCatalogBooks().map((b) =>
       window.liberApi.reading.get(b.id)
@@ -74,7 +79,7 @@ function Notebook({ onOpenBook }){
 
   const hls = all.filter(h => bookF === "全部" || h.book === bookF);
   const notesOnly = hls.filter(h => h.note);
-  const summaries = (window.AI_SUMMARIES||[]).filter(s => {
+  const summaries = (hasLiveCatalog ? [] : window.AI_SUMMARIES||[]).filter(s => {
     const bk = findCatalogBook(s.book);
     return bookF === "全部" || (bk && bk.t === bookF);
   });

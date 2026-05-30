@@ -1,6 +1,7 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
 import { ConvoArtifact, ForkTreeModal } from "./product-convocard.jsx";
+import { getCatalogBooks } from "../lib/catalog.js";
 
 /* product-social.jsx — co-reading: feed, popular highlights, shared convos, discussion thread. */
 const { useState: useSs, useEffect: useEffS } = React;
@@ -24,17 +25,22 @@ function branchConvo(convo, path){
 function Social({ onOpenBook, onOpenGroup, onContinue }){
   const [tab, setTab] = useSs("feed"); // feed | convos | groups
   const [thread, setThread] = useSs(null); // open discussion overlay
-  const feed = window.FEED || [];
-  const hot = window.HIGHLIGHTS || [];
-  const groups = window.GROUPS || [];
+  const hasLiveCatalog = getCatalogBooks().some((b) => b.dynamic);
+  const [apiFeed, setApiFeed] = useSs(null);
+  const [apiGroups, setApiGroups] = useSs(null);
+  const feed = apiFeed || (hasLiveCatalog ? [] : window.FEED || []);
+  const hot = hasLiveCatalog ? [] : window.HIGHLIGHTS || [];
+  const groups = apiGroups || (hasLiveCatalog ? [] : window.GROUPS || []);
   /* shared conversations: backend (/api/shares) with localStorage+seed fallback */
   let published = []; try { published = JSON.parse(localStorage.getItem("liber.shared")) || []; } catch {}
   const [apiConvos, setApiConvos] = useSs(null);
   useEffS(() => {
     if (!window.liberApi) return;
     window.liberApi.shares.list().then(r => { if (r && Array.isArray(r.shares)) setApiConvos(r.shares); }).catch(() => {});
+    window.liberApi.feed().then(r => { if (r && Array.isArray(r.feed)) setApiFeed(r.feed); }).catch(() => {});
+    window.liberApi.groups.list().then(r => { if (r && Array.isArray(r.groups)) setApiGroups(r.groups); }).catch(() => {});
   }, []);
-  const convos = apiConvos || [...published, ...(window.SHARED_CONVOS || [])];
+  const convos = apiConvos || [...published, ...(hasLiveCatalog ? [] : window.SHARED_CONVOS || [])];
   const [expanded, setExpanded] = useSs(null);   // convo id
   const [forkTree, setForkTree] = useSs(null);   // convo whose tree is open
   const [saved, setSaved] = useSs(() => { try { return JSON.parse(localStorage.getItem("liber.saved.convos")) || []; } catch { return []; } });
@@ -68,15 +74,17 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
                 <button className={tab==="groups"?"on":""} onClick={()=>setTab("groups")}>共读小组</button>
               </div>
 
-              {tab === "feed" && feed.map((f,i) => (
-                <FeedCard key={i} f={f} onOpenThread={() => setThread({ ...window.THREAD, key: "daodejing:c2-s1" })} onOpenBook={onOpenBook}
-                  onOpenGroup={f.kind==="group" ? () => onOpenGroup("daoist-read") : null} />
-              ))}
+              {tab === "feed" && (
+                feed.length ? feed.map((f,i) => (
+                  <FeedCard key={i} f={f} onOpenThread={() => window.THREAD && setThread({ ...window.THREAD, key: "daodejing:c2-s1" })} onOpenBook={onOpenBook}
+                    onOpenGroup={f.kind==="group" ? () => onOpenGroup(f.groupId || groups[0]?.id) : null} />
+                )) : <EmptySocial text="还没有真实动态。划线、批注、发布对话后会出现在这里。" />
+              )}
 
               {tab === "convos" && (
                 <div className="soc-convos">
                   <div className="soc-convos-intro">读者们把和 AI 聊出的精彩片段公开在这里。浏览、收藏，或者——<b>接着 ta 停下的地方继续问</b>。</div>
-                  {convos.map((c) => (
+                  {convos.length ? convos.map((c) => (
                     <div className="soc-convo-item" key={c.id}>
                       {c.mine && <div className="mine-tag">你分享的</div>}
                       <ConvoArtifact convo={c}
@@ -91,17 +99,17 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
                         saved={saved.includes(c.id)} />
                       {commentsFor === c.id && <CommentsPanel targetType="share" targetId={c.id} />}
                     </div>
-                  ))}
+                  )) : <EmptySocial text="还没有公开对话。从阅读器里和 AI 书友聊完后，可以分享出来。" />}
                 </div>
               )}
 
               {tab === "groups" && (
                 <div className="soc-grouplist">
-                  {groups.map(g => (
+                  {groups.length ? groups.map(g => (
                     <div className="gl-card" key={g.id} onClick={()=>onOpenGroup(g.id)}>
                       <div className="glc-top">
                         <span className="glc-seal" style={{background:g.color}}>{g.seal}</span>
-                        <div><div className="glc-n">{g.name}</div><div className="glc-bk">共读《{g.book==="daodejing"?"道德经":g.book==="meditations"?"沉思录":"国富论"}》</div></div>
+                        <div><div className="glc-n">{g.name}</div><div className="glc-bk">共读《{g.bookT || g.book}》</div></div>
                         {g.joined && <span className="glc-joined">已加入</span>}
                       </div>
                       <p className="glc-desc">{g.desc}</p>
@@ -113,7 +121,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
                         <span className="glc-prog">本周 {g.weekRange}</span>
                       </div>
                     </div>
-                  ))}
+                  )) : <EmptySocial text="还没有真实共读小组。当前真实馆藏会生成可加入的小组，加入后成员与讨论会写入数据库。" />}
                 </div>
               )}
             </div>
@@ -122,21 +130,21 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
             <aside className="soc-aside">
               <div className="aside-card">
                 <div className="ac-h">本馆热门划线</div>
-                {hot.map(h => (
+                {hot.length ? hot.map(h => (
                   <div className="ac-hl" key={h.rank} onClick={() => onOpenBook && onOpenBook("daodejing")}>
                     <span className="rk">{h.rank}</span>
                     <div><div className="q">「{h.q}」</div><div className="c">{h.c} · {h.n}</div></div>
                   </div>
-                ))}
+                )) : <EmptySocial text="真实划线产生后会显示排行。" compact />}
               </div>
               <div className="aside-card">
                 <div className="ac-h">共读小组</div>
-                {groups.map(g => (
+                {groups.length ? groups.map(g => (
                   <div className="grp" key={g.id} onClick={()=>onOpenGroup(g.id)} style={{cursor:"pointer"}}>
                     <span className="gd" style={{background:g.color}}/>
                     <div><div className="gn">{g.name}</div><div className="gm">{g.members} 人 · 本周 {g.weekRange}</div></div>
                   </div>
-                ))}
+                )) : <EmptySocial text="暂无小组" compact />}
                 <button className="btn btn-ghost btn-block" style={{marginTop:14}} onClick={()=>setTab("groups")}>浏览全部小组</button>
               </div>
             </aside>
@@ -148,6 +156,10 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
       {forkTree && <ForkTreeModal convo={forkTree} onClose={() => setForkTree(null)} onFork={(node, path) => { setForkTree(null); onContinue(branchConvo(forkTree, path)); }} />}
     </div>
   );
+}
+
+function EmptySocial({ text, compact }){
+  return <div className="pf-empty" style={{ padding: compact ? "10px 0" : 28 }}>{text}</div>;
 }
 
 function FeedCard({ f, onOpenThread, onOpenBook, onOpenGroup }){

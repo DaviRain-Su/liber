@@ -6,8 +6,7 @@ import {
   upsertWalletUser, createGuestUser, getUser, createCliDevice, approveCliDevice,
   pollCliDevice, requireUser, createCliPublishToken,
 } from "../lib/auth";
-import { first } from "../lib/db";
-import * as S from "../lib/seed";
+import { readingStats } from "../lib/reading-summary";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -87,9 +86,7 @@ auth.get("/me", async (c) => {
   const user = await getUser(c.env, uid);
   if (!user) return c.json({ user: null });
   if (user.is_guest) return c.json({ user: null });
-  const hl = await first(c.env.DB, `SELECT COUNT(*) AS n FROM highlights WHERE user_id = ?`, uid);
-  const nt = await first(c.env.DB, `SELECT COUNT(*) AS n FROM notes WHERE user_id = ?`, uid);
-  const stats = { ...S.ME.stats, lines: hl?.n || 0, notes: nt?.n || 0 };
+  const stats = await readingStats(c.env, uid);
   return c.json({ user: { ...user, wallet: user.sui_address, stats } });
 });
 

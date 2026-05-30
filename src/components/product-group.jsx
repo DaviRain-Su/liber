@@ -1,12 +1,18 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
+import { getCatalogBooks } from "../lib/catalog.js";
 
 /* product-group.jsx — co-reading group detail + groups discovery list. */
 const { useState: useGrp, useEffect: useEffG } = React;
 
 /* discovery list (when no groupId) */
 function GroupsList({ onOpenGroup, onBack }){
-  const groups = window.GROUPS || [];
+  const hasLiveCatalog = getCatalogBooks().some((b) => b.dynamic);
+  const [groups, setGroups] = useGrp(hasLiveCatalog ? [] : window.GROUPS || []);
+  useEffG(() => {
+    if (!window.liberApi) return;
+    window.liberApi.groups.list().then(r => { if (Array.isArray(r?.groups)) setGroups(r.groups); }).catch(() => {});
+  }, []);
   return (
     <div className="app-screen">
       <div className="grp-screen">
@@ -19,23 +25,23 @@ function GroupsList({ onOpenGroup, onBack }){
             <button className="btn btn-primary">＋ 发起共读</button>
           </div>
           <div className="gl-grid">
-            {groups.map(g => (
+            {groups.length ? groups.map(g => (
               <div className="gl-card" key={g.id} onClick={()=>onOpenGroup(g.id)}>
                 <div className="glc-top">
                   <span className="glc-seal" style={{background:g.color}}>{g.seal}</span>
-                  <div><div className="glc-n">{g.name}</div><div className="glc-bk">共读《{g.book==="daodejing"?"道德经":g.book==="meditations"?"沉思录":"国富论"}》</div></div>
+                  <div><div className="glc-n">{g.name}</div><div className="glc-bk">共读《{g.bookT || g.book}》</div></div>
                   {g.joined && <span className="glc-joined">已加入</span>}
                 </div>
                 <p className="glc-desc">{g.desc}</p>
                 <div className="glc-foot">
                   <div className="glc-avas">
-                    {g.memberAvatars.slice(0,5).map((a,i)=><span key={i} className="ga" style={{background:a.c, marginLeft:i?-9:0, zIndex:9-i}}>{a.n}</span>)}
+                    {(g.memberAvatars||[]).slice(0,5).map((a,i)=><span key={i} className="ga" style={{background:a.c, marginLeft:i?-9:0, zIndex:9-i}}>{a.n}</span>)}
                     <span className="glc-mc">{g.members} 人</span>
                   </div>
                   <span className="glc-prog">本周 {g.weekRange}</span>
                 </div>
               </div>
-            ))}
+            )) : <div className="pf-empty">还没有真实共读小组。真实馆藏会生成可加入的小组，加入后成员与讨论会写入数据库。</div>}
           </div>
         </div>
       </div>
@@ -44,15 +50,26 @@ function GroupsList({ onOpenGroup, onBack }){
 }
 
 function Group({ groupId, onBack, onOpenReader }){
-  const g = (window.GROUPS||[]).find(x => x.id === groupId) || window.GROUPS[0];
-  const bookT = g.book==="daodejing"?"道德经":g.book==="meditations"?"沉思录":"国富论";
-  const [joined, setJoined] = useGrp(g.joined);
-  const [replies, setReplies] = useGrp(g.discussion);
+  const hasLiveCatalog = getCatalogBooks().some((b) => b.dynamic);
+  const fallback = (hasLiveCatalog ? [] : window.GROUPS || []).find(x => x.id === groupId) || (hasLiveCatalog ? null : window.GROUPS?.[0]);
+  const [group, setGroup] = useGrp(fallback);
+  const g = group;
+  const bookT = g?.bookT || g?.book || "共读";
+  const [joined, setJoined] = useGrp(!!g?.joined);
+  const [replies, setReplies] = useGrp(g?.discussion || []);
   const [draft, setDraft] = useGrp("");
   useEffG(() => {
     if (!window.liberApi) return;
-    window.liberApi.groups.get(g.id).then(r => { if (r && r.group && Array.isArray(r.group.discussion)) setReplies(r.group.discussion); }).catch(() => {});
-  }, [g.id]);
+    window.liberApi.groups.get(groupId).then(r => {
+      if (!r?.group) return;
+      setGroup(r.group);
+      setJoined(!!r.group.joined);
+      if (Array.isArray(r.group.discussion)) setReplies(r.group.discussion);
+    }).catch(() => {});
+  }, [groupId]);
+  if (!g) {
+    return <div className="app-screen"><div className="grp-screen"><div className="grp-wrap" style={{paddingTop:40}}><button className="btn btn-ghost" onClick={onBack}>{I.left} 返回</button><div className="pf-empty">没有找到这个共读小组。</div></div></div></div>;
+  }
   const add = () => {
     if(!draft.trim()) return;
     const text = draft.trim();
@@ -60,6 +77,10 @@ function Group({ groupId, onBack, onOpenReader }){
     setReplies(r => [{ u:"林知秋", color:"#3a4fb0", when:"刚刚", chap, t:text, up:0, replies:0, mine:true }, ...r]);
     if (window.liberApi) window.liberApi.groups.post(g.id, text, chap).catch(() => {});
     setDraft("");
+  };
+  const toggleJoin = () => {
+    setJoined(v => !v);
+    if (window.liberApi) window.liberApi.groups.join(g.id).then(r => { if (typeof r?.joined === "boolean") setJoined(r.joined); }).catch(() => {});
   };
 
   return (
@@ -85,13 +106,13 @@ function Group({ groupId, onBack, onOpenReader }){
           {/* action bar */}
           <div className="grp-bar">
             <div className="gbar-avas">
-              {g.memberAvatars.map((a,i)=><span key={i} className="ga" style={{background:a.c, marginLeft:i?-10:0, zIndex:20-i}}>{a.n}</span>)}
+              {(g.memberAvatars||[]).map((a,i)=><span key={i} className="ga" style={{background:a.c, marginLeft:i?-10:0, zIndex:20-i}}>{a.n}</span>)}
               <span className="gbar-mc">{g.members} 人在读 · 组长 {g.lead}</span>
             </div>
             <div className="gbar-act">
               {joined
-                ? <><button className="btn btn-ghost" onClick={()=>onOpenReader(g.book)}>跟上进度 →</button><button className="btn btn-ghost" onClick={()=>setJoined(false)}>已加入 ✓</button></>
-                : <button className="btn btn-primary" onClick={()=>setJoined(true)}>加入共读</button>}
+                ? <><button className="btn btn-ghost" onClick={()=>onOpenReader(g.book)}>跟上进度 →</button><button className="btn btn-ghost" onClick={toggleJoin}>已加入 ✓</button></>
+                : <button className="btn btn-primary" onClick={toggleJoin}>加入共读</button>}
             </div>
           </div>
 
@@ -105,7 +126,7 @@ function Group({ groupId, onBack, onOpenReader }){
               </div>
 
               {/* top annotation */}
-              <div className="grp-topanno">
+              {g.topAnno && <div className="grp-topanno">
                 <div className="ta-lab">本周最热批注</div>
                 <div className="ta-quote">「{g.topAnno.quote}」</div>
                 <div className="ta-row">
@@ -113,7 +134,7 @@ function Group({ groupId, onBack, onOpenReader }){
                   <div><div className={"nm"+(window.canOpenProfile(g.topAnno.u)?" name-link":"")} onClick={window.canOpenProfile(g.topAnno.u)?()=>window.openProfile(g.topAnno.u):undefined}>{g.topAnno.u}</div><div className="tx">{g.topAnno.t}</div></div>
                   <span className="up">{I.up} {g.topAnno.up}</span>
                 </div>
-              </div>
+              </div>}
 
               {/* discussion */}
               <div className="grp-disc">
@@ -123,7 +144,7 @@ function Group({ groupId, onBack, onOpenReader }){
                   <input placeholder={`聊聊本周的 ${g.weekRange}…`} value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")add();}}/>
                   <span className="send" onClick={add}>{I.send}</span>
                 </div>
-                {replies.map((d,i) => (
+                {replies.length ? replies.map((d,i) => (
                   <div className="gd-post" key={i}>
                     <span className={"ava"+(window.canOpenProfile(d.u)?" ava-link":"")} style={{background:d.color}} onClick={window.canOpenProfile(d.u)?()=>window.openProfile(d.u):undefined}>{d.u[0]}</span>
                     <div className="gd-body">
@@ -132,7 +153,7 @@ function Group({ groupId, onBack, onOpenReader }){
                       <div className="mt"><span>{I.up} 赞同 {d.up}</span><span>{d.replies||0} 回复</span></div>
                     </div>
                   </div>
-                ))}
+                )) : <div className="pf-empty">还没有真实讨论。加入后可以发第一条。</div>}
               </div>
             </main>
 
@@ -141,7 +162,7 @@ function Group({ groupId, onBack, onOpenReader }){
               <div className="sh-card">
                 <div className="shc-h">阅读排期</div>
                 <div className="sched">
-                  {g.schedule.map((s,i) => (
+                  {(g.schedule||[]).map((s,i) => (
                     <div className={`sch-row ${s.state}`} key={i}>
                       <span className="sch-dot"/>
                       <div className="sch-mid"><div className="sch-wk">{s.wk}</div><div className="sch-chap">{s.chap}</div></div>
@@ -149,15 +170,16 @@ function Group({ groupId, onBack, onOpenReader }){
                       {s.state==="current" && <span className="sch-tag now">进行中</span>}
                     </div>
                   ))}
+                  {!(g.schedule||[]).length && <div className="pf-empty">暂无排期。</div>}
                 </div>
               </div>
               <div className="sh-card">
                 <div className="shc-h">成员</div>
                 <div className="mem-grid">
-                  {g.memberAvatars.map((a,i)=>(
+                  {(g.memberAvatars||[]).map((a,i)=>(
                     <div className="mem" key={i}><span className="ava" style={{background:a.c}}>{a.n}</span></div>
                   ))}
-                  {g.members > g.memberAvatars.length && <div className="mem more">+{g.members-g.memberAvatars.length}</div>}
+                  {g.members > (g.memberAvatars||[]).length && <div className="mem more">+{g.members-(g.memberAvatars||[]).length}</div>}
                 </div>
               </div>
             </aside>

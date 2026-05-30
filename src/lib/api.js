@@ -68,6 +68,7 @@ export const api = {
   search: (q) => get(`/search?q=${encodeURIComponent(q)}`),
 
   reading: {
+    summary: () => get("/reading/summary"),
     get: (bookId) => get(`/reading/${bookId}`),
     highlight: (bookId, sid, color) => put(`/reading/${bookId}/highlight`, { sid, color }),
     note: (bookId, sid, text, isPublic = true) => post(`/reading/${bookId}/note`, { sid, text, public: isPublic }),

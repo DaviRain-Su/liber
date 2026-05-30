@@ -9,19 +9,31 @@ const { useState: useShf, useEffect: useEff } = React;
 function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
   const me = window.ME;
   const [catalog, setCatalog] = useShf(() => getCatalogBooks());
+  const [summary, setSummary] = useShf(null);
+  const [apiGroups, setApiGroups] = useShf([]);
   const [, refreshShelf] = useShf(0);
   useEff(() => {
     const offCatalog = subscribeCatalog((books) => setCatalog(books));
     const offShelf = subscribeShelf(() => refreshShelf((n) => n + 1));
     return () => { offCatalog(); offShelf(); };
   }, []);
+  useEff(() => {
+    if (!window.liberApi) return;
+    let live = true;
+    window.liberApi.reading.summary().then((r) => { if (live) setSummary(r); }).catch(() => {});
+    window.liberApi.groups.list().then((r) => { if (live && Array.isArray(r?.groups)) setApiGroups(r.groups); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
   const byId = (id) => catalog.find((book) => book.id === id);
-  const reading = shelfReadingEntries(me.reading, catalog);
+  const serverReading = (summary?.reading || []).map((r) => ({ id: r.id, at: r.at }));
+  const reading = shelfReadingEntries(serverReading.length ? serverReading : me.reading, catalog);
   const want = (me.wantToRead||[]).map(byId).filter(Boolean);
   const finished = (me.finished||[]).map(byId).filter(Boolean);
-  const groups = (me.groups||[]).map(id => (window.GROUPS||[]).find(g => g.id === id)).filter(Boolean);
+  const joinedIds = new Set(summary?.joinedGroupIds || []);
+  const groups = apiGroups.filter((g) => joinedIds.has(g.id) || g.joined);
   const collections = shelfCollections(me.collections, catalog);
   const [tab, setTab] = useShf("reading");
+  const stats = summary?.stats || { streak: 0, weekRead: 0, yearFinished: 0, lines: 0 };
 
   const pct = (b) => (b.at && b.at.match(/(\d+)%/)) ? b.at.match(/(\d+)%/)[1] : "0";
 
@@ -37,22 +49,22 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
           {/* reading stats band */}
           <div className="sh-stats">
             <div className="ss-item ss-streak">
-              <div className="n">{me.streak}<span className="u"> 天</span></div>
+              <div className="n">{stats.streak}<span className="u"> 天</span></div>
               <div className="l">连续阅读</div>
-              <div className="flames">{Array.from({length:7}).map((_,i)=><span key={i} className={i<5?"on":""}/>)}</div>
+              <div className="flames">{Array.from({length:7}).map((_,i)=><span key={i} className={i<Math.min(stats.streak,7)?"on":""}/>)}</div>
             </div>
             <div className="ss-item">
-              <div className="n">{me.weekRead}<span className="u"> / {me.weekGoal}</span></div>
+              <div className="n">{stats.weekRead}<span className="u"> / 7</span></div>
               <div className="l">本周已读 (天)</div>
-              <div className="ss-bar"><div className="ss-fill" style={{width:(me.weekRead/me.weekGoal*100)+"%"}}/></div>
+              <div className="ss-bar"><div className="ss-fill" style={{width:(stats.weekRead/7*100)+"%"}}/></div>
             </div>
             <div className="ss-item">
-              <div className="n">{me.yearFinished}<span className="u"> / {me.yearGoal}</span></div>
+              <div className="n">{stats.yearFinished}</div>
               <div className="l">今年读完</div>
-              <div className="ss-bar"><div className="ss-fill" style={{width:(me.yearFinished/me.yearGoal*100)+"%"}}/></div>
+              <div className="ss-bar"><div className="ss-fill" style={{width:stats.yearFinished ? "100%" : "0%"}}/></div>
             </div>
             <div className="ss-item">
-              <div className="n">{me.stats.lines}</div>
+              <div className="n">{stats.lines}</div>
               <div className="l">累计划线</div>
             </div>
           </div>
@@ -111,6 +123,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
                     <span className="gp">{g.progressPct}%</span>
                   </div>
                 ))}
+                {groups.length === 0 && <div className="pf-empty">你还没有加入共读小组。</div>}
               </div>
 
               {/* collections */}

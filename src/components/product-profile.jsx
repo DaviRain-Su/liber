@@ -47,12 +47,19 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
   const followSet = useFollowSet();
   const [tab, setTab] = useSp("shelf"); // shelf | finished | notes | following
   const [catalog, setCatalog] = useSp(() => getCatalogBooks());
+  const [summary, setSummary] = useSp(null);
   const [, refreshShelf] = useSp(0);
   useEpf(() => {
     const offCatalog = subscribeCatalog((books) => setCatalog(books));
     const offShelf = subscribeShelf(() => refreshShelf((n) => n + 1));
     return () => { offCatalog(); offShelf(); };
   }, []);
+  useEpf(() => {
+    if (!isMe || !window.liberApi?.reading?.summary) return;
+    let live = true;
+    window.liberApi.reading.summary().then((r) => { if (live) setSummary(r); }).catch(() => {});
+    return () => { live = false; };
+  }, [isMe]);
 
   const person = isMe ? me : (window.PEOPLE || {})[userId];
 
@@ -70,15 +77,21 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
   const byId = (id) => catalog.find((book) => book.id === id) || findCatalogBook(id);
   const byTitleOrId = (x) => byId(x) || catalog.find(b => b.t === x || b.id === x);
 
+  const serverReading = (summary?.reading || []).map((r) => ({ id: r.id, at: r.at }));
   const reading = isMe
-    ? shelfReadingEntries(person.reading || [], catalog)
+    ? shelfReadingEntries(serverReading.length ? serverReading : person.reading || [], catalog)
     : (person.reading || []).map(r => ({ ...byId(r.id), at:r.at })).filter(b => b && b.id);
   const finished = (person.finished || []).map(byId).filter(Boolean);
+  const realStats = isMe && summary?.stats
+    ? { ...person.stats, ...summary.stats, followers: 0, following: followSet.length }
+    : person.stats;
 
   /* normalize public notes to {q,t,book,chap,when};
      for my own profile, only surface notes whose book is in the live catalog */
   const catalogTitles = new Set(catalog.map((b) => b.t));
-  const publicNotes = isMe
+  const publicNotes = isMe && summary?.highlights
+    ? summary.highlights.filter(h => h.note).map(h => ({ q:h.t, t:h.note, book:h.book, chap:h.chap, when:h.when }))
+    : isMe
     ? (window.SEED_HL || []).filter(h => h.note && catalogTitles.has(h.book)).map(h => ({ q:h.t, t:h.note, book:h.book, chap:h.chap, when:h.when }))
     : (person.publicNotes || []);
 
@@ -86,8 +99,8 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
   const onToggleFollow = () => window.toggleFollow(person.name);
 
   /* live counts */
-  const followingCount = isMe ? followSet.length : (person.stats.following || 0);
-  const followerCount = isMe ? person.stats.followers : (person.stats.followers || 0) + (following ? 1 : 0);
+  const followingCount = isMe ? followSet.length : (realStats.following || 0);
+  const followerCount = isMe ? realStats.followers : (realStats.followers || 0) + (following ? 1 : 0);
 
   const Stat = ({ n, l }) => <div className="pf-stat"><div className="n">{n}</div><div className="l">{l}</div></div>;
 
@@ -134,11 +147,11 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
           </div>
 
           <div className="pf-stats">
-            <Stat n={person.stats.read} l="在读"/>
-            <Stat n={person.stats.finished} l="读完"/>
-            <Stat n={person.stats.lines} l="划线"/>
-            <Stat n={person.stats.notes} l="批注"/>
-            <Stat n={(person.stats.agreed||0).toLocaleString()} l="获赞同"/>
+            <Stat n={realStats.read} l="在读"/>
+            <Stat n={realStats.finished} l="读完"/>
+            <Stat n={realStats.lines} l="划线"/>
+            <Stat n={realStats.notes} l="批注"/>
+            <Stat n={(realStats.agreed||0).toLocaleString()} l="获赞同"/>
             <Stat n={followingCount} l="关注中"/>
             <Stat n={followerCount} l="关注者"/>
           </div>

@@ -2,10 +2,15 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { all, first, run, id, now } from "../lib/db";
 import { requireUser } from "../lib/auth";
+import { readingSummary } from "../lib/reading-summary";
 
 // Per-user reading data (highlights / notes / progress) — replaces the
 // frontend's localStorage keys with server-side, cross-device storage.
 const reading = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+reading.get("/summary", async (c) => {
+  return c.json(await readingSummary(c.env, c.get("userId")));
+});
 
 reading.get("/:bookId", async (c) => {
   const uid = requireUser(c);

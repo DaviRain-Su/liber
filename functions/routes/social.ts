@@ -4,16 +4,116 @@ import { all, first, run, id, now } from "../lib/db";
 import { requireUser } from "../lib/auth";
 import { putBlob } from "../lib/storage";
 import { chain } from "../lib/chains";
+import { getToc, hasLibraryBooks, listBooks } from "../lib/catalog";
 import * as S from "../lib/seed";
 
 // Co-reading & social: annotations, feed, shares, groups, threads, works.
 // Every list endpoint merges seed baselines with live D1 rows.
 const social = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+async function liveGroups(env: Env, userId?: string | null) {
+  const books = await listBooks(env);
+  const liveBooks = books.filter((b: any) => b.dynamic);
+  const groups: any[] = [];
+  for (const b of liveBooks) {
+    const gid = `live-${b.id}`;
+    const [memberRows, postCount, progressRows, annoRows, toc] = await Promise.all([
+      all<any>(
+        env.DB,
+        `SELECT u.name, u.color, u.seal, gm.user_id
+         FROM group_members gm JOIN users u ON u.id = gm.user_id
+         WHERE gm.group_id = ? ORDER BY gm.joined_at ASC LIMIT 8`,
+        gid,
+      ),
+      all<any>(env.DB, `SELECT COUNT(*) AS n FROM group_posts WHERE group_id = ?`, gid),
+      all<any>(env.DB, `SELECT percent FROM progress WHERE book_id = ?`, b.id),
+      all<any>(
+        env.DB,
+        `SELECT COUNT(*) AS n FROM notes WHERE book_id = ?
+         UNION ALL
+         SELECT COUNT(*) AS n FROM highlights WHERE book_id = ?`,
+        b.id, b.id,
+      ),
+      getToc(env, b.id),
+    ]);
+    const progressPct = progressRows.length
+      ? Math.round(progressRows.reduce((sum, r) => sum + Number(r.percent || 0), 0) / progressRows.length)
+      : 0;
+    const annos = annoRows.reduce((sum, r) => sum + Number(r.n || 0), 0);
+    const first = toc[0];
+    const next = toc[Math.min(2, Math.max(0, toc.length - 1))];
+    groups.push({
+      id: gid,
+      name: `《${b.t}》共读`,
+      color: "#1f8a5b",
+      seal: b.seal || "读",
+      book: b.id,
+      bookT: b.t,
+      desc: "围绕真实入库文本的共读小组。成员、讨论、批注和进度都来自线上数据。",
+      members: memberRows.length,
+      joined: !!userId && memberRows.some((m) => m.user_id === userId),
+      lead: memberRows[0]?.name || "",
+      weekRange: first && next ? `${first.title} — ${next.title}` : first?.title || "从第一章开始",
+      progressPct,
+      annos,
+      posts: Number(postCount[0]?.n || 0),
+      memberAvatars: memberRows.map((m) => ({ n: m.seal || String(m.name || "读")[0], c: m.color || "#3a4fb0" })),
+      schedule: toc.slice(0, 5).map((t, i) => ({
+        wk: i === 0 ? "开始" : `第 ${i + 1} 节`,
+        chap: t.title,
+        state: i === 0 ? "current" : "upcoming",
+      })),
+      discussion: [],
+      topAnno: null,
+    });
+  }
+  return groups;
+}
+
+async function liveFeed(env: Env) {
+  const [notes, shares, posts] = await Promise.all([
+    all<any>(
+      env.DB,
+      `SELECT n.text, n.up, n.created_at, n.book_id, lb.title AS book_title, u.name, u.color
+       FROM notes n JOIN users u ON u.id = n.user_id
+       LEFT JOIN library_books lb ON lb.id = n.book_id
+       WHERE n.public = 1 ORDER BY n.created_at DESC LIMIT 20`,
+    ),
+    all<any>(
+      env.DB,
+      `SELECT s.id, s.title, s.quote, s.book_id, s.created_at, lb.title AS book_title, u.name, u.color
+       FROM shares s JOIN users u ON u.id = s.user_id
+       LEFT JOIN library_books lb ON lb.id = s.book_id
+       WHERE s.visibility = 'public' ORDER BY s.created_at DESC LIMIT 20`,
+    ),
+    all<any>(
+      env.DB,
+      `SELECT gp.group_id, gp.text, gp.chap, gp.up, gp.created_at, u.name, u.color
+       FROM group_posts gp JOIN users u ON u.id = gp.user_id
+       ORDER BY gp.created_at DESC LIMIT 20`,
+    ),
+  ]);
+  return [
+    ...notes.map((n) => ({
+      kind: "anno", u: n.name || "读者", color: n.color || "#3a4fb0", book: n.book_title || n.book_id,
+      chap: "", t: n.text, up: n.up || 0, replies: 0, when: "刚刚", createdAt: n.created_at,
+    })),
+    ...shares.map((s) => ({
+      kind: "convo", u: s.name || "读者", color: s.color || "#3a4fb0", book: s.book_title || s.book_id,
+      title: s.title || "分享了一段阅读对话", quote: s.quote, up: 0, saved: 0, when: "刚刚", createdAt: s.created_at,
+    })),
+    ...posts.map((p) => ({
+      kind: "group", u: p.name || "读者", color: p.color || "#3a4fb0", groupId: p.group_id, t: p.text, chap: p.chap || "",
+      up: p.up || 0, members: 0, when: "刚刚", createdAt: p.created_at,
+    })),
+  ].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)).slice(0, 30);
+}
+
 // others' annotations on a sentence = seed + public D1 notes (all users)
 social.get("/annotations/:bookId/:sid", async (c) => {
   const { bookId, sid } = c.req.param();
-  const seedAnnos = S.ANNOTATIONS[sid] || [];
+  const dynamicOnly = await hasLibraryBooks(c.env);
+  const seedAnnos = dynamicOnly ? [] : S.ANNOTATIONS[sid] || [];
   const rows = await all(
     c.env.DB,
     `SELECT n.text, n.color, n.up, u.name FROM notes n JOIN users u ON u.id = n.user_id
@@ -24,7 +124,10 @@ social.get("/annotations/:bookId/:sid", async (c) => {
   return c.json({ annotations: [...seedAnnos, ...extra] });
 });
 
-social.get("/feed", (c) => c.json({ feed: S.FEED }));
+social.get("/feed", async (c) => {
+  if (await hasLibraryBooks(c.env)) return c.json({ feed: await liveFeed(c.env) });
+  return c.json({ feed: S.FEED });
+});
 
 // shared AI conversations: user-published (D1) on top of the seeds
 social.get("/shares", async (c) => {
@@ -76,6 +179,7 @@ social.get("/shares", async (c) => {
   const published = rows
     .filter((r) => !r.parent_id || !byId[r.parent_id])
     .map((r) => ({ ...byId[r.id], forks: descendants(r.id), tree: (children[r.id] || []).map(toNode) }));
+  if (await hasLibraryBooks(c.env)) return c.json({ shares: published });
   return c.json({ shares: [...published, ...S.SHARED_CONVOS] });
 });
 
@@ -111,10 +215,17 @@ social.post("/shares/:id/save", async (c) => {
   return c.json({ saved: true });
 });
 
-social.get("/groups", (c) => c.json({ groups: S.GROUPS }));
+social.get("/groups", async (c) => {
+  if (await hasLibraryBooks(c.env)) return c.json({ groups: await liveGroups(c.env, c.get("userId")) });
+  return c.json({ groups: S.GROUPS });
+});
 
 social.get("/groups/:id", async (c) => {
-  const g = S.GROUPS.find((x) => x.id === c.req.param("id")) || S.GROUPS[0];
+  const dynamicOnly = await hasLibraryBooks(c.env);
+  const g = dynamicOnly
+    ? (await liveGroups(c.env, c.get("userId"))).find((x) => x.id === c.req.param("id"))
+    : S.GROUPS.find((x) => x.id === c.req.param("id")) || S.GROUPS[0];
+  if (!g) return c.json({ error: "未找到共读小组" }, 404);
   const posts = await all(
     c.env.DB,
     `SELECT gp.text, gp.chap, gp.up, u.name, u.color FROM group_posts gp JOIN users u ON u.id = gp.user_id
@@ -122,7 +233,7 @@ social.get("/groups/:id", async (c) => {
     g.id,
   );
   const extra = posts.map((p) => ({ u: p.name || "读者", color: p.color || "#3a4fb0", when: "刚刚", chap: p.chap, t: p.text, up: p.up || 0, replies: 0, mine: true }));
-  return c.json({ group: { ...g, discussion: [...extra, ...g.discussion] } });
+  return c.json({ group: { ...g, discussion: [...extra, ...(dynamicOnly ? [] : g.discussion)] } });
 });
 
 social.post("/groups/:id/posts", async (c) => {
