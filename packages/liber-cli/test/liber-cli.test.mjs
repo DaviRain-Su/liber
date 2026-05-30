@@ -414,6 +414,12 @@ test("private-key auth requires a scheme for raw hex keys", async () => {
 
 test("CLI publish supports dry-run and requires a token for real publish", async () => {
   const { epubPath, dir } = await writeEpub();
+  const env = {
+    ...process.env,
+    LIBER_CONFIG: path.join(dir, "empty-config.json"),
+    LIBER_ADMIN_TOKEN: "",
+    ADMIN_TOKEN: "",
+  };
   const manifest = await createBookManifest(epubPath, {
     source: "https://example.com/dao.epub",
     license: "CC0-1.0",
@@ -421,11 +427,11 @@ test("CLI publish supports dry-run and requires a token for real publish", async
   const manifestPath = path.join(dir, "manifest.json");
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-  const result = await execFileAsync(process.execPath, [CLI_PATH, "book", "publish", manifestPath, "--dry-run"]);
+  const result = await execFileAsync(process.execPath, [CLI_PATH, "book", "publish", manifestPath, "--dry-run"], { env });
   assert.match(result.stdout, /Dry-run publish plan/);
 
   await assert.rejects(
-    () => execFileAsync(process.execPath, [CLI_PATH, "book", "publish", manifestPath]),
+    () => execFileAsync(process.execPath, [CLI_PATH, "book", "publish", manifestPath], { env }),
     /Publish token is required/,
   );
 

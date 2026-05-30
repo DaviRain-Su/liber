@@ -14,6 +14,7 @@ export interface Env {
   // Decentralized storage endpoints (optional; storage.ts falls back to R2 when unset).
   WALRUS_PUBLISHER?: string;
   WALRUS_AGGREGATOR?: string;
+  WALRUS_PUBLISH_TIMEOUT_MS?: string;
   ARWEAVE_GATEWAY?: string;
   // Active chain adapter: "sui" (default) | "evm" | "solana".
   CHAIN?: string;

@@ -35,8 +35,15 @@ function pseudoAddresses(hash: string) {
 async function walrusPublish(env: Env, bytes: Uint8Array): Promise<string | null> {
   const base = env.WALRUS_PUBLISHER;
   if (!base) return null;
+  const timeoutMs = Math.max(100, Math.min(10_000, Number(env.WALRUS_PUBLISH_TIMEOUT_MS || 800) || 800));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${base.replace(/\/$/, "")}/v1/blobs`, { method: "PUT", body: bytes });
+    const res = await fetch(`${base.replace(/\/$/, "")}/v1/blobs`, {
+      method: "PUT",
+      body: bytes,
+      signal: controller.signal,
+    });
     if (!res.ok) return null;
     const j: any = await res.json();
     // Walrus returns either a freshly created or already-certified blob object.
@@ -47,6 +54,8 @@ async function walrusPublish(env: Env, bytes: Uint8Array): Promise<string | null
     );
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

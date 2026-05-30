@@ -111,6 +111,7 @@ external calls. Set public endpoints in `wrangler.toml` `[vars]`; set
 | --- | --- |
 | `WALRUS_PUBLISHER` | Walrus publisher base URL; enables real blob writes (works/shares/book text). Public testnet: `https://publisher.walrus-testnet.walrus.space` |
 | `WALRUS_AGGREGATOR` | Walrus aggregator base URL; blob reads + reachability. Public testnet: `https://aggregator.walrus-testnet.walrus.space` |
+| `WALRUS_PUBLISH_TIMEOUT_MS` | Per-blob Walrus publisher timeout. Defaults to `800`, so large book imports do not hang when public Walrus testnet is slow; R2 still stores the blob. |
 | `ARWEAVE_GATEWAY` | Arweave gateway for backup-copy reachability, e.g. `https://arweave.net` |
 | `SUI_RPC` | Sui fullnode JSON-RPC for read-only chain verification, e.g. `https://fullnode.testnet.sui.io:443` |
 | `SUI_SIGNER_KEY` | **Secret.** `suiprivkey1…` bech32 key; enables on-chain registration of published works/shares (needs gas). |

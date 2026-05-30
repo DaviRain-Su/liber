@@ -634,14 +634,20 @@ export async function publishBookManifest(manifest, options = {}) {
   }
   const payload = await createIngestPayload(manifest, options);
   const fetcher = options.fetchImpl || fetch;
-  const res = await fetcher(`${resolved.apiUrl}/api/books/ingest`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${resolved.adminToken}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const ingestUrl = `${resolved.apiUrl}/api/books/ingest`;
+  let res;
+  try {
+    res = await fetcher(ingestUrl, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${resolved.adminToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    throw new LiberCliError("PUBLISH_NETWORK_FAILED", `Publish request failed for ${ingestUrl}: ${error.message || String(error)}`);
+  }
   const text = await res.text();
   let body;
   try {
