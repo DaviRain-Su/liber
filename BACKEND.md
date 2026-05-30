@@ -116,6 +116,19 @@ non-secret) except `ADMIN_TOKEN`, which should be a Pages **secret**.
 | `SUI_MODULE` | Move module name (default `registry`). |
 | `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint |
 | `AI_MODEL` | Override the AI book-companion model (any Workers AI text model id). Default: `@cf/qwen/qwen1.5-14b-chat-awq` (stronger Chinese than the prior Llama 3.1 8B). |
+| `CHAIN` | Active chain adapter: `sui` (default) / `evm` / `solana`. |
+| `EVM_RPC` / `EVM_SIGNER_KEY` / `EVM_REGISTRY` | EVM adapter: read works with just `EVM_RPC`; wallet-login verify + on-chain registration are scaffolded (TODO) and need the signer key + a deployed registry contract. |
+
+### Chain layer is pluggable (multi-chain ready)
+
+Storage (Walrus) and the chain are independent: **using Walrus does not require
+writing or deploying any contract** — it's an HTTP publisher/aggregator. The
+*chain* is a swappable adapter (`functions/lib/chains/`): `sui` (full), `evm`
+(read + scaffold), `solana` (future). Routes call the active adapter via
+`chain(env)`; switch the whole chain layer with `CHAIN`, add a chain by adding
+one adapter file. On-chain **registration is optional and high-value-only** — it
+needs a deployed contract (e.g. a Sui Move package) and stays a no-op until the
+signer key + contract id are configured, so nothing depends on it.
 
 On publish, `POST /api/works` and `POST /api/shares` call
 `<SUI_PACKAGE>::<SUI_MODULE>::register(...)` when `SUI_RPC` + `SUI_SIGNER_KEY` +
