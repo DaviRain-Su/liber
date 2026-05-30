@@ -973,7 +973,9 @@ export async function extractEpubChapters(filePath) {
     const enoughCoverage = !chapters.length
       || navigationChapters.length >= chapters.length * 0.7
       || navigationChapters.length >= 20;
-    if (enoughCoverage) return navigationChapters;
+    const notOversegmented = !chapters.length
+      || navigationChapters.length <= Math.max(chapters.length * 1.8, chapters.length + 8);
+    if (enoughCoverage && notOversegmented) return navigationChapters;
   }
   if (!chapters.length) throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
   return chapters;
