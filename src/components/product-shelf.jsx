@@ -1,17 +1,26 @@
 import React from "react";
 import { I, Cover } from "./product-shared.jsx";
-import { findCatalogBook } from "../lib/catalog.js";
+import { getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
+import { shelfCollections, shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
 
 /* product-shelf.jsx — My Shelf: reading hub. Stats + reading/want/finished + collections. */
-const { useState: useShf } = React;
+const { useState: useShf, useEffect: useEff } = React;
 
 function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
   const me = window.ME;
-  const byId = (id) => findCatalogBook(id);
-  const reading = me.reading.map(r => ({ ...byId(r.id), at:r.at })).filter(Boolean);
+  const [catalog, setCatalog] = useShf(() => getCatalogBooks());
+  const [, refreshShelf] = useShf(0);
+  useEff(() => {
+    const offCatalog = subscribeCatalog((books) => setCatalog(books));
+    const offShelf = subscribeShelf(() => refreshShelf((n) => n + 1));
+    return () => { offCatalog(); offShelf(); };
+  }, []);
+  const byId = (id) => catalog.find((book) => book.id === id);
+  const reading = shelfReadingEntries(me.reading, catalog);
   const want = (me.wantToRead||[]).map(byId).filter(Boolean);
   const finished = (me.finished||[]).map(byId).filter(Boolean);
   const groups = (me.groups||[]).map(id => (window.GROUPS||[]).find(g => g.id === id)).filter(Boolean);
+  const collections = shelfCollections(me.collections, catalog);
   const [tab, setTab] = useShf("reading");
 
   const pct = (b) => (b.at && b.at.match(/(\d+)%/)) ? b.at.match(/(\d+)%/)[1] : "0";
@@ -73,6 +82,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
                       </div>
                     </div>
                   ))}
+                  {!reading.length && <div className="pf-empty">你的书架里还没有书。从书库打开一本书后，可以把它加入书架。</div>}
                 </div>
               )}
 
@@ -85,6 +95,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
                       <div className="at">{tab==="want" ? "想读 · "+b.cat : "已读完 · "+b.a}</div>
                     </div>
                   ))}
+                  {(tab==="want"?want:finished).length === 0 && <div className="pf-empty">{tab==="want" ? "暂无想读图书。" : "暂无读完图书。"}</div>}
                 </div>
               )}
             </main>
@@ -105,7 +116,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
               {/* collections */}
               <div className="sh-card">
                 <div className="shc-h">我的书单</div>
-                {me.collections.map(c => (
+                {collections.map(c => (
                   <div className="sh-coll" key={c.id}>
                     <div className="coll-stack">
                       {c.books.map((bid,i) => { const b=byId(bid); return b ? <span key={bid} className={`coll-sp ${b.cls}`} style={{zIndex:9-i, marginLeft:i?-14:0}}>{b.seal}</span> : null; })}

@@ -3,7 +3,7 @@ import type { Env, Variables } from "../lib/types";
 import * as S from "../lib/seed";
 import { chain } from "../lib/chains";
 import { putBlob } from "../lib/storage";
-import { getBook, getChapters, getChapterText, getToc, hasLibraryBooks, ingestBook, listBooks, searchDynamic } from "../lib/catalog";
+import { getBook, getChapters, getChapterText, getToc, hasLibraryBooks, ingestBook, listBooks, searchDynamic, textToChapter } from "../lib/catalog";
 import { getCliPublishToken } from "../lib/auth";
 
 const books = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -182,7 +182,7 @@ books.get("/books/:id/content/:n", async (c) => {
   const n = Number(c.req.param("n"));
   const content = await getChapterText(c.env, b.id, n);
   if (!content) return c.json({ error: "未找到该章" }, 404);
-  return c.json(content);
+  return c.json({ ...content, chapter: textToChapter(b.id, content.n, content.title, content.text) });
 });
 
 export default books;

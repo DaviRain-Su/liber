@@ -37,6 +37,16 @@ function aiReply(mode, q, ctx){
   return { t:`可以这样理解${c}：老子想说的，往往不在字面，而在字面留出的那道缝里。读慢一点，让句子自己展开——有需要我随时在旁边。`, ref:"道德经 · 第一章" };
 }
 
+function chapterPlaceholder(bookId, n, title, text = "正文加载中…", status = "loading") {
+  return {
+    n,
+    title: title || `第 ${n} 章`,
+    placeholder: true,
+    status,
+    paras: [[{ id: `${bookId}-c${n}-${status}`, t: text }]],
+  };
+}
+
 function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const missingBook = { id: bookId, t: "未找到该书", a: "", sub: "", cls: "ink", seal: "书" };
   const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
@@ -58,23 +68,39 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     setCIdx(seedIdx >= 0 ? seedIdx : 0);
     if (!window.liberApi) return;
     let live = true;
-    Promise.all([
-      window.liberApi.books.get(bookId).catch(() => null),
-      window.liberApi.books.chapters(bookId).catch(() => null),
-    ]).then(([detail, body]) => {
+    window.liberApi.books.get(bookId).then((detail) => {
       if (!live) return;
       if (detail?.book) setBook(detail.book);
-      if (Array.isArray(body?.chapters) && body.chapters.length) {
-        setChapters(body.chapters);
-        setToc(Array.isArray(body.toc) ? body.toc : body.chapters.map(c => ({ n: c.n, title: c.title, has: true })));
-        const i = body.chapters.findIndex(c => c.n === startChapter);
+      if (Array.isArray(detail?.toc) && detail.toc.length) {
+        const readable = detail.toc.filter(t => t.has !== false);
+        const list = readable.length ? readable : detail.toc;
+        setToc(detail.toc);
+        setChapters(list.map(t => chapterPlaceholder(bookId, t.n, t.title)));
+        const i = list.findIndex(c => c.n === startChapter);
         setCIdx(i >= 0 ? i : 0);
       }
-    });
+    }).catch(() => {});
     return () => { live = false; };
   }, [bookId, startChapter]);
   const ch = chapters[cIdx] || chapters[0] || { n: 1, title: "暂无正文", paras: [[{ id: `${book.id}-empty`, t: "这本书还没有入库正文。" }]] };
   const chapterCount = chapters.length || 1;
+
+  useE(() => {
+    if (!ch?.placeholder || ch.status !== "loading" || !window.liberApi?.books?.content) return;
+    let live = true;
+    window.liberApi.books.content(bookId, ch.n).then((res) => {
+      if (!live) return;
+      const next = res?.chapter || null;
+      if (!next?.paras?.length) throw new Error("empty chapter");
+      setChapters((rows) => rows.map((row) => row.n === ch.n ? { ...next, placeholder: false, status: "ready" } : row));
+    }).catch(() => {
+      if (!live) return;
+      setChapters((rows) => rows.map((row) => row.n === ch.n
+        ? chapterPlaceholder(bookId, ch.n, ch.title, "这一章暂时无法加载。请稍后重试。", "error")
+        : row));
+    });
+    return () => { live = false; };
+  }, [bookId, ch?.n, ch?.placeholder, ch?.status]);
 
   /* layout (driven by tweaks) */
   const [layout, setLayout] = useS(localStorage.getItem("liber.reader.layout") || "classic");

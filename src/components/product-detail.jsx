@@ -2,6 +2,7 @@ import React from "react";
 import { Cover, I } from "./product-shared.jsx";
 import { CommentsPanel } from "./product-social.jsx";
 import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks, licenseLabel } from "../lib/catalog.js";
+import { addShelfBook, getShelfReadingIds } from "../lib/shelf.js";
 
 /* product-detail.jsx — Book detail page. */
 function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
@@ -35,6 +36,14 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
   }, [bookId]);
   const { book, toc, highlights, reviews } = detail;
   const [cmtOpen, setCmtOpen] = React.useState(false);
+  const [shelfSaved, setShelfSaved] = React.useState(() => getShelfReadingIds().includes(bookId));
+  React.useEffect(() => {
+    setShelfSaved(getShelfReadingIds().includes(book.id));
+  }, [book.id]);
+  const saveToShelf = () => {
+    addShelfBook(book.id);
+    setShelfSaved(true);
+  };
 
   return (
     <div className="app-screen">
@@ -53,7 +62,9 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
                 <button className="btn btn-primary btn-block" onClick={() => onOpenReader(book.id)}>
                   {I.book} 开始阅读
                 </button>
-                <button className="btn btn-ghost btn-block">＋ 加入书架</button>
+                <button className="btn btn-ghost btn-block" onClick={saveToShelf}>
+                  {shelfSaved ? "已在书架" : "＋ 加入书架"}
+                </button>
               </div>
               <div className="detail-mini">
                 <div><div className="n">{book.pages}</div><div className="l">章 / 节</div></div>

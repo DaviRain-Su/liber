@@ -78,11 +78,36 @@ function wordsLabel(words: number): string {
   return `约 ${words.toLocaleString("zh-CN")} 字`;
 }
 
+function isEnglishSentenceDot(text: string, i: number): boolean {
+  if (text[i] !== ".") return false;
+  const before = text.slice(Math.max(0, i - 18), i + 1);
+  const after = text.slice(i + 1);
+  if (/\d\.\d/.test(text.slice(Math.max(0, i - 1), i + 2))) return false;
+  if (/\b(?:Mr|Mrs|Ms|Dr|Prof|Capt|Col|Gen|St|Mt|No|Vol|Fig|cf|etc|vs)\.$/i.test(before)) return false;
+  if (/\b(?:i\.e|e\.g|A\.D|B\.C|U\.S|U\.K)\.$/i.test(before)) return false;
+  if (/\b[A-Z](?:\.[A-Z])+\.$/.test(before)) return false;
+  if (/\b[A-Z]\.$/.test(before) && /^\s*[A-Z]\./.test(after)) return false;
+  return /^\s*(?:["'”’)\]]+\s*)?(?:$|[A-Z0-9“"‘'\[(])/.test(after);
+}
+
 function splitSentences(para: string): string[] {
   const text = para.replace(/\s+/g, " ").trim();
   if (!text) return [];
-  const parts = text.match(/[^。！？!?；;]+[。！？!?；;]?/g) || [text];
-  return parts.map((s) => s.trim()).filter(Boolean);
+  const out: string[] = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    const boundary = /[。！？!?；;]/.test(ch) || isEnglishSentenceDot(text, i);
+    if (!boundary) continue;
+    let end = i + 1;
+    while (end < text.length && /["'”’)\]]/.test(text[end])) end += 1;
+    const piece = text.slice(start, end).trim();
+    if (piece) out.push(piece);
+    start = end;
+  }
+  const tail = text.slice(start).trim();
+  if (tail) out.push(tail);
+  return out.length ? out : [text];
 }
 
 function lineLooksHeading(line: string): boolean {
