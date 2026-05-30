@@ -54,7 +54,7 @@ src/lib/api.js             frontend API client (window.liberApi)
 | Reading (auth) | `GET /api/reading/:book` · `PUT …/highlight` · `POST …/note` · `PUT …/progress` |
 | Social | `GET /api/annotations/:book/:sid` · `/feed` · `/shares` · `/groups[/:id]` · `/threads/:key` · `/works` (+ POST writes, auth) |
 | Comments / votes | `GET/POST /api/comments/:type/:id` · `POST /api/vote/:type/:id` (generic over share/work/book; D1-backed, comments mirrored through the storage layer). |
-| AI | `POST /api/ai/chat` · `GET /api/ai/conversations[/:id]` |
+| AI | `POST /api/ai/chat` · `GET /api/ai/usage` · `GET /api/ai/conversations[/:id]` |
 | Charts | `GET /api/charts?window=today|week|month` |
 | MCP (open) | `GET /api/mcp` · `POST /api/mcp/call` `{tool,args}` |
 

@@ -83,7 +83,7 @@ export const suiAdapter: ChainAdapter = {
       const sc = new SuiJsonRpcClient({ url, network: networkFromUrl(url) });
       const kp = Ed25519Keypair.fromSecretKey(key);
       const tx = new Transaction();
-      tx.moveCall({
+      const [record] = tx.moveCall({
         target: `${pkg}::${moduleName}::register`,
         arguments: [
           tx.pure.string(payload.contentId),
@@ -91,6 +91,7 @@ export const suiAdapter: ChainAdapter = {
           tx.pure.string(payload.license || "CC0-1.0"),
         ],
       });
+      tx.transferObjects([record], kp.toSuiAddress());
       const res = await sc.signAndExecuteTransaction({
         signer: kp,
         transaction: tx,

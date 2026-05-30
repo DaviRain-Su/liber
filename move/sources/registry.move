@@ -4,8 +4,8 @@
 /// object so that authorship, timestamp and license are independently
 /// verifiable and not dependent on Liber's servers. Delivers:
 ///   1) 存证 / provenance  — an immutable Record with publisher + epoch + license
-///   2) 真正的所有权        — the Record is *owned* by the publisher's address
-///                           (transferable, composable by other packages)
+///   2) 真正的所有权        — the Record is returned to the caller's PTB so it can
+///                           be transferred, shared, or composed by other calls
 ///   3) 开放事件源          — every registration emits a `Registered` event, so
 ///                           anyone (incl. agents who don't trust our API) can
 ///                           build their own index from chain events.
@@ -43,15 +43,16 @@ module liber::registry {
         epoch: u64,
     }
 
-    /// Register a content reference. Creates a `Record` owned by the caller and
-    /// emits a `Registered` event. Called by Liber's backend signer today, but
-    /// permissionless — any address can register its own content.
-    public entry fun register(
+    /// Register a content reference. Creates a `Record` for the caller and emits
+    /// a `Registered` event. The caller's PTB decides where to transfer the
+    /// returned object. Called by Liber's backend signer today, but permissionless
+    /// — any address can register its own content.
+    public fun register(
         content_id: vector<u8>,
         kind: vector<u8>,
         license: vector<u8>,
         ctx: &mut TxContext,
-    ) {
+    ): Record {
         let publisher = sender(ctx);
         let epoch = ctx.epoch();
         let record = Record {
@@ -70,8 +71,7 @@ module liber::registry {
             publisher,
             epoch,
         });
-        // hand ownership to the publisher's wallet
-        transfer::transfer(record, publisher);
+        record
     }
 
     // ---- read-only accessors (for composing packages / tests) ----

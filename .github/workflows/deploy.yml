@@ -14,8 +14,8 @@ name: Deploy to Cloudflare Pages
 # D1/KV/R2 bindings. accountId below is not a secret.
 #
 # Cloudflare resources are already provisioned (D1 "liber", KV "liber-KV",
-# R2 "liber-content") and their ids live in wrangler.toml. The D1 schema is
-# already applied; re-run migrations/0001_init.sql only when the schema changes.
+# R2 "liber-content") and their ids live in wrangler.toml. Migrations are
+# idempotent and are applied before deploy when CLOUDFLARE_API_TOKEN is present.
 
 on:
   push:
@@ -44,6 +44,10 @@ jobs:
       - run: npm run typecheck
 
       - run: npm run build
+
+      - name: Apply D1 migrations
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: npm run db:migrate
 
       - name: Ensure Pages project exists
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}

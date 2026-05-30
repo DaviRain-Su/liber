@@ -3,6 +3,7 @@ dist
 dist-ssr
 .next/
 .wrangler
+move/build/
 *.local
 .vite
 .DS_Store

@@ -12,8 +12,9 @@ registration is a no-op until configured).
 1. **Provenance / 存证** — creates an immutable `Record { content_id, kind,
    license, publisher, epoch }`. Authorship, time and license become
    independently verifiable, not dependent on our database.
-2. **Ownership / 所有权** — the `Record` is an *owned* object transferred to the
-   publisher's wallet (transferable, composable by other packages).
+2. **Ownership / 所有权** — the `Record` is returned to the caller's transaction
+   block, which can transfer it to the publisher wallet or compose it with other
+   calls.
 3. **Open event source** — emits a `Registered` event, so anyone (including
    agents who don't trust our API) can build their own index from chain events.
 
@@ -39,9 +40,10 @@ sui client publish --gas-budget 100000000
 ```
 
 Once `SUI_PACKAGE` + `SUI_SIGNER_KEY` are set, `POST /api/works` and
-`POST /api/shares` call `register(...)` after writing the Walrus blob and store
-the resulting object id / tx digest in `blobs.sui_index`. With either unset the
-call is skipped and publishing is unaffected.
+`POST /api/shares` call `register(...)` after writing the Walrus blob, transfer
+the returned `Record` to the backend signer, and store the resulting object id /
+tx digest in `blobs.sui_index`. With either unset the call is skipped and
+publishing is unaffected.
 
 ## Verify
 

@@ -88,9 +88,9 @@ Hono Pages Functions (`functions/`, served at `/api/*`) deploy together, with
 `wrangler.toml`. See [BACKEND.md](BACKEND.md) for the API surface.
 
 The Cloudflare resources are already provisioned and their ids are filled into
-`wrangler.toml` (D1 `liber`, KV `liber-KV`, R2 `liber-content`), and the D1
-schema (`migrations/0001_init.sql`) is applied. `public/_redirects` keeps SPA
-routes falling back to `index.html` while `/api/*` reaches the Functions.
+`wrangler.toml` (D1 `liber`, KV `liber-KV`, R2 `liber-content`). Run
+`npm run db:migrate` to apply the D1 schema. `public/_redirects` keeps SPA routes
+falling back to `index.html` while `/api/*` reaches the Functions.
 
 Pick **one** trigger per Pages project (running both just double-deploys):
 
@@ -106,6 +106,7 @@ Create application → Pages → Import an existing Git repository → pick this
 Build command `npm run build`, output directory `dist`, production branch `main`;
 Cloudflare reads `wrangler.toml` for the Functions and bindings.
 
-Future schema changes: `npm run db:migrate` applies `migrations/0001_init.sql` to
-the remote D1. For local full-stack dev (`wrangler pages dev` + local D1/KV/R2),
-see [BACKEND.md](BACKEND.md).
+Future schema changes: add a new SQL file under `migrations/`, wire it into the
+`db:migrate` scripts, and the GitHub Actions deploy will apply it before Pages
+deploys. For local full-stack dev (`wrangler pages dev` + local D1/KV/R2), see
+[BACKEND.md](BACKEND.md).
