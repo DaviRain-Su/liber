@@ -268,7 +268,7 @@ function CommentsPanel({ targetType, targetId }){
           <div style={row} key={cm.id}>
             <span style={av(cm.color || "#3a4fb0")}>{String(cm.u || "读")[0]}</span>
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:12, opacity:.6 }}>{cm.u}{cm.mine && " · 你"} <span style={{ marginLeft:6 }}>{cm.when}</span></div>
+              <div style={{ fontSize:12, opacity:.6 }}>{cm.u}{cm.mine && " · 你"} <span style={{ marginLeft:6 }}>{cm.when}</span>{cm.walrus && <span title={cm.walrus} style={{ marginLeft:6, color:"var(--accent)" }}>· 已存证</span>}</div>
               <div style={{ fontSize:14, lineHeight:1.6 }}>{cm.t}</div>
             </div>
           </div>

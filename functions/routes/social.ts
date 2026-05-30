@@ -187,7 +187,7 @@ social.get("/comments/:type/:id", async (c) => {
   const { type, id: tid } = c.req.param();
   const rows = await all(
     c.env.DB,
-    `SELECT cm.id, cm.text, cm.up, cm.created_at, u.name, u.color, u.seal, cm.user_id
+    `SELECT cm.id, cm.text, cm.up, cm.walrus, cm.created_at, u.name, u.color, u.seal, cm.user_id
      FROM comments cm JOIN users u ON u.id = cm.user_id
      WHERE cm.target_type = ? AND cm.target_id = ? ORDER BY cm.created_at ASC LIMIT 200`,
     type, tid,
@@ -196,7 +196,7 @@ social.get("/comments/:type/:id", async (c) => {
   return c.json({
     comments: rows.map((r) => ({
       id: r.id, u: r.name || "读者", color: r.color || "#3a4fb0", seal: r.seal || "读",
-      t: r.text, up: r.up || 0, when: "刚刚", mine: r.user_id === mine,
+      t: r.text, up: r.up || 0, when: "刚刚", mine: r.user_id === mine, walrus: r.walrus || null,
     })),
   });
 });
@@ -205,15 +205,20 @@ social.post("/comments/:type/:id", async (c) => {
   const uid = requireUser(c);
   const { type, id: tid } = c.req.param();
   const { text } = await c.req.json();
-  if (!text?.trim()) return c.json({ error: "评论内容为空" }, 400);
+  const body = (text || "").trim();
+  if (!body) return c.json({ error: "评论内容为空" }, 400);
   const cid = id("cm_");
+  // step 2: persist the comment to decentralized storage (Walrus when configured,
+  // R2 always); record the walrus address on the row. Never blocks posting.
+  const meta = JSON.stringify({ type, target: tid, user: uid, text: body, at: now() });
+  const ref = await putBlob(c.env, `comment/${cid}`, meta, "application/json");
   await run(
     c.env.DB,
     `INSERT INTO comments (id, target_type, target_id, user_id, text, up, walrus, created_at)
-     VALUES (?,?,?,?,?,0,NULL,?)`,
-    cid, type, tid, uid, text.trim(), now(),
+     VALUES (?,?,?,?,?,0,?,?)`,
+    cid, type, tid, uid, body, ref.walrus, now(),
   );
-  return c.json({ ok: true, id: cid });
+  return c.json({ ok: true, id: cid, walrus: ref.walrus });
 });
 
 // ---- Votes (agree/upvote), generic + idempotent per (user, target) ----
