@@ -2,7 +2,9 @@
 // external key). Lens/persona-aware system prompts + selected-sentence context.
 import type { Env } from "./types";
 
-const MODEL = "@cf/meta/llama-3.1-8b-instruct";
+// Default to a model with stronger Chinese (incl. classical) comprehension;
+// override per-deploy with the AI_MODEL var (any Workers AI text model id).
+const DEFAULT_MODEL = "@cf/qwen/qwen1.5-14b-chat-awq";
 
 const LENS_PROMPT: Record<string, string> = {
   companion: "你是「书友」，一个温和、博学的通读陪伴者。陪读者一句句读懂经典，不剧透后文。",
@@ -50,7 +52,7 @@ export async function companionReply(env: Env, opts: CompanionInput): Promise<{ 
   ];
 
   try {
-    const res = await env.AI.run(MODEL, { messages, max_tokens: 512, temperature: 0.7 });
+    const res = await env.AI.run(env.AI_MODEL || DEFAULT_MODEL, { messages, max_tokens: 512, temperature: 0.7 });
     const text = String(res?.response ?? "").trim() || "（一时没有头绪，换个问法试试？）";
     return { text, ref: LENS_REF[opts.lens] || LENS_REF.companion };
   } catch (err) {

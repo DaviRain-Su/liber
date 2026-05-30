@@ -1,5 +1,6 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
+import { CommentsPanel } from "./product-social.jsx";
 
 /* product-notebook.jsx — your highlights/notes archive + AI chapter summaries + export. */
 const { useState: useSn, useMemo: useMemoN, useEffect: useEffN } = React;
@@ -37,6 +38,7 @@ function Notebook({ onOpenBook }){
   const [bookF, setBookF] = useSn("全部");
   const [typeF, setTypeF] = useSn("summary"); // summary | highlight | note | work
   const [writeOpen, setWriteOpen] = useSn(false);
+  const [cmtFor, setCmtFor] = useSn(null); // work id whose comments panel is open
   const [works, setWorks] = useSn(() => { try { return JSON.parse(localStorage.getItem("liber.works"))||[]; } catch { return []; } });
   useEffN(() => {
     if (!window.liberApi) return;
@@ -174,6 +176,8 @@ function Notebook({ onOpenBook }){
                       <code className="nw-addr">{w.addr}</code>
                       <span className="nw-meta">已发布回图书馆 · 可被检索 / 被 Agent 引用</span>
                     </div>
+                    {w.id && <div className="nw-comment-toggle" style={{ marginTop:8, fontSize:13, cursor:"pointer", color:"var(--accent)" }} onClick={()=>setCmtFor(cmtFor===w.id?null:w.id)}>{cmtFor===w.id?"收起评论":"评论 / 讨论"}</div>}
+                    {w.id && cmtFor===w.id && <CommentsPanel targetType="work" targetId={w.id} />}
                   </div>
                 )) : <Empty t="还没有作品。把你读到的、想到的，写成一篇导读，以 CC0 发布回图书馆——它会成为可被检索、可被 Agent 引用的新对象。" />
               )}

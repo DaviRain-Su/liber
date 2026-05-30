@@ -115,6 +115,7 @@ non-secret) except `ADMIN_TOKEN`, which should be a Pages **secret**.
 | `SUI_PACKAGE` | Published Move package id exposing `<module>::register(content_id, kind, license)`. |
 | `SUI_MODULE` | Move module name (default `registry`). |
 | `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint |
+| `AI_MODEL` | Override the AI book-companion model (any Workers AI text model id). Default: `@cf/qwen/qwen1.5-14b-chat-awq` (stronger Chinese than the prior Llama 3.1 8B). |
 
 On publish, `POST /api/works` and `POST /api/shares` call
 `<SUI_PACKAGE>::<SUI_MODULE>::register(...)` when `SUI_RPC` + `SUI_SIGNER_KEY` +

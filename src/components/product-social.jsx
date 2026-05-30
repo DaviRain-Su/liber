@@ -293,4 +293,4 @@ function CommentsPanel({ targetType, targetId }){
   );
 }
 
-export { Social };
+export { Social, CommentsPanel };

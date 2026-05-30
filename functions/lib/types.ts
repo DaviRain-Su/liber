@@ -23,6 +23,8 @@ export interface Env {
   SUI_MODULE?: string;       // module name (default: "registry")
   // Bearer secret enabling the admin-only book-text ingest endpoint (optional).
   ADMIN_TOKEN?: string;
+  // Override the AI book-companion model (any Workers AI text model id; optional).
+  AI_MODEL?: string;
 }
 
 // Hono context variables set by the auth middleware.
