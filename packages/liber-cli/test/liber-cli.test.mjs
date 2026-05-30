@@ -115,12 +115,13 @@ function storedZip(entries) {
   ]);
 }
 
-async function writeEpub(rights = "CC0-1.0", chapterBodies = ["The way that can be spoken."]) {
+async function writeEpub(rights = "CC0-1.0", chapterBodies = ["The way that can be spoken."], options = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), "liber-cli-"));
   const epubPath = path.join(dir, "book.epub");
-  const manifestItems = chapterBodies
-    .map((_, i) => `    <item id="c${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
-    .join("\n");
+  const manifestItems = [
+    ...chapterBodies.map((_, i) => `    <item id="c${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`),
+    ...(options.manifestItems || []),
+  ].join("\n");
   const spineItems = chapterBodies
     .map((_, i) => `    <itemref idref="c${i + 1}"/>`)
     .join("\n");
@@ -136,7 +137,7 @@ async function writeEpub(rights = "CC0-1.0", chapterBodies = ["The way that can 
   <manifest>
 ${manifestItems}
   </manifest>
-  <spine>
+  <spine${options.spineAttrs ? ` ${options.spineAttrs}` : ""}>
 ${spineItems}
   </spine>
 </package>`;
@@ -152,11 +153,15 @@ ${spineItems}
     ...chapterBodies.map((body, i) => {
       const title = typeof body === "object" ? body.title : `Chapter ${i + 1}`;
       const content = typeof body === "object" ? body.body : body;
+      const raw = typeof body === "object" && body.raw
+        ? body.raw
+        : `<h1>${title}</h1><p>${content}</p>`;
       return {
         name: `OEBPS/chapter${i + 1}.xhtml`,
-        body: `<html><head><title>Ignored</title><style>.x{}</style></head><body><nav>Skip me</nav><h1>${title}</h1><p>${content}</p></body></html>`,
+        body: `<html><head><title>Ignored</title><style>.x{}</style></head><body><nav>Skip me</nav>${raw}</body></html>`,
       };
     }),
+    ...(options.extraEntries || []),
   ]);
   await writeFile(epubPath, zip);
   return { dir, epubPath, sha256: createHash("sha256").update(zip).digest("hex") };
@@ -276,7 +281,6 @@ Updated editions will replace the previous one.`,
 
   assert.equal(chapters.length, 1);
   assert.equal(chapters[0].title, "Chapter I. LAYING PLANS");
-  assert.match(chapters[0].text, /Chapter I\. LAYING PLANS/);
   assert.match(chapters[0].text, /Sun Tzu said/);
   assert.doesNotMatch(chapters[0].text, /This eBook is for the use/);
   assert.doesNotMatch(chapters[0].text, /PROJECT GUTENBERG EBOOK/);
@@ -313,6 +317,92 @@ test("extractEpubChapters splits Chinese Gutenberg spine files by internal title
   assert.match(chapters[0].text, /入國而不存其士/);
   assert.doesNotMatch(chapters[0].text, /Produced by/);
   assert.doesNotMatch(chapters[0].text, /墨子 - Mozi/);
+});
+
+test("extractEpubChapters cleans source chrome from Chinese classics", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 墨子",
+      body: `《節用中》
+
+1 節用中: 子墨子言曰：“古者明王聖人。”
+
+節用中: 墨子說道：“古代的明王聖人。”
+
+22 卷六: 節用下 23 卷六: 節葬上
+
+《大取》
+
+[戰國 (公元前475年 - 公元前221年)] 相關資源
+
+1 大取: 天之愛人也。屬於：[倫理]`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.equal(chapters[0].title, "節用中");
+  assert.match(chapters[0].text, /古者明王聖人/);
+  assert.doesNotMatch(chapters[0].text, /墨子說道/);
+  assert.doesNotMatch(chapters[0].text, /節用下/);
+  assert.doesNotMatch(chapters[1].text, /相關資源|戰國|屬於/);
+});
+
+test("extractEpubChapters prefers EPUB NCX anchors over spine files", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "Pride and Prejudice",
+      raw: `<h1 id="title">PRIDE and PREJUDICE</h1>
+<p>Front matter should not become a chapter.</p>
+<h2 id="c1">Chapter I.</h2>
+<p>It is a truth universally acknowledged.</p>
+<h2 id="c2">I hope Mr. Bingley will like it. CHAPTER II.</h2>
+<p>Mr. Bennet was among the earliest.</p>
+<h2 id="license">THE FULL PROJECT GUTENBERG LICENSE</h2>
+<p>License text.</p>`,
+    },
+  ], {
+    manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
+    spineAttrs: `toc="ncx"`,
+    extraEntries: [{
+      name: "OEBPS/toc.ncx",
+      body: `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>
+  <navPoint id="n1" playOrder="1"><navLabel><text>PRIDE and PREJUDICE</text></navLabel><content src="chapter1.xhtml#title"/></navPoint>
+  <navPoint id="n2" playOrder="2"><navLabel><text>Chapter I.</text></navLabel><content src="chapter1.xhtml#c1"/></navPoint>
+  <navPoint id="n3" playOrder="3"><navLabel><text>I hope Mr. Bingley will like it. CHAPTER II.</text></navLabel><content src="chapter1.xhtml#c2"/></navPoint>
+  <navPoint id="n4" playOrder="4"><navLabel><text>THE FULL PROJECT GUTENBERG LICENSE</text></navLabel><content src="chapter1.xhtml#license"/></navPoint>
+</navMap></ncx>`,
+    }],
+  });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["Chapter I.", "CHAPTER II."]);
+  assert.match(chapters[0].text, /truth universally acknowledged/);
+  assert.doesNotMatch(chapters[0].text, /Front matter/);
+  assert.doesNotMatch(chapters[1].text, /I hope Mr\. Bingley/);
+  assert.doesNotMatch(chapters[1].text, /License text/);
+});
+
+test("extractEpubChapters splits English chapter headings inside one spine file", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of A Novel",
+      body: `CHAPTER I. First Chapter
+
+Body one.
+
+Illustration caption CHAPTER II.
+
+Body two.`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["CHAPTER I. First Chapter", "CHAPTER II."]);
+  assert.match(chapters[1].text, /Body two/);
 });
 
 test("extractEpubChapters splits Chinese numbered classic headings", async () => {

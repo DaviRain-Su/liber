@@ -153,6 +153,7 @@ Related endpoints:
 - `GET /api/sui/object/:id` — resolve a real on-chain object (read-only).
 - `GET /api/blobs/:key` — look up a user-published blob (works/shares) + Walrus availability.
 - `POST /api/books/ingest` — **publish-gated** (Bearer `ADMIN_TOKEN` or CLI publish token): import a `CC0-1.0` or `PUBLIC-DOMAIN` book from `{ chapters }`, `{ text }`, `{ sourceUrl }`, and optional `{ epubBase64 }`; stores the original EPUB, chapter blobs, D1 metadata, manifest, and optional Sui registry object. Other licenses are rejected server-side.
+- `POST /api/books/ingest/begin`, `/chapter`, `/finalize` — **publish-gated** chunked ingest used by the CLI for large EPUBs; source EPUB, chapters, and final manifest/registry write are split into separate requests.
 - `POST /api/books/:id/ingest` — **publish-gated** (Bearer `ADMIN_TOKEN` or CLI publish token): publish chapter text to Walrus + manifest.
 - `GET /api/books/:id/content/:n` — serve chapter text from Walrus when ingested, else seed.
 

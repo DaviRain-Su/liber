@@ -157,11 +157,13 @@ npm run cli -- auth login --api-url https://liber.davirain.xyz --admin-token "$A
 npm run cli -- book publish ./books/dao.liber-manifest.json
 ```
 
-The CLI extracts chapters from the EPUB spine and POSTs them to
-`/api/books/ingest`; server-side ingest still enforces the same license policy.
-The original EPUB is uploaded as the canonical storage asset; extracted plain
-text chapters are reader/search derivatives. The backend stores both layers,
-plus a JSON manifest, in R2/Walrus when configured. Sui stores only the content
+The CLI extracts chapters from the EPUB spine, applies additional logical
+chapter splitting for common Gutenberg classics, and publishes through chunked
+ingest (`/api/books/ingest/begin`, `/chapter`, `/finalize`) so large books do
+not time out. Server-side ingest still enforces the same license policy. The
+original EPUB is uploaded as the canonical storage asset; extracted plain text
+chapters are reader/search derivatives. The backend stores both layers, plus a
+JSON manifest, in R2/Walrus when configured. Sui stores only the content
 reference and provenance metadata, not the full book bytes.
 
 For a repeatable real-content smoke test, run:
@@ -174,6 +176,16 @@ That downloads Project Gutenberg #132 (The Art of War), validates the
 public-domain EPUB, builds the ingest payload with the original EPUB included,
 and probes the live API without writing. Add `-- --publish` only after
 `liber auth browser`, `liber auth key`, or `ADMIN_TOKEN` is configured locally.
+
+For the larger multilingual public-domain catalogue, use:
+
+```bash
+npm run import:gutenberg-classics -- --json
+npm run import:gutenberg-classics -- --publish --json --ids <comma-separated ids>
+```
+
+The importer records ISO language codes and language-prefixed categories from
+Project Gutenberg EPUBs that pass the same `PUBLIC-DOMAIN` license checks.
 
 The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
 can be published to npm and installed by curators or agents. It requires
