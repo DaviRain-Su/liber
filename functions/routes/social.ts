@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { all, first, run, id, now } from "../lib/db";
 import { requireUser } from "../lib/auth";
-import { addressOf } from "../lib/storage";
+import { putBlob } from "../lib/storage";
 import * as S from "../lib/seed";
 
 // Co-reading & social: annotations, feed, shares, groups, threads, works.
@@ -58,7 +58,9 @@ social.post("/shares", async (c) => {
     sid, uid, b.bookId || null, b.sid || null, b.form || "card", b.title || null, b.insight || null,
     b.quote || null, b.visibility || "public", b.parentId || null, data, now(),
   );
-  return c.json({ ok: true, id: sid });
+  // persist the shared conversation as a content-addressed blob (Walrus when configured, R2 always)
+  const ref = await putBlob(c.env, `share/${sid}`, data, "application/json");
+  return c.json({ ok: true, id: sid, walrus: ref.walrus });
 });
 
 social.post("/shares/:id/save", async (c) => {
@@ -137,13 +139,14 @@ social.post("/works", async (c) => {
   const { title, body } = await c.req.json();
   if (!body?.trim()) return c.json({ error: "内容为空" }, 400);
   const wid = id("w_");
-  const ref = await addressOf(body);
+  // store the essay as a content-addressed blob (Walrus when configured, R2 always)
+  const ref = await putBlob(c.env, `work/${wid}`, body, "text/markdown");
   await run(
     c.env.DB,
     `INSERT INTO works (id, user_id, title, body, addr, license, cited, created_at) VALUES (?,?,?,?,?,?,0,?)`,
     wid, uid, (title || "未命名导读").trim(), body.trim(), `liber://work/${wid}`, "CC0-1.0", now(),
   );
-  return c.json({ ok: true, id: wid, addr: `liber://work/${wid}`, walrus: ref.walrus });
+  return c.json({ ok: true, id: wid, addr: `liber://work/${wid}`, walrus: ref.walrus, arweave: ref.arweave });
 });
 
 export default social;
