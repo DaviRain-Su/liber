@@ -29,8 +29,8 @@ binding = "AI"
 #   WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
 [vars]
 CHAIN = "sui"
-WALRUS_PUBLISHER = ""
-WALRUS_AGGREGATOR = ""
-ARWEAVE_GATEWAY = ""
+WALRUS_PUBLISHER = "https://publisher.walrus-testnet.walrus.space"
+WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
+ARWEAVE_GATEWAY = "https://arweave.net"
 # Sui fullnode for read-only chain verification (latest checkpoint + object lookup).
-SUI_RPC = ""
+SUI_RPC = "https://fullnode.testnet.sui.io:443"
