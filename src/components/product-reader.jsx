@@ -96,7 +96,7 @@ function applyEpubTheme(rendition, { font, size, lead, rtheme }) {
   rendition.themes.select("liber");
 }
 
-function hasOriginalEpub(book) {
+function hasReaderEpub(book) {
   if (!book?.id || book.id === "daodejing") return false;
   if (book.hasEpub != null) return Boolean(book.hasEpub);
   return Boolean(book.dynamic);
@@ -107,7 +107,7 @@ function readerModeKey(bookId) {
 }
 
 function defaultReaderMode(book) {
-  return hasOriginalEpub(book) ? "epub" : "text";
+  return hasReaderEpub(book) ? "epub" : "text";
 }
 
 function flattenEpubToc(items = [], depth = 0, out = []) {
@@ -169,7 +169,7 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation
     }).catch((err) => {
       if (!cancelled) {
         setStatus("error");
-        setError(err?.message || "原版 EPUB 暂时无法加载");
+        setError(err?.message || "EPUB 阅读版暂时无法加载");
         onUnavailable?.(err);
       }
     });
@@ -265,7 +265,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const epubControl = useR(null);
   const [epubToc, setEpubToc] = useS([]);
   const [epubLocation, setEpubLocation] = useS(null);
-  const hasEpub = hasOriginalEpub(book);
+  const hasEpub = hasReaderEpub(book);
   const setReadMode = useCb((next, options = {}) => {
     setReadModeState((prev) => {
       const value = typeof next === "function" ? next(prev) : next;
@@ -575,7 +575,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         </div>
         <div className="spacer"/>
         <button className={`rd-tool ${tocOpen?"on":""}`} onClick={() => { setTocOpen(v=>!v); setSetOpen(false); }}>{I.list} 目录</button>
-        <button className={`rd-tool ${readMode==="epub"?"on":""}`} disabled={!hasEpub} title={hasEpub ? "原版 EPUB" : "暂无 EPUB 源文件"} onClick={() => setReadMode(m => m === "epub" ? "text" : "epub")}>{I.book} EPUB</button>
+        <button className={`rd-tool ${readMode==="epub"?"on":""}`} disabled={!hasEpub} title={hasEpub ? "EPUB 阅读版" : "暂无 EPUB 阅读版"} onClick={() => setReadMode(m => m === "epub" ? "text" : "epub")}>{I.book} EPUB</button>
         <button className={`rd-tool ${setOpen?"on":""}`} id="rd-set-btn" onClick={() => { setSetOpen(v=>!v); setTocOpen(false); }}>{I.type} 显示</button>
         <button className={`rd-tool ${aiOpen?"on":""}`} onClick={() => { setAiOpen(v=>!v); if(layout==="archive") setRailTab("ai"); }}>{I.spark} AI 书友</button>
       </div>
@@ -760,7 +760,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
             <div className="dh"><span className="t">目录 · {book.t}</span><span className="x" onClick={() => setTocOpen(false)}>{I.x}</span></div>
             <div className="dbody">
               {waitingForEpubToc && (
-                <div className="toc-empty">正在读取原版 EPUB 目录…</div>
+                <div className="toc-empty">正在读取 EPUB 阅读版目录…</div>
               )}
               {!waitingForEpubToc && tocRows.map((t, idx) => {
                 const active = readMode === "epub" && t.href ? sameEpubHref(t.href, activeEpubHref) : t.n === ch.n;

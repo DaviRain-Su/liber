@@ -535,6 +535,55 @@ test("extractEpubChapters cleans source chrome from Chinese classics", async () 
   assert.doesNotMatch(chapters[1].text, /相關資源|戰國|屬於/);
 });
 
+test("extractEpubChapters separates Mozi canon/commentary chapters", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 墨子",
+      body: `《經上》
+
+1
+經上:
+故，所得而後成也。
+
+經說上:
+故：小故，有之不必然，無之必不然。
+1. 然， : 舊脫。 孫詒讓《墨子閒詁》
+2
+經上:
+體，分於兼也。
+
+經說上:
+體：若二之一，尺之端也。
+
+《經下》
+
+101
+經下:
+止，類以行之。說在同。
+
+經説下:
+止：彼以此其然也，說是其然也。
+102
+經下:
+推類之難，說在之大小。
+
+經説下:
+謂四足獸，與牛馬與，物盡異。`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), ["經上", "經說上", "經下", "經說下"]);
+  assert.match(chapters[0].text, /1\. 故，所得而後成也。/);
+  assert.match(chapters[0].text, /2\. 體，分於兼也。/);
+  assert.doesNotMatch(chapters[0].text, /小故/);
+  assert.match(chapters[1].text, /故：小故/);
+  assert.match(chapters[1].text, /體：若二之一/);
+  assert.match(chapters[2].text, /101\. 止，類以行之/);
+  assert.match(chapters[2].text, /102\. 推類之難/);
+  assert.match(chapters[3].text, /止：彼以此其然也/);
+});
+
 test("extractEpubChapters prefers EPUB NCX anchors over spine files", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {

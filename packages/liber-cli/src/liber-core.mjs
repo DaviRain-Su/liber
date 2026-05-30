@@ -841,6 +841,70 @@ function splitLogicalChapters(text, bookTitle) {
   return chapters;
 }
 
+function isMoziCanonTitle(title) {
+  return /^(?:經|经)[上下]$/u.test(String(title || "").replace(/\s+/g, "").trim());
+}
+
+function moziCommentaryTitle(title) {
+  const compact = String(title || "").replace(/\s+/g, "").trim();
+  if (/^(?:經|经)上$/u.test(compact)) return "經說上";
+  if (/^(?:經|经)下$/u.test(compact)) return "經說下";
+  return null;
+}
+
+function moziCommentaryMarker(title) {
+  const compact = String(title || "").replace(/\s+/g, "").trim();
+  if (/^(?:經|经)上$/u.test(compact)) return /^(?:經|经)[說说説]上\s*[:：]\s*/u;
+  if (/^(?:經|经)下$/u.test(compact)) return /^(?:經|经)[說说説]下\s*[:：]\s*/u;
+  return null;
+}
+
+function isMoziFootnoteBlock(block) {
+  return /^\d{1,3}\.\s*.{1,28}\s*[:：]\s*(?:原錯|原错|舊脫|旧脱|自|刪除|删除|衍文|移到|由王校改|孫|孙|吳|吴|清)/u
+    .test(String(block || "").replace(/\s+/g, " ").trim());
+}
+
+function splitInterleavedMoziCanonChapter(chapter) {
+  if (!isMoziCanonTitle(chapter.title)) return [chapter];
+  const marker = moziCommentaryMarker(chapter.title);
+  const commentaryTitle = moziCommentaryTitle(chapter.title);
+  if (!marker || !commentaryTitle) return [chapter];
+
+  const blocks = String(chapter.text || "").split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+  if (!blocks.some((block) => marker.test(block))) return [chapter];
+  const canonBlocks = [];
+  const commentaryBlocks = [];
+  let lastTarget = canonBlocks;
+  for (const block of blocks) {
+    if (marker.test(block)) {
+      commentaryBlocks.push(block.replace(marker, "").trim());
+      lastTarget = commentaryBlocks;
+      continue;
+    }
+    if (/^\d{1,3}\.\s+/u.test(block) && !isMoziFootnoteBlock(block)) {
+      canonBlocks.push(block);
+      lastTarget = canonBlocks;
+      continue;
+    }
+    lastTarget.push(block);
+  }
+
+  const canonText = normalizeTextBlocks(canonBlocks.join("\n\n"));
+  const commentaryText = normalizeTextBlocks(commentaryBlocks.join("\n\n"));
+  if (!canonText || !commentaryText) return [chapter];
+  return [
+    { ...chapter, text: canonText },
+    { ...chapter, title: commentaryTitle, text: commentaryText },
+  ];
+}
+
+function finalizeExtractedChapters(chapters) {
+  return chapters
+    .flatMap(splitInterleavedMoziCanonChapter)
+    .filter((chapter) => chapter.text)
+    .map((chapter, index) => ({ ...chapter, n: index + 1 }));
+}
+
 function isProjectGutenbergOnlyChapter(title, text) {
   const haystack = `${title}\n${text}`.toLowerCase();
   return /preface to the project gutenberg etext/.test(haystack)
@@ -975,10 +1039,10 @@ export async function extractEpubChapters(filePath) {
       || navigationChapters.length >= 20;
     const notOversegmented = !chapters.length
       || navigationChapters.length <= Math.max(chapters.length * 1.8, chapters.length + 8);
-    if (enoughCoverage && notOversegmented) return navigationChapters;
+    if (enoughCoverage && notOversegmented) return finalizeExtractedChapters(navigationChapters);
   }
   if (!chapters.length) throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
-  return chapters;
+  return finalizeExtractedChapters(chapters);
 }
 
 export function normalizePublishLicense(raw) {
