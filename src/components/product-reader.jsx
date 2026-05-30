@@ -501,7 +501,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
 
       {/* share composer */}
       {shareOpen && (
-        <ShareComposer book={book} ch={ch} aiCtx={aiCtx} feed={feed}
+        <ShareComposer book={book} ch={ch} aiCtx={aiCtx} feed={feed} continueConvo={continueConvo}
           onClose={() => setShareOpen(false)}
           onPublish={(label) => { setShareOpen(false); setToast(label); setTimeout(()=>setToast(null), 3200); }} />
       )}
@@ -525,7 +525,9 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
 }
 
 /* ---- Share composer: pick form (对话卡 / 金句卡), turns, title, publish ---- */
-function ShareComposer({ book, ch, aiCtx, feed, onClose, onPublish }){
+function ShareComposer({ book, ch, aiCtx, feed, continueConvo, onClose, onPublish }){
+  /* if this session continues an existing convo, publishing forks it (grows its tree) */
+  const parentId = continueConvo?.branchOf || continueConvo?.id || null;
   /* derive turns from the live AI feed (skip the opening system bot line) */
   const allTurns = feed
     .map((m, idx) => ({ idx, r: m.who === "user" ? "q" : "a", t: m.t }))
@@ -556,7 +558,7 @@ function ShareComposer({ book, ch, aiCtx, feed, onClose, onPublish }){
     arr.unshift(rec);
     localStorage.setItem("liber.shared", JSON.stringify(arr));
     if (window.liberApi)
-      window.liberApi.shares.publish({ bookId: book.id, form, title: draftConvo.title, insight, quote, visibility: vis, chap: draftConvo.chap, seal: book.seal, msgs }).catch(() => {});
+      window.liberApi.shares.publish({ bookId: book.id, form, title: draftConvo.title, insight, quote, visibility: vis, chap: draftConvo.chap, seal: book.seal, msgs, parentId }).catch(() => {});
     onPublish(form === "insight" ? "金句卡已分享" : "对话卡已分享");
   };
 

@@ -35,15 +35,30 @@ social.get("/shares", async (c) => {
      FROM shares s JOIN users u ON u.id = s.user_id
      WHERE s.visibility = 'public' ORDER BY s.created_at DESC LIMIT 50`,
   );
-  const published = rows.map((r) => {
+  const byId: Record<string, any> = {};
+  const children: Record<string, any[]> = {};
+  for (const r of rows) {
     const data = JSON.parse(r.data || "{}");
-    return {
-      id: r.id, form: r.form, book: r.book_id, bookT: S.bookById(r.book_id)?.t || "", seal: data.seal || r.author_seal || "道",
-      chap: data.chap || "", quote: r.quote, sid: r.sid, title: r.title, insight: r.insight,
+    byId[r.id] = {
+      id: r.id, parent: r.parent_id || null, form: r.form, book: r.book_id, bookT: S.bookById(r.book_id)?.t || "",
+      seal: data.seal || r.author_seal || "道", chap: data.chap || "", quote: r.quote, sid: r.sid, title: r.title, insight: r.insight,
       author: { name: r.author_name, ava: r.author_seal || "读", color: r.author_color || "#3a4fb0" },
-      forks: 0, agree: r.agree || 0, comments: 0, saves: 0, when: "刚刚", msgs: data.msgs || [], mine: r.user_id === mine,
+      agree: r.agree || 0, comments: 0, saves: 0, when: "刚刚", msgs: data.msgs || [], mine: r.user_id === mine,
     };
-  });
+    if (r.parent_id) (children[r.parent_id] ||= []).push(r.id);
+  }
+  // a published fork rendered as a tree node (matches the client ForkTree shape)
+  const toNode = (cid: string): any => {
+    const c2 = byId[cid];
+    const kids = (children[cid] || []).map(toNode);
+    const q = (c2.msgs.find((m: any) => m.r === "q") || {}).t || c2.title || c2.insight || "";
+    return { id: c2.id, name: c2.author.name, ava: c2.author.ava, color: c2.author.color, q, agree: c2.agree, forks: kids.length, children: kids };
+  };
+  const descendants = (cid: string): number => (children[cid] || []).reduce((s, k) => s + 1 + descendants(k), 0);
+  // top-level cards = roots only; their forks nest as a real tree that grows with each continuation
+  const published = rows
+    .filter((r) => !r.parent_id || !byId[r.parent_id])
+    .map((r) => ({ ...byId[r.id], forks: descendants(r.id), tree: (children[r.id] || []).map(toNode) }));
   return c.json({ shares: [...published, ...S.SHARED_CONVOS] });
 });
 
