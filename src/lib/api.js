@@ -72,6 +72,13 @@ export const api = {
     publish: (payload) => post("/shares", payload),
     save: (id) => post(`/shares/${id}/save`),
   },
+
+  // generic comments + votes (target type: 'share' | 'work' | 'book' | …)
+  comments: {
+    list: (type, id) => get(`/comments/${type}/${id}`),
+    add: (type, id, text) => post(`/comments/${type}/${id}`, { text }),
+  },
+  vote: (type, id) => post(`/vote/${type}/${id}`),
   groups: {
     list: () => get("/groups"),
     get: (id) => get(`/groups/${id}`),

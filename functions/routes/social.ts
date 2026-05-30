@@ -35,6 +35,14 @@ social.get("/shares", async (c) => {
      FROM shares s JOIN users u ON u.id = s.user_id
      WHERE s.visibility = 'public' ORDER BY s.created_at DESC LIMIT 50`,
   );
+  // real aggregate counts for share cards: comments, saves, agree (votes)
+  const cmtCounts: Record<string, number> = {};
+  for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM comments WHERE target_type='share' GROUP BY target_id`)) cmtCounts[r2.target_id] = r2.n;
+  const saveCounts: Record<string, number> = {};
+  for (const r2 of await all(c.env.DB, `SELECT share_id, COUNT(*) AS n FROM convo_saves GROUP BY share_id`)) saveCounts[r2.share_id] = r2.n;
+  const voteCounts: Record<string, number> = {};
+  for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type='share' GROUP BY target_id`)) voteCounts[r2.target_id] = r2.n;
+
   const byId: Record<string, any> = {};
   const children: Record<string, any[]> = {};
   for (const r of rows) {
@@ -43,7 +51,8 @@ social.get("/shares", async (c) => {
       id: r.id, parent: r.parent_id || null, form: r.form, book: r.book_id, bookT: S.bookById(r.book_id)?.t || "",
       seal: data.seal || r.author_seal || "道", chap: data.chap || "", quote: r.quote, sid: r.sid, title: r.title, insight: r.insight,
       author: { name: r.author_name, ava: r.author_seal || "读", color: r.author_color || "#3a4fb0" },
-      agree: r.agree || 0, comments: 0, saves: 0, when: "刚刚", msgs: data.msgs || [], mine: r.user_id === mine,
+      agree: (r.agree || 0) + (voteCounts[r.id] || 0), comments: cmtCounts[r.id] || 0, saves: saveCounts[r.id] || 0,
+      when: "刚刚", msgs: data.msgs || [], mine: r.user_id === mine,
     };
     if (r.parent_id) (children[r.parent_id] ||= []).push(r.id);
   }
@@ -169,6 +178,56 @@ social.post("/works", async (c) => {
   const chain = await registerObject(c.env, { contentId: ref.walrus, kind: "work", license: "CC0-1.0" });
   if (chain) await run(c.env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, chain.objectId || chain.digest, `work/${wid}`);
   return c.json({ ok: true, id: wid, addr: `liber://work/${wid}`, walrus: ref.walrus, arweave: ref.arweave, sui: chain });
+});
+
+// ---- Comments (generic over targets: share | work | book | …) ----
+// Stored in D1 now; the comments.walrus column is reserved for an optional
+// later move to decentralized permanent storage.
+social.get("/comments/:type/:id", async (c) => {
+  const { type, id: tid } = c.req.param();
+  const rows = await all(
+    c.env.DB,
+    `SELECT cm.id, cm.text, cm.up, cm.created_at, u.name, u.color, u.seal, cm.user_id
+     FROM comments cm JOIN users u ON u.id = cm.user_id
+     WHERE cm.target_type = ? AND cm.target_id = ? ORDER BY cm.created_at ASC LIMIT 200`,
+    type, tid,
+  );
+  const mine = c.get("userId");
+  return c.json({
+    comments: rows.map((r) => ({
+      id: r.id, u: r.name || "读者", color: r.color || "#3a4fb0", seal: r.seal || "读",
+      t: r.text, up: r.up || 0, when: "刚刚", mine: r.user_id === mine,
+    })),
+  });
+});
+
+social.post("/comments/:type/:id", async (c) => {
+  const uid = requireUser(c);
+  const { type, id: tid } = c.req.param();
+  const { text } = await c.req.json();
+  if (!text?.trim()) return c.json({ error: "评论内容为空" }, 400);
+  const cid = id("cm_");
+  await run(
+    c.env.DB,
+    `INSERT INTO comments (id, target_type, target_id, user_id, text, up, walrus, created_at)
+     VALUES (?,?,?,?,?,0,NULL,?)`,
+    cid, type, tid, uid, text.trim(), now(),
+  );
+  return c.json({ ok: true, id: cid });
+});
+
+// ---- Votes (agree/upvote), generic + idempotent per (user, target) ----
+social.post("/vote/:type/:id", async (c) => {
+  const uid = requireUser(c);
+  const { type, id: tid } = c.req.param();
+  const ex = await first(c.env.DB, `SELECT 1 AS x FROM votes WHERE user_id=? AND target_type=? AND target_id=?`, uid, type, tid);
+  if (ex) {
+    await run(c.env.DB, `DELETE FROM votes WHERE user_id=? AND target_type=? AND target_id=?`, uid, type, tid);
+  } else {
+    await run(c.env.DB, `INSERT INTO votes (user_id, target_type, target_id, created_at) VALUES (?,?,?,?)`, uid, type, tid, now());
+  }
+  const row = await first(c.env.DB, `SELECT COUNT(*) AS n FROM votes WHERE target_type=? AND target_id=?`, type, tid);
+  return c.json({ voted: !ex, count: row?.n || 0 });
 });
 
 export default social;

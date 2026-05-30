@@ -42,6 +42,12 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
     setSaved(s => { const n = s.includes(id) ? s.filter(x=>x!==id) : [...s, id]; localStorage.setItem("liber.saved.convos", JSON.stringify(n)); return n; });
     if (window.liberApi) window.liberApi.shares.save(id).catch(() => {});
   };
+  const [commentsFor, setCommentsFor] = useSs(null); // convo id whose comments panel is open
+  const [voted, setVoted] = useSs([]);               // convo ids upvoted this session (drives accent)
+  const vote = (id) => {
+    setVoted(v => v.includes(id) ? v.filter(x=>x!==id) : [...v, id]);
+    if (window.liberApi) window.liberApi.vote("share", id).catch(() => {});
+  };
 
   return (
     <div className="app-screen">
@@ -79,7 +85,11 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
                         onFork={() => onContinue(c)}
                         onSave={() => toggleSave(c.id)}
                         onOpenTree={(cv) => setForkTree(cv)}
+                        onComment={() => setCommentsFor(commentsFor === c.id ? null : c.id)}
+                        onVote={() => vote(c.id)}
+                        voted={voted.includes(c.id)}
                         saved={saved.includes(c.id)} />
+                      {commentsFor === c.id && <CommentsPanel targetType="share" targetId={c.id} />}
                     </div>
                   ))}
                 </div>
@@ -225,6 +235,52 @@ function ThreadOverlay({ thread, onClose }){
         </div>
       </div>
     </>
+  );
+}
+
+/* Comments on a shared conversation (generic target). Stored in D1 via the API;
+   degrades to an empty/local list when the backend is unavailable. */
+function CommentsPanel({ targetType, targetId }){
+  const [list, setList] = useSs(null);
+  const [draft, setDraft] = useSs("");
+  useEffS(() => {
+    let live = true;
+    if (window.liberApi) window.liberApi.comments.list(targetType, targetId).then(r => { if (live) setList((r && r.comments) || []); }).catch(() => { if (live) setList([]); });
+    else setList([]);
+    return () => { live = false; };
+  }, [targetId]);
+  const add = () => {
+    const t = draft.trim(); if (!t) return;
+    setList(l => [ ...(l || []), { id:"local"+Date.now(), u:"林知秋", color:"#3a4fb0", t, up:0, when:"刚刚", mine:true } ]);
+    if (window.liberApi) window.liberApi.comments.add(targetType, targetId, t).catch(() => {});
+    setDraft("");
+  };
+  const wrap = { margin:"10px 0 2px", padding:"12px 14px", border:"1px solid var(--line, rgba(0,0,0,.1))", borderRadius:8, background:"var(--paper-2, rgba(0,0,0,.02))" };
+  const row = { display:"flex", gap:8, alignItems:"flex-start", margin:"8px 0" };
+  const av = (c) => ({ flex:"0 0 24px", width:24, height:24, borderRadius:"50%", background:c, color:"#fff", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" });
+  return (
+    <div className="convo-comments" style={wrap}>
+      <div style={{ fontSize:13, fontWeight:600, opacity:.7, marginBottom:6 }}>评论{list ? ` · ${list.length}` : ""}</div>
+      <div style={{ maxHeight:260, overflowY:"auto" }}>
+        {list === null && <div style={{ fontSize:13, opacity:.55, fontStyle:"italic" }}>加载中…</div>}
+        {list && list.length === 0 && <div style={{ fontSize:13, opacity:.55, fontStyle:"italic" }}>还没有评论。来写第一条。</div>}
+        {list && list.map(cm => (
+          <div style={row} key={cm.id}>
+            <span style={av(cm.color || "#3a4fb0")}>{String(cm.u || "读")[0]}</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:12, opacity:.6 }}>{cm.u}{cm.mine && " · 你"} <span style={{ marginLeft:6 }}>{cm.when}</span></div>
+              <div style={{ fontSize:14, lineHeight:1.6 }}>{cm.t}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:"flex", gap:8, alignItems:"center", marginTop:8 }}>
+        <input style={{ flex:1, padding:"7px 10px", border:"1px solid var(--line, rgba(0,0,0,.12))", borderRadius:6, font:"inherit", background:"var(--paper, #fff)", color:"inherit" }}
+          placeholder="写下你的评论，其他读者会看见…" value={draft}
+          onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") add(); }}/>
+        <span className="send" style={{ cursor:"pointer", padding:"6px 8px" }} onClick={add}>{I.send}</span>
+      </div>
+    </div>
   );
 }
 

@@ -26,13 +26,13 @@ function CCForkTree({ convo, onOpenTree }){
   );
 }
 
-function CCFoot({ convo, onFork, onSave, saved, dark, onExport }){
+function CCFoot({ convo, onFork, onSave, saved, dark, onExport, onComment, onVote, voted }){
   return (
     <div className={dark ? "ci-foot" : "cf-foot"}>
       <button className="cf-fork" onClick={onFork}>{CC_ICO.fork} 接着这段问</button>
       <div className="cf-acts">
-        <span>{CC_ICO.up} {convo.agree}</span>
-        <span>{CC_ICO.chat} {convo.comments}</span>
+        <span onClick={onVote} style={onVote ? { cursor:"pointer", ...(voted ? { color:"var(--accent)" } : null) } : null}>{CC_ICO.up} {convo.agree}</span>
+        <span onClick={onComment} style={onComment ? { cursor:"pointer" } : null}>{CC_ICO.chat} {convo.comments}</span>
         {onExport && <span onClick={onExport} title="存为图片">{CC_ICO.img} 存图</span>}
         <span onClick={onSave} style={saved ? { color:"var(--accent)" } : null}>{saved ? CC_ICO.saved : CC_ICO.save} {saved ? "已收藏" : "收藏"}</span>
       </div>
@@ -41,7 +41,7 @@ function CCFoot({ convo, onFork, onSave, saved, dark, onExport }){
 }
 
 /* ---- 对话卡 ---- */
-function ConvoCardForm({ convo, expanded, onToggleExpand, onFork, onSave, saved, onOpenTree }){
+function ConvoCardForm({ convo, expanded, onToggleExpand, onFork, onSave, saved, onOpenTree, onComment, onVote, voted }){
   const shown = expanded ? convo.msgs : convo.msgs.slice(0,3);
   return (
     <div className="cf cform-card">
@@ -62,14 +62,14 @@ function ConvoCardForm({ convo, expanded, onToggleExpand, onFork, onSave, saved,
         ))}
       </div>
       {!expanded && convo.msgs.length>3 && <div className="more-turns" onClick={onToggleExpand}>展开全部 {convo.msgs.length} 条对话 ↓</div>}
-      <CCFoot convo={convo} onFork={onFork} onSave={onSave} saved={saved}/>
+      <CCFoot convo={convo} onFork={onFork} onSave={onSave} saved={saved} onComment={onComment} onVote={onVote} voted={voted}/>
       <div className="cf-byline"><span className="ava" style={{background:convo.author.color}}>{convo.author.ava}</span>一位读者在读《{convo.bookT}》时问出</div>
     </div>
   );
 }
 
 /* ---- 金句卡 ---- */
-function InsightCardForm({ convo, expanded, onToggleExpand, onFork, onSave, saved, onOpenTree }){
+function InsightCardForm({ convo, expanded, onToggleExpand, onFork, onSave, saved, onOpenTree, onComment, onVote, voted }){
   const [tplOpen, setTplOpen] = React.useState(false);
   return (
     <div className="cf cform-insight">
@@ -86,7 +86,7 @@ function InsightCardForm({ convo, expanded, onToggleExpand, onFork, onSave, save
               </div>
             ))}
           </div>}
-      <CCFoot convo={convo} onFork={onFork} onSave={onSave} saved={saved} dark onExport={() => setTplOpen(o=>!o)}/>
+      <CCFoot convo={convo} onFork={onFork} onSave={onSave} saved={saved} dark onExport={() => setTplOpen(o=>!o)} onComment={onComment} onVote={onVote} voted={voted}/>
       {tplOpen && (
         <div className="ci-tpl" style={{ display:"flex", gap:8, alignItems:"center", margin:"10px 0 0", flexWrap:"wrap" }}>
           <span style={{ fontSize:12, opacity:0.7, fontFamily:"var(--mono, monospace)" }}>存为图片 · 选模板</span>
