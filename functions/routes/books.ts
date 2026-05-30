@@ -6,6 +6,7 @@ import { getBlob, putBlob } from "../lib/storage";
 import {
   beginChunkedBookIngest,
   finalizeChunkedBookIngest,
+  countBooks,
   getBook,
   getChapters,
   getChapterText,
@@ -35,8 +36,13 @@ async function ingestAuth(c: any): Promise<{ ok: boolean; userId?: string | null
 books.get("/books", async (c) => {
   const cat = c.req.query("cat");
   const sort = c.req.query("sort") || "reads";
-  const list = await listBooks(c.env, { cat, sort });
-  return c.json({ books: list, total: list.length });
+  const rawLimit = Number(c.req.query("limit") || 1000);
+  const limit = Number.isFinite(rawLimit) ? rawLimit : 1000;
+  const [list, total] = await Promise.all([
+    listBooks(c.env, { cat, sort, limit }),
+    countBooks(c.env, { cat }),
+  ]);
+  return c.json({ books: list, total });
 });
 
 books.get("/books/:id", async (c) => {

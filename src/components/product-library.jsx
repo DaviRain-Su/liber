@@ -6,11 +6,12 @@ import { getCatalogBooks, getCatalogTotal, licenseLabel, loadCatalogBooks, subsc
 /* product-library.jsx — Library browse screen. */
 const { useState: useStateLib, useEffect: useEffLib } = React;
 
-const LANG_ORDER = ["zh", "en", "ja", "pt", "fr", "de", "es", "it", "da", "no", "sv", "fi", "nl", "pl", "cs", "ru", "hu", "el", "la"];
+const LANG_ORDER = ["zh", "en", "ja", "ko", "pt", "fr", "de", "es", "it", "da", "no", "sv", "fi", "nl", "pl", "cs", "ru", "hu", "el", "la"];
 const LANG_LABELS = {
   zh: { name: "中文", sub: "Chinese" },
   en: { name: "English", sub: "英文" },
   ja: { name: "日本語", sub: "日文" },
+  ko: { name: "한국어", sub: "韩文" },
   pt: { name: "Português", sub: "葡萄牙语" },
   fr: { name: "Français", sub: "法语" },
   de: { name: "Deutsch", sub: "德语" },

@@ -149,6 +149,7 @@ its signing/config vars. For Sui this means `SUI_RPC` + `SUI_SIGNER_KEY` +
 
 Related endpoints:
 
+- `GET /api/books?limit=1000` — list live catalogue books and return the real D1 `total`; the default list limit is 1000 and the server caps it at 2000.
 - `GET /api/books/:id/proof` — Walrus/Arweave/Sui live reachability + latest Sui checkpoint.
 - `GET /api/sui/object/:id` — resolve a real on-chain object (read-only).
 - `GET /api/blobs/:key` — look up a user-published blob (works/shares) + Walrus availability.
