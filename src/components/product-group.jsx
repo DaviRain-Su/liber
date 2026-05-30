@@ -2,7 +2,7 @@ import React from "react";
 import { I } from "./product-shared.jsx";
 
 /* product-group.jsx — co-reading group detail + groups discovery list. */
-const { useState: useGrp } = React;
+const { useState: useGrp, useEffect: useEffG } = React;
 
 /* discovery list (when no groupId) */
 function GroupsList({ onOpenGroup, onBack }){
@@ -49,7 +49,18 @@ function Group({ groupId, onBack, onOpenReader }){
   const [joined, setJoined] = useGrp(g.joined);
   const [replies, setReplies] = useGrp(g.discussion);
   const [draft, setDraft] = useGrp("");
-  const add = () => { if(!draft.trim()) return; setReplies(r => [{ u:"林知秋", color:"#3a4fb0", when:"刚刚", chap:g.weekRange.split(" ")[0], t:draft.trim(), up:0, replies:0, mine:true }, ...r]); setDraft(""); };
+  useEffG(() => {
+    if (!window.liberApi) return;
+    window.liberApi.groups.get(g.id).then(r => { if (r && r.group && Array.isArray(r.group.discussion)) setReplies(r.group.discussion); }).catch(() => {});
+  }, [g.id]);
+  const add = () => {
+    if(!draft.trim()) return;
+    const text = draft.trim();
+    const chap = g.weekRange.split(" ")[0];
+    setReplies(r => [{ u:"林知秋", color:"#3a4fb0", when:"刚刚", chap, t:text, up:0, replies:0, mine:true }, ...r]);
+    if (window.liberApi) window.liberApi.groups.post(g.id, text, chap).catch(() => {});
+    setDraft("");
+  };
 
   return (
     <div className="app-screen">
