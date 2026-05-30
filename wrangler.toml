@@ -1,0 +1,4 @@
+# Cloudflare Pages config (static SPA — no Functions).
+# Enables `npx wrangler pages deploy` and is also read by the Pages Git build.
+name = "liber"
+pages_build_output_dir = "dist"
