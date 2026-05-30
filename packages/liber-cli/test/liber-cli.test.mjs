@@ -198,6 +198,13 @@ test("verifyPublishLicense rejects non-commercial and unknown licenses", async (
 
   assert.equal(verifyPublishLicense(info, { source: "https://example.com/book", license: "CC0-1.0" }).accepted, false);
   assert.equal(verifyPublishLicense({ ...info, metadata: { ...info.metadata, rights: ["custom license"] } }, { source: "https://example.com/book" }).accepted, false);
+
+  const copyrighted = verifyPublishLicense(
+    { ...info, metadata: { ...info.metadata, rights: ["Copyrighted. Read the copyright notice inside this book for details."] } },
+    { source: "https://www.gutenberg.org/ebooks/5739", license: "PUBLIC-DOMAIN" },
+  );
+  assert.equal(copyrighted.accepted, false);
+  assert.deepEqual(copyrighted.rejectedSignals, ["COPYRIGHTED"]);
 });
 
 test("createBookManifest writes stable publish metadata", async () => {
@@ -583,6 +590,44 @@ Body two.`,
   assert.equal(chapters.length, 2);
   assert.deepEqual(chapters.map((ch) => ch.title), ["CHAPTER I. First Chapter", "CHAPTER II."]);
   assert.match(chapters[1].text, /Body two/);
+});
+
+test("extractEpubChapters recognizes spelled English chapter and stave headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "Combined",
+      body: `PREFACE
+
+Short preface.
+
+C. D.
+
+CONTENTS
+
+STAVE I
+MARLEY'S GHOST
+
+STAVE ONE.
+
+Marley was dead: to begin with.
+
+CHAPTER ONE PLAYING PILGRIMS
+
+Christmas won't be Christmas without any presents.
+
+CHAPTER TWO A MERRY CHRISTMAS
+
+Jo was the first to wake.`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), [
+    "PREFACE",
+    "STAVE ONE.",
+    "CHAPTER ONE PLAYING PILGRIMS",
+    "CHAPTER TWO A MERRY CHRISTMAS",
+  ]);
 });
 
 test("extractEpubChapters reads nested NCX chapter points", async () => {

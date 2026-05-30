@@ -5,6 +5,12 @@ import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks, licenseLabel } f
 import { addShelfBook, getShelfReadingIds } from "../lib/shelf.js";
 
 /* product-detail.jsx — Book detail page. */
+function hasOriginalEpub(book) {
+  if (!book?.id || book.id === "daodejing") return false;
+  if (book.hasEpub != null) return Boolean(book.hasEpub);
+  return Boolean(book.dynamic);
+}
+
 function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
   const missingBook = {
     id: bookId, t: "未找到该书", sub: "", a: "", cls: "ink", seal: "书",
@@ -35,6 +41,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
     return () => { live = false; };
   }, [bookId]);
   const { book, toc, highlights, reviews } = detail;
+  const originalEpub = hasOriginalEpub(book);
   const [cmtOpen, setCmtOpen] = React.useState(false);
   const [shelfSaved, setShelfSaved] = React.useState(() => getShelfReadingIds().includes(bookId));
   React.useEffect(() => {
@@ -100,7 +107,16 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
               </div>
 
               {/* TOC */}
-              {toc && (
+              {originalEpub && (
+                <div className="dsec">
+                  <div className="dsec-h">
+                    <span className="t">原版 EPUB</span>
+                    <span className="c">目录以原书文件为准</span>
+                    <span className="more" onClick={() => onOpenReader(book.id)}>打开原书 →</span>
+                  </div>
+                </div>
+              )}
+              {toc && !originalEpub && (
                 <div className="dsec">
                   <div className="dsec-h">
                     <span className="t">目录</span>

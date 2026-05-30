@@ -90,11 +90,13 @@ function applyEpubTheme(rendition, { font, size, lead, rtheme }) {
 }
 
 function hasOriginalEpub(book) {
-  return Boolean(book?.dynamic && book?.id && book.id !== "daodejing");
+  if (!book?.id || book.id === "daodejing") return false;
+  if (book.hasEpub != null) return Boolean(book.hasEpub);
+  return Boolean(book.dynamic);
 }
 
 function readerModeKey(bookId) {
-  return `liber.reader.mode.${bookId || "unknown"}`;
+  return `liber.reader.mode.v2.${bookId || "unknown"}`;
 }
 
 function defaultReaderMode(book) {
@@ -116,7 +118,7 @@ function sameEpubHref(left = "", right = "") {
   return Boolean(clean(left) && clean(left) === clean(right));
 }
 
-function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation, onRelocated }) {
+function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation, onRelocated, onUnavailable }) {
   const hostRef = useR(null);
   const renditionRef = useR(null);
   const [status, setStatus] = useS("loading");
@@ -161,6 +163,7 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation
       if (!cancelled) {
         setStatus("error");
         setError(err?.message || "原版 EPUB 暂时无法加载");
+        onUnavailable?.(err);
       }
     });
 
@@ -171,7 +174,7 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation
       try { rendition?.destroy?.(); } catch { /* ignore */ }
       try { epubBook?.destroy?.(); } catch { /* ignore */ }
     };
-  }, [bookId, onNavigation, onRelocated]);
+  }, [bookId, onNavigation, onRelocated, onUnavailable]);
 
   useE(() => {
     applyEpubTheme(renditionRef.current, { font, size, lead, rtheme });
@@ -256,10 +259,12 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const [epubToc, setEpubToc] = useS([]);
   const [epubLocation, setEpubLocation] = useS(null);
   const hasEpub = hasOriginalEpub(book);
-  const setReadMode = useCb((next) => {
+  const setReadMode = useCb((next, options = {}) => {
     setReadModeState((prev) => {
       const value = typeof next === "function" ? next(prev) : next;
-      try { localStorage.setItem(readerModeKey(book.id), value); } catch { /* ignore */ }
+      if (options.persist !== false) {
+        try { localStorage.setItem(readerModeKey(book.id), value); } catch { /* ignore */ }
+      }
       return value;
     });
   }, [book.id]);
@@ -268,7 +273,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     setReadModeState(stored || defaultReaderMode(book));
     setEpubToc([]);
     setEpubLocation(null);
-  }, [book.id, book.dynamic]);
+  }, [book.id, book.dynamic, book.hasEpub]);
   useE(() => {
     if (!hasEpub && readMode === "epub") setReadMode("text");
   }, [hasEpub, readMode, setReadMode]);
@@ -327,6 +332,10 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const [shareOpen, setShareOpen] = useS(false);
   const [toast, setToast] = useS(null);
   const [echo, setEcho] = useS(null);   // {sid, text} for cross-book echoes
+  const onEpubUnavailable = useCb(() => {
+    setReadMode("text", { persist: false });
+    setToast("原版 EPUB 暂时无法打开，已切到文本索引");
+  }, [setReadMode]);
 
   /* AI state */
   const [aiMode, setAiMode] = useS("companion");
@@ -544,6 +553,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const tocRows = readMode === "epub" && epubToc.length
     ? epubToc
     : (toc.length ? toc : chapters.map(c => ({ n: c.n, title: c.title, has: true })));
+  const waitingForEpubToc = readMode === "epub" && hasEpub && !epubToc.length;
 
   return (
     <div className="reader" data-layout={layout} data-rtheme={rtheme} data-turn={turn || undefined}
@@ -575,6 +585,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
             rtheme={rtheme}
             onNavigation={setEpubToc}
             onRelocated={setEpubLocation}
+            onUnavailable={onEpubUnavailable}
           />
         ) : (
           <div className="rd-scroll" ref={scrollRef}>
@@ -741,7 +752,10 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <div className="toc-drawer">
             <div className="dh"><span className="t">目录 · {book.t}</span><span className="x" onClick={() => setTocOpen(false)}>{I.x}</span></div>
             <div className="dbody">
-              {tocRows.map((t, idx) => {
+              {waitingForEpubToc && (
+                <div className="toc-empty">正在读取原版 EPUB 目录…</div>
+              )}
+              {!waitingForEpubToc && tocRows.map((t, idx) => {
                 const active = readMode === "epub" && t.href ? sameEpubHref(t.href, activeEpubHref) : t.n === ch.n;
                 return (
                   <div

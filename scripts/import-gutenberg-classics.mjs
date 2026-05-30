@@ -36,6 +36,28 @@ const BOOKS = [
   { id: "yellow-wallpaper-gutenberg-en", pg: 1952, lang: "en", title: "The Yellow Wallpaper", category: "English · Fiction", expect: "Wallpaper" },
   { id: "jane-eyre-gutenberg-en", pg: 1260, lang: "en", title: "Jane Eyre", category: "English · Fiction", expect: "Jane" },
   { id: "huckleberry-finn-gutenberg-en", pg: 76, lang: "en", title: "Adventures of Huckleberry Finn", category: "English · Fiction", expect: "Huckleberry" },
+  { id: "treasure-island-gutenberg-en", pg: 120, lang: "en", title: "Treasure Island", category: "English · Adventure", expect: "Treasure" },
+  { id: "dorian-gray-gutenberg-en", pg: 174, lang: "en", title: "The Picture of Dorian Gray", category: "English · Fiction", expect: "Dorian" },
+  { id: "time-machine-gutenberg-en", pg: 35, lang: "en", title: "The Time Machine", category: "English · Science Fiction", expect: "Time Machine" },
+  { id: "war-worlds-gutenberg-en", pg: 36, lang: "en", title: "The War of the Worlds", category: "English · Science Fiction", expect: "Worlds" },
+  { id: "christmas-carol-gutenberg-en", pg: 46, lang: "en", title: "A Christmas Carol", category: "English · Fiction", expect: "Christmas" },
+  { id: "great-expectations-gutenberg-en", pg: 1400, lang: "en", title: "Great Expectations", category: "English · Fiction", expect: "Expectations" },
+  { id: "crime-punishment-gutenberg-en", pg: 2554, lang: "en", title: "Crime and Punishment", category: "English · Fiction", expect: "Punishment" },
+  { id: "brothers-karamazov-gutenberg-en", pg: 28054, lang: "en", title: "The Brothers Karamazov", category: "English · Fiction", expect: "Karamazov" },
+  { id: "little-women-gutenberg-en", pg: 514, lang: "en", title: "Little Women", category: "English · Fiction", expect: "Little Women" },
+  { id: "count-monte-cristo-gutenberg-en", pg: 1184, lang: "en", title: "The Count of Monte Cristo", category: "English · Adventure", expect: "Monte Cristo" },
+  { id: "gulliver-travels-gutenberg-en", pg: 829, lang: "en", title: "Gulliver's Travels", category: "English · Satire", expect: "Gulliver" },
+  { id: "tom-sawyer-gutenberg-en", pg: 74, lang: "en", title: "The Adventures of Tom Sawyer", category: "English · Fiction", expect: "Tom Sawyer" },
+  { id: "walden-gutenberg-en", pg: 205, lang: "en", title: "Walden", category: "English · Philosophy", expect: "Walden" },
+  { id: "prince-gutenberg-en", pg: 1232, lang: "en", title: "The Prince", category: "English · Political Philosophy", expect: "Prince" },
+  { id: "wuthering-heights-gutenberg-en", pg: 768, lang: "en", title: "Wuthering Heights", category: "English · Fiction", expect: "Wuthering" },
+  { id: "emma-gutenberg-en", pg: 158, lang: "en", title: "Emma", category: "English · Fiction", expect: "Emma" },
+  { id: "sense-sensibility-gutenberg-en", pg: 161, lang: "en", title: "Sense and Sensibility", category: "English · Fiction", expect: "Sensibility" },
+  { id: "study-scarlet-gutenberg-en", pg: 244, lang: "en", title: "A Study in Scarlet", category: "English · Detective", expect: "Scarlet" },
+  { id: "dr-jekyll-gutenberg-en", pg: 43, lang: "en", title: "The Strange Case of Dr. Jekyll and Mr. Hyde", category: "English · Fiction", expect: "Jekyll" },
+  { id: "wizard-oz-gutenberg-en", pg: 55, lang: "en", title: "The Wonderful Wizard of Oz", category: "English · Fantasy", expect: "Wizard" },
+  { id: "dubliners-gutenberg-en", pg: 2814, lang: "en", title: "Dubliners", category: "English · Fiction", expect: "Dubliners" },
+  { id: "art-of-war-gutenberg", pg: 132, lang: "en", title: "The Art of War", category: "English · Strategy", expect: "Art of War" },
 
   { id: "madame-bovary-gutenberg-fr", pg: 14155, lang: "fr", title: "Madame Bovary", category: "Français · Roman", expect: "Bovary" },
   { id: "candide-gutenberg-fr", pg: 4650, lang: "fr", title: "Candide", category: "Français · Conte philosophique", expect: "Candide" },
@@ -77,7 +99,6 @@ const BOOKS = [
   { id: "atsumono-gutenberg-ja", pg: 36459, lang: "ja", title: "羹", category: "日本語 · 小説", expect: "羹" },
   { id: "america-monogatari-gutenberg-ja", pg: 35327, lang: "ja", title: "あめりか物語", category: "日本語 · 小説", expect: "あめりか" },
   { id: "doko-e-gutenberg-ja", pg: 32941, lang: "ja", title: "何處へ", category: "日本語 · 小説", expect: "何處" },
-  { id: "korean-english-dictionary-gutenberg-ko", pg: 5739, lang: "ko", title: "Korean—English Dictionary", category: "한국어 · Reference", expect: "Korean" },
 
   { id: "duhovnye-ody-gutenberg-ru", pg: 14741, lang: "ru", title: "Духовные оды", category: "Русский · Поэзия", expect: "Духовные" },
   { id: "pan-tadeusz-gutenberg-pl", pg: 31536, lang: "pl", title: "Pan Tadeusz", category: "Polski · Poezja", expect: "Tadeusz" },
@@ -115,6 +136,47 @@ function sourceUrl(book) {
   return `https://www.gutenberg.org/ebooks/${book.pg}`;
 }
 
+function rdfUrl(book) {
+  return `https://www.gutenberg.org/cache/epub/${book.pg}/pg${book.pg}.rdf`;
+}
+
+function decodeXmlEntities(value) {
+  return String(value || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;|&apos;/g, "'");
+}
+
+function rdfValues(xml, tagName) {
+  const re = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "g");
+  return [...String(xml || "").matchAll(re)]
+    .map((m) => decodeXmlEntities(m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()))
+    .filter(Boolean);
+}
+
+async function fetchGutenbergMetadata(book) {
+  const res = await fetch(rdfUrl(book), { headers: { "user-agent": "liber-gutenberg-import/0.1" } });
+  if (!res.ok) throw new Error(`Failed to verify Project Gutenberg metadata for ${book.id}: HTTP ${res.status}`);
+  const rdf = await res.text();
+  return {
+    rights: rdfValues(rdf, "dcterms:rights"),
+    title: rdfValues(rdf, "dcterms:title")[0] || "",
+    issued: rdfValues(rdf, "dcterms:issued")[0] || "",
+  };
+}
+
+function verifyGutenbergPublicDomain(book, metadata) {
+  const license = verifyPublishLicense({ metadata: { rights: metadata.rights } }, {
+    evidence: `Project Gutenberg RDF rights for ebook ${book.pg}: ${metadata.rights.join("; ")}`,
+  });
+  if (!license.accepted) {
+    throw new Error(`Rejected ${book.id} #${book.pg}: ${license.reason} Rights: ${metadata.rights.join("; ") || "none"}`);
+  }
+  return license;
+}
+
 async function download(url, filePath) {
   const res = await fetch(url, { headers: { "user-agent": "liber-gutenberg-import/0.1" } });
   if (!res.ok) throw new Error(`Failed to download ${url}: HTTP ${res.status}`);
@@ -135,15 +197,20 @@ async function probe(apiUrl, book) {
 }
 
 async function importOne(book, options) {
+  process.stderr.write(`[gutenberg] ${book.id} #${book.pg} verify rights...\n`);
+  const metadata = await fetchGutenbergMetadata(book);
+  const metadataLicense = verifyGutenbergPublicDomain(book, metadata);
+  process.stderr.write(`[gutenberg] ${book.id} rights: ${metadata.rights.join("; ")}\n`);
+
   process.stderr.write(`[gutenberg] ${book.id} #${book.pg} download...\n`);
   const dir = await mkdtemp(path.join(tmpdir(), "liber-gutenberg-"));
   const filePath = path.join(dir, `${book.id}.epub`);
   await download(epubUrl(book), filePath);
 
   const info = await inspectEpub(filePath);
-  const license = await verifyPublishLicense(info, { source: sourceUrl(book), license: "PUBLIC-DOMAIN" });
-  const manifest = await createBookManifest(filePath, { source: sourceUrl(book), license: "PUBLIC-DOMAIN" });
-  const payload = await createIngestPayload(manifest, { id: book.id, category: book.category, lang: book.lang });
+  const license = await verifyPublishLicense(info, { source: sourceUrl(book), license: metadataLicense.license, evidence: metadata.rights.join("; ") });
+  const manifest = await createBookManifest(filePath, { source: sourceUrl(book), license: metadataLicense.license, evidence: metadata.rights.join("; ") });
+  const payload = await createIngestPayload(manifest, { id: book.id, category: book.category, lang: book.lang, includeSource: false });
 
   let publish = null;
   let live = null;
@@ -175,10 +242,12 @@ async function importOne(book, options) {
     lang: book.lang || info.metadata.language || null,
     category: book.category,
     source: sourceUrl(book),
+    rights: metadata.rights,
     sha256: info.sha256,
     license: license.license,
     accepted: license.accepted,
     chapters: payload.chapters.length,
+    sampleTitles: payload.chapters.slice(0, 12).map((chapter) => chapter.title),
     published: Boolean(publish),
     live,
   };

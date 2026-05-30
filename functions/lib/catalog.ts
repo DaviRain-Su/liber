@@ -400,6 +400,12 @@ export function normalizeBook(row: any) {
     featured: !!row.featured,
     dynamic: row.dynamic ?? true,
     license: row.license ?? "CC0-1.0",
+    sourceUrl: row.source_url ?? row.sourceUrl ?? "",
+    hasEpub: Boolean(
+      row.has_epub
+      || /^https:\/\/www\.gutenberg\.org\/ebooks\/\d+$/i.test(row.source_url ?? row.sourceUrl ?? "")
+      || /^https:\/\/.+\.epub(?:\?.*)?$/i.test(row.source_url ?? row.sourceUrl ?? ""),
+    ),
   };
 }
 
@@ -413,7 +419,7 @@ export async function listBooks(env: Env, opts: { cat?: string; sort?: string } 
     env.DB,
     `SELECT id, title, subtitle, author, category, lang, year, pages, words AS words_count,
             cover_class, seal, blurb, description, featured, walrus, arweave, sui_index,
-            license, created_at
+            license, source_url, created_at
      FROM library_books ORDER BY created_at DESC LIMIT 200`,
   );
   const dynamic = rows.map(normalizeBook);
@@ -429,7 +435,7 @@ export async function getBook(env: Env, bookId: string) {
     env.DB,
     `SELECT id, title, subtitle, author, category, lang, year, pages, words AS words_count,
             cover_class, seal, blurb, description, featured, walrus, arweave, sui_index,
-            license, created_at
+            license, source_url, created_at
      FROM library_books WHERE id = ?`,
     bookId,
   );
@@ -480,7 +486,7 @@ export async function searchDynamic(env: Env, term: string) {
     env.DB,
     `SELECT id, title, subtitle, author, category, lang, year, pages, words AS words_count,
             cover_class, seal, blurb, description, featured, walrus, arweave, sui_index,
-            license, created_at
+            license, source_url, created_at
      FROM library_books
      WHERE title LIKE ? OR subtitle LIKE ? OR author LIKE ? OR category LIKE ? OR blurb LIKE ?
      ORDER BY created_at DESC LIMIT 20`,

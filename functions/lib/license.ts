@@ -9,6 +9,7 @@ function restrictiveSignals(raw?: string | null): string[] {
     ["CC-BY-SA", /\bcc[-\s]?by[-\s]?sa\b|attribution[-\s]?sharealike/i],
     ["CC-BY-ND", /\bcc[-\s]?by[-\s]?nd\b|attribution[-\s]?noderivatives/i],
     ["CC-BY", /\bcc[-\s]?by\b|creative commons attribution/i],
+    ["COPYRIGHTED", /\bcopyrighted\b|copyright\s*\(c\)|©/i],
     ["ALL-RIGHTS-RESERVED", /all rights reserved/i],
   ];
   return rules.filter(([, re]) => re.test(text)).map(([id]) => id);
