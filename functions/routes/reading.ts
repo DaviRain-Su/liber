@@ -1,0 +1,70 @@
+import { Hono } from "hono";
+import type { Env, Variables } from "../lib/types";
+import { all, first, run, id, now } from "../lib/db";
+import { requireUser } from "../lib/auth";
+
+// Per-user reading data (highlights / notes / progress) — replaces the
+// frontend's localStorage keys with server-side, cross-device storage.
+const reading = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+reading.get("/:bookId", async (c) => {
+  const uid = requireUser(c);
+  const bid = c.req.param("bookId");
+  const hls = await all(c.env.DB, `SELECT sid, color FROM highlights WHERE user_id = ? AND book_id = ?`, uid, bid);
+  const notes = await all(c.env.DB, `SELECT sid, text, color, up FROM notes WHERE user_id = ? AND book_id = ?`, uid, bid);
+  const progress = await first(c.env.DB, `SELECT chapter_n, percent FROM progress WHERE user_id = ? AND book_id = ?`, uid, bid);
+  const hlMap: Record<string, string> = {};
+  for (const h of hls) hlMap[h.sid] = h.color;
+  const noteMap: Record<string, any[]> = {};
+  for (const n of notes) (noteMap[n.sid] ||= []).push({ u: "林知秋", color: n.color || "#3a4fb0", t: n.text, up: n.up || 0, replies: 0, mine: true });
+  return c.json({ highlights: hlMap, notes: noteMap, progress });
+});
+
+reading.put("/:bookId/highlight", async (c) => {
+  const uid = requireUser(c);
+  const bid = c.req.param("bookId");
+  const { sid, color } = await c.req.json();
+  if (!sid) return c.json({ error: "缺少 sid" }, 400);
+  if (color === null) {
+    await run(c.env.DB, `DELETE FROM highlights WHERE user_id = ? AND book_id = ? AND sid = ?`, uid, bid, sid);
+    return c.json({ ok: true, removed: true });
+  }
+  await run(
+    c.env.DB,
+    `INSERT INTO highlights (id, user_id, book_id, sid, color, created_at) VALUES (?,?,?,?,?,?)
+     ON CONFLICT(user_id, book_id, sid) DO UPDATE SET color = excluded.color`,
+    id("hl_"), uid, bid, sid, color, now(),
+  );
+  await run(c.env.DB, `INSERT INTO events (id, type, book_id, sid, user_id, created_at) VALUES (?,?,?,?,?,?)`, id("e_"), "line", bid, sid, uid, now());
+  return c.json({ ok: true });
+});
+
+reading.post("/:bookId/note", async (c) => {
+  const uid = requireUser(c);
+  const bid = c.req.param("bookId");
+  const body = await c.req.json();
+  const text = (body.text || "").trim();
+  if (!body.sid || !text) return c.json({ error: "缺少内容" }, 400);
+  const nid = id("n_");
+  await run(
+    c.env.DB,
+    `INSERT INTO notes (id, user_id, book_id, sid, text, public, color, up, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
+    nid, uid, bid, body.sid, text, body.public === false ? 0 : 1, body.color || "#3a4fb0", now(),
+  );
+  return c.json({ ok: true, id: nid });
+});
+
+reading.put("/:bookId/progress", async (c) => {
+  const uid = requireUser(c);
+  const bid = c.req.param("bookId");
+  const { chapter_n, percent } = await c.req.json();
+  await run(
+    c.env.DB,
+    `INSERT INTO progress (user_id, book_id, chapter_n, percent, updated_at) VALUES (?,?,?,?,?)
+     ON CONFLICT(user_id, book_id) DO UPDATE SET chapter_n = excluded.chapter_n, percent = excluded.percent, updated_at = excluded.updated_at`,
+    uid, bid, chapter_n ?? null, percent ?? 0, now(),
+  );
+  return c.json({ ok: true });
+});
+
+export default reading;
