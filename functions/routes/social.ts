@@ -54,14 +54,14 @@ async function publicReaderProfile(env: Env, user: UserRow) {
     all<any>(
       env.DB,
       `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.title
-       FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id
+       FROM progress p JOIN library_books lb ON lb.id = p.book_id
        WHERE p.user_id = ? ORDER BY p.updated_at DESC LIMIT 12`,
       user.id,
     ),
     all<any>(
       env.DB,
       `SELECT n.book_id, n.sid, n.text, n.up, n.created_at, lb.title
-       FROM notes n LEFT JOIN library_books lb ON lb.id = n.book_id
+       FROM notes n JOIN library_books lb ON lb.id = n.book_id
        WHERE n.user_id = ? AND n.public = 1 ORDER BY n.created_at DESC LIMIT 20`,
       user.id,
     ),

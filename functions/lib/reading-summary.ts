@@ -1,6 +1,6 @@
 import type { Env } from "./types";
 import { all } from "./db";
-import { getChapterText, textToChapter } from "./catalog";
+import { getChapterText, hasLibraryBooks, textToChapter } from "./catalog";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -50,19 +50,36 @@ export function emptyReadingStats() {
 
 export async function readingStats(env: Env, userId?: string | null) {
   if (!userId) return emptyReadingStats();
+  const liveOnly = await hasLibraryBooks(env);
   const nowMs = Date.now();
   const weekStart = startOfUtcWeek(nowMs);
   const yearStart = startOfUtcYear(nowMs);
   const [progress, highlights, notes, votes] = await Promise.all([
     all<any>(
       env.DB,
-      `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
-       FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id
-       WHERE p.user_id = ?`,
+      liveOnly
+        ? `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
+           FROM progress p JOIN library_books lb ON lb.id = p.book_id
+           WHERE p.user_id = ?`
+        : `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
+           FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id
+           WHERE p.user_id = ?`,
       userId,
     ),
-    all<any>(env.DB, `SELECT created_at FROM highlights WHERE user_id = ?`, userId),
-    all<any>(env.DB, `SELECT created_at FROM notes WHERE user_id = ?`, userId),
+    all<any>(
+      env.DB,
+      liveOnly
+        ? `SELECT h.created_at FROM highlights h JOIN library_books lb ON lb.id = h.book_id WHERE h.user_id = ?`
+        : `SELECT created_at FROM highlights WHERE user_id = ?`,
+      userId,
+    ),
+    all<any>(
+      env.DB,
+      liveOnly
+        ? `SELECT n.created_at FROM notes n JOIN library_books lb ON lb.id = n.book_id WHERE n.user_id = ?`
+        : `SELECT created_at FROM notes WHERE user_id = ?`,
+      userId,
+    ),
     all<any>(env.DB, `SELECT created_at FROM votes WHERE user_id = ?`, userId),
   ]);
   const activityTimes = [
@@ -94,27 +111,40 @@ export async function readingSummary(env: Env, userId?: string | null) {
   if (!userId) {
     return { stats, reading: [], highlights: [], joinedGroupIds: [] };
   }
+  const liveOnly = await hasLibraryBooks(env);
 
   const [progressRows, highlightRows, noteRows, groupRows] = await Promise.all([
     all<any>(
       env.DB,
-      `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.title, lb.author, lb.cover_class, lb.seal, lb.pages
-       FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id
-       WHERE p.user_id = ? ORDER BY p.updated_at DESC LIMIT 100`,
+      liveOnly
+        ? `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.title, lb.author, lb.cover_class, lb.seal, lb.pages
+           FROM progress p JOIN library_books lb ON lb.id = p.book_id
+           WHERE p.user_id = ? ORDER BY p.updated_at DESC LIMIT 100`
+        : `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.title, lb.author, lb.cover_class, lb.seal, lb.pages
+           FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id
+           WHERE p.user_id = ? ORDER BY p.updated_at DESC LIMIT 100`,
       userId,
     ),
     all<any>(
       env.DB,
-      `SELECT h.book_id, h.sid, h.color, h.created_at, lb.title
-       FROM highlights h LEFT JOIN library_books lb ON lb.id = h.book_id
-       WHERE h.user_id = ? ORDER BY h.created_at DESC LIMIT 100`,
+      liveOnly
+        ? `SELECT h.book_id, h.sid, h.color, h.created_at, lb.title
+           FROM highlights h JOIN library_books lb ON lb.id = h.book_id
+           WHERE h.user_id = ? ORDER BY h.created_at DESC LIMIT 100`
+        : `SELECT h.book_id, h.sid, h.color, h.created_at, lb.title
+           FROM highlights h LEFT JOIN library_books lb ON lb.id = h.book_id
+           WHERE h.user_id = ? ORDER BY h.created_at DESC LIMIT 100`,
       userId,
     ),
     all<any>(
       env.DB,
-      `SELECT n.book_id, n.sid, n.text, n.color, n.up, n.created_at, lb.title
-       FROM notes n LEFT JOIN library_books lb ON lb.id = n.book_id
-       WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 100`,
+      liveOnly
+        ? `SELECT n.book_id, n.sid, n.text, n.color, n.up, n.created_at, lb.title
+           FROM notes n JOIN library_books lb ON lb.id = n.book_id
+           WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 100`
+        : `SELECT n.book_id, n.sid, n.text, n.color, n.up, n.created_at, lb.title
+           FROM notes n LEFT JOIN library_books lb ON lb.id = n.book_id
+           WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 100`,
       userId,
     ),
     all<any>(env.DB, `SELECT group_id FROM group_members WHERE user_id = ?`, userId),
