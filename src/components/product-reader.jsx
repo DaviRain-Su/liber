@@ -89,7 +89,34 @@ function applyEpubTheme(rendition, { font, size, lead, rtheme }) {
   rendition.themes.select("liber");
 }
 
-function EpubReader({ bookId, controlRef, font, size, lead, rtheme }) {
+function hasOriginalEpub(book) {
+  return Boolean(book?.dynamic && book?.id && book.id !== "daodejing");
+}
+
+function readerModeKey(bookId) {
+  return `liber.reader.mode.${bookId || "unknown"}`;
+}
+
+function defaultReaderMode(book) {
+  return hasOriginalEpub(book) ? "epub" : "text";
+}
+
+function flattenEpubToc(items = [], depth = 0, out = []) {
+  for (const item of items || []) {
+    const href = item.href || item.url || item.cfi || "";
+    const title = item.label || item.title || item.text || href;
+    if (href && title) out.push({ key: `${href}-${out.length}`, href, title, depth, has: true });
+    if (item.subitems?.length) flattenEpubToc(item.subitems, depth + 1, out);
+  }
+  return out;
+}
+
+function sameEpubHref(left = "", right = "") {
+  const clean = (value) => String(value || "").split("#")[0];
+  return Boolean(clean(left) && clean(left) === clean(right));
+}
+
+function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation, onRelocated }) {
   const hostRef = useR(null);
   const renditionRef = useR(null);
   const [status, setStatus] = useS("loading");
@@ -108,6 +135,9 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme }) {
       const ePub = mod.default?.default || mod.default || mod["module.exports"]?.default || mod["module.exports"];
       if (typeof ePub !== "function") throw new Error("EPUB 阅读器初始化失败");
       epubBook = ePub(source);
+      epubBook.loaded?.navigation?.then((nav) => {
+        if (!cancelled) onNavigation?.(flattenEpubToc(nav?.toc || []));
+      }).catch(() => {});
       rendition = epubBook.renderTo(hostRef.current, {
         width: "100%",
         height: "100%",
@@ -118,7 +148,11 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme }) {
       controlRef.current = {
         next: () => rendition.next(),
         prev: () => rendition.prev(),
+        display: (href) => rendition.display(href),
       };
+      rendition.on?.("relocated", (loc) => {
+        if (!cancelled) onRelocated?.(loc);
+      });
       applyEpubTheme(rendition, { font, size, lead, rtheme });
       return rendition.display();
     }).then(() => {
@@ -137,7 +171,7 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme }) {
       try { rendition?.destroy?.(); } catch { /* ignore */ }
       try { epubBook?.destroy?.(); } catch { /* ignore */ }
     };
-  }, [bookId]);
+  }, [bookId, onNavigation, onRelocated]);
 
   useE(() => {
     applyEpubTheme(renditionRef.current, { font, size, lead, rtheme });
@@ -217,9 +251,27 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     window.addEventListener("liber-reader-layout", h);
     return () => window.removeEventListener("liber-reader-layout", h);
   }, []);
-  const [readMode, setReadMode] = useS(() => localStorage.getItem("liber.reader.mode") || "text");
+  const [readMode, setReadModeState] = useS(() => localStorage.getItem(readerModeKey(seedBook.id)) || defaultReaderMode(seedBook));
   const epubControl = useR(null);
-  useE(() => { localStorage.setItem("liber.reader.mode", readMode); }, [readMode]);
+  const [epubToc, setEpubToc] = useS([]);
+  const [epubLocation, setEpubLocation] = useS(null);
+  const hasEpub = hasOriginalEpub(book);
+  const setReadMode = useCb((next) => {
+    setReadModeState((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      try { localStorage.setItem(readerModeKey(book.id), value); } catch { /* ignore */ }
+      return value;
+    });
+  }, [book.id]);
+  useE(() => {
+    const stored = localStorage.getItem(readerModeKey(book.id));
+    setReadModeState(stored || defaultReaderMode(book));
+    setEpubToc([]);
+    setEpubLocation(null);
+  }, [book.id, book.dynamic]);
+  useE(() => {
+    if (!hasEpub && readMode === "epub") setReadMode("text");
+  }, [hasEpub, readMode, setReadMode]);
 
   /* reading settings (persisted) */
   const load = (k, d) => { const v = localStorage.getItem("liber.set."+k); return v == null ? d : v; };
@@ -437,6 +489,12 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     });
   };
   const jumpTo = (n) => { const i = chapters.findIndex(c => c.n === n); if (i >= 0){ setReadMode("text"); setCIdx(i); setTocOpen(false); } };
+  const jumpEpubTo = useCb((href) => {
+    if (!href || !epubControl.current?.display) return;
+    setReadMode("epub");
+    epubControl.current.display(href);
+    setTocOpen(false);
+  }, [setReadMode]);
 
   useE(() => {
     const onKey = (e) => {
@@ -479,6 +537,13 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   );
 
   const pct = Math.round(((cIdx + prog) / chapterCount) * 100);
+  const activeEpubHref = epubLocation?.start?.href || "";
+  const activeEpubItem = readMode === "epub" && activeEpubHref
+    ? epubToc.find((item) => sameEpubHref(item.href, activeEpubHref))
+    : null;
+  const tocRows = readMode === "epub" && epubToc.length
+    ? epubToc
+    : (toc.length ? toc : chapters.map(c => ({ n: c.n, title: c.title, has: true })));
 
   return (
     <div className="reader" data-layout={layout} data-rtheme={rtheme} data-turn={turn || undefined}
@@ -489,11 +554,11 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         <button className="icon-btn" onClick={onClose} title="返回 (Esc)">{I.left}</button>
         <div className="rd-title">
           <span className="bk">{book.t}</span>
-          <span className="ch">第 {ch.n} 章 · {ch.title}</span>
+          <span className="ch">{readMode === "epub" ? `原版 EPUB${activeEpubItem?.title ? ` · ${activeEpubItem.title}` : ""}` : `第 ${ch.n} 章 · ${ch.title}`}</span>
         </div>
         <div className="spacer"/>
         <button className={`rd-tool ${tocOpen?"on":""}`} onClick={() => { setTocOpen(v=>!v); setSetOpen(false); }}>{I.list} 目录</button>
-        <button className={`rd-tool ${readMode==="epub"?"on":""}`} onClick={() => setReadMode(m => m === "epub" ? "text" : "epub")}>{I.book} EPUB</button>
+        <button className={`rd-tool ${readMode==="epub"?"on":""}`} disabled={!hasEpub} title={hasEpub ? "原版 EPUB" : "暂无 EPUB 源文件"} onClick={() => setReadMode(m => m === "epub" ? "text" : "epub")}>{I.book} EPUB</button>
         <button className={`rd-tool ${setOpen?"on":""}`} id="rd-set-btn" onClick={() => { setSetOpen(v=>!v); setTocOpen(false); }}>{I.type} 显示</button>
         <button className={`rd-tool ${aiOpen?"on":""}`} onClick={() => { setAiOpen(v=>!v); if(layout==="archive") setRailTab("ai"); }}>{I.spark} AI 书友</button>
       </div>
@@ -501,7 +566,16 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
       {/* reading region */}
       <div className="rd-body">
         {readMode === "epub" ? (
-          <EpubReader bookId={book.id} controlRef={epubControl} font={font} size={size} lead={lead} rtheme={rtheme}/>
+          <EpubReader
+            bookId={book.id}
+            controlRef={epubControl}
+            font={font}
+            size={size}
+            lead={lead}
+            rtheme={rtheme}
+            onNavigation={setEpubToc}
+            onRelocated={setEpubLocation}
+          />
         ) : (
           <div className="rd-scroll" ref={scrollRef}>
             <div className="rd-col" key={`${book.id}-${ch.n}`} onMouseUp={onMouseUp}>
@@ -667,11 +741,16 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <div className="toc-drawer">
             <div className="dh"><span className="t">目录 · {book.t}</span><span className="x" onClick={() => setTocOpen(false)}>{I.x}</span></div>
             <div className="dbody">
-              {(toc.length ? toc : chapters.map(c => ({ n: c.n, title: c.title, has: true }))).map(t => {
-                const active = t.n === ch.n;
+              {tocRows.map((t, idx) => {
+                const active = readMode === "epub" && t.href ? sameEpubHref(t.href, activeEpubHref) : t.n === ch.n;
                 return (
-                  <div key={t.n} className={`toc-item ${active?"on":""} ${!t.has?"lock":""}`} onClick={() => t.has && jumpTo(t.n)}>
-                    <span className="num">{String(t.n).padStart(2,"0")}</span>
+                  <div
+                    key={t.key || t.href || t.n}
+                    className={`toc-item ${active?"on":""} ${!t.has?"lock":""}`}
+                    style={t.depth ? { paddingLeft: 24 + t.depth * 14 } : undefined}
+                    onClick={() => t.href ? jumpEpubTo(t.href) : (t.has && jumpTo(t.n))}
+                  >
+                    <span className="num">{String(t.n || idx + 1).padStart(2,"0")}</span>
                     <span className="tt">{t.title}</span>
                     {!t.has && <span className="lk">{I.lock}</span>}
                   </div>

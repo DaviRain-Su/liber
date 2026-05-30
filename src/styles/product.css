@@ -234,6 +234,8 @@ button{ font-family: inherit; }
 }
 .rd-tool:hover{ background: var(--hair-2); color: var(--ink); }
 .rd-tool.on{ color: var(--accent); background: var(--accent-soft); }
+.rd-tool:disabled{ opacity: .45; cursor: not-allowed; }
+.rd-tool:disabled:hover{ background: transparent; color: var(--ink-2); }
 .rd-tool svg{ flex-shrink: 0; }
 
 /* reading region split: text + (optional) right rail */

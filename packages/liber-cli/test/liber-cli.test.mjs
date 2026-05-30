@@ -129,7 +129,7 @@ async function writeEpub(rights = "CC0-1.0", chapterBodies = ["The way that can 
 <package xmlns:dc="http://purl.org/dc/elements/1.1/" unique-identifier="bookid" version="3.0">
   <metadata>
     <dc:identifier id="bookid">urn:test:dao</dc:identifier>
-    <dc:title>Dao De Jing</dc:title>
+    <dc:title>${options.title || "Dao De Jing"}</dc:title>
     <dc:creator>Laozi</dc:creator>
     <dc:language>en</dc:language>
     <dc:rights>${rights}</dc:rights>
@@ -287,6 +287,159 @@ Updated editions will replace the previous one.`,
   assert.doesNotMatch(chapters[0].text, /Updated editions/);
 });
 
+test("extractEpubChapters does not use producer boilerplate as a title", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "Produced by Rick Davis",
+      body: `Produced by Rick Davis
+
+RASHOMON
+
+The old servant waited under the gate.`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, "Dao De Jing");
+  assert.match(chapters[0].text, /old servant/);
+  assert.doesNotMatch(chapters[0].text, /Produced by/);
+});
+
+test("extractEpubChapters skips standalone Gutenberg license chapters", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "Chapter I.",
+      body: "A real chapter.",
+    },
+    {
+      title: "THE FULL PROJECT GUTENBERG LICENSE",
+      body: "License text only.",
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, "Chapter I.");
+  assert.doesNotMatch(chapters[0].text, /License text/);
+});
+
+test("extractEpubChapters falls back from prose-shaped heading titles", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "This is not a chapter title but an entire paragraph that should never be shown in the table of contents because it is extracted from body prose and runs far too long.",
+      body: "Actual paragraph starts here.",
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, "Dao De Jing");
+  assert.match(chapters[0].text, /Actual paragraph/);
+});
+
+test("extractEpubChapters splits Latin liber headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "PUBLI VERGILI MARONIS",
+      body: `PUBLI VERGILI MARONIS
+
+AENEIDOS
+
+LIBER I
+
+Arma virumque cano.
+
+LIBER II
+
+Conticuere omnes.`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["LIBER I", "LIBER II"]);
+  assert.match(chapters[1].text, /Conticuere/);
+});
+
+test("extractEpubChapters ignores decorative bracket headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "…",
+      body: `《…》
+
+Body after a decorative divider.`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, "Dao De Jing");
+  assert.match(chapters[0].text, /Body after/);
+});
+
+test("extractEpubChapters recognizes Finnish runo headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "Kalevala",
+      body: `Ensimmäinen runo
+
+Vaka vanha Väinämöinen.
+
+Viides runo
+
+Jo tuli sanoma uusi.`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["Ensimmäinen runo", "Viides runo"]);
+});
+
+test("extractEpubChapters skips title pages and finds delayed roman chapter headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "C. COLLODI",
+      body: `Le Avventure di Pinocchio
+
+Storia di un burattino
+
+illustrata da Carlo Chiostri
+
+Nuova edizione
+
+FIRENZE
+R. Bemporad & Figlio — Editori.
+
+PROPRIETÀ LETTERARIA`,
+    },
+    {
+      title: "Le avventure di Pinocchio: Storia di un burattino",
+      body: `Le Avventure di Pinocchio
+
+Storia di un burattino
+
+illustrata da Carlo Chiostri
+
+Nuova edizione
+
+FIRENZE
+R. Bemporad & Figlio — Editori.
+
+I. Come andò che Maestro Ciliegia, falegname trovò un pezzo di legno.
+
+— C'era una volta....`,
+    },
+  ], { title: "Le avventure di Pinocchio: Storia di un burattino" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, "I. Come andò che Maestro Ciliegia, falegname trovò un pezzo di legno.");
+  assert.doesNotMatch(chapters[0].text, /^I\. Come/u);
+  assert.doesNotMatch(chapters[0].text, /PROPRIETÀ LETTERARIA/);
+});
+
 test("extractEpubChapters splits Chinese Gutenberg spine files by internal titles", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {
@@ -340,9 +493,9 @@ test("extractEpubChapters keeps Chinese classic numbered sections as paragraphs"
 
   assert.equal(chapters.length, 1);
   assert.match(chapters[0].text, /入國而不存其士/);
-  assert.match(chapters[0].text, /亡國矣。\n\n2 親士:/);
+  assert.match(chapters[0].text, /亡國矣。\n\n2\. 昔者/);
   assert.match(chapters[0].text, /出走而正天下。\n\n1\. 干 :/);
-  assert.match(chapters[0].text, /原錯為“于”。\n\n3 親士:/);
+  assert.match(chapters[0].text, /原錯為“于”。\n\n3\. 吾聞/);
 });
 
 test("extractEpubChapters cleans source chrome from Chinese classics", async () => {
@@ -369,6 +522,7 @@ test("extractEpubChapters cleans source chrome from Chinese classics", async () 
   assert.equal(chapters.length, 2);
   assert.equal(chapters[0].title, "節用中");
   assert.match(chapters[0].text, /古者明王聖人/);
+  assert.match(chapters[0].text, /^1\. 子墨子言曰/u);
   assert.doesNotMatch(chapters[0].text, /墨子說道/);
   assert.doesNotMatch(chapters[0].text, /節用下/);
   assert.doesNotMatch(chapters[1].text, /相關資源|戰國|屬於/);
