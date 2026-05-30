@@ -8,7 +8,7 @@ import { HTTPException } from "hono/http-exception";
 import { getCookie } from "hono/cookie";
 import type { Env, Variables } from "./types";
 import { first, run, id, now } from "./db";
-import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
+import { chain } from "./chains";
 
 type Ctx = Context<{ Bindings: Env; Variables: Variables }>;
 
@@ -28,17 +28,10 @@ export async function consumeNonce(env: Env, nonce?: string | null): Promise<boo
   return !!ok;
 }
 
-// Verify a Sui personal-message signature; returns the signer's Sui address or
-// null. Uses the official SDK so the intent bytes / serialization are correct by
-// construction (supports ed25519, secp256k1/r1, multisig, zkLogin).
-export async function verifySuiSignature(message: string, signature: string): Promise<string | null> {
-  try {
-    const bytes = new TextEncoder().encode(message);
-    const pubkey = await verifyPersonalMessageSignature(bytes, signature);
-    return pubkey.toSuiAddress();
-  } catch {
-    return null;
-  }
+// Verify a wallet login signature via the active chain adapter; returns the
+// signer's canonical address or null. Chain-agnostic — switch chains with CHAIN.
+export async function verifyWalletSignature(env: Env, message: string, signature: string, address?: string): Promise<string | null> {
+  return chain(env).verifySignature(message, signature, address);
 }
 
 export async function createSession(env: Env, userId: string): Promise<string> {

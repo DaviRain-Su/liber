@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import * as S from "../lib/seed";
-import { getChainInfo, getObject } from "../lib/sui";
+import { chain } from "../lib/chains";
 import { putBlob, getBlob } from "../lib/storage";
 
 const books = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -38,26 +38,34 @@ async function reachable(url?: string): Promise<boolean | null> {
 books.get("/books/:id/proof", async (c) => {
   const b = S.bookById(c.req.param("id"));
   if (!b) return c.json({ error: "未找到该书" }, 404);
-  const [walrus, arweave, sui] = await Promise.all([
+  const [walrus, arweave, chainStatus] = await Promise.all([
     reachable(c.env.WALRUS_AGGREGATOR),
     reachable(c.env.ARWEAVE_GATEWAY),
-    getChainInfo(c.env), // real Sui liveness (latest checkpoint) or null when unset
+    chain(c.env).chainInfo(c.env), // active-chain liveness (checkpoint/block) or null when unset
   ]);
   return c.json({
     blob: b.blob, backup: b.backup, index: b.index, license: "CC0 1.0 Universal",
     networks: {
-      configured: !!(c.env.WALRUS_AGGREGATOR || c.env.SUI_RPC),
+      configured: !!(c.env.WALRUS_AGGREGATOR || c.env.SUI_RPC || c.env.EVM_RPC),
       walrus, arweave,
-      sui: sui ? sui.live : null,
-      checkpoint: sui?.checkpoint ?? null,
-      chainId: sui?.chainId ?? null,
+      chain: chainStatus?.chain ?? null,
+      // back-compat alias: the certificate UI still reads `sui`
+      sui: chainStatus ? chainStatus.live : null,
+      checkpoint: chainStatus?.checkpoint ?? null,
+      chainId: chainStatus?.chainId ?? null,
     },
   });
 });
 
-// Resolve a real on-chain Sui object by id (read-only verification).
+// Resolve a real on-chain object by id (read-only verification, active chain).
+books.get("/chain/object/:id", async (c) => {
+  const data = await chain(c.env).getObject(c.env, c.req.param("id"));
+  if (!data) return c.json({ error: "对象不存在或链上验证未配置" }, 404);
+  return c.json({ object: data });
+});
+// back-compat alias
 books.get("/sui/object/:id", async (c) => {
-  const data = await getObject(c.env, c.req.param("id"));
+  const data = await chain(c.env).getObject(c.env, c.req.param("id"));
   if (!data) return c.json({ error: "对象不存在或链上验证未配置" }, 404);
   return c.json({ object: data });
 });

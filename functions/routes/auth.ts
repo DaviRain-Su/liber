@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import type { Env, Variables } from "../lib/types";
 import {
-  issueNonce, consumeNonce, verifySuiSignature, createSession, deleteSession,
+  issueNonce, consumeNonce, verifyWalletSignature, createSession, deleteSession,
   upsertWalletUser, createGuestUser, getUser,
 } from "../lib/auth";
 import { first } from "../lib/db";
@@ -22,7 +22,7 @@ auth.post("/nonce", async (c) => {
 auth.post("/verify", async (c) => {
   const { address, message, signature, nonce } = await c.req.json();
   if (!(await consumeNonce(c.env, nonce))) return c.json({ error: "nonce 无效或已过期" }, 400);
-  const signer = await verifySuiSignature(message, signature);
+  const signer = await verifyWalletSignature(c.env, message, signature, address);
   if (!signer || (address && signer !== address)) {
     return c.json({ error: "签名验证失败：地址与签名不匹配" }, 401);
   }
