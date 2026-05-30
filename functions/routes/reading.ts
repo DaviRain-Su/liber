@@ -15,14 +15,19 @@ reading.get("/summary", async (c) => {
 reading.get("/:bookId", async (c) => {
   const uid = requireUser(c);
   const bid = c.req.param("bookId");
-  const hls = await all(c.env.DB, `SELECT sid, color FROM highlights WHERE user_id = ? AND book_id = ?`, uid, bid);
-  const notes = await all(c.env.DB, `SELECT sid, text, color, up FROM notes WHERE user_id = ? AND book_id = ?`, uid, bid);
-  const progress = await first(c.env.DB, `SELECT chapter_n, percent FROM progress WHERE user_id = ? AND book_id = ?`, uid, bid);
+  const [hls, notes, progress, heatRows] = await Promise.all([
+    all(c.env.DB, `SELECT sid, color FROM highlights WHERE user_id = ? AND book_id = ?`, uid, bid),
+    all(c.env.DB, `SELECT sid, text, color, up FROM notes WHERE user_id = ? AND book_id = ?`, uid, bid),
+    first(c.env.DB, `SELECT chapter_n, percent FROM progress WHERE user_id = ? AND book_id = ?`, uid, bid),
+    all(c.env.DB, `SELECT sid, COUNT(DISTINCT user_id) AS n FROM highlights WHERE book_id = ? GROUP BY sid`, bid),
+  ]);
   const hlMap: Record<string, string> = {};
   for (const h of hls) hlMap[h.sid] = h.color;
   const noteMap: Record<string, any[]> = {};
   for (const n of notes) (noteMap[n.sid] ||= []).push({ u: "林知秋", color: n.color || "#3a4fb0", t: n.text, up: n.up || 0, replies: 0, mine: true });
-  return c.json({ highlights: hlMap, notes: noteMap, progress });
+  const heat: Record<string, number> = {};
+  for (const row of heatRows) heat[row.sid] = Number(row.n || 0);
+  return c.json({ highlights: hlMap, notes: noteMap, progress, heat });
 });
 
 reading.put("/:bookId/highlight", async (c) => {
