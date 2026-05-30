@@ -7,7 +7,7 @@ import { Mark, I } from "./product-shared.jsx";
    read-frame, role-grid, soc-grid, agent-grid, term, coll-grid, cta, reveal…).
 
    Two real CTAs:
-     onEnter   — 开始阅读：进入书库（访客）
+     onEnter   — 开始阅读：不登录，直接进入书库
      onSignIn  — 连接钱包 / 登录：进入 onboarding 流程 */
 const { useState, useEffect, useRef } = React;
 

@@ -16,7 +16,7 @@ import { Charts } from "./product-charts.jsx";
 import { Reader } from "./product-reader.jsx";
 import { SearchOverlay } from "./product-search.jsx";
 import { AgentView } from "./product-agentview.jsx";
-import { ensureGuestSession } from "../lib/api.js";
+import { setToken } from "../lib/api.js";
 
 /* product-app.jsx — router, theme, mount. */
 const { useState: useSt, useEffect: useEf } = React;
@@ -24,12 +24,10 @@ const IS_PHONE_PREVIEW = new URLSearchParams(location.search).get("vp") === "pho
 
 function App(){
   /* landing gate — the public marketing page is the first thing a new visitor
-     sees. Only a visitor who has actually entered before (finished onboarding,
-     or chose to browse as guest) skips it. We deliberately do NOT key this on a
-     standalone "entered" flag: persisting that before onboarding completes would
-     trap the visitor on the login screen on every reload. */
+     sees. A visitor skips it only after completing onboarding or explicitly
+     choosing "开始阅读"; neither path creates or displays a guest identity. */
   const [entered, setEntered] = useSt(
-    () => localStorage.getItem("liber.onboarded") === "1" || localStorage.getItem("liber.guest") === "1"
+    () => localStorage.getItem("liber.onboarded") === "1" || localStorage.getItem("liber.reader.entered") === "1"
   );
   /* onboarding gate */
   const [onboarded, setOnboarded] = useSt(() => localStorage.getItem("liber.onboarded") === "1");
@@ -85,10 +83,10 @@ function App(){
   }, []);
 
   /* landing CTAs */
-  const enterAsGuest = () => {           // 开始阅读 → 直接进书库（访客）
-    ensureGuestSession().catch(() => {});
-    localStorage.setItem("liber.guest", "1");
-    localStorage.setItem("liber.onboarded", "1"); // guest skips onboarding
+  const enterAsGuest = () => {           // 开始阅读 → 直接进书库，不创建访客身份
+    localStorage.setItem("liber.reader.entered", "1");
+    localStorage.setItem("liber.onboarded", "1");
+    localStorage.removeItem("liber.guest");
     setRoute({ screen:"library" });
     setOnboarded(true);
     setEntered(true);
@@ -102,7 +100,13 @@ function App(){
     window.scrollTo(0, 0);
   };
   /* one-time migration: free anyone trapped by the old standalone entered flag */
-  useEf(() => { localStorage.removeItem("liber.entered"); }, []);
+  useEf(() => {
+    if (localStorage.getItem("liber.guest") === "1") {
+      localStorage.removeItem("liber.guest");
+      setToken(null);
+    }
+    localStorage.removeItem("liber.entered");
+  }, []);
 
   const openBook = (bookId, straightToReader) => {
     if (straightToReader) setReader({ bookId });

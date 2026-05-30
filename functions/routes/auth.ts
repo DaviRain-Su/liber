@@ -53,6 +53,7 @@ auth.get("/me", async (c) => {
   if (!uid) return c.json({ user: null });
   const user = await getUser(c.env, uid);
   if (!user) return c.json({ user: null });
+  if (user.is_guest) return c.json({ user: null });
   const hl = await first(c.env.DB, `SELECT COUNT(*) AS n FROM highlights WHERE user_id = ?`, uid);
   const nt = await first(c.env.DB, `SELECT COUNT(*) AS n FROM notes WHERE user_id = ?`, uid);
   const stats = { ...S.ME.stats, lines: hl?.n || 0, notes: nt?.n || 0 };

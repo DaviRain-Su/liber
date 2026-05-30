@@ -1,7 +1,7 @@
 import React from "react";
 import { I, Mark } from "./product-shared.jsx";
 import { walletLogin } from "../lib/wallet.js";
-import { ensureGuestSession, getToken } from "../lib/api.js";
+import { getToken } from "../lib/api.js";
 
 /* product-onboarding.jsx — welcome + value props + decentralized sign-in + interests. */
 const { useState: useOnb, useEffect: useEonb } = React;
@@ -52,11 +52,11 @@ function Onboarding({ onFinish }){
   };
   const togglePick = (k) => setPicks(p => p.includes(k) ? p.filter(x=>x!==k) : [...p, k]);
 
-  const finish = async (guest) => {
-    if (guest || !getToken()) await ensureGuestSession().catch(() => null);
+  const finish = async () => {
     localStorage.setItem("liber.onboarded", "1");
-    if (account) localStorage.setItem("liber.account", JSON.stringify(account));
-    if (guest) localStorage.setItem("liber.guest", "1");
+    localStorage.setItem("liber.reader.entered", "1");
+    localStorage.removeItem("liber.guest");
+    if (account && getToken()) localStorage.setItem("liber.account", JSON.stringify(account));
     onFinish();
   };
 
@@ -83,7 +83,7 @@ function Onboarding({ onFinish }){
               <span key={i} className={i===step?"on":i<step?"done":""}/>
             ))}
           </div>
-          {step>0 && step<4 && <button className="onb-skip" onClick={()=>finish(true)}>跳过，先逛逛</button>}
+          {step>0 && step<4 && <button className="onb-skip" onClick={()=>finish()}>跳过，先逛逛</button>}
         </div>
 
         <div className="onb-stage">
@@ -141,7 +141,7 @@ function Onboarding({ onFinish }){
                 <button className={`btn btn-ghost ${connecting==="passkey"?"connecting":""}`} disabled={!!connecting} onClick={passkey}>
                   {I.lock} 用通行密钥登录
                 </button>
-                <button className="btn btn-quiet" disabled={!!connecting} onClick={()=>finish(true)}>以访客身份浏览</button>
+                <button className="btn btn-quiet" disabled={!!connecting} onClick={()=>finish()}>先逛逛</button>
               </div>
               <div className="onb-fine">连接即表示同意以 CC0 协议共享你的公开批注。私钥永不离开你的钱包。</div>
             </div>
@@ -176,7 +176,7 @@ function Onboarding({ onFinish }){
               <h1>你的图书馆已就绪</h1>
               <p className="ow-lede">{picks.length} 个方向、1,284 卷经典，<br/>和一位随时在旁的 AI 书友，等你翻开第一页。</p>
               <div className="onb-actions">
-                <button className="btn btn-primary onb-cta" onClick={()=>finish(false)}>进入图书馆 <span className="arr">→</span></button>
+                <button className="btn btn-primary onb-cta" onClick={()=>finish()}>进入图书馆 <span className="arr">→</span></button>
               </div>
             </div>
           )}
