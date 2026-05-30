@@ -84,22 +84,27 @@ books.get("/books/:id/source.epub", async (c) => {
     const row = await c.env.DB.prepare(`SELECT source_url FROM library_books WHERE id = ?`).bind(bookId).first<{ source_url?: string }>();
     const sourceUrl = row?.source_url || "";
     const m = sourceUrl.match(/^https:\/\/www\.gutenberg\.org\/ebooks\/(\d+)$/);
-    const epubUrl = m ? `https://www.gutenberg.org/ebooks/${m[1]}.epub.images` : (/^https:\/\/.+\.epub(?:\?.*)?$/i.test(sourceUrl) ? sourceUrl : "");
-    if (epubUrl) {
+    const epubUrls = m
+      ? [
+          `https://www.gutenberg.org/ebooks/${m[1]}.epub.images`,
+          `https://www.gutenberg.org/ebooks/${m[1]}.epub.noimages`,
+          `https://www.gutenberg.org/ebooks/${m[1]}.epub`,
+        ]
+      : (/^https:\/\/.+\.epub(?:\?.*)?$/i.test(sourceUrl) ? [sourceUrl] : []);
+    for (const epubUrl of epubUrls) {
       try {
         const res = await fetch(epubUrl, { headers: { "user-agent": "liber-epub-proxy/0.1" } });
-        if (res.ok && res.body) {
-          return new Response(res.body, {
-            headers: {
-              "Content-Type": "application/epub+zip",
-              "Content-Disposition": `inline; filename="${filename}"; filename*=UTF-8''${utf8Name}`,
-              "Cache-Control": "public, max-age=3600",
-              "X-Content-Type-Options": "nosniff",
-            },
-          });
-        }
+        if (!res.ok || !res.body) continue;
+        return new Response(res.body, {
+          headers: {
+            "Content-Type": "application/epub+zip",
+            "Content-Disposition": `inline; filename="${filename}"; filename*=UTF-8''${utf8Name}`,
+            "Cache-Control": "public, max-age=3600",
+            "X-Content-Type-Options": "nosniff",
+          },
+        });
       } catch {
-        // Fall through to the normal 404 when the upstream source is unavailable.
+        // Try the next known Gutenberg EPUB URL variant.
       }
     }
     return c.json({ error: "未找到 EPUB 源文件" }, 404);

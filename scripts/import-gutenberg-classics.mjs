@@ -25,6 +25,7 @@ const BOOKS = [
   { id: "mozi-gutenberg-zh", pg: 24240, lang: "zh", title: "墨子", category: "中文 · 先秦", expect: "墨子" },
   { id: "hanfeizi-gutenberg-zh", pg: 24049, lang: "zh", title: "韩非子", category: "中文 · 法家", expect: "韩非子" },
   { id: "tangshi300-gutenberg-zh", pg: 52323, lang: "zh", title: "唐诗三百首", category: "中文 · 诗歌", expect: "唐诗" },
+  { id: "suitang-yanyi-gutenberg-zh", pg: 23835, lang: "zh", title: "隋唐演義", category: "中文 · 古典小说", expect: "隋唐演義" },
 
   { id: "alice-wonderland-gutenberg-en", pg: 11, lang: "en", title: "Alice's Adventures in Wonderland", category: "English · Fiction", expect: "Alice" },
   { id: "pride-prejudice-gutenberg-en", pg: 1342, lang: "en", title: "Pride and Prejudice", category: "English · Fiction", expect: "Pride" },
@@ -88,6 +89,7 @@ const BOOKS = [
   { id: "les-miserables-fantine-gutenberg-fr", pg: 17489, lang: "fr", title: "Les misérables Tome I: Fantine", category: "Français · Roman", expect: "Fantine" },
   { id: "notre-dame-paris-gutenberg-fr", pg: 70891, lang: "fr", title: "Notre-Dame de Paris - Tome 1", category: "Français · Roman", expect: "Notre-Dame" },
   { id: "journey-center-earth-gutenberg-fr", pg: 4791, lang: "fr", title: "Voyage au Centre de la Terre", category: "Français · Aventure", expect: "Terre" },
+  { id: "monte-cristo-tome1-gutenberg-fr", pg: 17989, lang: "fr", title: "Le comte de Monte-Cristo, Tome I", category: "Français · Aventure", expect: "Monte-Cristo" },
 
   { id: "faust-i-gutenberg-de", pg: 2229, lang: "de", title: "Faust I", category: "Deutsch · Drama", expect: "Faust" },
   { id: "faust-ii-gutenberg-de", pg: 2230, lang: "de", title: "Faust II", category: "Deutsch · Drama", expect: "Faust" },
@@ -104,19 +106,25 @@ const BOOKS = [
   { id: "don-quijote-gutenberg-es", pg: 2000, lang: "es", title: "Don Quijote", category: "Español · Novela", expect: "Quijote" },
   { id: "celestina-gutenberg-es", pg: 1619, lang: "es", title: "La Celestina", category: "Español · Teatro", expect: "Celestina" },
   { id: "lazarillo-gutenberg-es", pg: 320, lang: "es", title: "Lazarillo de Tormes", category: "Español · Novela", expect: "Lazarillo" },
+  { id: "crimen-castigo-gutenberg-es", pg: 61851, lang: "es", title: "El crimen y el castigo", category: "Español · Novela", expect: "castigo" },
+  { id: "argonautas-gutenberg-es", pg: 25640, lang: "es", title: "Los argonautas", category: "Español · Novela", expect: "argonautas" },
 
   { id: "dom-casmurro-gutenberg-pt", pg: 55752, lang: "pt", title: "Dom Casmurro", category: "Português · Romance", expect: "Casmurro" },
   { id: "bras-cubas-gutenberg-pt", pg: 54829, lang: "pt", title: "Memórias Póstumas de Brás Cubas", category: "Português · Romance", expect: "Braz" },
   { id: "quincas-borba-gutenberg-pt", pg: 55682, lang: "pt", title: "Quincas Borba", category: "Português · Romance", expect: "Quincas" },
+  { id: "minas-salomao-gutenberg-pt", pg: 22015, lang: "pt", title: "As Minas de Salomão", category: "Português · Aventura", expect: "Salomão" },
 
   { id: "max-havelaar-gutenberg-nl", pg: 11024, lang: "nl", title: "Max Havelaar", category: "Nederlands · Roman", expect: "Havelaar" },
   { id: "kalevala-gutenberg-fi", pg: 7000, lang: "fi", title: "Kalevala", category: "Suomi · Eepos", expect: "Kalevala" },
   { id: "roda-rummet-gutenberg-sv", pg: 57052, lang: "sv", title: "Röda rummet", category: "Svenska · Roman", expect: "Röda" },
   { id: "hemsoborna-gutenberg-sv", pg: 30078, lang: "sv", title: "Hemsöborna", category: "Svenska · Roman", expect: "Hemsöborna" },
   { id: "vildanden-gutenberg-no", pg: 13041, lang: "no", title: "Vildanden", category: "Norsk · Drama", expect: "Vildanden" },
+  { id: "sult-gutenberg-no", pg: 30027, lang: "no", title: "Sult", category: "Norsk · Roman", expect: "Sult" },
   { id: "pelle-erobreren-1-gutenberg-da", pg: 76563, lang: "da", title: "Pelle Erobreren 1: Barndom", category: "Dansk · Roman", expect: "Pelle" },
 
   { id: "rashomon-gutenberg-ja", pg: 1982, lang: "ja", title: "羅生門", category: "日本語 · 小説", expect: "羅生門" },
+  { id: "kumogata-monsho-gutenberg-ja", pg: 35018, lang: "ja", title: "雲形紋章", category: "日本語 · 小説", expect: "雲形紋章" },
+  { id: "irekawatta-otoko-gutenberg-ja", pg: 34158, lang: "ja", title: "入れかわった男", category: "日本語 · 小説", expect: "入れかわった男" },
   { id: "shisei-gutenberg-ja", pg: 31617, lang: "ja", title: "刺青", category: "日本語 · 小説", expect: "刺" },
   { id: "atsumono-gutenberg-ja", pg: 36459, lang: "ja", title: "羹", category: "日本語 · 小説", expect: "羹" },
   { id: "america-monogatari-gutenberg-ja", pg: 35327, lang: "ja", title: "あめりか物語", category: "日本語 · 小説", expect: "あめりか" },
@@ -150,8 +158,12 @@ function parseArgs(argv) {
   return out;
 }
 
-function epubUrl(book) {
-  return `https://www.gutenberg.org/ebooks/${book.pg}.epub.images`;
+function epubUrls(book) {
+  return [
+    `https://www.gutenberg.org/ebooks/${book.pg}.epub.images`,
+    `https://www.gutenberg.org/ebooks/${book.pg}.epub.noimages`,
+    `https://www.gutenberg.org/ebooks/${book.pg}.epub`,
+  ];
 }
 
 function sourceUrl(book) {
@@ -205,6 +217,19 @@ async function download(url, filePath) {
   await writeFile(filePath, new Uint8Array(await res.arrayBuffer()));
 }
 
+async function downloadEpub(book, filePath) {
+  const errors = [];
+  for (const url of epubUrls(book)) {
+    try {
+      await download(url, filePath);
+      return url;
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  throw new Error(errors.join("; "));
+}
+
 async function probe(apiUrl, book) {
   const [bookRes, contentRes, searchRes] = await Promise.all([
     fetch(`${apiUrl}/api/books/${encodeURIComponent(book.id)}`),
@@ -227,7 +252,7 @@ async function importOne(book, options) {
   process.stderr.write(`[gutenberg] ${book.id} #${book.pg} download...\n`);
   const dir = await mkdtemp(path.join(tmpdir(), "liber-gutenberg-"));
   const filePath = path.join(dir, `${book.id}.epub`);
-  await download(epubUrl(book), filePath);
+  const downloadedFrom = await downloadEpub(book, filePath);
 
   const info = await inspectEpub(filePath);
   const license = await verifyPublishLicense(info, { source: sourceUrl(book), license: metadataLicense.license, evidence: metadata.rights.join("; ") });
@@ -264,6 +289,7 @@ async function importOne(book, options) {
     lang: book.lang || info.metadata.language || null,
     category: book.category,
     source: sourceUrl(book),
+    epubUrl: downloadedFrom,
     rights: metadata.rights,
     sha256: info.sha256,
     license: license.license,
