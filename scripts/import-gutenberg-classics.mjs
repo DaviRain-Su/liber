@@ -6,19 +6,23 @@ import {
   createBookManifest,
   createIngestPayload,
   inspectEpub,
-  publishBookManifest,
+  publishBookManifestChunked,
   verifyPublishLicense,
 } from "../packages/liber-cli/src/liber-core.mjs";
 
 const API_URL = "https://liber.davirain.xyz";
 
 const BOOKS = [
+  { id: "daodejing-gutenberg-zh", pg: 7337, title: "道德經", category: "哲学 · 道家", expect: "道德經" },
+  { id: "laozi-gutenberg-zh", pg: 24039, title: "老子", category: "哲学 · 道家", expect: "老子" },
+  { id: "liezi-gutenberg-zh", pg: 7341, title: "列子", category: "哲学 · 道家", expect: "列子" },
   { id: "lunyu-gutenberg-zh", pg: 23839, title: "論語", category: "哲学 · 儒家", expect: "論語" },
   { id: "mengzi-gutenberg-zh", pg: 24178, title: "孟子", category: "哲学 · 儒家", expect: "孟子" },
   { id: "yijing-gutenberg-zh", pg: 25501, title: "易經", category: "经典 · 易学", expect: "易經" },
   { id: "shijing-gutenberg-zh", pg: 23873, title: "詩經", category: "文学 · 诗经", expect: "詩經" },
   { id: "liji-gutenberg-zh", pg: 24048, title: "禮記", category: "经典 · 礼学", expect: "禮記" },
   { id: "sunzi-bingfa-gutenberg-zh", pg: 23864, title: "孫子兵法", category: "兵法 · 军事", expect: "孫子" },
+  { id: "mozi-gutenberg-zh", pg: 24240, title: "墨子", category: "哲学 · 先秦", expect: "墨子" },
   { id: "hanfeizi-gutenberg-zh", pg: 24049, title: "韩非子", category: "哲学 · 法家", expect: "韩非子" },
   { id: "tangshi300-gutenberg-zh", pg: 52323, title: "唐诗三百首", category: "文学 · 诗歌", expect: "唐诗" },
 ];
@@ -85,7 +89,20 @@ async function importOne(book, options) {
   let live = null;
   if (options.publish) {
     process.stderr.write(`[gutenberg] ${book.id} publish ${payload.chapters.length} chapters...\n`);
-    publish = await publishBookManifest(manifest, { apiUrl: options.apiUrl, id: book.id, category: book.category });
+    publish = await publishBookManifestChunked(manifest, {
+      apiUrl: options.apiUrl,
+      id: book.id,
+      category: book.category,
+      ingestPayload: payload,
+      concurrency: 6,
+      onProgress: (event) => {
+        if (event.stage === "chapter") {
+          process.stderr.write(`[gutenberg] ${book.id} chapter ${event.current}/${event.total}: ${event.chapter.title}\n`);
+        } else {
+          process.stderr.write(`[gutenberg] ${book.id} ${event.stage}...\n`);
+        }
+      },
+    });
     live = await probe(options.apiUrl, book);
   }
 

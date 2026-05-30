@@ -34,6 +34,11 @@ export interface IngestBookInput {
   epubMediaType?: string;
 }
 
+export interface ChunkedIngestFinalizeInput extends IngestBookInput {
+  chapterNumbers?: number[];
+  words?: number;
+}
+
 function compact(s?: string | null): string {
   return (s || "").trim();
 }
@@ -224,6 +229,137 @@ function chapterText(ch: IngestChapterInput): string {
   return "";
 }
 
+function normalizeIngestChapter(ch: IngestChapterInput, idx: number) {
+  const n = Number(ch.n || idx + 1) || idx + 1;
+  return { n, title: compact(ch.title) || `第 ${n} 章`, text: chapterText(ch) };
+}
+
+function normalizeIngestMeta(input: IngestBookInput) {
+  const title = compact(input.title);
+  if (!title) throw new Error("书名不能为空");
+  const license = assertPublishableLicense(input.license);
+  return { title, license, bookId: safeId(input.id, title) };
+}
+
+async function storeEpubSource(env: Env, bookId: string, input: IngestBookInput) {
+  if (!input.epubBase64) return null;
+  const epubBytes = base64ToBytes(input.epubBase64);
+  const actualHash = await sha256Hex(epubBytes);
+  if (input.epubSha256 && actualHash !== input.epubSha256.toLowerCase()) {
+    throw new Error("EPUB 哈希与 manifest 不一致");
+  }
+  return putBlob(env, `book/${bookId}/source.epub`, epubBytes, input.epubMediaType || "application/epub+zip");
+}
+
+async function storedBlobRef(env: Env, key: string) {
+  return first<any>(
+    env.DB,
+    `SELECT key, walrus, arweave, sui_index, size, content_type FROM blobs WHERE key = ?`,
+    key,
+  );
+}
+
+async function storeChapter(env: Env, bookId: string, ch: { n: number; title: string; text: string }) {
+  if (!ch.text) throw new Error("章节正文为空");
+  const ref = await putBlob(env, `book/${bookId}/ch/${ch.n}`, ch.text, "text/plain; charset=utf-8");
+  await run(
+    env.DB,
+    `INSERT INTO library_chapters (book_id, n, title, blob_key, walrus, arweave, sui_index, text_preview, text_size, created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(book_id, n) DO UPDATE SET
+       title = excluded.title, blob_key = excluded.blob_key, walrus = excluded.walrus,
+       arweave = excluded.arweave, sui_index = excluded.sui_index, text_preview = excluded.text_preview,
+       text_size = excluded.text_size, created_at = excluded.created_at`,
+    bookId, ch.n, ch.title, ref.key, ref.walrus, ref.arweave, ref.sui_index,
+    ch.text.slice(0, 5000), ch.text.length, now(),
+  );
+  return { ...ch, ref };
+}
+
+async function deleteStaleChapters(env: Env, bookId: string, keepNumbers: number[]) {
+  const requestedNumbers = [...new Set(keepNumbers.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0))];
+  if (!requestedNumbers.length) return;
+  const keep = new Set(requestedNumbers);
+  const existing = await all<any>(env.DB, `SELECT n FROM library_chapters WHERE book_id = ?`, bookId);
+  const stale = existing.map((r) => Number(r.n)).filter((n) => !keep.has(n));
+  for (let i = 0; i < stale.length; i += 80) {
+    const batch = stale.slice(i, i + 80);
+    await run(
+      env.DB,
+      `DELETE FROM library_chapters WHERE book_id = ? AND n IN (${batch.map(() => "?").join(",")})`,
+      bookId, ...batch,
+    );
+  }
+}
+
+async function finalizeStoredBook(
+  env: Env,
+  input: ChunkedIngestFinalizeInput,
+  meta: { title: string; license: string; bookId: string },
+  createdBy?: string | null,
+) {
+  await deleteStaleChapters(env, meta.bookId, input.chapterNumbers || []);
+
+  const rows = await all<any>(
+    env.DB,
+    `SELECT n, title, blob_key, walrus, arweave, sui_index, text_size
+     FROM library_chapters WHERE book_id = ? ORDER BY n`,
+    meta.bookId,
+  );
+  if (!rows.length) throw new Error("正文为空");
+
+  const epubRef = await storedBlobRef(env, `book/${meta.bookId}/source.epub`);
+  const manifest = {
+    id: meta.bookId,
+    title: meta.title,
+    author: compact(input.author) || "佚名",
+    license: meta.license,
+    sourceUrl: input.sourceUrl || null,
+    epub: epubRef ? {
+      key: epubRef.key,
+      walrus: epubRef.walrus,
+      arweave: epubRef.arweave,
+      sui_index: epubRef.sui_index,
+      size: epubRef.size,
+      sha256: input.epubSha256 || null,
+      mediaType: epubRef.content_type,
+    } : input.epubSha256 ? {
+      sha256: input.epubSha256,
+      mediaType: input.epubMediaType || "application/epub+zip",
+    } : null,
+    chapters: rows.map((r) => ({ n: Number(r.n), title: r.title, walrus: r.walrus, size: Number(r.text_size || 0) })),
+  };
+  const manifestRef = await putBlob(env, `book/${meta.bookId}/manifest`, JSON.stringify(manifest), "application/json");
+  const chainRef = await chain(env).registerObject(env, { contentId: manifestRef.walrus, kind: "book", license: meta.license });
+  const suiIndex = chainRef?.objectId || chainRef?.digest || manifestRef.sui_index;
+  if (chainRef) await run(env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, suiIndex, manifestRef.key);
+
+  const words = Number(input.words) || rows.reduce((sum, r) => sum + Number(r.text_size || 0), 0);
+  await run(
+    env.DB,
+    `INSERT INTO library_books
+      (id, title, subtitle, author, category, lang, year, pages, words, cover_class, seal,
+       blurb, description, license, source_url, featured, manifest_key, walrus, arweave,
+       sui_index, created_by, created_at, updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET
+       title = excluded.title, subtitle = excluded.subtitle, author = excluded.author,
+       category = excluded.category, lang = excluded.lang, year = excluded.year,
+       pages = excluded.pages, words = excluded.words, cover_class = excluded.cover_class,
+       seal = excluded.seal, blurb = excluded.blurb, description = excluded.description,
+       license = excluded.license, source_url = excluded.source_url, featured = excluded.featured,
+       manifest_key = excluded.manifest_key, walrus = excluded.walrus, arweave = excluded.arweave,
+       sui_index = excluded.sui_index, updated_at = excluded.updated_at`,
+    meta.bookId, meta.title, input.subtitle || "", input.author || "佚名", input.category || "文学 · 诗",
+    input.lang || "中文", input.year || "", rows.length, words, coverClassFor(meta.bookId), meta.title[0] || "书",
+    input.blurb || rows[0]?.text_preview?.slice(0, 90) || "", input.description || "", meta.license,
+    input.sourceUrl || null, input.featured ? 1 : 0, manifestRef.key, manifestRef.walrus, manifestRef.arweave,
+    suiIndex, createdBy || null, now(), now(),
+  );
+
+  return { book: await getBook(env, meta.bookId), manifest: manifestRef, epub: epubRef, chapters: rows.length, sui: chainRef };
+}
+
 export function normalizeBook(row: any) {
   const readsN = Number(row.readsN ?? row.reads ?? 0) || 0;
   const liners = Number(row.liners ?? 0) || 0;
@@ -355,56 +491,27 @@ export async function searchDynamic(env: Env, term: string) {
 }
 
 export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: string | null) {
-  const title = compact(input.title);
-  if (!title) throw new Error("书名不能为空");
-  const license = assertPublishableLicense(input.license);
-  const bookId = safeId(input.id, title);
+  const meta = normalizeIngestMeta(input);
   const chapters = (input.chapters?.length ? input.chapters : parseTextChapters(input.text || ""))
-    .map((ch, idx) => ({ n: ch.n || idx + 1, title: compact(ch.title) || `第 ${ch.n || idx + 1} 章`, text: chapterText(ch) }))
+    .map(normalizeIngestChapter)
     .filter((ch) => ch.text);
   if (!chapters.length) throw new Error("正文为空");
 
   const words = chapters.reduce((sum, ch) => sum + ch.text.replace(/\s+/g, "").length, 0);
-  let epubRef: any = null;
-  if (input.epubBase64) {
-    const epubBytes = base64ToBytes(input.epubBase64);
-    const actualHash = await sha256Hex(epubBytes);
-    if (input.epubSha256 && actualHash !== input.epubSha256.toLowerCase()) {
-      throw new Error("EPUB 哈希与 manifest 不一致");
-    }
-    epubRef = await putBlob(env, `book/${bookId}/source.epub`, epubBytes, input.epubMediaType || "application/epub+zip");
-  }
+  const epubRef = await storeEpubSource(env, meta.bookId, input);
 
   const refs: Array<{ n: number; title: string; text: string; ref: any }> = [];
   for (const ch of chapters) {
-    const ref = await putBlob(env, `book/${bookId}/ch/${ch.n}`, ch.text, "text/plain; charset=utf-8");
-    refs.push({ ...ch, ref });
-    await run(
-      env.DB,
-      `INSERT INTO library_chapters (book_id, n, title, blob_key, walrus, arweave, sui_index, text_preview, text_size, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?)
-       ON CONFLICT(book_id, n) DO UPDATE SET
-         title = excluded.title, blob_key = excluded.blob_key, walrus = excluded.walrus,
-         arweave = excluded.arweave, sui_index = excluded.sui_index, text_preview = excluded.text_preview,
-         text_size = excluded.text_size, created_at = excluded.created_at`,
-      bookId, ch.n, ch.title, ref.key, ref.walrus, ref.arweave, ref.sui_index,
-      ch.text.slice(0, 5000), ch.text.length, now(),
-    );
+    refs.push(await storeChapter(env, meta.bookId, ch));
   }
   const chapterNumbers = [...new Set(refs.map((r) => r.n))];
-  if (chapterNumbers.length) {
-    await run(
-      env.DB,
-      `DELETE FROM library_chapters WHERE book_id = ? AND n NOT IN (${chapterNumbers.map(() => "?").join(",")})`,
-      bookId, ...chapterNumbers,
-    );
-  }
+  await deleteStaleChapters(env, meta.bookId, chapterNumbers);
 
   const manifest = {
-    id: bookId,
-    title,
+    id: meta.bookId,
+    title: meta.title,
     author: compact(input.author) || "佚名",
-    license,
+    license: meta.license,
     sourceUrl: input.sourceUrl || null,
     epub: epubRef ? {
       key: epubRef.key,
@@ -420,8 +527,8 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
     } : null,
     chapters: refs.map((r) => ({ n: r.n, title: r.title, walrus: r.ref.walrus, size: r.ref.size })),
   };
-  const manifestRef = await putBlob(env, `book/${bookId}/manifest`, JSON.stringify(manifest), "application/json");
-  const chainRef = await chain(env).registerObject(env, { contentId: manifestRef.walrus, kind: "book", license });
+  const manifestRef = await putBlob(env, `book/${meta.bookId}/manifest`, JSON.stringify(manifest), "application/json");
+  const chainRef = await chain(env).registerObject(env, { contentId: manifestRef.walrus, kind: "book", license: meta.license });
   const suiIndex = chainRef?.objectId || chainRef?.digest || manifestRef.sui_index;
   if (chainRef) await run(env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, suiIndex, manifestRef.key);
 
@@ -440,12 +547,29 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
        license = excluded.license, source_url = excluded.source_url, featured = excluded.featured,
        manifest_key = excluded.manifest_key, walrus = excluded.walrus, arweave = excluded.arweave,
        sui_index = excluded.sui_index, updated_at = excluded.updated_at`,
-    bookId, title, input.subtitle || "", input.author || "佚名", input.category || "文学 · 诗",
-    input.lang || "中文", input.year || "", chapters.length, words, coverClassFor(bookId), input.title[0] || "书",
-    input.blurb || chapters[0].text.slice(0, 90), input.description || "", license,
+    meta.bookId, meta.title, input.subtitle || "", input.author || "佚名", input.category || "文学 · 诗",
+    input.lang || "中文", input.year || "", chapters.length, words, coverClassFor(meta.bookId), meta.title[0] || "书",
+    input.blurb || chapters[0].text.slice(0, 90), input.description || "", meta.license,
     input.sourceUrl || null, input.featured ? 1 : 0, manifestRef.key, manifestRef.walrus, manifestRef.arweave,
     suiIndex, createdBy || null, now(), now(),
   );
 
-  return { book: await getBook(env, bookId), manifest: manifestRef, epub: epubRef, chapters: refs.length, sui: chainRef };
+  return { book: await getBook(env, meta.bookId), manifest: manifestRef, epub: epubRef, chapters: refs.length, sui: chainRef };
+}
+
+export async function beginChunkedBookIngest(env: Env, input: IngestBookInput) {
+  const meta = normalizeIngestMeta(input);
+  const epub = await storeEpubSource(env, meta.bookId, input);
+  return { id: meta.bookId, title: meta.title, license: meta.license, epub };
+}
+
+export async function ingestBookChapter(env: Env, input: IngestBookInput, chapter: IngestChapterInput, idx = 0) {
+  const meta = normalizeIngestMeta(input);
+  const normalized = normalizeIngestChapter(chapter, idx);
+  return storeChapter(env, meta.bookId, normalized);
+}
+
+export async function finalizeChunkedBookIngest(env: Env, input: ChunkedIngestFinalizeInput, createdBy?: string | null) {
+  const meta = normalizeIngestMeta(input);
+  return finalizeStoredBook(env, input, meta, createdBy);
 }

@@ -3,7 +3,20 @@ import type { Env, Variables } from "../lib/types";
 import * as S from "../lib/seed";
 import { chain } from "../lib/chains";
 import { putBlob } from "../lib/storage";
-import { getBook, getChapters, getChapterText, getToc, hasLibraryBooks, ingestBook, listBooks, searchDynamic, textToChapter } from "../lib/catalog";
+import {
+  beginChunkedBookIngest,
+  finalizeChunkedBookIngest,
+  getBook,
+  getChapters,
+  getChapterText,
+  getToc,
+  hasLibraryBooks,
+  ingestBook,
+  ingestBookChapter,
+  listBooks,
+  searchDynamic,
+  textToChapter,
+} from "../lib/catalog";
 import { getCliPublishToken } from "../lib/auth";
 
 const books = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -132,6 +145,40 @@ books.post("/books/ingest", async (c) => {
   }
   try {
     const result = await ingestBook(c.env, body, auth.userId);
+    return c.json({ ok: true, ...result });
+  } catch (e) {
+    return c.json({ error: String(e instanceof Error ? e.message : e) }, 400);
+  }
+});
+
+books.post("/books/ingest/begin", async (c) => {
+  const auth = await ingestAuth(c);
+  if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
+  try {
+    const result = await beginChunkedBookIngest(c.env, await c.req.json());
+    return c.json({ ok: true, ...result });
+  } catch (e) {
+    return c.json({ error: String(e instanceof Error ? e.message : e) }, 400);
+  }
+});
+
+books.post("/books/ingest/chapter", async (c) => {
+  const auth = await ingestAuth(c);
+  if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
+  try {
+    const body = await c.req.json();
+    const result = await ingestBookChapter(c.env, body, body.chapter, Number(body.index || 0));
+    return c.json({ ok: true, chapter: result.n, title: result.title, ref: result.ref });
+  } catch (e) {
+    return c.json({ error: String(e instanceof Error ? e.message : e) }, 400);
+  }
+});
+
+books.post("/books/ingest/finalize", async (c) => {
+  const auth = await ingestAuth(c);
+  if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
+  try {
+    const result = await finalizeChunkedBookIngest(c.env, await c.req.json(), auth.userId);
     return c.json({ ok: true, ...result });
   } catch (e) {
     return c.json({ error: String(e instanceof Error ? e.message : e) }, 400);

@@ -262,10 +262,201 @@ function cleanChapterTitle(title, text, fallback) {
   return String(text || "").split("\n").map((line) => line.trim()).filter(Boolean)[0] || fallback;
 }
 
+function comparableTitle(value) {
+  return String(value || "")
+    .replace(/[《》〈〉「」『』"'\s:：,，.。·\-—_]/g, "")
+    .toLowerCase();
+}
+
+function isSameBookTitle(title, bookTitle) {
+  const a = comparableTitle(title);
+  const b = comparableTitle(bookTitle);
+  return Boolean(a && b && (a === b || a.startsWith(b)));
+}
+
+function undecorateTitle(block) {
+  const lines = String(block || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length !== 1) return null;
+  let title = lines[0].replace(/\s+/g, " ").trim();
+  const bracketed = title.match(/^《([^《》]{1,80})》$/);
+  if (bracketed) title = bracketed[1].trim();
+  return title || null;
+}
+
+function isVolumeMarker(title) {
+  return /^(?:卷第?[一二两三四五六七八九十百千〇零\d]+|第[一二两三四五六七八九十百千〇零\d]+卷)$/u.test(title);
+}
+
+function isNoiseTitle(title, bookTitle) {
+  return /^produced by\b/i.test(title)
+    || /^title\s*:/i.test(title)
+    || /^author\s*:/i.test(title)
+    || /^the project gutenberg ebook\b/i.test(title)
+    || isSameBookTitle(title, bookTitle);
+}
+
+function looksLikeChapterTitle(title, wasBracketed) {
+  if (wasBracketed && title.length <= 40) return true;
+  return /^第\s*[一二两三四五六七八九十百千〇零\d]+\s*(?:章|回|節|节|篇|卦|卷).{0,40}$/u.test(title)
+    || /^卷第?[一二两三四五六七八九十百千〇零\d]+\s+.{1,40}$/u.test(title)
+    || /^卷之[一二两三四五六七八九十百千〇零\d]+[\p{Script=Han}]{1,16}(?:上|中|下)?$/u.test(title)
+    || /^[\p{Script=Han}]{1,16}(?:上|中|下)?第[一二两三四五六七八九十百千〇零\d]+$/u.test(title)
+    || /^\d{1,3}[.、]\s+[\p{Script=Han}]{1,12}$/u.test(title)
+    || /^\d{3}[.、\s]+[\p{Script=Han}][^\n:：。！？；「」“”]{1,80}$/u.test(title);
+}
+
+function classifyLogicalHeading(block, bookTitle) {
+  const raw = String(block || "").trim();
+  const wasBracketed = /^《[^《》]{1,80}》$/.test(raw);
+  const title = undecorateTitle(raw);
+  if (!title || isNoiseTitle(title, bookTitle)) return null;
+  if (isVolumeMarker(title)) return { kind: "volume", title };
+  if (looksLikeChapterTitle(title, wasBracketed)) return { kind: "chapter", title };
+  return null;
+}
+
+function splitAnthologyBlock(block) {
+  const text = String(block || "").trim();
+  const re = /(?:^|\s)(\d{3})\s+(.{1,50}?)\s+作者：(.{1,20}?)(?=\s|$)/gu;
+  const matches = [...text.matchAll(re)];
+  if (!matches.length) return null;
+
+  const parts = [];
+  const first = matches[0];
+  const preface = text.slice(0, first.index).trim();
+  if (preface && !/^(?:唐詩三百首|唐诗三百首|Title\s*:|Author\s*:)/i.test(preface)) parts.push(preface);
+
+  for (let i = 0; i < matches.length; i += 1) {
+    const m = matches[i];
+    const next = matches[i + 1];
+    const title = `${m[1]} ${m[2].trim()} · ${m[3].trim()}`;
+    const body = text.slice(m.index + m[0].length, next?.index ?? text.length).trim();
+    parts.push(title);
+    if (body) parts.push(body);
+  }
+  return parts;
+}
+
+function splitNumberedPoemBlock(block) {
+  const text = String(block || "").trim();
+  const re = /(^|\s)(\d{1,3})[.、]\s+([\p{Script=Han}]{1,12})(?=\s)/gu;
+  const matches = [...text.matchAll(re)].filter((m) => {
+    const afterTitle = text.slice(m.index + m[0].length).trimStart();
+    return !/^[:：]/.test(afterTitle);
+  });
+  if (!matches.length) return null;
+
+  const parts = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    const m = matches[i];
+    const bodyStart = m.index + m[0].length;
+    const next = matches[i + 1];
+    const nextStart = next ? next.index + next[1].length : text.length;
+    const body = text.slice(bodyStart, nextStart).trim();
+    parts.push(`${m[2]}. ${m[3].trim()}`);
+    if (body) parts.push(body);
+  }
+  return parts;
+}
+
+function splitInlineVolumeBlock(block) {
+  const text = String(block || "").trim();
+  const re = /(?:^|\s)(卷之[一二两三四五六七八九十百千〇零\d]+[\p{Script=Han}]{1,16}(?:上|中|下)?)(?=\s|　|$)/gu;
+  const matches = [...text.matchAll(re)];
+  if (!matches.length) return null;
+
+  const parts = [];
+  const first = matches[0];
+  const preface = text.slice(0, first.index).trim();
+  if (preface) parts.push(preface);
+
+  for (let i = 0; i < matches.length; i += 1) {
+    const m = matches[i];
+    const next = matches[i + 1];
+    const body = text.slice(m.index + m[0].length, next?.index ?? text.length).trim();
+    parts.push(m[1].trim());
+    if (body) parts.push(body);
+  }
+  return parts;
+}
+
+function expandLogicalBlocks(blocks) {
+  const out = [];
+  for (const block of blocks) {
+    const anthology = splitAnthologyBlock(block);
+    if (anthology) {
+      out.push(...anthology);
+      continue;
+    }
+
+    const numberedPoem = splitNumberedPoemBlock(block);
+    if (numberedPoem) {
+      out.push(...numberedPoem);
+      continue;
+    }
+
+    const inlineVolume = splitInlineVolumeBlock(block);
+    if (inlineVolume) {
+      out.push(...inlineVolume);
+      continue;
+    }
+
+    const bracketed = block.match(/^《([^《》]{1,80})》\s+([\s\S]+)$/);
+    if (bracketed) {
+      out.push(`《${bracketed[1].trim()}》`);
+      out.push(bracketed[2].trim());
+      continue;
+    }
+
+    const numbered = block.match(/^(第\s*[一二两三四五六七八九十百千〇零\d]+\s*(?:章|回|節|节|篇|卦|卷).{0,30})\s+([\s\S]+)$/u);
+    if (numbered) {
+      out.push(numbered[1].trim());
+      out.push(numbered[2].trim());
+      continue;
+    }
+
+    out.push(block);
+  }
+  return out;
+}
+
+function splitLogicalChapters(text, bookTitle) {
+  const blocks = expandLogicalBlocks(String(text || "").split(/\n{2,}/).map((block) => block.trim()).filter(Boolean));
+  const chapters = [];
+  let current = null;
+
+  const finish = () => {
+    if (!current) return;
+    const body = normalizeTextBlocks(current.blocks.join("\n\n"));
+    if (body) chapters.push({ title: current.title, text: body });
+    current = null;
+  };
+
+  for (const block of blocks) {
+    const heading = classifyLogicalHeading(block, bookTitle);
+    if (heading?.kind === "volume") continue;
+    if (heading?.kind === "chapter") {
+      finish();
+      current = { title: heading.title, blocks: [] };
+      continue;
+    }
+    if (current) current.blocks.push(block);
+  }
+
+  finish();
+  return chapters;
+}
+
 function isProjectGutenbergOnlyChapter(title, text) {
   const haystack = `${title}\n${text}`.toLowerCase();
   return /preface to the project gutenberg etext/.test(haystack)
     || /project gutenberg etext of/.test(haystack);
+}
+
+function isSpineContinuation(title, bookTitle) {
+  if (!title || isNoiseTitle(title, bookTitle)) return false;
+  if (classifyLogicalHeading(title, bookTitle)?.kind === "chapter") return false;
+  return /^\d{1,3}[.、]\s+/.test(title);
 }
 
 function spineTextItems(parsed) {
@@ -285,6 +476,7 @@ export async function extractEpubChapters(filePath) {
   const pkg = await readEpubPackage(filePath);
   const items = spineTextItems(pkg.parsed);
   const chapters = [];
+  const bookTitle = pkg.parsed.metadata.title || "";
 
   for (const item of items) {
     const raw = entryText(pkg.entries, item.href);
@@ -293,11 +485,21 @@ export async function extractEpubChapters(filePath) {
     if (!text) continue;
     const title = cleanChapterTitle(chapterTitleFromHtml(raw, `Chapter ${chapters.length + 1}`), text, `Chapter ${chapters.length + 1}`);
     if (isProjectGutenbergOnlyChapter(title, text)) continue;
-    chapters.push({
-      n: chapters.length + 1,
-      title,
-      text,
-    });
+    const logical = splitLogicalChapters(text, bookTitle);
+    if (logical.length) {
+      for (const ch of logical) {
+        chapters.push({ n: chapters.length + 1, title: ch.title, text: ch.text });
+      }
+    } else if (chapters.length && isSpineContinuation(title, bookTitle)) {
+      const previous = chapters[chapters.length - 1];
+      previous.text = normalizeTextBlocks(`${previous.text}\n\n${title}\n\n${text}`);
+    } else {
+      chapters.push({
+        n: chapters.length + 1,
+        title,
+        text,
+      });
+    }
   }
 
   if (!chapters.length) throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
@@ -672,7 +874,7 @@ export async function publishBookManifest(manifest, options = {}) {
   if (!resolved.adminToken) {
     throw new LiberCliError("AUTH_REQUIRED", "Publish token is required. Run `liber auth browser --api-url <url>` or configure ADMIN_TOKEN for headless admin use.");
   }
-  const payload = await createIngestPayload(manifest, options);
+  const payload = options.ingestPayload || await createIngestPayload(manifest, options);
   const fetcher = options.fetchImpl || fetch;
   const ingestUrl = `${resolved.apiUrl}/api/books/ingest`;
   let res;
@@ -686,7 +888,7 @@ export async function publishBookManifest(manifest, options = {}) {
       body: JSON.stringify(payload),
     });
   } catch (error) {
-    throw new LiberCliError("PUBLISH_NETWORK_FAILED", `Publish request failed for ${ingestUrl}: ${error.message || String(error)}`);
+    throw new LiberCliError("PUBLISH_NETWORK_FAILED", `Publish request failed for ${ingestUrl}: ${describeFetchError(error)}`);
   }
   const text = await res.text();
   let body;
@@ -699,4 +901,89 @@ export async function publishBookManifest(manifest, options = {}) {
     throw new LiberCliError("PUBLISH_FAILED", `Publish failed with HTTP ${res.status}: ${text}`);
   }
   return body;
+}
+
+function describeFetchError(error) {
+  const parts = [error?.message || String(error)];
+  if (error?.cause?.code) parts.push(error.cause.code);
+  if (error?.cause?.message) parts.push(error.cause.message);
+  return [...new Set(parts.filter(Boolean))].join(": ");
+}
+
+async function postPublishJson(fetcher, url, token, payload) {
+  let res;
+  try {
+    res = await fetcher(url, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    throw new LiberCliError("PUBLISH_NETWORK_FAILED", `Publish request failed for ${url}: ${describeFetchError(error)}`);
+  }
+  const text = await res.text();
+  let body;
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    body = { text };
+  }
+  if (!res.ok) {
+    throw new LiberCliError("PUBLISH_FAILED", `Publish failed with HTTP ${res.status}: ${text}`);
+  }
+  return body;
+}
+
+function withoutLargeBookFields(payload) {
+  const { chapters, epubBase64, text, ...rest } = payload;
+  return rest;
+}
+
+export async function publishBookManifestChunked(manifest, options = {}) {
+  const config = options.config || await loadCliConfig({ configPath: options.configPath });
+  const resolved = resolvePublishOptions(options, config);
+  if (!resolved.adminToken) {
+    throw new LiberCliError("AUTH_REQUIRED", "Publish token is required. Run `liber auth browser --api-url <url>` or configure ADMIN_TOKEN for headless admin use.");
+  }
+  const payload = options.ingestPayload || await createIngestPayload(manifest, options);
+  const fetcher = options.fetchImpl || fetch;
+  const base = resolved.apiUrl;
+  const meta = withoutLargeBookFields(payload);
+  const total = payload.chapters.length;
+  const words = payload.chapters.reduce((sum, ch) => sum + String(ch.text || "").replace(/\s+/g, "").length, 0);
+  const concurrency = Math.max(1, Math.min(12, Number(options.concurrency || 1) || 1));
+
+  options.onProgress?.({ stage: "begin", current: 0, total });
+  const begin = await postPublishJson(fetcher, `${base}/api/books/ingest/begin`, resolved.adminToken, {
+    ...meta,
+    epubBase64: payload.epubBase64,
+  });
+
+  const chapters = new Array(total);
+  let next = 0;
+  const publishNext = async () => {
+    while (next < total) {
+      const i = next;
+      next += 1;
+      const chapter = payload.chapters[i];
+      options.onProgress?.({ stage: "chapter", current: i + 1, total, chapter });
+      chapters[i] = await postPublishJson(fetcher, `${base}/api/books/ingest/chapter`, resolved.adminToken, {
+        ...meta,
+        index: i,
+        chapter,
+      });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, total) }, publishNext));
+
+  options.onProgress?.({ stage: "finalize", current: total, total });
+  const finalize = await postPublishJson(fetcher, `${base}/api/books/ingest/finalize`, resolved.adminToken, {
+    ...meta,
+    chapterNumbers: payload.chapters.map((ch) => ch.n).filter(Boolean),
+    words,
+  });
+  return { ok: true, begin, chapters, finalize, book: finalize.book, manifest: finalize.manifest };
 }

@@ -17,6 +17,7 @@ import {
   inspectEpub,
   loadCliConfig,
   publishBookManifest,
+  publishBookManifestChunked,
   saveCliConfig,
   signInWithSuiPrivateKey,
   startBrowserAuth,
@@ -282,6 +283,179 @@ Updated editions will replace the previous one.`,
   assert.doesNotMatch(chapters[0].text, /Updated editions/);
 });
 
+test("extractEpubChapters splits Chinese Gutenberg spine files by internal titles", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 墨子",
+      body: `Produced by Lu-Tin Lee
+
+《墨子 - Mozi》
+
+《卷一》
+
+《親士》
+
+1 親士: 入國而不存其士，則亡國矣。
+
+《修身》
+
+1 修身: 君子戰雖有陳，而勇為本焉。
+
+《所染》
+
+1 所染: 子墨子言見染絲者而嘆曰：“染於蒼則蒼。”`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["親士", "修身", "所染"]);
+  assert.match(chapters[0].text, /入國而不存其士/);
+  assert.doesNotMatch(chapters[0].text, /Produced by/);
+  assert.doesNotMatch(chapters[0].text, /墨子 - Mozi/);
+});
+
+test("extractEpubChapters splits Chinese numbered classic headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 論語",
+      body: `學而第一
+
+子曰：「學而時習之，不亦說乎？」
+
+為政第二
+
+子曰：「為政以德，譬如北辰。」`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["學而第一", "為政第二"]);
+  assert.match(chapters[1].text, /為政以德/);
+});
+
+test("extractEpubChapters merges numbered aphorism spine continuations", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "八佾第三",
+      body: "1. 孔子謂季氏，「八佾舞於庭，是可忍也，孰不可忍也？」",
+    },
+    {
+      title: "2. 三家者以雍徹。",
+      body: "3. 子曰：「人而不仁，如禮何？人而不仁，如樂何？」",
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, "八佾第三");
+  assert.match(chapters[0].text, /2\. 三家者以雍徹。/);
+});
+
+test("extractEpubChapters splits chapter headings that share a paragraph with body", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 韩非子",
+      body: `《三守》
+1 三守: 人主有三守。
+
+《備內》 1 備內: 人主之患在於信人。
+
+《南面》   提到《南面》的書籍
+1 南面: 人主之過，在己任在臣矣。`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["三守", "備內", "南面"]);
+  assert.match(chapters[2].text, /人主之過/);
+});
+
+test("extractEpubChapters splits numbered poem anthologies", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 唐诗三百首",
+      body: `唐詩三百首
+001
+感遇（四首之一）
+作者：張九齡
+孤鴻海上來，
+池潢不敢顧；
+002
+感遇（四首之二）
+作者：張九齡
+蘭葉春葳蕤，
+桂華秋皎潔；`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["001 感遇（四首之一） · 張九齡", "002 感遇（四首之二） · 張九齡"]);
+  assert.match(chapters[1].text, /蘭葉春葳蕤/);
+});
+
+test("extractEpubChapters splits numbered poems without author markers", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 詩經",
+      body: `國風
+
+周南
+
+1. 關睢 關關雎鳩、在河之洲。
+
+2. 葛覃 葛之覃兮、施于中谷。
+
+257. 桑柔 菀彼桑柔、其下侯旬。`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["1. 關睢", "2. 葛覃", "257. 桑柔"]);
+  assert.match(chapters[0].text, /關關雎鳩/);
+});
+
+test("extractEpubChapters does not split numbered collation notes as poems", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 墨子",
+      body: `《親士》
+
+1 親士: 入國而不存其士，則亡國矣。
+
+1. 干 : 原錯為“于”。自孫詒讓《墨子閒詁》改。`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, "親士");
+  assert.match(chapters[0].text, /原錯為/);
+});
+
+test("extractEpubChapters splits inline volume titles", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 孟子",
+      body: `卷之一梁惠王上
+孟子見梁惠王。
+卷之一梁惠王下
+莊暴見孟子。
+卷之二公孫丑上
+公孫丑問曰。`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["卷之一梁惠王上", "卷之一梁惠王下", "卷之二公孫丑上"]);
+  assert.match(chapters[2].text, /公孫丑問曰/);
+});
+
 test("createIngestPayload builds backend ingest payload from a manifest", async () => {
   const { epubPath } = await writeEpub("CC0-1.0", ["First paragraph."]);
   const manifest = await createBookManifest(epubPath, {
@@ -342,6 +516,41 @@ test("publishBookManifest posts ingest payload with admin authorization", async 
   assert.equal(requests[0].init.method, "POST");
   assert.equal(requests[0].init.headers.authorization, "Bearer secret-token");
   assert.equal(requests[0].body.chapters.length, 1);
+});
+
+test("publishBookManifestChunked posts source, chapters, and finalize requests", async () => {
+  const { epubPath } = await writeEpub("CC0-1.0", ["First paragraph.", "Second paragraph."]);
+  const manifest = await createBookManifest(epubPath, {
+    source: "https://example.com/dao.epub",
+    license: "CC0-1.0",
+  });
+
+  const requests = [];
+  const result = await publishBookManifestChunked(manifest, {
+    apiUrl: "https://liber.example",
+    adminToken: "secret-token",
+    id: "dao",
+    fetchImpl: async (url, init) => {
+      const body = JSON.parse(init.body);
+      requests.push({ url, init, body });
+      const response = url.endsWith("/finalize")
+        ? { ok: true, book: { id: "dao" }, chapters: body.chapterNumbers.length, manifest: { key: "book/dao/manifest" } }
+        : { ok: true };
+      return new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(requests.length, 4);
+  assert.equal(requests[0].url, "https://liber.example/api/books/ingest/begin");
+  assert.equal(requests[1].url, "https://liber.example/api/books/ingest/chapter");
+  assert.equal(requests[2].body.chapter.title, "Chapter 2");
+  assert.equal(requests[3].url, "https://liber.example/api/books/ingest/finalize");
+  assert.deepEqual(requests[3].body.chapterNumbers, [1, 2]);
+  assert.ok(requests.every((req) => req.init.headers.authorization === "Bearer secret-token"));
 });
 
 test("CLI auth login/status/logout persists config without leaking the token", async () => {

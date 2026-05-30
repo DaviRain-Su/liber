@@ -11,7 +11,7 @@ import {
   LiberCliError,
   MANIFEST_SCHEMA,
   publicConfigStatus,
-  publishBookManifest,
+  publishBookManifestChunked,
   saveCliConfig,
   signInWithSuiPrivateKey,
   startBrowserAuth,
@@ -268,15 +268,22 @@ async function main(argv) {
     if (!file) throw new LiberCliError("ARG_REQUIRED", "Missing manifest path.");
     const manifest = JSON.parse(await readFile(file, "utf8"));
     if (!flags["dry-run"]) {
-      const result = await publishBookManifest(manifest, {
+      const result = await publishBookManifestChunked(manifest, {
         apiUrl: flags["api-url"],
         adminToken: flags["admin-token"],
         configPath: flags.config,
         id: flags.id,
         category: flags.category,
         year: flags.year,
+        onProgress: flags.json ? undefined : (event) => {
+          if (event.stage === "chapter") {
+            process.stderr.write(`Publishing chapter ${event.current}/${event.total}: ${event.chapter.title}\n`);
+          } else {
+            process.stderr.write(`Publishing ${event.stage}...\n`);
+          }
+        },
       });
-      flags.json ? printJson(result) : process.stdout.write(`Published ${result.book?.id || result.book?.title || "book"} (${result.chapters ?? "unknown"} chapters)\n`);
+      flags.json ? printJson(result) : process.stdout.write(`Published ${result.book?.id || result.book?.title || "book"} (${result.chapters?.length ?? result.finalize?.chapters ?? "unknown"} chapters)\n`);
       return 0;
     }
     const cfg = await loadCliConfig({ configPath: flags.config });
