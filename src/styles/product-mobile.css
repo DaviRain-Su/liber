@@ -166,6 +166,14 @@
   .sm-bar input{ font-size: 20px; }
 }
 
+@media (max-width: 760px){
+  /* inline comment panels (shared convo / work / book detail discussion):
+     they use inline styles so they're already fluid — just give the composer
+     room and keep the thread from getting too tall on a phone. */
+  .convo-comments{ margin-left: 0; margin-right: 0; }
+  .soc-convo-item .convo-comments{ margin-top: 12px; }
+}
+
 /* very small phones */
 @media (max-width: 420px){
   .lib-grid{ gap: 18px 12px; }
