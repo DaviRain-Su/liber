@@ -110,6 +110,8 @@ export const api = {
 
   billing: {
     plan: () => get("/billing/plan"),
+    cryptoConfig: () => get("/billing/crypto/config"),
+    confirmCrypto: (digest) => post("/billing/crypto/confirm", { digest }),
     checkout: () => post("/billing/checkout"),
   },
 

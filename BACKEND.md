@@ -55,7 +55,7 @@ src/lib/api.js             frontend API client (window.liberApi)
 | Social | `GET /api/annotations/:book/:sid` · `/feed` · `/shares` · `/groups[/:id]` · `/threads/:key` · `/works` (+ POST writes, auth) |
 | Comments / votes | `GET/POST /api/comments/:type/:id` · `POST /api/vote/:type/:id` (generic over share/work/book; D1-backed, comments mirrored through the storage layer). |
 | AI | `POST /api/ai/chat` · `GET /api/ai/usage` · `GET /api/ai/conversations[/:id]` |
-| Billing | `GET /api/billing/plan` · `POST /api/billing/checkout` · `POST /api/billing/webhook` |
+| Billing | `GET /api/billing/plan` · `GET /api/billing/crypto/config` · `POST /api/billing/crypto/confirm` · optional Stripe `POST /api/billing/checkout` / `webhook` |
 | Charts | `GET /api/charts?window=today|week|month` |
 | MCP (open) | `GET /api/mcp` · `POST /api/mcp/call` `{tool,args}` |
 
@@ -119,9 +119,15 @@ external calls. Set public endpoints in `wrangler.toml` `[vars]`; set
 | `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint and manual pro activation endpoint. |
 | `AI_MODEL` | Override the AI book-companion model (any Workers AI text model id). Default: `@cf/qwen/qwen1.5-14b-chat-awq` (stronger Chinese than the prior Llama 3.1 8B). |
 | `CHAIN` | Active chain adapter: `sui` (default) / `evm` / `solana`. |
-| `STRIPE_SECRET_KEY` / `STRIPE_PRO_PRICE_ID` | Enable paid subscription checkout. Without these, billing endpoints report “not configured” and the app remains free-tier only. |
-| `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhook signatures before promoting a user to `pro`. |
-| `BILLING_SUCCESS_URL` / `BILLING_CANCEL_URL` / `APP_URL` | Optional checkout redirect URLs. |
+| `PAYMENT_CHAIN` | Wallet Standard chain id for subscription transactions. Default `sui:testnet`. |
+| `PAYMENT_TREASURY` | Receiving Sui address for stablecoin subscriptions. |
+| `PAYMENT_COIN_TYPE` | Accepted Sui coin type, e.g. a USDC coin type. |
+| `PAYMENT_MONTHLY_AMOUNT` | Required monthly payment in atomic units. |
+| `PAYMENT_AMOUNT_LABEL` | Optional display label, e.g. `5 USDC`. |
+| `PAYMENT_PLAN_DAYS` | Subscription duration credited per confirmed payment. Default `31`. |
+| `STRIPE_SECRET_KEY` / `STRIPE_PRO_PRICE_ID` | Optional fallback checkout. Not needed for the primary Web3 stablecoin flow. |
+| `STRIPE_WEBHOOK_SECRET` | Optional Stripe webhook signature verification. |
+| `BILLING_SUCCESS_URL` / `BILLING_CANCEL_URL` / `APP_URL` | Optional Stripe checkout redirect URLs. |
 | `EVM_RPC` / `EVM_SIGNER_KEY` / `EVM_REGISTRY` | EVM adapter: read works with just `EVM_RPC`; wallet-login verify + on-chain registration are scaffolded (TODO) and need the signer key + a deployed registry contract. |
 
 ### Chain layer is pluggable (multi-chain ready)
@@ -152,6 +158,12 @@ Related endpoints:
 Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
 (real Sui personal-message signature check via `@mysten/sui`). Frontend flow in
 `src/lib/wallet.js` (Wallet Standard); guest auth remains available.
+
+Subscription payment uses the same wallet path: the frontend builds a Sui coin
+transfer to `PAYMENT_TREASURY`, asks the wallet to sign + execute it, then posts
+the transaction digest to `POST /api/billing/crypto/confirm`. The backend reads
+the transaction from `SUI_RPC`, verifies sender, success status, coin type,
+recipient, and amount before promoting the user to `pro`. Stripe can stay unset.
 
 ## Roadmap
 

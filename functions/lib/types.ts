@@ -44,7 +44,14 @@ export interface Env {
   // Agentic book companion (functions/lib/agent.ts); needs a tool-capable provider.
   AGENT_ENABLED?: string;     // "true" to enable
   AGENT_MAX_TURNS?: string;   // default 6, max 12
-  // Stripe-compatible subscription checkout. Leave unset to disable paid upgrade.
+  // Stablecoin subscription checkout on Sui. Leave treasury/coin unset to disable.
+  PAYMENT_CHAIN?: string;          // default "sui:testnet"
+  PAYMENT_TREASURY?: string;       // receiving wallet address
+  PAYMENT_COIN_TYPE?: string;      // e.g. a Sui USDC coin type
+  PAYMENT_MONTHLY_AMOUNT?: string; // atomic units, e.g. "5000000" for 5 USDC @ 6 decimals
+  PAYMENT_AMOUNT_LABEL?: string;   // display label, e.g. "5 USDC"
+  PAYMENT_PLAN_DAYS?: string;      // default 31
+  // Optional Stripe-compatible checkout. Not the primary Web3 path.
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PRO_PRICE_ID?: string;

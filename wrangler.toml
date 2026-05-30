@@ -34,3 +34,7 @@ WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
 ARWEAVE_GATEWAY = "https://arweave.net"
 # Sui fullnode for read-only chain verification (latest checkpoint + object lookup).
 SUI_RPC = "https://fullnode.testnet.sui.io:443"
+# Stablecoin subscription payments are disabled until a treasury address and
+# accepted coin type are chosen. Set these as Pages variables/secrets:
+# PAYMENT_TREASURY, PAYMENT_COIN_TYPE, PAYMENT_MONTHLY_AMOUNT.
+PAYMENT_CHAIN = "sui:testnet"

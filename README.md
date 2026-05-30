@@ -132,3 +132,22 @@ curl -XPOST https://<your-domain>/api/books/ingest \
 The backend stores chapter blobs in R2, publishes to Walrus when configured,
 writes searchable metadata to D1, and registers the manifest on Sui when
 `SUI_RPC + SUI_SIGNER_KEY + SUI_PACKAGE` are present.
+
+### Stablecoin Subscriptions
+
+Stripe is optional. The primary paid path is Sui wallet → USD stablecoin
+transfer → backend transaction verification → `pro` activation.
+
+Set these Pages vars/secrets before enabling it:
+
+```bash
+PAYMENT_CHAIN=sui:testnet
+PAYMENT_TREASURY=0x...
+PAYMENT_COIN_TYPE=0x...::coin::COIN
+PAYMENT_MONTHLY_AMOUNT=5000000
+PAYMENT_AMOUNT_LABEL="5 USDC"
+```
+
+After payment, the frontend posts the Sui transaction digest to
+`/api/billing/crypto/confirm`; the backend verifies the transaction on `SUI_RPC`
+before extending the subscription.
