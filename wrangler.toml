@@ -10,11 +10,11 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "liber"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "67796523-5da8-4f69-ba0d-ad5dbaa9ed4d"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "378c4030ed364bc68af05685fb2ea176"
 
 [[r2_buckets]]
 binding = "R2"

@@ -1,0 +1,54 @@
+name: Deploy to Cloudflare Pages
+
+# Full-stack deploy: builds the Vite SPA (dist/) and ships it together with the
+# Pages Functions in functions/ and the D1/KV/R2/AI bindings declared in
+# wrangler.toml. Runs on GitHub's runners (which can reach api.cloudflare.com).
+#
+# The deploy step is gated on the CLOUDFLARE_API_TOKEN secret: until you add it,
+# the workflow still builds + typechecks (validating the app) but skips the
+# deploy and stays green.
+#
+# One-time setup: add a repository secret CLOUDFLARE_API_TOKEN
+# (GitHub repo → Settings → Secrets and variables → Actions → New repository secret).
+# Use the "Edit Cloudflare Workers" API token template — it covers Pages plus the
+# D1/KV/R2 bindings. accountId below is not a secret.
+#
+# Cloudflare resources are already provisioned (D1 "liber", KV "liber-KV",
+# R2 "liber-content") and their ids live in wrangler.toml. The D1 schema is
+# already applied; re-run migrations/0001_init.sql only when the schema changes.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: fb5d95d6e0ff4055cbf5321f8dfc30e9
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run build
+
+      - name: Ensure Pages project exists
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: npx wrangler pages project create liber --production-branch=main || true
+
+      - name: Deploy to Cloudflare Pages (SPA + Functions + bindings)
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: npx wrangler pages deploy --branch=main

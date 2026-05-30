@@ -79,3 +79,33 @@ accent color, display font, dark mode, paper grain, device preview, replay
 onboarding) is a **design-time affordance**. It activates via the Claude Design
 host's `postMessage` protocol, so in a standalone deployment it stays dormant —
 theme switching is still available from the top navigation bar.
+
+## Deployment
+
+This is a full-stack **Cloudflare Pages** app: the Vite SPA (`dist/`) and the
+Hono Pages Functions (`functions/`, served at `/api/*`) deploy together, with
+**D1** (`DB`), **KV** (`KV`), **R2** (`R2`), and **Workers AI** (`AI`) bound per
+`wrangler.toml`. See [BACKEND.md](BACKEND.md) for the API surface.
+
+The Cloudflare resources are already provisioned and their ids are filled into
+`wrangler.toml` (D1 `liber`, KV `liber-KV`, R2 `liber-content`), and the D1
+schema (`migrations/0001_init.sql`) is applied. `public/_redirects` keeps SPA
+routes falling back to `index.html` while `/api/*` reaches the Functions.
+
+Pick **one** trigger per Pages project (running both just double-deploys):
+
+**A — GitHub Actions (in-repo).** `.github/workflows/deploy.yml` builds and runs
+`wrangler pages deploy` (SPA + Functions + bindings) from GitHub's runners on
+every push to `main`. Add a repository secret `CLOUDFLARE_API_TOKEN` (use the
+*Edit Cloudflare Workers* token template) under Settings → Secrets and variables
+→ Actions. Until that secret exists the workflow builds but skips the deploy, so
+it stays green.
+
+**B — Dashboard Git integration.** Cloudflare dashboard → Workers & Pages →
+Create application → Pages → Import an existing Git repository → pick this repo.
+Build command `npm run build`, output directory `dist`, production branch `main`;
+Cloudflare reads `wrangler.toml` for the Functions and bindings.
+
+Future schema changes: `npm run db:migrate` applies `migrations/0001_init.sql` to
+the remote D1. For local full-stack dev (`wrangler pages dev` + local D1/KV/R2),
+see [BACKEND.md](BACKEND.md).
