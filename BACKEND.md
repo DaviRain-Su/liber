@@ -110,7 +110,16 @@ non-secret) except `ADMIN_TOKEN`, which should be a Pages **secret**.
 | `WALRUS_AGGREGATOR` | Walrus aggregator base URL; blob reads + reachability. Public testnet: `https://aggregator.walrus-testnet.walrus.space` |
 | `ARWEAVE_GATEWAY` | Arweave gateway for backup-copy reachability, e.g. `https://arweave.net` |
 | `SUI_RPC` | Sui fullnode JSON-RPC for read-only chain verification, e.g. `https://fullnode.testnet.sui.io:443` |
+| `SUI_SIGNER_KEY` | **Secret.** `suiprivkey1…` bech32 key; enables on-chain registration of published works/shares (needs gas). |
+| `SUI_PACKAGE` | Published Move package id exposing `<module>::register(content_id, kind, license)`. |
+| `SUI_MODULE` | Move module name (default `registry`). |
 | `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint |
+
+On publish, `POST /api/works` and `POST /api/shares` call
+`<SUI_PACKAGE>::<SUI_MODULE>::register(...)` when `SUI_RPC` + `SUI_SIGNER_KEY` +
+`SUI_PACKAGE` are all set, persist the resulting object id / tx digest into
+`blobs.sui_index`, and return it as `sui` in the response. With any unset, the
+call is skipped and publishing is unaffected.
 
 Related endpoints:
 

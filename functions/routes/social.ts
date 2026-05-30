@@ -3,6 +3,7 @@ import type { Env, Variables } from "../lib/types";
 import { all, first, run, id, now } from "../lib/db";
 import { requireUser } from "../lib/auth";
 import { putBlob } from "../lib/storage";
+import { registerObject } from "../lib/sui";
 import * as S from "../lib/seed";
 
 // Co-reading & social: annotations, feed, shares, groups, threads, works.
@@ -60,7 +61,10 @@ social.post("/shares", async (c) => {
   );
   // persist the shared conversation as a content-addressed blob (Walrus when configured, R2 always)
   const ref = await putBlob(c.env, `share/${sid}`, data, "application/json");
-  return c.json({ ok: true, id: sid, walrus: ref.walrus });
+  // register on Sui when configured (no-op otherwise); record the real digest/objectId
+  const chain = await registerObject(c.env, { contentId: ref.walrus, kind: "conversation", license: "CC0-1.0" });
+  if (chain) await run(c.env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, chain.objectId || chain.digest, `share/${sid}`);
+  return c.json({ ok: true, id: sid, walrus: ref.walrus, sui: chain });
 });
 
 social.post("/shares/:id/save", async (c) => {
@@ -146,7 +150,10 @@ social.post("/works", async (c) => {
     `INSERT INTO works (id, user_id, title, body, addr, license, cited, created_at) VALUES (?,?,?,?,?,?,0,?)`,
     wid, uid, (title || "未命名导读").trim(), body.trim(), `liber://work/${wid}`, "CC0-1.0", now(),
   );
-  return c.json({ ok: true, id: wid, addr: `liber://work/${wid}`, walrus: ref.walrus, arweave: ref.arweave });
+  // register the CC0 work on Sui when configured (no-op otherwise)
+  const chain = await registerObject(c.env, { contentId: ref.walrus, kind: "work", license: "CC0-1.0" });
+  if (chain) await run(c.env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, chain.objectId || chain.digest, `work/${wid}`);
+  return c.json({ ok: true, id: wid, addr: `liber://work/${wid}`, walrus: ref.walrus, arweave: ref.arweave, sui: chain });
 });
 
 export default social;

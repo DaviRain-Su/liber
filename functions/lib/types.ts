@@ -17,6 +17,10 @@ export interface Env {
   ARWEAVE_GATEWAY?: string;
   // Sui fullnode JSON-RPC (read-only chain verification; optional).
   SUI_RPC?: string;
+  // Sui on-chain registration (write). All required together; secret key.
+  SUI_SIGNER_KEY?: string;   // suiprivkey1… bech32 secret (Pages secret)
+  SUI_PACKAGE?: string;      // published Move package id
+  SUI_MODULE?: string;       // module name (default: "registry")
   // Bearer secret enabling the admin-only book-text ingest endpoint (optional).
   ADMIN_TOKEN?: string;
 }
