@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
 import {
+  clearCliConfig,
+  createIngestPayload,
   dryRunPublishPlan,
+  extractEpubChapters,
   inspectEpub,
+  loadCliConfig,
   LiberCliError,
   MANIFEST_SCHEMA,
+  publicConfigStatus,
+  publishBookManifest,
+  saveCliConfig,
   verifyPublishLicense,
   writeBookManifest,
 } from "../src/liber-core.mjs";
@@ -14,12 +21,14 @@ function usage() {
 
 Usage:
   liber license explain
+  liber auth login --api-url <url> [--admin-token <token>] [--wallet <address>]
   liber auth status
   liber auth logout
   liber book inspect <file.epub> [--json]
   liber book verify-license <file.epub> --source <url> [--license CC0-1.0|PUBLIC-DOMAIN] [--evidence <text>] [--json]
+  liber book extract <file.epub> [--json]
   liber book package <file.epub> --source <url> --license CC0-1.0|PUBLIC-DOMAIN --out <manifest.json> [--evidence <text>]
-  liber book publish <manifest.json> --dry-run [--api-url <url>]
+  liber book publish <manifest.json> [--dry-run] [--api-url <url>] [--admin-token <token>] [--json]
 `;
 }
 
@@ -88,6 +97,22 @@ function printVerification(result) {
   if (result.license) process.stdout.write(`License: ${result.license}\n`);
 }
 
+function printAuthStatus(status) {
+  process.stdout.write(`Liber CLI auth
+API URL: ${status.apiUrl || "(not set)"}
+Wallet: ${status.wallet || "(not set)"}
+Admin token: ${status.adminTokenConfigured ? "configured" : "not configured"}
+Config: ${status.configPath}
+`);
+}
+
+function printChapters(chapters) {
+  process.stdout.write(`Extracted ${chapters.length} chapter(s)\n`);
+  for (const chapter of chapters) {
+    process.stdout.write(`${chapter.n}. ${chapter.title} (${chapter.text.length} chars)\n`);
+  }
+}
+
 function printPlan(plan) {
   process.stdout.write(`Dry-run publish plan
 
@@ -99,6 +124,7 @@ Storage:
 API:
   POST ${plan.api.ingestUrl}
   Payload license: ${plan.api.ingestPayload.license}
+  Chapters: ${plan.api.ingestPayload.chapters?.length ?? "from EPUB"}
 
 Registry:
   contentId: ${plan.registry.contentId}
@@ -120,14 +146,24 @@ async function main(argv) {
   }
 
   if (domain === "auth") {
+    const { flags } = parseFlags(rest);
+    if (action === "login") {
+      if (!flags["api-url"]) throw new LiberCliError("ARG_REQUIRED", "Missing --api-url.");
+      const adminToken = flags["admin-token"] || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN || "";
+      const saved = await saveCliConfig({ apiUrl: flags["api-url"], adminToken, wallet: flags.wallet }, { configPath: flags.config });
+      const status = publicConfigStatus(saved, { configPath: flags.config });
+      flags.json ? printJson(status) : process.stdout.write(`Saved Liber CLI auth config for ${status.apiUrl}\n`);
+      return 0;
+    }
     if (action === "status") {
-      process.stdout.write(`CLI wallet authorization is not configured yet.
-Set LIBER_TOKEN for admin API calls in a future publish implementation.
-`);
+      const cfg = await loadCliConfig({ configPath: flags.config });
+      const status = publicConfigStatus(cfg, { configPath: flags.config });
+      flags.json ? printJson(status) : printAuthStatus(status);
       return 0;
     }
     if (action === "logout") {
-      process.stdout.write("No persisted CLI session is stored by this version.\n");
+      await clearCliConfig({ configPath: flags.config });
+      process.stdout.write("Removed Liber CLI auth config.\n");
       return 0;
     }
   }
@@ -152,6 +188,14 @@ Set LIBER_TOKEN for admin API calls in a future publish implementation.
     return result.accepted ? 0 : 2;
   }
 
+  if (action === "extract") {
+    const file = pos[0];
+    if (!file) throw new LiberCliError("ARG_REQUIRED", "Missing EPUB path.");
+    const chapters = await extractEpubChapters(file);
+    flags.json ? printJson({ chapters }) : printChapters(chapters);
+    return 0;
+  }
+
   if (action === "package") {
     const file = pos[0];
     if (!file) throw new LiberCliError("ARG_REQUIRED", "Missing EPUB path.");
@@ -168,11 +212,26 @@ Set LIBER_TOKEN for admin API calls in a future publish implementation.
   if (action === "publish") {
     const file = pos[0];
     if (!file) throw new LiberCliError("ARG_REQUIRED", "Missing manifest path.");
-    if (!flags["dry-run"]) {
-      throw new LiberCliError("PUBLISH_NOT_IMPLEMENTED", "Non-dry-run publish is not implemented yet. Use --dry-run.");
-    }
     const manifest = JSON.parse(await readFile(file, "utf8"));
-    const plan = dryRunPublishPlan(manifest, { apiUrl: flags["api-url"] });
+    if (!flags["dry-run"]) {
+      const result = await publishBookManifest(manifest, {
+        apiUrl: flags["api-url"],
+        adminToken: flags["admin-token"],
+        configPath: flags.config,
+        id: flags.id,
+        category: flags.category,
+        year: flags.year,
+      });
+      flags.json ? printJson(result) : process.stdout.write(`Published ${result.book?.id || result.book?.title || "book"} (${result.chapters ?? "unknown"} chapters)\n`);
+      return 0;
+    }
+    const cfg = await loadCliConfig({ configPath: flags.config });
+    const payload = await createIngestPayload(manifest, {
+      id: flags.id,
+      category: flags.category,
+      year: flags.year,
+    });
+    const plan = dryRunPublishPlan(manifest, { apiUrl: flags["api-url"] || cfg.apiUrl, ingestPayload: payload });
     flags.json ? printJson(plan) : printPlan(plan);
     return 0;
   }
@@ -185,5 +244,5 @@ main(process.argv.slice(2)).then((code) => {
 }).catch((error) => {
   const code = error instanceof LiberCliError ? error.code : "ERROR";
   process.stderr.write(`${code}: ${error.message}\n`);
-  process.exitCode = error instanceof LiberCliError && error.code === "PUBLISH_NOT_IMPLEMENTED" ? 2 : 1;
+  process.exitCode = error instanceof LiberCliError && (error.code === "AUTH_REQUIRED" || error.code === "LICENSE_REJECTED") ? 2 : 1;
 });

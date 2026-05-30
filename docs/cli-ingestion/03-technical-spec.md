@@ -15,6 +15,28 @@
 
 Prints the publish policy. Exit `0`.
 
+### `liber auth login --api-url <url> [--admin-token <token>] [--wallet <address>]`
+
+Stores CLI publish configuration in `~/.liber/config.json`, or the path from
+`LIBER_CONFIG`.
+
+Fields:
+
+- `apiUrl: string`
+- `adminToken?: string`
+- `wallet?: string`
+- `updatedAt: ISO-8601 string`
+
+Token precedence for publish:
+
+1. `--admin-token`
+2. `LIBER_ADMIN_TOKEN`
+3. `ADMIN_TOKEN`
+4. stored config `adminToken`
+
+`auth status` never prints the token value, only whether one is configured.
+`auth logout` removes the stored config.
+
 ### `liber book inspect <file.epub> [--json]`
 
 Inputs:
@@ -96,7 +118,18 @@ Manifest fields:
 - `publishPolicy.accepted: boolean`
 - `publishPolicy.reason: string`
 
-### `liber book publish <manifest.json> --dry-run`
+### `liber book extract <file.epub> [--json]`
+
+Extracts reader-ready text chapters from the EPUB spine.
+
+Output:
+
+- `chapters: Array<{ n: number; title: string; text: string }>`
+- XHTML/HTML is converted to plain text.
+- Script/style/head/nav content is ignored.
+- Empty spine items are skipped.
+
+### `liber book publish <manifest.json> [--dry-run] [--api-url <url>] [--admin-token <token>]`
 
 Reads a manifest and prints the planned:
 
@@ -104,7 +137,23 @@ Reads a manifest and prints the planned:
 - Admin ingest target.
 - On-chain registry payload `{ contentId, kind: "book", license }`.
 
-Without `--dry-run`, exits non-zero until network publishing is implemented.
+With `--dry-run`, exits before network writes.
+
+Without `--dry-run`, reads the original EPUB path from the manifest, extracts
+chapters, builds a `/api/books/ingest` payload, and POSTs it with
+`Authorization: Bearer <admin token>`.
+
+Publish payload:
+
+- `id?: string`
+- `title: string`
+- `author?: string`
+- `lang?: string`
+- `year?: string`
+- `sourceUrl: string`
+- `license: "CC0-1.0" | "PUBLIC-DOMAIN"`
+- `chapters: Array<{ n, title, text }>`
+- `epubSha256: string`
 
 ## ZIP/EPUB Algorithm
 
@@ -115,6 +164,9 @@ Without `--dry-run`, exits non-zero until network publishing is implemented.
 - Require `mimetype` file content to exactly equal `application/epub+zip`.
 - Parse `META-INF/container.xml` for the OPF `full-path`.
 - Parse OPF metadata with XML tag and attribute extraction.
+- Resolve EPUB spine itemrefs through OPF manifest ids.
+- Extract only `application/xhtml+xml` and `text/html` spine items.
+- Convert chapter XHTML/HTML to normalized plain text before ingest.
 
 ## Boundary Conditions
 
@@ -131,3 +183,7 @@ Without `--dry-run`, exits non-zero until network publishing is implemented.
 - OPF with multiple rights values.
 - Explicit license conflicts with embedded restrictive rights.
 - Unknown license.
+- EPUB spine references missing manifest ids.
+- EPUB spine has no readable text chapters.
+- Publish without admin token.
+- Publish target returns non-2xx.

@@ -125,6 +125,7 @@ Use the CLI before calling the admin ingest endpoint. In this repo:
 ```bash
 npm run cli -- license explain
 npm run cli -- book inspect ./books/dao.epub --json
+npm run cli -- book extract ./books/dao.epub --json
 npm run cli -- book verify-license ./books/dao.epub \
   --source https://example.org/dao.epub \
   --license PUBLIC-DOMAIN
@@ -134,6 +135,16 @@ npm run cli -- book package ./books/dao.epub \
   --out ./books/dao.liber-manifest.json
 npm run cli -- book publish ./books/dao.liber-manifest.json --dry-run
 ```
+
+To actually publish from the CLI, save the admin API config once:
+
+```bash
+npm run cli -- auth login --api-url https://liber.davirain.xyz --admin-token "$ADMIN_TOKEN"
+npm run cli -- book publish ./books/dao.liber-manifest.json
+```
+
+The CLI extracts chapters from the EPUB spine and POSTs them to
+`/api/books/ingest`; server-side ingest still enforces the same license policy.
 
 The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
 can be published to npm and installed by curators or agents:

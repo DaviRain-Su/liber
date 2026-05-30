@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 import { inflateRawSync } from "node:zlib";
 
@@ -27,6 +28,12 @@ function decodeXml(value) {
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&")
     .trim();
+}
+
+function decodeEntities(value) {
+  return decodeXml(value)
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(Number.parseInt(n, 16)));
 }
 
 function escapeRegExp(value) {
@@ -148,7 +155,7 @@ function parseOpf(opf, opfPath) {
   };
 }
 
-export async function inspectEpub(filePath) {
+async function readEpubPackage(filePath) {
   let buffer;
   try {
     buffer = await readFile(filePath);
@@ -173,16 +180,88 @@ export async function inspectEpub(filePath) {
   if (!opf) throw new LiberCliError("EPUB_NO_OPF", `EPUB OPF file not found: ${opfPath}.`);
   const parsed = parseOpf(opf, opfPath);
 
+  return { filePath, buffer, entries, mimetype, opfPath, parsed };
+}
+
+export async function inspectEpub(filePath) {
+  const pkg = await readEpubPackage(filePath);
   return {
     path: path.resolve(filePath),
-    size: buffer.length,
-    sha256: sha256(buffer),
-    mimetype,
-    opfPath,
-    metadata: parsed.metadata,
-    manifest: parsed.manifest,
-    spine: parsed.spine,
+    size: pkg.buffer.length,
+    sha256: sha256(pkg.buffer),
+    mimetype: pkg.mimetype,
+    opfPath: pkg.opfPath,
+    metadata: pkg.parsed.metadata,
+    manifest: pkg.parsed.manifest,
+    spine: pkg.parsed.spine,
   };
+}
+
+function stripHtmlInline(raw) {
+  return decodeEntities(String(raw || "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim());
+}
+
+function htmlToText(raw) {
+  return decodeEntities(String(raw || "")
+    .replace(/<head\b[\s\S]*?<\/head>/gi, " ")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|section|article|blockquote|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n\n"));
+}
+
+function chapterTitleFromHtml(raw, fallback) {
+  const heading = String(raw || "").match(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/i);
+  if (heading) return stripHtmlInline(heading[1]) || fallback;
+  const title = String(raw || "").match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+  if (title) return stripHtmlInline(title[1]) || fallback;
+  return fallback;
+}
+
+function spineTextItems(parsed) {
+  const byId = new Map(parsed.manifest.map((item) => [item.id, item]));
+  return parsed.spine
+    .map((idref) => {
+      const item = byId.get(idref);
+      if (!item) return null;
+      const media = String(item.mediaType || "").toLowerCase();
+      if (media !== "application/xhtml+xml" && media !== "text/html") return null;
+      return item;
+    })
+    .filter(Boolean);
+}
+
+export async function extractEpubChapters(filePath) {
+  const pkg = await readEpubPackage(filePath);
+  const items = spineTextItems(pkg.parsed);
+  const chapters = [];
+
+  for (const item of items) {
+    const raw = entryText(pkg.entries, item.href);
+    if (!raw) continue;
+    const text = htmlToText(raw);
+    if (!text) continue;
+    chapters.push({
+      n: chapters.length + 1,
+      title: chapterTitleFromHtml(raw, `Chapter ${chapters.length + 1}`),
+      text,
+    });
+  }
+
+  if (!chapters.length) throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
+  return chapters;
 }
 
 export function normalizePublishLicense(raw) {
@@ -314,10 +393,34 @@ export async function writeBookManifest(filePath, options = {}) {
   return manifest;
 }
 
+export async function createIngestPayload(manifest, options = {}) {
+  if (manifest?.schema !== MANIFEST_SCHEMA) {
+    throw new LiberCliError("MANIFEST_INVALID", `Expected manifest schema ${MANIFEST_SCHEMA}.`);
+  }
+  const chapters = await extractEpubChapters(manifest.assets?.epub?.path);
+  return {
+    ...(options.id ? { id: options.id } : {}),
+    title: options.title || manifest.book?.title || "Untitled",
+    subtitle: options.subtitle || "",
+    author: options.author || manifest.book?.creator || "",
+    category: options.category || "文学 · 经典",
+    lang: options.lang || manifest.book?.language || "",
+    year: options.year || manifest.book?.date || "",
+    blurb: options.blurb || chapters[0]?.text?.slice(0, 120) || "",
+    description: options.description || `Imported from EPUB ${manifest.assets.epub.sha256}.`,
+    sourceUrl: manifest.source?.url || "",
+    license: manifest.source?.license || manifest.publishPolicy?.license || "CC0-1.0",
+    featured: Boolean(options.featured),
+    epubSha256: manifest.assets.epub.sha256,
+    chapters,
+  };
+}
+
 export function dryRunPublishPlan(manifest, options = {}) {
   if (manifest?.schema !== MANIFEST_SCHEMA) {
     throw new LiberCliError("MANIFEST_INVALID", `Expected manifest schema ${MANIFEST_SCHEMA}.`);
   }
+  const payload = options.ingestPayload || null;
   const base = (options.apiUrl || "https://liber.davirain.xyz").replace(/\/+$/, "");
   return {
     mode: "dry-run",
@@ -329,7 +432,7 @@ export function dryRunPublishPlan(manifest, options = {}) {
     },
     api: {
       ingestUrl: `${base}/api/books/ingest`,
-      ingestPayload: {
+      ingestPayload: payload || {
         title: manifest.book.title,
         author: manifest.book.creator,
         lang: manifest.book.language,
@@ -344,4 +447,82 @@ export function dryRunPublishPlan(manifest, options = {}) {
       license: manifest.source.license,
     },
   };
+}
+
+export function defaultConfigPath() {
+  return process.env.LIBER_CONFIG || path.join(homedir(), ".liber", "config.json");
+}
+
+export async function loadCliConfig(options = {}) {
+  const configPath = options.configPath || defaultConfigPath();
+  try {
+    return JSON.parse(await readFile(configPath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return {};
+    throw new LiberCliError("CONFIG_READ_FAILED", `Could not read CLI config: ${error.message}`);
+  }
+}
+
+export async function saveCliConfig(config, options = {}) {
+  const configPath = options.configPath || defaultConfigPath();
+  const next = {
+    apiUrl: config.apiUrl,
+    adminToken: config.adminToken || undefined,
+    wallet: config.wallet || undefined,
+    updatedAt: new Date().toISOString(),
+  };
+  await mkdir(path.dirname(configPath), { recursive: true });
+  await writeFile(configPath, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+  return next;
+}
+
+export async function clearCliConfig(options = {}) {
+  const configPath = options.configPath || defaultConfigPath();
+  await rm(configPath, { force: true });
+}
+
+export function publicConfigStatus(config = {}, options = {}) {
+  return {
+    apiUrl: config.apiUrl || "",
+    wallet: config.wallet || "",
+    adminTokenConfigured: Boolean(config.adminToken || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN),
+    configPath: options.configPath || defaultConfigPath(),
+    updatedAt: config.updatedAt || "",
+  };
+}
+
+function resolvePublishOptions(options = {}, config = {}) {
+  return {
+    apiUrl: (options.apiUrl || process.env.LIBER_API_URL || config.apiUrl || "https://liber.davirain.xyz").replace(/\/+$/, ""),
+    adminToken: options.adminToken || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN || config.adminToken || "",
+  };
+}
+
+export async function publishBookManifest(manifest, options = {}) {
+  const config = options.config || await loadCliConfig({ configPath: options.configPath });
+  const resolved = resolvePublishOptions(options, config);
+  if (!resolved.adminToken) {
+    throw new LiberCliError("AUTH_REQUIRED", "Admin token is required. Run `liber auth login --api-url <url> --admin-token <token>` or set LIBER_ADMIN_TOKEN.");
+  }
+  const payload = await createIngestPayload(manifest, options);
+  const fetcher = options.fetchImpl || fetch;
+  const res = await fetcher(`${resolved.apiUrl}/api/books/ingest`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${resolved.adminToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  let body;
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    body = { text };
+  }
+  if (!res.ok) {
+    throw new LiberCliError("PUBLISH_FAILED", `Publish failed with HTTP ${res.status}: ${text}`);
+  }
+  return body;
 }

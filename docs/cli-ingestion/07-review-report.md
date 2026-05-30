@@ -18,6 +18,8 @@ Implemented and locally verified with:
 - `npm run build`
 - `npm pack` to `/private/tmp` plus temporary install and `liber license explain`
 - `npm publish --dry-run` inside `packages/liber-cli`
+- CLI tests for auth config, EPUB chapter extraction, ingest payload generation,
+  and non-dry-run publish with injected fetch.
 
 ## Release Automation
 

@@ -9,3 +9,6 @@
 - Split the CLI into `packages/liber-cli`, a standalone npm package named
   `liber-cli` with its own bin, exports, README, package scripts, and pack
   validation.
+- Implemented next slice: stored CLI auth config, EPUB spine text extraction,
+  ingest payload generation, and real admin API publish through
+  `/api/books/ingest`.
