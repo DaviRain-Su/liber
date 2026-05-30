@@ -1,5 +1,6 @@
 import React from "react";
 import { I, Cover } from "./product-shared.jsx";
+import { getCatalogBooks, getCatalogTotal, loadCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 
 /* product-search.jsx — global search overlay: books, sentences/highlights, people. */
 const { useState: useSse, useEffect: useEse, useRef: useRse, useMemo: useMse } = React;
@@ -20,10 +21,16 @@ const PEOPLE = [
 function SearchOverlay({ initial, onClose, onOpenBook }){
   const [q, setQ] = useSse(initial || "");
   const [apiRes, setApiRes] = useSse(null);
+  const [catalog, setCatalog] = useSse(() => getCatalogBooks());
   const inputRef = useRse(null);
   const sentences = useMse(() => buildSentenceIndex(), []);
   useEse(() => { inputRef.current && inputRef.current.focus(); }, []);
   useEse(() => { const h = e => { if(e.key==="Escape") onClose(); }; window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); }, []);
+  useEse(() => {
+    const off = subscribeCatalog((books) => setCatalog(books));
+    loadCatalogBooks().then(setCatalog).catch(() => {});
+    return off;
+  }, []);
 
   const term = q.trim();
   useEse(() => {
@@ -34,8 +41,8 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
   }, [term]);
   const useApi = apiRes && apiRes.term === term;
   const books = term
-    ? (useApi && Array.isArray(apiRes.books) ? apiRes.books : (window.BOOKS||[]).filter(b => b.t.includes(term) || b.a.includes(term) || b.sub.toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term)))
-    : (window.BOOKS||[]).slice(0,4);
+    ? (useApi && Array.isArray(apiRes.books) ? apiRes.books : catalog.filter(b => b.t.includes(term) || b.a.includes(term) || (b.sub || "").toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term)))
+    : catalog.slice(0,4);
   const sents = term
     ? (useApi && Array.isArray(apiRes.sentences) ? apiRes.sentences : sentences.filter(s => s.t.includes(term)))
     : [];
@@ -100,7 +107,7 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
             </div>
           )}
         </div>
-        <div className="sm-foot"><span>↵ 打开</span><span>Esc 关闭</span><span>跨全馆 1,284 卷检索</span></div>
+        <div className="sm-foot"><span>↵ 打开</span><span>Esc 关闭</span><span>跨全馆 {getCatalogTotal().toLocaleString("zh-CN")} 卷检索</span></div>
       </div>
     </>
   );

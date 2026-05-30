@@ -1,10 +1,12 @@
 import React from "react";
+import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks, licenseLabel } from "../lib/catalog.js";
 
 /* product-certificate.jsx — on-chain proof certificate with verify animation. */
 const { useState: useSc, useEffect: useEc } = React;
 
 function Certificate({ bookId, onBack, onOpenBook }){
-  const seedBook = (window.BOOKS||[]).find(b => b.id === bookId) || window.BOOKS[0];
+  const missingBook = { id: bookId, t: "未找到该书", a: "", sub: "", cls: "ink", seal: "书", license: "" };
+  const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
   const [book, setBook] = useSc(seedBook);
   const [verifying, setVerifying] = useSc(false);
   const [steps, setSteps] = useSc([]); // verified step keys
@@ -20,7 +22,7 @@ function Certificate({ bookId, onBack, onOpenBook }){
     { k:"walrus", label:"Walrus 正文分块", detail:"读取 142 个内容块，哈希校验通过" },
     { k:"arweave", label:"Arweave 冷备份", detail:"永久副本存在，跨网络可达" },
     { k:"sui", label:"Sui 链上索引", detail:"书目对象 #0427 状态有效" },
-    { k:"license", label:"CC0 授权声明", detail:"公共领域贡献，自由传播" },
+    { k:"license", label:"版权授权声明", detail:`${licenseLabel(book.license)} · 可公开传播` },
   ];
 
   const verify = () => {

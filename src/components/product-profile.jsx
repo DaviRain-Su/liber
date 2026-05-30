@@ -1,5 +1,6 @@
 import React from "react";
 import { I, Cover } from "./product-shared.jsx";
+import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 
 /* product-profile.jsx — personal profile: bio, stats, shelf, public annotations. */
 const { useState: useSp, useEffect: useEffP } = React;
@@ -25,12 +26,13 @@ function Profile({ onOpenBook, authUser, onLogout }){
     }).catch(() => {});
   }, []);
   const [tab, setTab] = useSp("shelf"); // shelf | notes | finished
-  const byId = (id) => (window.BOOKS||[]).find(b => b.id === id);
+  const byId = (id) => findCatalogBook(id);
   const reading = me.reading.map(r => ({ ...byId(r.id), at:r.at })).filter(Boolean);
   const finished = me.finished.map(byId).filter(Boolean);
 
   /* public annotations = seed highlights that have notes */
-  const publicNotes = (window.SEED_HL||[]).filter(h => h.note);
+  const catalogTitles = new Set(getCatalogBooks().map((b) => b.t));
+  const publicNotes = (window.SEED_HL||[]).filter(h => h.note && catalogTitles.has(h.book));
 
   const Stat = ({ n, l }) => <div className="pf-stat"><div className="n">{n}</div><div className="l">{l}</div></div>;
 
@@ -99,7 +101,7 @@ function Profile({ onOpenBook, authUser, onLogout }){
           {tab === "notes" && (
             <div className="pf-notes">
               {publicNotes.map((h,i) => {
-                const bk = (window.BOOKS||[]).find(b => b.t === h.book || b.id === h.book);
+                const bk = findCatalogBook(h.book) || (window.BOOKS||[]).find(b => b.t === h.book);
                 return (
                   <div className="pf-note" key={i} onClick={()=>bk&&onOpenBook(bk.id)}>
                     <div className="pn-q">「{h.t}」</div>

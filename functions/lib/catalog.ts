@@ -85,11 +85,69 @@ function splitSentences(para: string): string[] {
   return parts.map((s) => s.trim()).filter(Boolean);
 }
 
-export function textToChapter(bookId: string, n: number, title: string, text: string) {
-  let sid = 1;
-  const paras = text
+function lineLooksHeading(line: string): boolean {
+  const text = line.trim();
+  if (!text || text.length > 80) return false;
+  if (/[\.\?!:;。！？；]$/.test(text)) return false;
+  const letters = text.replace(/[^A-Za-z]/g, "");
+  return letters.length >= 4 && letters === letters.toUpperCase();
+}
+
+function shouldReflowBlocks(blocks: string[]): boolean {
+  if (blocks.length < 8) return false;
+  const proseLines = blocks.filter((b) => b.length >= 35 && b.length <= 95).length;
+  const unfinished = blocks.filter((b) => !/[\.\?!;:。！？；\]"”’)]$/.test(b)).length;
+  return proseLines / blocks.length > 0.55 && unfinished / blocks.length > 0.35;
+}
+
+function joinWrappedLine(left: string, right: string): string {
+  if (!left) return right;
+  if (/-$/.test(left)) return left.slice(0, -1) + right;
+  return `${left} ${right}`;
+}
+
+function reflowWrappedBlocks(blocks: string[]): string[] {
+  const out: string[] = [];
+  let acc = "";
+  let prev = "";
+  const flush = () => {
+    if (acc.trim()) out.push(acc.replace(/\s+/g, " ").trim());
+    acc = "";
+    prev = "";
+  };
+  for (const block of blocks) {
+    const line = block.replace(/\s+/g, " ").trim();
+    if (!line) continue;
+    const startsStructure = /^\d+[\.\)]\s+/.test(line) || /^\[[^\]]/.test(line) || lineLooksHeading(line);
+    const prevComplete = /[\.\?!。！？\]"”’)]$/.test(prev);
+    if (acc && (startsStructure || prevComplete)) flush();
+    if (lineLooksHeading(line)) {
+      flush();
+      out.push(line);
+    } else {
+      acc = joinWrappedLine(acc, line);
+      prev = line;
+    }
+  }
+  flush();
+  return out;
+}
+
+function normalizeTextBlocks(text: string, title: string): string[] {
+  const blocks = text
     .replace(/\r\n/g, "\n")
     .split(/\n{2,}/)
+    .map((block) => block.split("\n").map((line) => line.replace(/[ \t\f\v]+/g, " ").trim()).filter(Boolean).join("\n"))
+    .filter(Boolean);
+  const normalizedTitle = title.replace(/\s+/g, " ").trim().toLowerCase();
+  if (blocks[0]?.replace(/\s+/g, " ").trim().toLowerCase() === normalizedTitle) blocks.shift();
+  const paras = shouldReflowBlocks(blocks) ? reflowWrappedBlocks(blocks) : blocks;
+  return paras;
+}
+
+export function textToChapter(bookId: string, n: number, title: string, text: string) {
+  let sid = 1;
+  const paras = normalizeTextBlocks(text, title || `第 ${n} 章`)
     .map((p) => splitSentences(p))
     .filter((p) => p.length)
     .map((p) => p.map((t) => ({ id: `${bookId}-c${n}-s${sid++}`, t })));
@@ -141,7 +199,7 @@ function chapterText(ch: IngestChapterInput): string {
   return "";
 }
 
-function normalizeBook(row: any) {
+export function normalizeBook(row: any) {
   const readsN = Number(row.readsN ?? row.reads ?? 0) || 0;
   const liners = Number(row.liners ?? 0) || 0;
   const pages = Number(row.pages ?? 0) || 0;
@@ -174,6 +232,11 @@ function normalizeBook(row: any) {
   };
 }
 
+export async function hasLibraryBooks(env: Env) {
+  const row = await first<{ n: number }>(env.DB, `SELECT COUNT(*) AS n FROM library_books`);
+  return Number(row?.n || 0) > 0;
+}
+
 export async function listBooks(env: Env, opts: { cat?: string; sort?: string } = {}) {
   const rows = await all<any>(
     env.DB,
@@ -183,8 +246,7 @@ export async function listBooks(env: Env, opts: { cat?: string; sort?: string } 
      FROM library_books ORDER BY created_at DESC LIMIT 200`,
   );
   const dynamic = rows.map(normalizeBook);
-  const dynamicIds = new Set(dynamic.map((b) => b.id));
-  let list = [...dynamic, ...S.BOOKS.filter((b) => !dynamicIds.has(b.id)).map((b) => ({ ...b, dynamic: false }))];
+  let list = dynamic.length ? dynamic : S.BOOKS.map((b) => ({ ...b, dynamic: false }));
   if (opts.cat && !opts.cat.startsWith("全部")) list = list.filter((b) => b.cat === opts.cat);
   if (opts.sort === "lines") list = [...list].sort((a, b) => b.liners - a.liners);
   else list = [...list].sort((a, b) => b.readsN - a.readsN);
@@ -201,6 +263,7 @@ export async function getBook(env: Env, bookId: string) {
     bookId,
   );
   if (row) return normalizeBook(row);
+  if (await hasLibraryBooks(env)) return null;
   const seed = S.bookById(bookId);
   return seed ? { ...seed, dynamic: false } : null;
 }
@@ -208,13 +271,14 @@ export async function getBook(env: Env, bookId: string) {
 export async function getToc(env: Env, bookId: string) {
   const rows = await all<any>(env.DB, `SELECT n, title FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
   if (rows.length) return rows.map((r) => ({ n: r.n, title: r.title, has: true }));
+  if (await hasLibraryBooks(env)) return [];
   const seed = S.bookById(bookId);
   return seed?.id === "daodejing" ? S.TOC : [];
 }
 
 export async function getChapters(env: Env, bookId: string) {
   const rows = await all<any>(env.DB, `SELECT n, title, blob_key, text_preview FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
-  if (!rows.length) return bookId === "daodejing" ? S.CHAPTERS : [];
+  if (!rows.length) return !(await hasLibraryBooks(env)) && bookId === "daodejing" ? S.CHAPTERS : [];
   const chapters: Array<{ n: number; title: string; paras: Array<Array<{ id: string; t: string }>> }> = [];
   for (const r of rows) {
     const buf = await getBlob(env, r.blob_key);
@@ -230,6 +294,7 @@ export async function getChapterText(env: Env, bookId: string, n: number) {
     const buf = await getBlob(env, row.blob_key);
     return { source: "library", n, title: row.title, text: buf ? new TextDecoder().decode(buf) : row.text_preview };
   }
+  if (await hasLibraryBooks(env)) return null;
   if (bookId === "daodejing") {
     const ch = S.CHAPTERS.find((x: any) => x.n === n);
     if (ch) return { source: "seed", n, title: ch.title, text: ch.paras.flat().map((s: any) => s.t).join("\n") };

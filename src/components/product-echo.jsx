@@ -1,5 +1,6 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
+import { getCatalogTotal } from "../lib/catalog.js";
 
 /* product-echo.jsx — cross-book "echoes" overlay (L4 connection layer).
    Given a sentence, show where the idea echoes across the library:
@@ -80,7 +81,7 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }){
         </div>
 
         <div className="echo-foot">
-          由 AI 在全 1,284 卷 CC0 馆藏中检索 · <b>这条「呼应」本身也是可被引用的对象</b>
+          由 AI 在全 {getCatalogTotal().toLocaleString("zh-CN")} 卷公共版权馆藏中检索 · <b>这条「呼应」本身也是可被引用的对象</b>
         </div>
       </div>
     </>

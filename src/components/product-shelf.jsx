@@ -1,12 +1,13 @@
 import React from "react";
 import { I, Cover } from "./product-shared.jsx";
+import { findCatalogBook } from "../lib/catalog.js";
 
 /* product-shelf.jsx — My Shelf: reading hub. Stats + reading/want/finished + collections. */
 const { useState: useShf } = React;
 
 function Shelf({ onOpenBook, onOpenReader, onOpenGroup }){
   const me = window.ME;
-  const byId = (id) => (window.BOOKS||[]).find(b => b.id === id);
+  const byId = (id) => findCatalogBook(id);
   const reading = me.reading.map(r => ({ ...byId(r.id), at:r.at })).filter(Boolean);
   const want = (me.wantToRead||[]).map(byId).filter(Boolean);
   const finished = (me.finished||[]).map(byId).filter(Boolean);

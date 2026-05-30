@@ -4,6 +4,7 @@ import { ProvBadge } from "./product-provenance.jsx";
 import { ConvoArtifact } from "./product-convocard.jsx";
 import { EchoOverlay } from "./product-echo.jsx";
 import { stablecoinSubscribe } from "../lib/wallet.js";
+import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 
 /* product-reader.jsx — full-screen reader with selection menu, highlights,
    others' annotations, AI companion drawer, TOC, settings, progress.
@@ -37,7 +38,8 @@ function aiReply(mode, q, ctx){
 }
 
 function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
-  const seedBook = window.BOOKS.find(b => b.id === bookId) || window.BOOKS[0];
+  const missingBook = { id: bookId, t: "未找到该书", a: "", sub: "", cls: "ink", seal: "书" };
+  const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
   const seedChapters = seedBook.id === "daodejing" ? window.CHAPTERS : [];
   const [book, setBook] = useS(seedBook);
   const [chapters, setChapters] = useS(seedChapters);
@@ -47,7 +49,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     return i >= 0 ? i : 0;
   });
   useE(() => {
-    const nextSeed = window.BOOKS.find(b => b.id === bookId) || window.BOOKS[0];
+    const nextSeed = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
     const nextSeedChapters = nextSeed.id === "daodejing" ? window.CHAPTERS : [];
     setBook(nextSeed);
     setChapters(nextSeedChapters);
@@ -129,6 +131,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const [tocOpen, setTocOpen] = useS(false);
   const [setOpen, setSetOpen] = useS(false);
   const [aiOpen, setAiOpen]   = useS(!!continueConvo);
+  const [turn, setTurn] = useS(null);
   const [railTab, setRailTab] = useS(continueConvo ? "ai" : "anno"); // archive rail: anno | ai
 
   /* share composer + toast */
@@ -147,14 +150,16 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         ...continueConvo.msgs.map(m => ({ who: m.r==="q"?"user":"bot", t:m.t, ref: m.r==="q"?undefined:"原对话" })),
       ]
     : [
-        { who:"bot", t:"我读过这本《道德经》，也知道你正翻到第一章。读到哪、卡在哪，问我就好——我不剧透后文。", ref:"通读陪伴模式" },
+        { who:"bot", t:`我正在陪你读这本《${seedBook.t}》。读到哪、卡在哪，问我就好——我会尽量只基于当前文本回答。`, ref:"通读陪伴模式" },
       ]);
   const [typing, setTyping] = useS(false);
   const [draft, setDraft]   = useS("");
   const [srvAnno, setSrvAnno] = useS({}); // others' annotations fetched from the backend, per sentence
 
   const scrollRef = useR(null);
+  const turnTimer = useR(null);
   const [prog, setProg] = useS(0);
+  useE(() => () => { if (turnTimer.current) window.clearTimeout(turnTimer.current); }, []);
 
   /* progress tracking */
   useE(() => {
@@ -277,7 +282,14 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   };
 
   /* nav */
-  const go = (d) => setCIdx(i => Math.min(chapterCount-1, Math.max(0, i + d)));
+  const go = (d) => setCIdx(i => {
+    const next = Math.min(chapterCount - 1, Math.max(0, i + d));
+    if (next === i) return i;
+    setTurn(d > 0 ? "next" : "prev");
+    if (turnTimer.current) window.clearTimeout(turnTimer.current);
+    turnTimer.current = window.setTimeout(() => setTurn(null), 420);
+    return next;
+  });
   const jumpTo = (n) => { const i = chapters.findIndex(c => c.n === n); if (i >= 0){ setCIdx(i); setTocOpen(false); } };
 
   useE(() => {
@@ -307,11 +319,23 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
       </span>
     );
   };
+  const needsSentenceGap = (left, right) =>
+    /[A-Za-z0-9"”’')\]]$/.test(left?.t || "") && /^[A-Za-z0-9"“‘'(\[]/.test(right?.t || "");
+  const renderParagraph = (p, i) => (
+    <p key={i}>
+      {p.map((s, j) => (
+        <React.Fragment key={s.id}>
+          {j > 0 && needsSentenceGap(p[j - 1], s) ? " " : null}
+          {renderSentence(s)}
+        </React.Fragment>
+      ))}
+    </p>
+  );
 
   const pct = Math.round(((cIdx + prog) / chapterCount) * 100);
 
   return (
-    <div className="reader" data-layout={layout} data-rtheme={rtheme}
+    <div className="reader" data-layout={layout} data-rtheme={rtheme} data-turn={turn || undefined}
       style={{ "--read-size": size+"px", "--read-leading": lead, "--read-measure": meas+"rem", "--read-font": fontFam }}>
 
       {/* top bar */}
@@ -330,14 +354,12 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
       {/* reading region */}
       <div className="rd-body">
         <div className="rd-scroll" ref={scrollRef}>
-          <div className="rd-col" onMouseUp={onMouseUp}>
+          <div className="rd-col" key={`${book.id}-${ch.n}`} onMouseUp={onMouseUp}>
             <div className="rd-chap-no">第 {String(ch.n).padStart(2,"0")} 章</div>
             <h1 className="rd-chap-title">{ch.title}</h1>
             <div className="rd-chap-rule"/>
             <div className="rd-text">
-              {ch.paras.map((p, i) => (
-                <p key={i}>{p.map(renderSentence)}</p>
-              ))}
+              {ch.paras.map(renderParagraph)}
             </div>
             {(() => {
               const echoSid = ch.paras.flat().find(s => window.ECHOES[s.id]);

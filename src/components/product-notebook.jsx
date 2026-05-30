@@ -1,6 +1,7 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
 import { CommentsPanel } from "./product-social.jsx";
+import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 
 /* product-notebook.jsx — your highlights/notes archive + AI chapter summaries + export. */
 const { useState: useSn, useMemo: useMemoN, useEffect: useEffN } = React;
@@ -8,8 +9,9 @@ const { useState: useSn, useMemo: useMemoN, useEffect: useEffN } = React;
 /* gather the reader's real highlights + notes from localStorage + backend, merged with seeds */
 function gatherHighlights(serverReading = {}){
   const out = [];
-  (window.SEED_HL || []).forEach(h => out.push({ ...h, seed:true }));
-  (window.BOOKS || []).forEach(b => {
+  const catalogTitles = new Set(getCatalogBooks().map((b) => b.t));
+  (window.SEED_HL || []).forEach(h => { if (catalogTitles.has(h.book)) out.push({ ...h, seed:true }); });
+  getCatalogBooks().forEach(b => {
     let hl = {}, nt = {};
     try { hl = JSON.parse(localStorage.getItem("liber.hl."+b.id)) || {}; } catch {}
     try { nt = JSON.parse(localStorage.getItem("liber.nt."+b.id)) || {}; } catch {}
@@ -57,7 +59,7 @@ function Notebook({ onOpenBook }){
   useEffN(() => {
     if (!window.liberApi) return;
     let live = true;
-    Promise.all((window.BOOKS || []).map((b) =>
+    Promise.all(getCatalogBooks().map((b) =>
       window.liberApi.reading.get(b.id)
         .then((r) => [b.id, r])
         .catch(() => null)
@@ -73,7 +75,7 @@ function Notebook({ onOpenBook }){
   const hls = all.filter(h => bookF === "全部" || h.book === bookF);
   const notesOnly = hls.filter(h => h.note);
   const summaries = (window.AI_SUMMARIES||[]).filter(s => {
-    const bk = (window.BOOKS||[]).find(b => b.id === s.book);
+    const bk = findCatalogBook(s.book);
     return bookF === "全部" || (bk && bk.t === bookF);
   });
 

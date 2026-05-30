@@ -3,7 +3,7 @@ import type { Env, Variables } from "../lib/types";
 import * as S from "../lib/seed";
 import { chain } from "../lib/chains";
 import { putBlob } from "../lib/storage";
-import { getBook, getChapters, getChapterText, getToc, ingestBook, listBooks, searchDynamic } from "../lib/catalog";
+import { getBook, getChapters, getChapterText, getToc, hasLibraryBooks, ingestBook, listBooks, searchDynamic } from "../lib/catalog";
 import { getCliPublishToken } from "../lib/auth";
 
 const books = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -22,7 +22,7 @@ books.get("/books", async (c) => {
   const cat = c.req.query("cat");
   const sort = c.req.query("sort") || "reads";
   const list = await listBooks(c.env, { cat, sort });
-  return c.json({ books: list, total: 1284 + Math.max(0, list.filter((b: any) => b.dynamic).length) });
+  return c.json({ books: list, total: list.length });
 });
 
 books.get("/books/:id", async (c) => {
@@ -103,6 +103,7 @@ books.get("/blobs/:key{.+}", async (c) => {
 
 books.get("/search", async (c) => {
   const term = (c.req.query("q") || "").trim();
+  const dynamicOnly = await hasLibraryBooks(c.env);
   const seedBooks = term
     ? S.BOOKS.filter((b) => b.t.includes(term) || b.a.includes(term) || (b.sub || "").toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term))
     : S.BOOKS.slice(0, 4);
@@ -111,6 +112,7 @@ books.get("/search", async (c) => {
     ? Object.entries(idx).filter(([, v]) => v.t.includes(term)).map(([sid, v]) => ({ sid, t: v.t, book: "道德经", bookId: "daodejing", chap: v.chap }))
     : [];
   const dynamic = await searchDynamic(c.env, term);
+  if (dynamicOnly) return c.json({ books: dynamic.books, sentences: dynamic.sentences.slice(0, 12) });
   const ids = new Set(dynamic.books.map((b: any) => b.id));
   return c.json({ books: [...dynamic.books, ...seedBooks.filter((b) => !ids.has(b.id))], sentences: [...dynamic.sentences, ...seedSentences].slice(0, 12) });
 });
