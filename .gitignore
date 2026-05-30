@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-ssr
+.wrangler
 *.local
 .vite
 .DS_Store

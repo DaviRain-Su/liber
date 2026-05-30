@@ -1,4 +1,24 @@
-# Cloudflare Pages config (static SPA — no Functions).
-# Enables `npx wrangler pages deploy` and is also read by the Pages Git build.
+# Cloudflare Pages + Pages Functions config.
+# Frontend = static SPA in dist/; API = Hono in functions/api/[[route]].ts.
 name = "liber"
 pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# --- Bindings (create the resources, then fill the ids; see BACKEND.md) ---
+
+[[d1_databases]]
+binding = "DB"
+database_name = "liber"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "liber-content"
+
+[ai]
+binding = "AI"
