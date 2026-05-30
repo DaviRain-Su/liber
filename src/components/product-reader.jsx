@@ -119,6 +119,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
       ]);
   const [typing, setTyping] = useS(false);
   const [draft, setDraft]   = useS("");
+  const [srvAnno, setSrvAnno] = useS({}); // others' annotations fetched from the backend, per sentence
 
   const scrollRef = useR(null);
   const [prog, setProg] = useS(0);
@@ -202,12 +203,16 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const annoFor = (sid) => {
     const base = (window.ANNOTATIONS[sid] || []);
     const mine = (notes[sid] || []);
-    return [...base, ...mine];
+    const seen = new Set([...base, ...mine].map(n => n.t));
+    const others = (srvAnno[sid] || []).filter(n => !seen.has(n.t));
+    return [...base, ...mine, ...others];
   };
   const openNotePop = (sid, e) => {
     const r = e.currentTarget.getBoundingClientRect();
     setNotePop({ x: r.left + r.width/2, y: r.bottom + 8, sid });
     setSel(null);
+    if (window.liberApi && srvAnno[sid] === undefined)
+      window.liberApi.annotations(book.id, sid).then(res => { if (res && Array.isArray(res.annotations)) setSrvAnno(p => ({ ...p, [sid]: res.annotations })); }).catch(() => {});
   };
   const [noteDraft, setNoteDraft] = useS("");
   const addNote = (sid) => {

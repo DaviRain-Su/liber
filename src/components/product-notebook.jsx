@@ -2,7 +2,7 @@ import React from "react";
 import { I } from "./product-shared.jsx";
 
 /* product-notebook.jsx — your highlights/notes archive + AI chapter summaries + export. */
-const { useState: useSn, useMemo: useMemoN } = React;
+const { useState: useSn, useMemo: useMemoN, useEffect: useEffN } = React;
 
 /* gather the reader's real highlights + notes from localStorage, merged with seeds */
 function gatherHighlights(){
@@ -38,6 +38,10 @@ function Notebook({ onOpenBook }){
   const [typeF, setTypeF] = useSn("summary"); // summary | highlight | note | work
   const [writeOpen, setWriteOpen] = useSn(false);
   const [works, setWorks] = useSn(() => { try { return JSON.parse(localStorage.getItem("liber.works"))||[]; } catch { return []; } });
+  useEffN(() => {
+    if (!window.liberApi) return;
+    window.liberApi.works.list().then(r => { if (r && Array.isArray(r.works) && r.works.length) setWorks(r.works.map(w => ({ ...w, when: w.when || "已发布" }))); }).catch(() => {});
+  }, []);
 
   const hls = all.filter(h => bookF === "全部" || h.book === bookF);
   const notesOnly = hls.filter(h => h.note);
@@ -180,7 +184,7 @@ function Notebook({ onOpenBook }){
       {writeOpen && (
         <WriteComposer summaries={summaries} hls={hls}
           onClose={()=>setWriteOpen(false)}
-          onPublish={(w)=>{ const next=[w,...works]; setWorks(next); localStorage.setItem("liber.works", JSON.stringify(next)); setWriteOpen(false); setTypeF("work"); }} />
+          onPublish={(w)=>{ const next=[w,...works]; setWorks(next); localStorage.setItem("liber.works", JSON.stringify(next)); if (window.liberApi) window.liberApi.works.publish(w.title, w.body).catch(()=>{}); setWriteOpen(false); setTypeF("work"); }} />
       )}
     </div>
   );

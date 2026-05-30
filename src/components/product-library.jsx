@@ -3,15 +3,20 @@ import { Cover } from "./product-shared.jsx";
 import { ChartsBand } from "./product-charts.jsx";
 
 /* product-library.jsx — Library browse screen. */
-const { useState: useStateLib } = React;
+const { useState: useStateLib, useEffect: useEffLib } = React;
 
 function Library({ onOpenBook, onOpenCharts }){
   const cats = ["全部 · 经典", "哲学 · 思想", "经济 · 政治", "科学 · 博物", "文学 · 诗"];
   const [cat, setCat] = useStateLib(cats[0]);
   const [sort, setSort] = useStateLib("最多人读");
-  const feature = window.BOOKS.find(b => b.featured) || window.BOOKS[0];
+  const [books, setBooks] = useStateLib(window.BOOKS || []);
+  useEffLib(() => {
+    if (!window.liberApi) return;
+    window.liberApi.books.list().then(r => { if (r && Array.isArray(r.books) && r.books.length) setBooks(r.books); }).catch(() => {});
+  }, []);
+  const feature = books.find(b => b.featured) || books[0];
 
-  let list = window.BOOKS.filter(b => cat === cats[0] || b.cat === cat);
+  let list = books.filter(b => cat === cats[0] || b.cat === cat);
   if (sort === "最多人读") list = [...list].sort((a,b) => b.readsN - a.readsN);
   else if (sort === "划线最多") list = [...list].sort((a,b) => b.liners - a.liners);
   else if (sort === "最近上链") list = [...list];

@@ -2,10 +2,14 @@ import React from "react";
 import { I, Cover } from "./product-shared.jsx";
 
 /* product-profile.jsx — personal profile: bio, stats, shelf, public annotations. */
-const { useState: useSp } = React;
+const { useState: useSp, useEffect: useEffP } = React;
 
 function Profile({ onOpenBook }){
-  const me = window.ME;
+  const [me, setMe] = useSp(window.ME);
+  useEffP(() => {
+    if (!window.liberApi) return;
+    window.liberApi.auth.me().then(r => { if (r && r.user) setMe(m => ({ ...m, ...r.user, stats: r.user.stats || m.stats })); }).catch(() => {});
+  }, []);
   const [tab, setTab] = useSp("shelf"); // shelf | notes | finished
   const byId = (id) => (window.BOOKS||[]).find(b => b.id === id);
   const reading = me.reading.map(r => ({ ...byId(r.id), at:r.at })).filter(Boolean);

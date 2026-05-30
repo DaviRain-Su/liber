@@ -19,14 +19,26 @@ const PEOPLE = [
 
 function SearchOverlay({ initial, onClose, onOpenBook }){
   const [q, setQ] = useSse(initial || "");
+  const [apiRes, setApiRes] = useSse(null);
   const inputRef = useRse(null);
   const sentences = useMse(() => buildSentenceIndex(), []);
   useEse(() => { inputRef.current && inputRef.current.focus(); }, []);
   useEse(() => { const h = e => { if(e.key==="Escape") onClose(); }; window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); }, []);
 
   const term = q.trim();
-  const books = term ? (window.BOOKS||[]).filter(b => b.t.includes(term) || b.a.includes(term) || b.sub.toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term)) : (window.BOOKS||[]).slice(0,4);
-  const sents = term ? sentences.filter(s => s.t.includes(term)) : [];
+  useEse(() => {
+    if (!window.liberApi || !term) { setApiRes(null); return; }
+    const t = term;
+    const id = setTimeout(() => { window.liberApi.search(t).then(r => setApiRes({ term: t, ...r })).catch(() => {}); }, 180);
+    return () => clearTimeout(id);
+  }, [term]);
+  const useApi = apiRes && apiRes.term === term;
+  const books = term
+    ? (useApi && Array.isArray(apiRes.books) ? apiRes.books : (window.BOOKS||[]).filter(b => b.t.includes(term) || b.a.includes(term) || b.sub.toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term)))
+    : (window.BOOKS||[]).slice(0,4);
+  const sents = term
+    ? (useApi && Array.isArray(apiRes.sentences) ? apiRes.sentences : sentences.filter(s => s.t.includes(term)))
+    : [];
   const people = term ? PEOPLE.filter(p => p.u.includes(term) || p.bio.includes(term)) : [];
   const empty = term && !books.length && !sents.length && !people.length;
 
