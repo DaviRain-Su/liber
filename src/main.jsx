@@ -17,10 +17,14 @@ import "./styles/product-charts.css";
    CHAPTERS, …) which the screen components read. Must run before App renders. */
 import "./data/product-data.js";
 
-/* API client — exposed for manual testing (window.liberApi). The full UI
-   rewire to use it (offline-first + background sync) is P5. */
-import api from "./lib/api.js";
-if (typeof window !== "undefined") window.liberApi = api;
+/* API client. Exposed as window.liberApi; screens call it with graceful
+   fallback to seed/localStorage when the backend isn't reachable. */
+import api, { getToken } from "./lib/api.js";
+if (typeof window !== "undefined") {
+  window.liberApi = api;
+  /* best-effort guest session so reading / AI / share writes persist server-side */
+  if (!getToken()) api.auth.guest().catch(() => {});
+}
 
 import { App } from "./components/product-app.jsx";
 import { LiberTweaks } from "./components/product-tweaks.jsx";

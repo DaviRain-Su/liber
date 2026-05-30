@@ -1,0 +1,22 @@
+name: CI
+
+# Verifies pull requests and feature-branch pushes (typecheck + build).
+# Pushes to main are already built/typechecked by deploy.yml, so they're
+# excluded here to avoid duplicate runs.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
