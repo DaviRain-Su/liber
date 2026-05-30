@@ -8,6 +8,7 @@ import { HTTPException } from "hono/http-exception";
 import { getCookie } from "hono/cookie";
 import type { Env, Variables } from "./types";
 import { first, run, id, now } from "./db";
+import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
 
 type Ctx = Context<{ Bindings: Env; Variables: Variables }>;
 
@@ -27,11 +28,17 @@ export async function consumeNonce(env: Env, nonce?: string | null): Promise<boo
   return !!ok;
 }
 
-// P4: verify a Sui personal-message signature and return the signer address.
-// Stubbed for now (returns null) so the Worker stays dependency-light until
-// wallet integration; guest auth is the working path meanwhile.
-export async function verifySuiSignature(_message: string, _signature: string): Promise<string | null> {
-  return null;
+// Verify a Sui personal-message signature; returns the signer's Sui address or
+// null. Uses the official SDK so the intent bytes / serialization are correct by
+// construction (supports ed25519, secp256k1/r1, multisig, zkLogin).
+export async function verifySuiSignature(message: string, signature: string): Promise<string | null> {
+  try {
+    const bytes = new TextEncoder().encode(message);
+    const pubkey = await verifyPersonalMessageSignature(bytes, signature);
+    return pubkey.toSuiAddress();
+  } catch {
+    return null;
+  }
 }
 
 export async function createSession(env: Env, userId: string): Promise<string> {

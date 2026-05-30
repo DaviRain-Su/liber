@@ -1,5 +1,6 @@
 import React from "react";
 import { I, Mark } from "./product-shared.jsx";
+import { walletLogin } from "../lib/wallet.js";
 
 /* product-onboarding.jsx — welcome + value props + decentralized sign-in + interests. */
 const { useState: useOnb, useEffect: useEonb } = React;
@@ -30,13 +31,19 @@ function Onboarding({ onFinish }){
   const [picks, setPicks] = useOnb(["philo"]);
   const total = 5;
 
-  const connect = (w) => {
+  const connect = async (w) => {
     setConnecting(w.k);
-    setTimeout(() => {
+    try {
+      const acct = await walletLogin(w.name);   // real Sui wallet: connect → sign nonce → verify
+      setConnecting(null);
+      setAccount({ wallet:w.name, addr:acct.address });
+      setStep(3);
+    } catch (e) {
+      // no compatible wallet installed / user cancelled → demo fallback so onboarding still flows
       setConnecting(null);
       setAccount({ wallet:w.name, addr:"sui:0x7c"+Math.random().toString(16).slice(2,6)+"…a4f1" });
       setStep(3);
-    }, 1400);
+    }
   };
   const passkey = () => {
     setConnecting("passkey");

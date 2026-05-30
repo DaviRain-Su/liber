@@ -24,7 +24,7 @@ auth.post("/verify", async (c) => {
   if (!(await consumeNonce(c.env, nonce))) return c.json({ error: "nonce 无效或已过期" }, 400);
   const signer = await verifySuiSignature(message, signature);
   if (!signer || (address && signer !== address)) {
-    return c.json({ error: "钱包签名登录将在 P4（dapp-kit + 链上验证）接入，请先用访客登录" }, 501);
+    return c.json({ error: "签名验证失败：地址与签名不匹配" }, 401);
   }
   const user = await upsertWalletUser(c.env, signer);
   const token = await createSession(c.env, user.id);
