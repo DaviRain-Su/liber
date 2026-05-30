@@ -50,11 +50,12 @@ src/lib/api.js             frontend API client (window.liberApi)
 | --- | --- |
 | Health | `GET /api/health` |
 | Auth | `POST /api/auth/{nonce,verify,guest,logout}` · `GET /api/auth/me` |
-| Books | `GET /api/books` · `/books/:id` · `/books/:id/chapters` · `/books/:id/proof` · `/search?q=` |
+| Books | `GET /api/books` · `/books/:id` · `/books/:id/chapters` · `/books/:id/content/:n` · `/books/:id/proof` · `/search?q=` |
 | Reading (auth) | `GET /api/reading/:book` · `PUT …/highlight` · `POST …/note` · `PUT …/progress` |
 | Social | `GET /api/annotations/:book/:sid` · `/feed` · `/shares` · `/groups[/:id]` · `/threads/:key` · `/works` (+ POST writes, auth) |
 | Comments / votes | `GET/POST /api/comments/:type/:id` · `POST /api/vote/:type/:id` (generic over share/work/book; D1-backed, comments mirrored through the storage layer). |
 | AI | `POST /api/ai/chat` · `GET /api/ai/usage` · `GET /api/ai/conversations[/:id]` |
+| Billing | `GET /api/billing/plan` · `POST /api/billing/checkout` · `POST /api/billing/webhook` |
 | Charts | `GET /api/charts?window=today|week|month` |
 | MCP (open) | `GET /api/mcp` · `POST /api/mcp/call` `{tool,args}` |
 
@@ -115,9 +116,12 @@ external calls. Set public endpoints in `wrangler.toml` `[vars]`; set
 | `SUI_SIGNER_KEY` | **Secret.** `suiprivkey1…` bech32 key; enables on-chain registration of published works/shares (needs gas). |
 | `SUI_PACKAGE` | Published Move package id exposing `<module>::register(content_id, kind, license)`. |
 | `SUI_MODULE` | Move module name (default `registry`). |
-| `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint |
+| `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint and manual pro activation endpoint. |
 | `AI_MODEL` | Override the AI book-companion model (any Workers AI text model id). Default: `@cf/qwen/qwen1.5-14b-chat-awq` (stronger Chinese than the prior Llama 3.1 8B). |
 | `CHAIN` | Active chain adapter: `sui` (default) / `evm` / `solana`. |
+| `STRIPE_SECRET_KEY` / `STRIPE_PRO_PRICE_ID` | Enable paid subscription checkout. Without these, billing endpoints report “not configured” and the app remains free-tier only. |
+| `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhook signatures before promoting a user to `pro`. |
+| `BILLING_SUCCESS_URL` / `BILLING_CANCEL_URL` / `APP_URL` | Optional checkout redirect URLs. |
 | `EVM_RPC` / `EVM_SIGNER_KEY` / `EVM_REGISTRY` | EVM adapter: read works with just `EVM_RPC`; wallet-login verify + on-chain registration are scaffolded (TODO) and need the signer key + a deployed registry contract. |
 
 ### Chain layer is pluggable (multi-chain ready)
@@ -141,6 +145,7 @@ Related endpoints:
 - `GET /api/books/:id/proof` — Walrus/Arweave/Sui live reachability + latest Sui checkpoint.
 - `GET /api/sui/object/:id` — resolve a real on-chain object (read-only).
 - `GET /api/blobs/:key` — look up a user-published blob (works/shares) + Walrus availability.
+- `POST /api/books/ingest` — **admin** (Bearer `ADMIN_TOKEN`): import a CC0 book from `{ chapters }`, `{ text }`, or `{ sourceUrl }`; stores chapter blobs, D1 metadata, manifest, and optional Sui registry object.
 - `POST /api/books/:id/ingest` — **admin** (Bearer `ADMIN_TOKEN`): publish chapter text to Walrus + manifest.
 - `GET /api/books/:id/content/:n` — serve chapter text from Walrus when ingested, else seed.
 

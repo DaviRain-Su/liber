@@ -18,7 +18,7 @@ auth.post("/nonce", async (c) => {
   return c.json({ nonce, message: `Liber 登录\nnonce: ${nonce}` });
 });
 
-// 2) verify a wallet signature (P4) — wired but verification stubbed for now
+// 2) verify a wallet signature via the active chain adapter, then mint a session.
 auth.post("/verify", async (c) => {
   const { address, message, signature, nonce } = await c.req.json();
   if (!(await consumeNonce(c.env, nonce))) return c.json({ error: "nonce 无效或已过期" }, 400);

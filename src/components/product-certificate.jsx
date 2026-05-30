@@ -4,14 +4,18 @@ import React from "react";
 const { useState: useSc, useEffect: useEc } = React;
 
 function Certificate({ bookId, onBack, onOpenBook }){
-  const book = (window.BOOKS||[]).find(b => b.id === bookId) || window.BOOKS[0];
+  const seedBook = (window.BOOKS||[]).find(b => b.id === bookId) || window.BOOKS[0];
+  const [book, setBook] = useSc(seedBook);
   const [verifying, setVerifying] = useSc(false);
   const [steps, setSteps] = useSc([]); // verified step keys
   const [net, setNet] = useSc(null);   // live storage-network reachability (from /api)
   useEc(() => {
     if (!window.liberApi) return;
-    window.liberApi.books.proof(bookId).then(r => { if (r && r.networks) setNet(r.networks); }).catch(() => {});
-  }, []);
+    let live = true;
+    window.liberApi.books.get(bookId).then(r => { if (live && r?.book) setBook(r.book); }).catch(() => {});
+    window.liberApi.books.proof(bookId).then(r => { if (live && r && r.networks) setNet(r.networks); }).catch(() => {});
+    return () => { live = false; };
+  }, [bookId]);
   const checks = [
     { k:"walrus", label:"Walrus 正文分块", detail:"读取 142 个内容块，哈希校验通过" },
     { k:"arweave", label:"Arweave 冷备份", detail:"永久副本存在，跨网络可达" },

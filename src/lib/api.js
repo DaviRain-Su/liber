@@ -58,7 +58,9 @@ export const api = {
     list: (query = "") => get("/books" + query),
     get: (id) => get(`/books/${id}`),
     chapters: (id) => get(`/books/${id}/chapters`),
+    content: (id, n) => get(`/books/${id}/content/${n}`),
     proof: (id) => get(`/books/${id}/proof`),
+    ingest: (payload) => post("/books/ingest", payload),
   },
   search: (q) => get(`/search?q=${encodeURIComponent(q)}`),
 
@@ -101,8 +103,14 @@ export const api = {
 
   ai: {
     chat: (payload) => post("/ai/chat", payload),
+    usage: () => get("/ai/usage"),
     conversations: () => get("/ai/conversations"),
     conversation: (id) => get(`/ai/conversations/${id}`),
+  },
+
+  billing: {
+    plan: () => get("/billing/plan"),
+    checkout: () => post("/billing/checkout"),
   },
 
   charts: (window = "today") => get(`/charts?window=${window}`),

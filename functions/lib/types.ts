@@ -44,6 +44,13 @@ export interface Env {
   // Agentic book companion (functions/lib/agent.ts); needs a tool-capable provider.
   AGENT_ENABLED?: string;     // "true" to enable
   AGENT_MAX_TURNS?: string;   // default 6, max 12
+  // Stripe-compatible subscription checkout. Leave unset to disable paid upgrade.
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PRO_PRICE_ID?: string;
+  BILLING_SUCCESS_URL?: string;
+  BILLING_CANCEL_URL?: string;
+  APP_URL?: string;
 }
 
 // Hono context variables set by the auth middleware.

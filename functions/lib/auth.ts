@@ -1,8 +1,8 @@
 // Identity & sessions.
 //
 // PRAGMATIC-FIRST: identity in D1, sessions in KV, no chain writes. Guest auth
-// works today; real Sui wallet-signature verification (ed25519 personal message)
-// lands in P4 with @mysten/dapp-kit — kept out for now to keep the Worker lean.
+// works today; Sui wallet-signature verification is handled server-side through
+// the chain adapter, while wallet UI stays in the frontend Wallet Standard layer.
 import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { getCookie } from "hono/cookie";

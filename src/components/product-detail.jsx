@@ -4,11 +4,29 @@ import { CommentsPanel } from "./product-social.jsx";
 
 /* product-detail.jsx — Book detail page. */
 function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
-  const book = window.BOOKS.find(b => b.id === bookId) || window.BOOKS[0];
-  const hasContent = book.id === "daodejing";
-  const toc = hasContent ? window.TOC : null;
-  const highlights = hasContent ? window.HIGHLIGHTS : null;
-  const reviews = hasContent ? window.REVIEWS : null;
+  const seedBook = window.BOOKS.find(b => b.id === bookId) || window.BOOKS[0];
+  const [detail, setDetail] = React.useState(() => ({
+    book: seedBook,
+    toc: seedBook.id === "daodejing" ? window.TOC : null,
+    highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null,
+    reviews: seedBook.id === "daodejing" ? window.REVIEWS : null,
+  }));
+  React.useEffect(() => {
+    const fallback = {
+      book: seedBook,
+      toc: seedBook.id === "daodejing" ? window.TOC : null,
+      highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null,
+      reviews: seedBook.id === "daodejing" ? window.REVIEWS : null,
+    };
+    setDetail(fallback);
+    if (!window.liberApi) return;
+    let live = true;
+    window.liberApi.books.get(bookId).then(r => {
+      if (live && r?.book) setDetail({ book: r.book, toc: r.toc, highlights: r.highlights, reviews: r.reviews });
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [bookId]);
+  const { book, toc, highlights, reviews } = detail;
   const [cmtOpen, setCmtOpen] = React.useState(false);
 
   return (
@@ -68,7 +86,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
                 <div className="dsec">
                   <div className="dsec-h">
                     <span className="t">目录</span>
-                    <span className="c">{book.pages} 章 · {toc.filter(t=>t.has).length} 章可试读</span>
+                    <span className="c">{book.pages} 章 · {toc.filter(t=>t.has).length} 章可读</span>
                     <span className="more" onClick={() => onOpenReader(book.id)}>从头开始 →</span>
                   </div>
                   <div className="toc-list">

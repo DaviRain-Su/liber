@@ -1,7 +1,7 @@
 // AI usage metering + plan/quota check — the foundation for a 包月 (monthly)
 // subscription. Free tier gets a monthly request quota (AI_FREE_MONTHLY, default
-// 60); a 'pro' subscription is unlimited. Payment isn't wired yet — the
-// `subscriptions` table is the seam a Stripe / wallet flow plugs into later.
+// 60); a 'pro' subscription is unlimited. Stripe-compatible checkout/webhook
+// lives in routes/billing.ts and writes the subscriptions table.
 import type { Env } from "./types";
 import { first, run, now } from "./db";
 

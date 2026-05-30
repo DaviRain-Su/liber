@@ -36,11 +36,42 @@ function aiReply(mode, q, ctx){
 }
 
 function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
-  const book = window.BOOKS.find(b => b.id === bookId) || window.BOOKS[0];
-  const chapters = window.CHAPTERS;
-  const startIdx = Math.max(0, chapters.findIndex(c => c.n === startChapter));
-  const [cIdx, setCIdx] = useS(startIdx >= 0 ? startIdx : 0);
-  const ch = chapters[cIdx];
+  const seedBook = window.BOOKS.find(b => b.id === bookId) || window.BOOKS[0];
+  const seedChapters = seedBook.id === "daodejing" ? window.CHAPTERS : [];
+  const [book, setBook] = useS(seedBook);
+  const [chapters, setChapters] = useS(seedChapters);
+  const [toc, setToc] = useS(seedBook.id === "daodejing" ? window.TOC : []);
+  const [cIdx, setCIdx] = useS(() => {
+    const i = seedChapters.findIndex(c => c.n === startChapter);
+    return i >= 0 ? i : 0;
+  });
+  useE(() => {
+    const nextSeed = window.BOOKS.find(b => b.id === bookId) || window.BOOKS[0];
+    const nextSeedChapters = nextSeed.id === "daodejing" ? window.CHAPTERS : [];
+    setBook(nextSeed);
+    setChapters(nextSeedChapters);
+    setToc(nextSeed.id === "daodejing" ? window.TOC : []);
+    const seedIdx = nextSeedChapters.findIndex(c => c.n === startChapter);
+    setCIdx(seedIdx >= 0 ? seedIdx : 0);
+    if (!window.liberApi) return;
+    let live = true;
+    Promise.all([
+      window.liberApi.books.get(bookId).catch(() => null),
+      window.liberApi.books.chapters(bookId).catch(() => null),
+    ]).then(([detail, body]) => {
+      if (!live) return;
+      if (detail?.book) setBook(detail.book);
+      if (Array.isArray(body?.chapters) && body.chapters.length) {
+        setChapters(body.chapters);
+        setToc(Array.isArray(body.toc) ? body.toc : body.chapters.map(c => ({ n: c.n, title: c.title, has: true })));
+        const i = body.chapters.findIndex(c => c.n === startChapter);
+        setCIdx(i >= 0 ? i : 0);
+      }
+    });
+    return () => { live = false; };
+  }, [bookId, startChapter]);
+  const ch = chapters[cIdx] || chapters[0] || { n: 1, title: "暂无正文", paras: [[{ id: `${book.id}-empty`, t: "这本书还没有入库正文。" }]] };
+  const chapterCount = chapters.length || 1;
 
   /* layout (driven by tweaks) */
   const [layout, setLayout] = useS(localStorage.getItem("liber.reader.layout") || "classic");
@@ -141,8 +172,8 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   useE(() => {
     localStorage.setItem("liber.place", JSON.stringify({ bookId: book.id, n: ch.n }));
     if (typeof window !== "undefined" && window.liberApi)
-      window.liberApi.reading.progress(book.id, ch.n, Math.round((cIdx / chapters.length) * 100)).catch(() => {});
-  }, [cIdx]);
+      window.liberApi.reading.progress(book.id, ch.n, Math.round((cIdx / chapterCount) * 100)).catch(() => {});
+  }, [book.id, ch.n, cIdx, chapterCount]);
 
   /* ---- text selection -> popover ---- */
   const onMouseUp = useCb(() => {
@@ -245,7 +276,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   };
 
   /* nav */
-  const go = (d) => setCIdx(i => Math.min(chapters.length-1, Math.max(0, i + d)));
+  const go = (d) => setCIdx(i => Math.min(chapterCount-1, Math.max(0, i + d)));
   const jumpTo = (n) => { const i = chapters.findIndex(c => c.n === n); if (i >= 0){ setCIdx(i); setTocOpen(false); } };
 
   useE(() => {
@@ -276,7 +307,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     );
   };
 
-  const pct = Math.round(((cIdx + prog) / chapters.length) * 100);
+  const pct = Math.round(((cIdx + prog) / chapterCount) * 100);
 
   return (
     <div className="reader" data-layout={layout} data-rtheme={rtheme}
@@ -361,7 +392,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
       <div className="rd-foot">
         <div className="pg-nav">
           <button onClick={() => go(-1)} disabled={cIdx===0}>{I.left}</button>
-          <button onClick={() => go(1)} disabled={cIdx===chapters.length-1}>{I.right}</button>
+          <button onClick={() => go(1)} disabled={cIdx===chapterCount-1}>{I.right}</button>
         </div>
         <div className="pg-track" onClick={(e)=>{ const r=e.currentTarget.getBoundingClientRect(); const f=(e.clientX-r.left)/r.width; const el=scrollRef.current; if(el) el.scrollTop=(el.scrollHeight-el.clientHeight)*f; }}>
           <div className="pg-fill" style={{ width: (prog*100)+"%" }}/>
@@ -462,7 +493,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <div className="toc-drawer">
             <div className="dh"><span className="t">目录 · {book.t}</span><span className="x" onClick={() => setTocOpen(false)}>{I.x}</span></div>
             <div className="dbody">
-              {window.TOC.map(t => {
+              {(toc.length ? toc : chapters.map(c => ({ n: c.n, title: c.title, has: true }))).map(t => {
                 const active = t.n === ch.n;
                 return (
                   <div key={t.n} className={`toc-item ${active?"on":""} ${!t.has?"lock":""}`} onClick={() => t.has && jumpTo(t.n)}>
@@ -722,7 +753,7 @@ function AIPanel({ aiMode, setAiMode, aiCtx, setAiCtx, feed, typing, draft, setD
 
 /* ---- archive rail annotations ---- */
 function RailAnnotations({ ch, annoFor }){
-  const sentences = ch.paras.flat().filter(s => window.ANNOTATIONS[s.id]);
+  const sentences = ch.paras.flat().filter(s => annoFor(s.id).length);
   if (!sentences.length) return <div className="rail-section"><div className="rs-h">本章批注</div><div style={{ color:"var(--ink-3)", fontSize:14, fontStyle:"italic" }}>这一章还没有批注。选中一句，留下第一条。</div></div>;
   return (
     <div className="rail-section">

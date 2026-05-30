@@ -12,6 +12,7 @@ import social from "../routes/social";
 import ai from "../routes/ai";
 import charts from "../routes/charts";
 import mcp from "../routes/mcp";
+import billing from "../routes/billing";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>().basePath("/api");
 
@@ -27,6 +28,7 @@ app.route("/", social); // /feed, /shares, /groups, /threads, /works, /annotatio
 app.route("/ai", ai);
 app.route("/charts", charts);
 app.route("/mcp", mcp);
+app.route("/billing", billing);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);

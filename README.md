@@ -110,3 +110,25 @@ Future schema changes: add a new SQL file under `migrations/`, wire it into the
 `db:migrate` scripts, and the GitHub Actions deploy will apply it before Pages
 deploys. For local full-stack dev (`wrangler pages dev` + local D1/KV/R2), see
 [BACKEND.md](BACKEND.md).
+
+### Importing Real CC0 Books
+
+Use the admin ingest endpoint after setting `ADMIN_TOKEN`:
+
+```bash
+curl -XPOST https://<your-domain>/api/books/ingest \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "content-type: application/json" \
+  -d '{
+    "id":"analects",
+    "title":"论语",
+    "author":"孔子及弟子",
+    "category":"哲学 · 思想",
+    "license":"CC0-1.0",
+    "chapters":[{"n":1,"title":"学而","text":"子曰：学而时习之，不亦说乎？"}]
+  }'
+```
+
+The backend stores chapter blobs in R2, publishes to Walrus when configured,
+writes searchable metadata to D1, and registers the manifest on Sui when
+`SUI_RPC + SUI_SIGNER_KEY + SUI_PACKAGE` are present.
