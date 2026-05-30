@@ -13,6 +13,7 @@ import { Shelf } from "./product-shelf.jsx";
 import { Group, GroupsList } from "./product-group.jsx";
 import { AgentSquare } from "./product-agents.jsx";
 import { Charts } from "./product-charts.jsx";
+import { News, NewsPost } from "./product-news.jsx";
 import { Reader } from "./product-reader.jsx";
 import { SearchOverlay } from "./product-search.jsx";
 import { AgentView } from "./product-agentview.jsx";
@@ -159,6 +160,15 @@ function App(){
     setEntered(true);
     window.scrollTo(0, 0);
   };
+  const openNews = (postId) => {         // 落地页「动态」入口 → 进入 News（公开内容，无需登录）
+    localStorage.setItem("liber.reader.entered", "1");
+    localStorage.setItem("liber.onboarded", "1");
+    localStorage.removeItem("liber.guest");
+    setRoute(postId ? { screen:"newsPost", postId } : { screen:"news" });
+    setOnboarded(true);
+    setEntered(true);
+    window.scrollTo(0, 0);
+  };
   const goSignIn = () => {                // 连接钱包 / 登录 → 进入 onboarding（浮层）
     /* Persist nothing here — onboarding's own finish() writes the durable flags.
        entered flips in memory only, so reloading mid-onboarding returns to the
@@ -185,7 +195,7 @@ function App(){
 
   /* gate: show the landing page until the visitor enters. */
   if (!entered) {
-    return <Landing onEnter={enterAsGuest} onSignIn={goSignIn} />;
+    return <Landing onEnter={enterAsGuest} onSignIn={goSignIn} onOpenNews={openNews} />;
   }
 
   return (
@@ -193,7 +203,7 @@ function App(){
       {!onboarded && <Onboarding onFinish={() => setOnboarded(true)} />}
       {!reader && (
         <>
-          <AppBar active={({detail:"library", group:"social", groups:"social", cert:"library"})[route.screen] || route.screen}
+          <AppBar active={({detail:"library", group:"social", groups:"social", cert:"library", newsPost:"news"})[route.screen] || route.screen}
             onNav={(k) => setRoute({ screen: k === "library" ? "library" : k })}
             onHome={returnHome}
             onToggleTheme={toggleTheme} isDark={dark}
@@ -211,7 +221,9 @@ function App(){
           {route.screen === "group" && <Group groupId={route.groupId} onBack={() => setRoute({ screen:"social" })} onOpenReader={openReader} />}
           {route.screen === "agents" && <AgentSquare onBack={() => setRoute({ screen:"library" })} />}
           {route.screen === "charts" && <Charts onOpenBook={openBook} onBack={() => setRoute({ screen:"library" })} onAgentCharts={(ctx) => setAgentView({ charts: ctx })} />}
-          <MobileTabBar active={({detail:"library", group:"social", groups:"social", cert:"library", notes:"notes"})[route.screen] || route.screen}
+          {route.screen === "news" && <News onOpenPost={(id) => setRoute({ screen:"newsPost", postId:id })} onBack={() => setRoute({ screen:"library" })} />}
+          {route.screen === "newsPost" && <NewsPost postId={route.postId} onOpenPost={(id) => setRoute({ screen:"newsPost", postId:id })} onBack={() => setRoute({ screen:"news" })} />}
+          <MobileTabBar active={({detail:"library", group:"social", groups:"social", cert:"library", notes:"notes", newsPost:"news"})[route.screen] || route.screen}
             onNav={(k) => setRoute({ screen: k })} />
         </>
       )}
