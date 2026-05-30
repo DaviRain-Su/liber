@@ -1,5 +1,6 @@
 import React from "react";
 import { Mark, I } from "./product-shared.jsx";
+import { getCatalogBooks, getCatalogTotal, licenseLabel } from "../lib/catalog.js";
 
 /* product-landing.jsx — the public marketing landing page.
    A faithful React port of the design's Liber.html. Uses the landing-page
@@ -78,7 +79,9 @@ function Landing({ onEnter, onSignIn }) {
     () => typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
   );
 
-  const BOOKS = (typeof window !== "undefined" && window.BOOKS) || [];
+  const BOOKS = getCatalogBooks();
+  const catalogTotal = getCatalogTotal();
+  const agentBook = BOOKS[0] || { t:"", reads:"0", blob:"", license:"" };
 
   /* nav 滚动态 */
   useEffect(() => {
@@ -189,7 +192,7 @@ function Landing({ onEnter, onSignIn }) {
           <div className="frame reveal d1">
             <div className="frame-bar">
               <span className="dot" /><span className="dot" /><span className="dot" />
-              <span className="url">🔒 liber.xyz/library <span style={{ opacity: 0.6 }}>· 1,284 卷已上链</span></span>
+              <span className="url">🔒 liber.xyz/library <span style={{ opacity: 0.6 }}>· {catalogTotal.toLocaleString("zh-CN")} 卷已入库</span></span>
             </div>
             <div className="frame-body">
               <div className="disc">
@@ -393,11 +396,11 @@ function Landing({ onEnter, onSignIn }) {
                   <div className="cmd"><span className="pr">agent ❯</span> liber.query(<span className="str">"最畅销的哲学公版书"</span>)</div>
                   <div className="out" style={{ margin: "6px 0 14px" }}>→ 通过 MCP 读取链上索引…</div>
                   <div className="out">{"{"}</div>
-                  <div className="out">&nbsp;&nbsp;<span className="key">"title"</span>: <span className="str">"道德经"</span>,</div>
-                  <div className="out">&nbsp;&nbsp;<span className="key">"reads_30d"</span>: <span className="str">48,201</span>,</div>
-                  <div className="out">&nbsp;&nbsp;<span className="key">"top_highlight"</span>: <span className="str">"知人者智，自知者明"</span>,</div>
-                  <div className="out">&nbsp;&nbsp;<span className="key">"blob"</span>: <span className="str">"walrus://0x8f3a…d21c"</span>,</div>
-                  <div className="out">&nbsp;&nbsp;<span className="key">"license"</span>: <span className="str">"CC0"</span></div>
+                  <div className="out">&nbsp;&nbsp;<span className="key">"title"</span>: <span className="str">"{agentBook.t}"</span>,</div>
+                  <div className="out">&nbsp;&nbsp;<span className="key">"reads_30d"</span>: <span className="str">{agentBook.reads || "0"}</span>,</div>
+                  <div className="out">&nbsp;&nbsp;<span className="key">"chapters"</span>: <span className="str">{agentBook.pages || 0}</span>,</div>
+                  <div className="out">&nbsp;&nbsp;<span className="key">"blob"</span>: <span className="str">"{agentBook.blob || "pending"}"</span>,</div>
+                  <div className="out">&nbsp;&nbsp;<span className="key">"license"</span>: <span className="str">"{licenseLabel(agentBook.license)}"</span></div>
                   <div className="out">{"}"}</div>
                   <div className="cmd" style={{ marginTop: 12 }}><span className="pr">agent ❯</span> <span style={{ opacity: 0.5 }}>▍</span></div>
                 </div>
@@ -457,7 +460,7 @@ function Landing({ onEnter, onSignIn }) {
             <div className="foot-col"><h4>社区</h4><a href="#open">GitHub</a><a href="#open">开发文档</a><a href="#join">加入共建</a><a href="#join">Discord</a></div>
           </div>
           <div className="foot-bottom">
-            <span>© 2026 Liber · 内容遵循 CC0 公共领域贡献</span>
+            <span>© 2026 Liber · 内容遵循 CC0 / Public Domain 授权</span>
             <span>Built for humans &amp; agents · 永久存储于 Walrus · Arweave</span>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
+import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 
 /* product-charts.jsx — open rankings: today / 7-day / 30-day,
    by reads / highlights / conversations. Full screen + compact library band. */
@@ -25,7 +26,7 @@ function Charts({ onOpenBook, onBack, onAgentCharts }){
   const [obj, setObj] = useCh("book");   // book | sent
   const [win, setWin] = useCh("today");
   const [metric, setMetric] = useCh("reads");
-  const byId = (id) => (window.BOOKS||[]).find(b => b.id === id);
+  const byId = (id) => findCatalogBook(id);
   /* live rankings from the backend (seed baseline + event aggregation), seed fallback */
   const [live, setLive] = useCh(null);
   useEffC(() => {
@@ -33,14 +34,15 @@ function Charts({ onOpenBook, onBack, onAgentCharts }){
     window.liberApi.charts(win).then(r => { if (r && Array.isArray(r.rows)) setLive(r); }).catch(() => {});
   }, [win]);
   const useLive = live && live.window === win;
+  const seedChartsAllowed = !getCatalogBooks().some((b) => b.dynamic);
   const surgeMap = (useLive ? live.surge : (window.SURGE || {})[win]) || {};
-  const data = ((useLive ? live.rows : (window.CHARTS || {})[win]) || []).map(r => ({ ...r, surge: surgeMap[r.id] ?? 0 }));
+  const data = ((useLive ? live.rows : seedChartsAllowed ? (window.CHARTS || {})[win] : []) || []).map(r => ({ ...r, surge: surgeMap[r.id] ?? 0 }));
   const ranked = rankBy(data, metric);
   const readTop3 = rankBy(data, "reads").slice(0,3).map(r=>r.id);
   const max = Math.max(...ranked.map(r => r[metric]), 1);
   const metricLabel = CH_METRICS.find(m=>m[0]===metric)[1];
-  const hot = (useLive && live.hotToday) || (window.CHARTS||{}).hotToday;
-  const sentences = [...((useLive && live.sentences) || window.HOT_SENTENCES || [])].sort((a,b)=>b.liners-a.liners);
+  const hot = (useLive && live.hotToday) || (seedChartsAllowed ? (window.CHARTS||{}).hotToday : null);
+  const sentences = [...((useLive && live.sentences) || (seedChartsAllowed ? window.HOT_SENTENCES : []) || [])].sort((a,b)=>b.liners-a.liners);
 
   return (
     <div className="app-screen">
@@ -142,9 +144,10 @@ function ChartsBand({ onOpenBook, onOpenCharts }){
   const [win, setWin] = useCh("today");
   const [rows, setRows] = useCh(null);
   useEffC(() => { if (!window.liberApi) return; window.liberApi.charts(win).then(r => { if (r && Array.isArray(r.rows)) setRows(r.rows); }).catch(() => {}); }, [win]);
-  const data = rows || (window.CHARTS || {})[win] || [];
+  const seedChartsAllowed = !getCatalogBooks().some((b) => b.dynamic);
+  const data = rows || (seedChartsAllowed ? (window.CHARTS || {})[win] : []) || [];
   const ranked = rankBy(data, "reads").slice(0,5);
-  const byId = (id) => (window.BOOKS||[]).find(b => b.id === id);
+  const byId = (id) => findCatalogBook(id);
   return (
     <div className="charts-band">
       <div className="cb-head">

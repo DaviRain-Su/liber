@@ -206,20 +206,37 @@ function stripHtmlInline(raw) {
     .trim());
 }
 
+function normalizeTextBlocks(text) {
+  return String(text || "")
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/)
+    .map((block) => block
+      .split("\n")
+      .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
+      .filter(Boolean)
+      .join("\n"))
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+}
+
 function htmlToText(raw) {
-  return decodeEntities(String(raw || "")
+  const BR = "\uE001";
+  const SEP = "\uE002";
+  return normalizeTextBlocks(decodeEntities(String(raw || "")
     .replace(/<head\b[\s\S]*?<\/head>/gi, " ")
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|section|article|blockquote|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, BR)
+    .replace(/<(p|div|section|article|blockquote|li|tr|h[1-6])\b[^>]*>/gi, SEP)
+    .replace(/<\/(p|div|section|article|blockquote|li|tr|h[1-6])>/gi, SEP)
     .replace(/<[^>]+>/g, " ")
     .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n\n"));
+    .replace(/\n{2,}/g, SEP)
+    .replace(/\n/g, " ")
+    .replaceAll(BR, "\n")
+    .replaceAll(SEP, "\n\n")));
 }
 
 function chapterTitleFromHtml(raw, fallback) {
@@ -236,12 +253,7 @@ function stripProjectGutenbergBoilerplate(text) {
   if (start) out = out.slice((start.index || 0) + start[0].length);
   const end = out.search(/\*\*\*\s*END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK/i);
   if (end >= 0) out = out.slice(0, end);
-  return out
-    .split("\n")
-    .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n\n")
-    .trim();
+  return normalizeTextBlocks(out);
 }
 
 function cleanChapterTitle(title, text, fallback) {

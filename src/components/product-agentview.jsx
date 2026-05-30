@@ -1,5 +1,6 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
+import { findCatalogBook, getCatalogTotal, licenseLabel } from "../lib/catalog.js";
 
 /* product-agentview.jsx — "Agent View": flip any page into the structured,
    addressable, MCP representation an AI Agent sees. Reuses .term styles. */
@@ -29,7 +30,7 @@ function AgentView({ context, onClose, onCopy, onSquare }){
   const ctxCharts = context.charts;
   const corpus = !book && !ctxCharts;
   const addr = book
-    ? { uri:`liber://${book.id}`, blob:book.blob, index:book.index, license:"CC0-1.0" }
+    ? { uri:`liber://${book.id}`, blob:book.blob, index:book.index, license:book.license || "CC0-1.0" }
     : { uri:"liber://registry", blob:"walrus://0x00…root", index:"sui::registry::Library", license:"CC0-1.0" };
 
   if (ctxCharts){
@@ -67,7 +68,7 @@ function AgentView({ context, onClose, onCopy, onSquare }){
                   <div className="out" style={{margin:"6px 0 12px"}}>→ 读取链上聚合信号…</div>
                   <div className="out">{"["}</div>
                   {top.map((r,i)=>{
-                    const b=(window.BOOKS||[]).find(x=>x.id===r.id)||{};
+                    const b=findCatalogBook(r.id)||{};
                     const val = ctxCharts.metric==="surge" ? (surge[r.id]||0)+"%" : r[ctxCharts.metric];
                     return (
                       <div className="out" key={r.id} style={{paddingLeft:16}}>{"{ "}<span className="key">"rank"</span>: <span className="num">{i+1}</span>, <span className="key">"title"</span>: <span className="str">"{b.t}"</span>, <span className="key">"{ctxCharts.metric}"</span>: <span className="str">{val}</span> {"}"}{i<top.length-1?",":""}</div>
@@ -99,7 +100,7 @@ function AgentView({ context, onClose, onCopy, onSquare }){
       <div className="agentview-drawer">
         <div className="av-head">
           <div className="av-orb">{I.agent}</div>
-          <div><div className="av-t">Agent 视角</div><div className="av-s">{corpus ? "整座图书馆" : `《${book.t}》`} · AI Agent 看到的样子</div></div>
+              <div><div className="av-t">Agent 视角</div><div className="av-s">{corpus ? "整座图书馆" : `《${book.t}》`} · AI Agent 看到的样子</div></div>
           <span className="x" onClick={onClose}>{I.x}</span>
         </div>
 
@@ -111,7 +112,7 @@ function AgentView({ context, onClose, onCopy, onSquare }){
               <div className="ar"><span className="k">liber</span><code>{addr.uri}</code><span className="copy" onClick={()=>onCopy(addr.uri)}>{I.copy}</span></div>
               <div className="ar"><span className="k">blob</span><code>{addr.blob}</code></div>
               <div className="ar"><span className="k">index</span><code>{addr.index}</code></div>
-              <div className="ar"><span className="k">license</span><code>{addr.license}</code></div>
+              <div className="ar"><span className="k">license</span><code>{licenseLabel(addr.license)}</code></div>
             </div>
           </div>
 
@@ -134,12 +135,12 @@ function AgentView({ context, onClose, onCopy, onSquare }){
                     <div className="out" style={{paddingLeft:16}}><span className="key">"addressable"</span>: {"["}</div>
                     <div className="out" style={{paddingLeft:32}}><span className="str">"chapter"</span>, <span className="str">"paragraph"</span>, <span className="str">"sentence"</span>, <span className="str">"highlight"</span>, <span className="str">"conversation"</span></div>
                     <div className="out" style={{paddingLeft:16}}>{"],"}</div>
-                    <JLine k="license" v="CC0-1.0" t="str" last/>
+                    <JLine k="license" v={book.license || "CC0-1.0"} t="str" last/>
                   </>
                 ) : (
                   <>
                     <JLine k="type" v="Library" t="str"/>
-                    <JLine k="volumes" v={1284} t="num"/>
+                    <JLine k="volumes" v={getCatalogTotal()} t="num"/>
                     <JLine k="storage" v="walrus + arweave + ipfs" t="str"/>
                     <JLine k="auth_required" v={false} t="num"/>
                     <JLine k="rate_limit" v="none" t="str"/>

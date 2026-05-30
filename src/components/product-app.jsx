@@ -18,6 +18,7 @@ import { SearchOverlay } from "./product-search.jsx";
 import { AgentView } from "./product-agentview.jsx";
 import { CliAuth } from "./cli-auth.jsx";
 import { setToken } from "../lib/api.js";
+import { findCatalogBook, getCatalogBooks, loadCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 
 /* product-app.jsx — router, theme, mount. */
 const { useState: useSt, useEffect: useEf, useCallback: useCb } = React;
@@ -60,6 +61,7 @@ function App(){
   const [agentView, setAgentView] = useSt(null); // Agent View context | null
   const [dark, setDark] = useSt(() => document.documentElement.getAttribute("data-theme") === "dark");
   const [authUser, setAuthUser] = useSt(null);
+  const [, setCatalogBooks] = useSt(() => getCatalogBooks());
 
   const refreshAuth = useCb(() => {
     if (!window.liberApi?.auth?.me) {
@@ -120,6 +122,11 @@ function App(){
 
   useEf(refreshAuth, [refreshAuth, entered, onboarded]);
   useEf(() => { localStorage.setItem("liber.route", JSON.stringify(route)); }, [route]);
+  useEf(() => {
+    const off = subscribeCatalog((books) => setCatalogBooks(books));
+    loadCatalogBooks().then(setCatalogBooks).catch(() => {});
+    return off;
+  }, []);
 
   const toggleTheme = () => {
     const next = dark ? "light" : "dark";
@@ -190,7 +197,7 @@ function App(){
             onHome={returnHome}
             onToggleTheme={toggleTheme} isDark={dark}
             onSearch={() => setSearch(true)} onProfile={() => setRoute(r => ({ screen:"profile", from: r.screen === "profile" ? r.from : r.screen }))}
-            onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? window.BOOKS.find(b=>b.id===route.bookId) : null })} agentOn={!!agentView}
+            onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? findCatalogBook(route.bookId) : null })} agentOn={!!agentView}
             user={authUser} onLogout={logout} />
           {route.screen === "library" && <Library onOpenBook={openBook} onOpenCharts={() => setRoute({ screen:"charts" })} />}
           {route.screen === "detail" && <Detail bookId={route.bookId} onOpenReader={openReader} onOpenCert={(id) => setRoute({ screen:"cert", bookId:id })} onBack={() => setRoute({ screen:"library" })} onOpenAgents={() => setRoute({ screen:"agents" })} />}

@@ -2,6 +2,7 @@ import React from "react";
 import { I, Mark } from "./product-shared.jsx";
 import { walletLogin } from "../lib/wallet.js";
 import { getToken } from "../lib/api.js";
+import { getCatalogTotal } from "../lib/catalog.js";
 
 /* product-onboarding.jsx — welcome + value props + decentralized sign-in + interests. */
 const { useState: useOnb, useEffect: useEonb } = React;
@@ -31,6 +32,7 @@ function Onboarding({ onFinish }){
   const [account, setAccount] = useOnb(null);       // {wallet, addr}
   const [picks, setPicks] = useOnb(["philo"]);
   const total = 5;
+  const catalogTotal = getCatalogTotal();
 
   const connect = async (w) => {
     setConnecting(w.k);
@@ -98,7 +100,7 @@ function Onboarding({ onFinish }){
                 <button className="btn btn-ghost onb-cta" onClick={()=>setStep(2)}>我已有账户，直接登录</button>
               </div>
               <div className="ow-stats">
-                <div><b>1,284</b> 卷已上链</div><span/><div><b>CC0</b> 公共版权</div><span/><div><b>3</b> 重存储备份</div>
+                <div><b>{catalogTotal.toLocaleString("zh-CN")}</b> 卷已入库</div><span/><div><b>CC0 / PD</b> 公共版权</div><span/><div><b>3</b> 重存储备份</div>
               </div>
             </div>
           )}
@@ -174,7 +176,7 @@ function Onboarding({ onFinish }){
             <div className="onb-card onb-ready">
               <div className="ready-seal">藏</div>
               <h1>你的图书馆已就绪</h1>
-              <p className="ow-lede">{picks.length} 个方向、1,284 卷经典，<br/>和一位随时在旁的 AI 书友，等你翻开第一页。</p>
+              <p className="ow-lede">{picks.length} 个方向、{catalogTotal.toLocaleString("zh-CN")} 卷图书，<br/>和一位随时在旁的 AI 书友，等你翻开第一页。</p>
               <div className="onb-actions">
                 <button className="btn btn-primary onb-cta" onClick={()=>finish()}>进入图书馆 <span className="arr">→</span></button>
               </div>

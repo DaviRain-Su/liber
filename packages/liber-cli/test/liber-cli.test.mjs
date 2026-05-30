@@ -234,6 +234,20 @@ test("extractEpubChapters extracts readable spine text", async () => {
   assert.doesNotMatch(chapters[0].text, /Skip me/);
 });
 
+test("extractEpubChapters reflows source-wrapped HTML paragraphs", async () => {
+  const { epubPath } = await writeEpub("CC0-1.0", [
+    `The seventh volume of Memoirs concerning history, the sciences, the
+arts, and usages is devoted to the Art of War.
+
+A real second paragraph remains separate.`,
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.match(chapters[0].text, /sciences, the arts, and usages/);
+  assert.doesNotMatch(chapters[0].text, /sciences, the\n\narts/);
+  assert.match(chapters[0].text, /War\.\n\nA real second paragraph/);
+});
+
 test("extractEpubChapters removes Project Gutenberg license wrappers", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {

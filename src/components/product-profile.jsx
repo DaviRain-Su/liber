@@ -1,5 +1,6 @@
 import React from "react";
 import { I, Cover } from "./product-shared.jsx";
+import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 
 /* product-profile.jsx — profile for ME or any other reader.
    Reached from the app bar (me) or by clicking an avatar in comments/feed
@@ -58,15 +59,17 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout }){
     );
   }
 
-  const byId = (id) => (window.BOOKS || []).find(b => b.id === id);
-  const byTitleOrId = (x) => (window.BOOKS || []).find(b => b.t === x || b.id === x);
+  const byId = (id) => findCatalogBook(id);
+  const byTitleOrId = (x) => findCatalogBook(x) || (window.BOOKS || []).find(b => b.t === x || b.id === x);
 
-  const reading = (person.reading || []).map(r => ({ ...byId(r.id), at:r.at })).filter(b => b.id);
+  const reading = (person.reading || []).map(r => ({ ...byId(r.id), at:r.at })).filter(b => b && b.id);
   const finished = (person.finished || []).map(byId).filter(Boolean);
 
-  /* normalize public notes to {q,t,book,chap,when} */
+  /* normalize public notes to {q,t,book,chap,when};
+     for my own profile, only surface notes whose book is in the live catalog */
+  const catalogTitles = new Set(getCatalogBooks().map((b) => b.t));
   const publicNotes = isMe
-    ? (window.SEED_HL || []).filter(h => h.note).map(h => ({ q:h.t, t:h.note, book:h.book, chap:h.chap, when:h.when }))
+    ? (window.SEED_HL || []).filter(h => h.note && catalogTitles.has(h.book)).map(h => ({ q:h.t, t:h.note, book:h.book, chap:h.chap, when:h.when }))
     : (person.publicNotes || []);
 
   const following = !isMe && followSet.includes(person.name);

@@ -46,7 +46,8 @@ persist in `localStorage`. The top nav's sun/moon button toggles light/dark.
 index.html                 # Vite entry → /src/main.jsx
 src/
   main.jsx                 # mounts <App> and the <LiberTweaks> island; imports the stylesheets
-  data/product-data.js     # all catalogue/content data (named exports + window bootstrap)
+  data/product-data.js     # seed catalogue/content data for local empty databases
+  lib/catalog.js           # frontend catalogue store: /api/books first, seed fallback only
   styles/*.css             # design system + per-screen styles (imported in cascade order)
   components/*.jsx          # one ES module per screen/component, with explicit imports/exports
 ```
@@ -61,9 +62,9 @@ through `window`. The port keeps the **component bodies byte-for-byte identical*
 - **Components** were converted from `window`-globals into real **ES modules**
   with explicit `import` / `export`. JSX is compiled by `@vitejs/plugin-react`
   (Babel-standalone is dropped).
-- **Data** (`product-data.js`) is a real module with **named exports** that also
-  bootstraps `window.*` on load. Screens still read `window.BOOKS` etc., so the
-  data is a single bootstrapped singleton — initialized once before render.
+- **Catalogue data** is hydrated from `/api/books` into `src/lib/catalog.js`.
+  When D1 has real imported books, the frontend replaces `window.BOOKS` with
+  that live catalogue; the seed module is only a local/offline fallback.
 - **Styles** are imported in `main.jsx` in the original `<link>` order to
   preserve the cascade.
 

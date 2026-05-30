@@ -1,6 +1,7 @@
 import React from "react";
 import { Cover } from "./product-shared.jsx";
 import { ChartsBand } from "./product-charts.jsx";
+import { getCatalogBooks, getCatalogTotal, licenseLabel, loadCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 
 /* product-library.jsx — Library browse screen. */
 const { useState: useStateLib, useEffect: useEffLib } = React;
@@ -9,17 +10,34 @@ function Library({ onOpenBook, onOpenCharts }){
   const cats = ["全部 · 经典", "哲学 · 思想", "经济 · 政治", "科学 · 博物", "文学 · 诗"];
   const [cat, setCat] = useStateLib(cats[0]);
   const [sort, setSort] = useStateLib("最多人读");
-  const [books, setBooks] = useStateLib(window.BOOKS || []);
+  const [books, setBooks] = useStateLib(() => getCatalogBooks());
+  const [total, setTotal] = useStateLib(() => getCatalogTotal());
   useEffLib(() => {
-    if (!window.liberApi) return;
-    window.liberApi.books.list().then(r => { if (r && Array.isArray(r.books) && r.books.length) setBooks(r.books); }).catch(() => {});
+    const off = subscribeCatalog((next) => { setBooks(next); setTotal(getCatalogTotal()); });
+    loadCatalogBooks().then((next) => { setBooks(next); setTotal(getCatalogTotal()); }).catch(() => {});
+    return off;
   }, []);
   const feature = books.find(b => b.featured) || books[0];
+  const featureLicense = licenseLabel(feature?.license).replace("Public Domain", "PD").replace("CC0-1.0", "CC0");
 
   let list = books.filter(b => cat === cats[0] || b.cat === cat);
-  if (sort === "最多人读") list = [...list].sort((a,b) => b.readsN - a.readsN);
-  else if (sort === "划线最多") list = [...list].sort((a,b) => b.liners - a.liners);
+  if (sort === "最多人读") list = [...list].sort((a,b) => (b.readsN || 0) - (a.readsN || 0));
+  else if (sort === "划线最多") list = [...list].sort((a,b) => (b.liners || 0) - (a.liners || 0));
   else if (sort === "最近上链") list = [...list];
+
+  if (!feature) {
+    return (
+      <div className="app-screen">
+        <div className="lib">
+          <div className="lib-wrap" style={{ paddingTop:80 }}>
+            <div className="kicker">书库</div>
+            <h1 className="display-m" style={{ margin:"14px 0" }}>还没有真实图书入库。</h1>
+            <p className="muted">通过 Liber CLI 发布一本 CC0 或 Public Domain EPUB 后，这里会自动显示真实目录。</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-screen">
@@ -41,8 +59,8 @@ function Library({ onOpenBook, onOpenCharts }){
                 <div className="feature-stats">
                   <div><div className="n">{feature.reads}</div><div className="l">在读</div></div>
                   <div><div className="n">{feature.lines}</div><div className="l">划线</div></div>
-                  <div><div className="n">{feature.annos.toLocaleString()}</div><div className="l">批注</div></div>
-                  <div><div className="n">CC0</div><div className="l">公共版权</div></div>
+                  <div><div className="n">{(feature.annos || 0).toLocaleString()}</div><div className="l">批注</div></div>
+                  <div><div className="n">{featureLicense}</div><div className="l">版权</div></div>
                 </div>
               </div>
             </div>
@@ -54,7 +72,7 @@ function Library({ onOpenBook, onOpenCharts }){
           <ChartsBand onOpenBook={onOpenBook} onOpenCharts={onOpenCharts} />
           <div className="lib-bar">
             <span className="title">书库</span>
-            <span className="count">1,284 卷已上链 · 显示 {list.length}</span>
+            <span className="count">{total.toLocaleString("zh-CN")} 卷已入库 · 显示 {list.length}</span>
             <div className="spacer"/>
             <div className="chips">
               {cats.map(c => (

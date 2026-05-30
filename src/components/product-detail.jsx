@@ -1,10 +1,17 @@
 import React from "react";
 import { Cover, I } from "./product-shared.jsx";
 import { CommentsPanel } from "./product-social.jsx";
+import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks, licenseLabel } from "../lib/catalog.js";
 
 /* product-detail.jsx — Book detail page. */
 function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
-  const seedBook = window.BOOKS.find(b => b.id === bookId) || window.BOOKS[0];
+  const missingBook = {
+    id: bookId, t: "未找到该书", sub: "", a: "", cls: "ink", seal: "书",
+    cat: "书库", lang: "", year: "", pages: 0, words: "约 0 字",
+    reads: "0", lines: "0", annos: 0, blob: "", backup: "", index: "",
+    blurb: "这本书还没有入库。", long: "",
+  };
+  const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
   const [detail, setDetail] = React.useState(() => ({
     book: seedBook,
     toc: seedBook.id === "daodejing" ? window.TOC : null,
@@ -50,7 +57,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
               </div>
               <div className="detail-mini">
                 <div><div className="n">{book.pages}</div><div className="l">章 / 节</div></div>
-                <div><div className="n">{book.words.replace("约 ","")}</div><div className="l">篇幅</div></div>
+                <div><div className="n">{String(book.words || "").replace("约 ","")}</div><div className="l">篇幅</div></div>
                 <div><div className="n">{book.reads}</div><div className="l">在读</div></div>
                 <div><div className="n">{book.lines}</div><div className="l">划线</div></div>
               </div>
@@ -66,7 +73,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
               {book.long && <p className="body">{book.long}</p>}
               <div className="meta-tags">
                 <span className="meta-tag">{book.lang}</span>
-                <span className="meta-tag">CC0 公共领域</span>
+                <span className="meta-tag">{licenseLabel(book.license)}</span>
                 <span className="meta-tag">{book.year}</span>
                 <span className="meta-tag">已永久存证</span>
               </div>
@@ -115,7 +122,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
                   <div className="pr"><span className="k">blob_id</span><span className="v">{book.blob}</span></div>
                   <div className="pr"><span className="k">backup</span><span className="v">{book.backup}</span></div>
                   <div className="pr"><span className="k">index</span><span className="v">{book.index}</span></div>
-                  <div className="pr"><span className="k">license</span><span className="v">CC0 1.0 Universal</span></div>
+                  <div className="pr"><span className="k">license</span><span className="v">{book.license || "CC0-1.0"}</span></div>
                 </div>
               </div>
 

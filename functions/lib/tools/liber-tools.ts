@@ -1,9 +1,12 @@
 // Shared Liber tool registry — one implementation reused by both the agent
 // loop (functions/lib/agent.ts) and the open MCP route (functions/routes/mcp.ts),
 // so the two never drift. Each tool has an OpenAI-style JSON-schema (works with
-// DeepSeek / OpenAI-compatible function calling) plus an execute() over seed data.
+// DeepSeek / OpenAI-compatible function calling) plus an execute() over the
+// real D1 library when present, with seed fallback for local empty databases.
 import type { Env } from "../types";
 import * as S from "../seed";
+import { getCharts } from "../charts";
+import { getBook, getChapters, hasLibraryBooks, searchDynamic } from "../catalog";
 
 export interface LiberTool {
   name: string;
@@ -21,8 +24,12 @@ export const TOOLS: LiberTool[] = [
       properties: { query: { type: "string", description: "检索词" } },
       required: ["query"],
     },
-    execute: async (_env, args) => {
+    execute: async (env, args) => {
       const t = String(args?.query || "").trim();
+      if (await hasLibraryBooks(env)) {
+        const dynamic = await searchDynamic(env, t);
+        return dynamic.books.map((b: any) => ({ id: b.id, title: b.t, author: b.a, addr: `liber://${b.id}` }));
+      }
       const hits = S.BOOKS.filter((b) => b.t.includes(t) || b.a.includes(t) || (b.sub || "").toLowerCase().includes(t.toLowerCase()));
       return hits.map((b) => ({ id: b.id, title: b.t, author: b.a, addr: `liber://${b.id}` }));
     },
@@ -38,10 +45,11 @@ export const TOOLS: LiberTool[] = [
       },
       required: ["book"],
     },
-    execute: async (_env, args) => {
-      const b = S.bookById(args?.book);
+    execute: async (env, args) => {
+      const b = await getBook(env, args?.book);
       if (!b) return { error: "未找到该书" };
-      const ch = S.CHAPTERS.find((x: any) => x.n === Number(args?.chapter)) || S.CHAPTERS[0];
+      const chapters = await getChapters(env, b.id);
+      const ch = chapters.find((x: any) => x.n === Number(args?.chapter)) || chapters[0];
       const text = ch ? ch.paras.flat().map((s: any) => s.t).join("") : "";
       return { book: b.t, chapter: ch?.n, title: ch?.title, text };
     },
@@ -77,10 +85,11 @@ export const TOOLS: LiberTool[] = [
       },
       required: [],
     },
-    execute: async (_env, args) => {
+    execute: async (env, args) => {
       const win = args?.window || "today";
       const metric = args?.metric || "reads";
-      const rows = (S.CHARTS[win] || []).map((r: any) => ({ id: r.id, title: S.bookById(r.id)?.t, value: metric === "surge" ? (S.SURGE[win]?.[r.id] ?? 0) : r[metric] }));
+      const chart = await getCharts(env, win);
+      const rows = chart.rows.map((r: any) => ({ id: r.id, title: r.title || S.bookById(r.id)?.t, value: metric === "surge" ? (chart.surge?.[r.id] ?? 0) : r[metric] }));
       rows.sort((a: any, b: any) => b.value - a.value);
       return rows.slice(0, 8);
     },
