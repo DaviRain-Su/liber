@@ -5,6 +5,22 @@ import { ConvoArtifact, ForkTreeModal } from "./product-convocard.jsx";
 /* product-social.jsx — co-reading: feed, popular highlights, shared convos, discussion thread. */
 const { useState: useSs, useEffect: useEffS } = React;
 
+/* Continue a SPECIFIC fork-tree branch: seed the reader with the original
+   exchange plus this branch's lineage of questions (root → … → picked node),
+   and attribute the continuation to the branch author. Falls back to the whole
+   convo when no branch path is given. */
+function branchConvo(convo, path){
+  if (!path || !path.length) return convo;
+  const tip = path[path.length - 1];
+  return {
+    ...convo,
+    author: { name: tip.name, ava: tip.ava, color: tip.color },
+    msgs: [...(convo.msgs || []), ...path.map(n => ({ r: "q", t: n.q }))],
+    branchOf: convo.id,
+    branchName: tip.name,
+  };
+}
+
 function Social({ onOpenBook, onOpenGroup, onContinue }){
   const [tab, setTab] = useSs("feed"); // feed | convos | groups
   const [thread, setThread] = useSs(null); // open discussion overlay
@@ -119,7 +135,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
       </div>
 
       {thread && <ThreadOverlay thread={thread} onClose={() => setThread(null)} />}
-      {forkTree && <ForkTreeModal convo={forkTree} onClose={() => setForkTree(null)} onFork={() => { setForkTree(null); onContinue(forkTree); }} />}
+      {forkTree && <ForkTreeModal convo={forkTree} onClose={() => setForkTree(null)} onFork={(node, path) => { setForkTree(null); onContinue(branchConvo(forkTree, path)); }} />}
     </div>
   );
 }

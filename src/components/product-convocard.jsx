@@ -103,9 +103,10 @@ function ConvoArtifact(props){
 /* ============================================================
    Fork-tree modal — conversation lineage
    ============================================================ */
-function TreeNode({ node, onFork, depth }){
+function TreeNode({ node, onFork, depth, path = [] }){
   const [open, setOpen] = React.useState(true);
   const kids = node.children || [];
+  const here = [...path, node]; // root → … → this node, the exact branch lineage
   return (
     <div className="ft-node">
       <div className="ft-card">
@@ -114,13 +115,13 @@ function TreeNode({ node, onFork, depth }){
           <div className="ft-top"><span className="nm">{node.name}</span><span className="ft-meta">{CC_ICO.up} {node.agree} · 被 {node.forks} 人接着问</span></div>
           <div className="ft-q">从这里问起：「{node.q}」</div>
           <div className="ft-acts">
-            <span onClick={() => onFork(node)}>接着 ta 的问 →</span>
+            <span onClick={() => onFork(node, here)}>接着 ta 的问 →</span>
           </div>
         </div>
       </div>
       {kids.length > 0 && (
         <div className="ft-children">
-          {kids.map(k => <TreeNode key={k.id} node={k} onFork={onFork} depth={depth+1}/>)}
+          {kids.map(k => <TreeNode key={k.id} node={k} onFork={onFork} depth={depth+1} path={here}/>)}
         </div>
       )}
     </div>
@@ -148,7 +149,7 @@ function ForkTreeModal({ convo, onClose, onFork }){
         <div className="ft-tree">
           {tree.length === 0
             ? <div className="ft-empty">还没有人从这段接着问。你可以成为第一个。</div>
-            : tree.map(n => <TreeNode key={n.id} node={n} onFork={onFork} depth={0}/>)}
+            : tree.map(n => <TreeNode key={n.id} node={n} onFork={onFork} depth={0} path={[]}/>)}
         </div>
       </div>
     </>
