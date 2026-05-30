@@ -65,6 +65,7 @@ function Certificate({ bookId, onBack, onOpenBook }){
               {net && net.configured && (
                 <div className="cs-net" style={{fontSize:12, color:"var(--ink-3)", margin:"-2px 0 10px", fontFamily:"var(--mono)"}}>
                   实时探测 · Walrus {net.walrus===false?"⚠ 暂不可达":"✓ 网络可达"} · Arweave {net.arweave===false?"⚠ 暂不可达":"✓ 网关可达"}
+                  {net.sui!=null && <> · Sui {net.sui?`✓ 链上活跃${net.checkpoint?` · #${net.checkpoint}`:""}`:"⚠ 暂不可达"}</>}
                 </div>
               )}
               {copies.map((c,i) => (

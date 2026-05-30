@@ -15,6 +15,8 @@ export interface Env {
   WALRUS_PUBLISHER?: string;
   WALRUS_AGGREGATOR?: string;
   ARWEAVE_GATEWAY?: string;
+  // Sui fullnode JSON-RPC (read-only chain verification; optional).
+  SUI_RPC?: string;
 }
 
 // Hono context variables set by the auth middleware.
