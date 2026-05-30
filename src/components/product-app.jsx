@@ -2,6 +2,7 @@ import React from "react";
 import { I, AppBar, MobileTabBar } from "./product-shared.jsx";
 import { IOSDevice } from "./ios-frame.jsx";
 import { Onboarding } from "./product-onboarding.jsx";
+import { Landing } from "./product-landing.jsx";
 import { Library } from "./product-library.jsx";
 import { Detail } from "./product-detail.jsx";
 import { Notebook } from "./product-notebook.jsx";
@@ -21,6 +22,14 @@ const { useState: useSt, useEffect: useEf } = React;
 const IS_PHONE_PREVIEW = new URLSearchParams(location.search).get("vp") === "phone";
 
 function App(){
+  /* landing gate — the public marketing page is the first thing a new visitor
+     sees. Only a visitor who has actually entered before (finished onboarding,
+     or chose to browse as guest) skips it. We deliberately do NOT key this on a
+     standalone "entered" flag: persisting that before onboarding completes would
+     trap the visitor on the login screen on every reload. */
+  const [entered, setEntered] = useSt(
+    () => localStorage.getItem("liber.onboarded") === "1" || localStorage.getItem("liber.guest") === "1"
+  );
   /* onboarding gate */
   const [onboarded, setOnboarded] = useSt(() => localStorage.getItem("liber.onboarded") === "1");
   /* phone preview overlay (outer instance only) */
@@ -66,6 +75,32 @@ function App(){
     window.addEventListener("liber-toggle-theme", h);
     return () => window.removeEventListener("liber-toggle-theme", h);
   }, [dark]);
+  /* keep our dark flag in sync when someone else (e.g. the landing page) flips
+     the theme directly on <html> and emits liber-theme. */
+  useEf(() => {
+    const h = () => setDark(document.documentElement.getAttribute("data-theme") === "dark");
+    document.addEventListener("liber-theme", h);
+    return () => document.removeEventListener("liber-theme", h);
+  }, []);
+
+  /* landing CTAs */
+  const enterAsGuest = () => {           // 开始阅读 → 直接进书库（访客）
+    localStorage.setItem("liber.guest", "1");
+    localStorage.setItem("liber.onboarded", "1"); // guest skips onboarding
+    setRoute({ screen:"library" });
+    setOnboarded(true);
+    setEntered(true);
+    window.scrollTo(0, 0);
+  };
+  const goSignIn = () => {                // 连接钱包 / 登录 → 进入 onboarding（浮层）
+    /* Persist nothing here — onboarding's own finish() writes the durable flags.
+       entered flips in memory only, so reloading mid-onboarding returns to the
+       landing page instead of trapping the visitor on the login screen. */
+    setEntered(true);                     // onboarded 仍为 false → Onboarding 接管
+    window.scrollTo(0, 0);
+  };
+  /* one-time migration: free anyone trapped by the old standalone entered flag */
+  useEf(() => { localStorage.removeItem("liber.entered"); }, []);
 
   const openBook = (bookId, straightToReader) => {
     if (straightToReader) setReader({ bookId });
@@ -73,6 +108,11 @@ function App(){
   };
   const openReader = (bookId, startChapter, continueConvo) => setReader({ bookId, startChapter, continueConvo });
   const openBookFromOverlay = (bookId) => { setRoute({ screen:"detail", bookId }); };
+
+  /* gate: show the landing page until the visitor enters. */
+  if (!entered) {
+    return <Landing onEnter={enterAsGuest} onSignIn={goSignIn} />;
+  }
 
   return (
     <>
