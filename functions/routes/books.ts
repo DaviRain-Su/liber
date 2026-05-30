@@ -57,7 +57,7 @@ books.get("/books/:id/proof", async (c) => {
     chain(c.env).chainInfo(c.env), // active-chain liveness (checkpoint/block) or null when unset
   ]);
   return c.json({
-    blob: b.blob, backup: b.backup, index: b.index, license: "CC0 1.0 Universal",
+    blob: b.blob, backup: b.backup, index: b.index, license: b.license || "CC0-1.0",
     networks: {
       configured: !!(c.env.WALRUS_AGGREGATOR || c.env.SUI_RPC || c.env.EVM_RPC),
       walrus, arweave,
