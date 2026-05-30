@@ -70,6 +70,16 @@ function directionOptions(books) {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
+function sortBooks(books, sort) {
+  if (sort === "最多人读") return [...books].sort((a,b) => (b.readsN || 0) - (a.readsN || 0));
+  if (sort === "划线最多") return [...books].sort((a,b) => (b.liners || 0) - (a.liners || 0));
+  return [...books];
+}
+
+function booksForDirection(books, direction) {
+  return books.filter((book) => directionFor(book) === direction);
+}
+
 function Library({ onOpenBook, onOpenCharts }){
   const [lang, setLang] = useStateLib("all");
   const [direction, setDirection] = useStateLib("all");
@@ -87,19 +97,29 @@ function Library({ onOpenBook, onOpenCharts }){
   const currentLang = lang === "all" ? null : langs.find((row) => row.code === lang);
   const scopedBooks = lang === "all" ? books : books.filter((b) => (b.lang || "unknown") === lang);
   const directions = directionOptions(scopedBooks);
+  const directionKey = directions.map((row) => row.name).join("|");
   useEffLib(() => {
     if (direction === "all") return;
     if (!directions.some((row) => row.name === direction)) setDirection("all");
-  }, [direction, directions.map((row) => row.name).join("|")]);
+  }, [direction, directionKey]);
 
-  let list = scopedBooks.filter(b => direction === "all" || directionFor(b) === direction);
-  if (sort === "最多人读") list = [...list].sort((a,b) => (b.readsN || 0) - (a.readsN || 0));
-  else if (sort === "划线最多") list = [...list].sort((a,b) => (b.liners || 0) - (a.liners || 0));
-  else if (sort === "最近上链") list = [...list];
+  const list = sortBooks(scopedBooks.filter(b => direction === "all" || directionFor(b) === direction), sort);
+  const languageSections = langs.map((row) => {
+    const sectionBooks = books.filter((book) => (book.lang || "unknown") === row.code);
+    const sorted = sortBooks(sectionBooks, sort);
+    const topDirections = [...row.directions.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 4)
+      .map(([name, count]) => ({ name, count }));
+    return { ...row, meta: langLabel(row.code), books: sorted.slice(0, 5), topDirections };
+  });
   const selectedLangLabel = currentLang ? langLabel(currentLang.code) : { name: "全部语言", sub: "All languages" };
   const selectedSummary = currentLang
     ? `${selectedLangLabel.name} · ${currentLang.count} 卷 · ${directions.length} 个方向`
     : `${langs.length} 种语言 · ${books.length.toLocaleString("zh-CN")} 卷`;
+  const displayCount = currentLang
+    ? `当前显示 ${list.length}`
+    : `按 ${langs.length} 个语言分区展示`;
 
   if (!feature) {
     return (
@@ -181,16 +201,18 @@ function Library({ onOpenBook, onOpenCharts }){
 
           <div className="lib-bar">
             <span className="title">{currentLang ? `${selectedLangLabel.name} 书库` : "全部书库"}</span>
-            <span className="count">{total.toLocaleString("zh-CN")} 卷已入库 · 当前显示 {list.length}</span>
+            <span className="count">{total.toLocaleString("zh-CN")} 卷已入库 · {displayCount}</span>
             <div className="spacer"/>
-            <div className="chips">
-              <button className={`chip ${direction === "all" ? "on" : ""}`} onClick={() => setDirection("all")}>全部方向 · {scopedBooks.length}</button>
-              {directions.map((row) => (
-                <button key={row.name} className={`chip ${direction === row.name ? "on" : ""}`} onClick={() => setDirection(row.name)}>
-                  {row.name} · {row.count}
-                </button>
-              ))}
-            </div>
+            {currentLang && (
+              <div className="chips">
+                <button className={`chip ${direction === "all" ? "on" : ""}`} onClick={() => setDirection("all")}>全部方向 · {scopedBooks.length}</button>
+                {directions.map((row) => (
+                  <button key={row.name} className={`chip ${direction === row.name ? "on" : ""}`} onClick={() => setDirection(row.name)}>
+                    {row.name} · {row.count}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="sort-sel">
               排序
               <select value={sort} onChange={e => setSort(e.target.value)}>
@@ -201,19 +223,85 @@ function Library({ onOpenBook, onOpenCharts }){
             </div>
           </div>
 
-          <div className="lib-grid">
-            {list.map(b => (
-              <div className="bk-card" key={b.id} onClick={() => onOpenBook(b.id)}>
-                <Cover book={b} />
-                <div className="meta">
-                  <div className="t">{b.t}</div>
-                  <div className="a">{b.a}</div>
-                  <div className="book-taxonomy"><span>{langLabel(b.lang).name}</span><span>{directionFor(b)}</span></div>
-                  <div className="stat"><span><b>{b.reads}</b> 在读</span><span>{b.lines} 划线</span></div>
+          {!currentLang && (
+            <div className="language-sections">
+              {languageSections.map((section) => (
+                <section className="language-section" key={section.code}>
+                  <div className="language-section-head">
+                    <div>
+                      <div className="language-section-kicker">{section.meta.sub}</div>
+                      <h3>{section.meta.name}</h3>
+                    </div>
+                    <button className="text-link" onClick={() => { setLang(section.code); setDirection("all"); }}>
+                      查看全部 {section.count} 卷
+                    </button>
+                  </div>
+                  <div className="direction-strip">
+                    {section.topDirections.map((row) => (
+                      <button key={row.name} className="direction-mini" onClick={() => { setLang(section.code); setDirection(row.name); }}>
+                        <span>{row.name}</span>
+                        <b>{row.count}</b>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="section-book-row">
+                    {section.books.map((b) => (
+                      <div className="bk-card compact" key={b.id} onClick={() => onOpenBook(b.id)}>
+                        <Cover book={b} />
+                        <div className="meta">
+                          <div className="t">{b.t}</div>
+                          <div className="a">{b.a}</div>
+                          <div className="book-taxonomy"><span>{directionFor(b)}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+
+          {currentLang && (
+            <>
+              <div className="direction-panel">
+                <div className="direction-panel-head">
+                  <span>方向</span>
+                  <b>{selectedLangLabel.name} 内部分类</b>
+                </div>
+                <div className="direction-grid">
+                  <button className={`direction-card ${direction === "all" ? "on" : ""}`} onClick={() => setDirection("all")}>
+                    <span className="dc-name">全部方向</span>
+                    <span className="dc-count">{scopedBooks.length} 卷</span>
+                    <span className="dc-sample">按当前排序浏览全部 {selectedLangLabel.name} 书籍</span>
+                  </button>
+                  {directions.map((row) => {
+                    const samples = booksForDirection(scopedBooks, row.name).slice(0, 3).map((b) => b.t).join(" / ");
+                    return (
+                      <button key={row.name} className={`direction-card ${direction === row.name ? "on" : ""}`} onClick={() => setDirection(row.name)}>
+                        <span className="dc-name">{row.name}</span>
+                        <span className="dc-count">{row.count} 卷</span>
+                        <span className="dc-sample">{samples}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div className="lib-grid">
+                {list.map(b => (
+                  <div className="bk-card" key={b.id} onClick={() => onOpenBook(b.id)}>
+                    <Cover book={b} />
+                    <div className="meta">
+                      <div className="t">{b.t}</div>
+                      <div className="a">{b.a}</div>
+                      <div className="book-taxonomy"><span>{langLabel(b.lang).name}</span><span>{directionFor(b)}</span></div>
+                      <div className="stat"><span><b>{b.reads}</b> 在读</span><span>{b.lines} 划线</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
