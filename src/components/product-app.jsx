@@ -19,7 +19,7 @@ import { AgentView } from "./product-agentview.jsx";
 import { setToken } from "../lib/api.js";
 
 /* product-app.jsx — router, theme, mount. */
-const { useState: useSt, useEffect: useEf } = React;
+const { useState: useSt, useEffect: useEf, useCallback: useCb } = React;
 const IS_PHONE_PREVIEW = new URLSearchParams(location.search).get("vp") === "phone";
 
 function App(){
@@ -50,6 +50,45 @@ function App(){
   const [search, setSearch] = useSt(false); // search overlay open
   const [agentView, setAgentView] = useSt(null); // Agent View context | null
   const [dark, setDark] = useSt(() => document.documentElement.getAttribute("data-theme") === "dark");
+  const [authUser, setAuthUser] = useSt(null);
+
+  const refreshAuth = useCb(() => {
+    if (!window.liberApi?.auth?.me) {
+      setAuthUser(null);
+      return;
+    }
+    let live = true;
+    window.liberApi.auth.me()
+      .then(r => { if (live) setAuthUser(r?.user || null); })
+      .catch(() => { if (live) setAuthUser(null); });
+    return () => { live = false; };
+  }, []);
+
+  const clearLoginState = useCb(() => {
+    setToken(null);
+    localStorage.removeItem("liber.account");
+    localStorage.removeItem("liber.guest");
+    localStorage.removeItem("liber.onboarded");
+    localStorage.removeItem("liber.reader.entered");
+    localStorage.removeItem("liber.route");
+  }, []);
+
+  const logout = useCb(async () => {
+    try {
+      if (window.liberApi?.auth?.logout) await window.liberApi.auth.logout();
+    } catch {
+      setToken(null);
+    }
+    clearLoginState();
+    setAuthUser(null);
+    setOnboarded(false);
+    setEntered(false);
+    setRoute({ screen:"library" });
+    setReader(null);
+    setSearch(false);
+    setAgentView(null);
+    window.scrollTo(0, 0);
+  }, [clearLoginState]);
 
   /* keyboard: "/" opens search */
   useEf(() => {
@@ -60,6 +99,7 @@ function App(){
     return () => window.removeEventListener("keydown", h);
   }, [reader, search]);
 
+  useEf(refreshAuth, [refreshAuth, entered, onboarded]);
   useEf(() => { localStorage.setItem("liber.route", JSON.stringify(route)); }, [route]);
 
   const toggleTheme = () => {
@@ -104,6 +144,7 @@ function App(){
     if (localStorage.getItem("liber.guest") === "1") {
       localStorage.removeItem("liber.guest");
       setToken(null);
+      setAuthUser(null);
     }
     localStorage.removeItem("liber.entered");
   }, []);
@@ -129,12 +170,13 @@ function App(){
             onNav={(k) => setRoute({ screen: k === "library" ? "library" : k })}
             onToggleTheme={toggleTheme} isDark={dark}
             onSearch={() => setSearch(true)} onProfile={() => setRoute({ screen:"profile" })}
-            onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? window.BOOKS.find(b=>b.id===route.bookId) : null })} agentOn={!!agentView} />
+            onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? window.BOOKS.find(b=>b.id===route.bookId) : null })} agentOn={!!agentView}
+            user={authUser} onLogout={logout} />
           {route.screen === "library" && <Library onOpenBook={openBook} onOpenCharts={() => setRoute({ screen:"charts" })} />}
           {route.screen === "detail" && <Detail bookId={route.bookId} onOpenReader={openReader} onOpenCert={(id) => setRoute({ screen:"cert", bookId:id })} onBack={() => setRoute({ screen:"library" })} onOpenAgents={() => setRoute({ screen:"agents" })} />}
           {route.screen === "notes" && <Notebook onOpenBook={openBook} />}
           {route.screen === "social" && <Social onOpenBook={openBook} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} onContinue={(c) => openReader(c.book, undefined, c)} />}
-          {route.screen === "profile" && <Profile onOpenBook={openBook} />}
+          {route.screen === "profile" && <Profile onOpenBook={openBook} authUser={authUser} onLogout={logout} />}
           {route.screen === "cert" && <Certificate bookId={route.bookId} onBack={() => setRoute({ screen:"detail", bookId:route.bookId })} onOpenBook={openReader} />}
           {route.screen === "shelf" && <Shelf onOpenBook={openBook} onOpenReader={openReader} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} />}
           {route.screen === "groups" && <GroupsList onOpenGroup={(id) => setRoute({ screen:"group", groupId:id })} onBack={() => setRoute({ screen:"social" })} />}

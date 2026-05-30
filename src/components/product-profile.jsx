@@ -4,11 +4,25 @@ import { I, Cover } from "./product-shared.jsx";
 /* product-profile.jsx — personal profile: bio, stats, shelf, public annotations. */
 const { useState: useSp, useEffect: useEffP } = React;
 
-function Profile({ onOpenBook }){
+function Profile({ onOpenBook, authUser, onLogout }){
   const [me, setMe] = useSp(window.ME);
+  const [hasAccount, setHasAccount] = useSp(!!authUser);
+  useEffP(() => {
+    if (authUser) {
+      setMe(m => ({ ...m, ...authUser, stats: authUser.stats || m.stats }));
+      setHasAccount(true);
+    }
+  }, [authUser]);
   useEffP(() => {
     if (!window.liberApi) return;
-    window.liberApi.auth.me().then(r => { if (r && r.user) setMe(m => ({ ...m, ...r.user, stats: r.user.stats || m.stats })); }).catch(() => {});
+    window.liberApi.auth.me().then(r => {
+      if (r?.user) {
+        setMe(m => ({ ...m, ...r.user, stats: r.user.stats || m.stats }));
+        setHasAccount(true);
+      } else {
+        setHasAccount(false);
+      }
+    }).catch(() => {});
   }, []);
   const [tab, setTab] = useSp("shelf"); // shelf | notes | finished
   const byId = (id) => (window.BOOKS||[]).find(b => b.id === id);
@@ -34,8 +48,13 @@ function Profile({ onOpenBook }){
               <div className="pf-wallet">{I.lock} {me.wallet}</div>
             </div>
             <div className="pf-actions">
-              <button className="btn btn-primary">关注</button>
-              <button className="btn btn-ghost">编辑资料</button>
+              {hasAccount
+                ? <>
+                    <button className="btn btn-primary">编辑资料</button>
+                    <button className="btn btn-ghost" onClick={onLogout}>退出登录</button>
+                  </>
+                : <button className="btn btn-primary" onClick={() => window.dispatchEvent(new Event("liber-show-onboarding"))}>登录 / 连接钱包</button>
+              }
             </div>
           </div>
 

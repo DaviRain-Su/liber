@@ -57,8 +57,9 @@ function Cover({ book, className = "", style }){
 }
 
 /* ---- Top app bar ---- */
-function AppBar({ active, onNav, onToggleTheme, isDark, onSearch, onProfile, onAgentView, agentOn }){
+function AppBar({ active, onNav, onToggleTheme, isDark, onSearch, onProfile, onAgentView, agentOn, user, onLogout }){
   const links = [["library","书库"],["charts","榜单"],["shelf","我的书架"],["notes","笔记"],["social","共读"]];
+  const ava = user?.seal || user?.name?.slice(0, 1) || "林";
   return (
     <div className="appbar">
       <div className="brand" onClick={() => onNav("library")}>
@@ -79,7 +80,8 @@ function AppBar({ active, onNav, onToggleTheme, isDark, onSearch, onProfile, onA
       <button className="icon-btn appbar-msearch" onClick={onSearch} aria-label="搜索">{I.search}</button>
       <button className={"av-toggle"+(agentOn?" on":"")} onClick={onAgentView} title="Agent 视角：这一页 AI Agent 看到的样子">{I.agent}<span>Agent 视角</span></button>
       <button className="icon-btn" onClick={onToggleTheme} aria-label="切换主题">{isDark ? I.sun : I.moon}</button>
-      <div className={"avatar"+(active==="profile"?" on":"")} title="林知秋" onClick={onProfile}>林</div>
+      {user && <button className="appbar-logout" onClick={onLogout}>退出</button>}
+      <div className={"avatar"+(active==="profile"?" on":"")} title={user ? `${user.name} · 我的` : "我的"} onClick={onProfile}>{ava}</div>
     </div>
   );
 }
