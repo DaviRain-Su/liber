@@ -64,6 +64,12 @@
   .feature-meta .blurb{ font-size: 16px; }
   .feature-meta .row{ gap: 10px; }
   .feature-stats{ gap: 20px; flex-wrap: wrap; }
+  .lib-taxonomy{ padding: 22px 0 6px; }
+  .tax-head{ align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .tax-head h2{ font-size: 28px; }
+  .tax-count{ text-align: left; }
+  .lang-grid{ display: flex; gap: 8px; overflow-x: auto; padding-bottom: 16px; -webkit-overflow-scrolling: touch; }
+  .lang-filter{ flex: 0 0 164px; min-height: 88px; }
   .lib-bar{ padding: 20px 0 16px; gap: 12px; }
   .lib-bar .spacer{ display: none; }
   .chips{ width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }

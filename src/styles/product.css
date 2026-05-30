@@ -107,6 +107,31 @@ button{ font-family: inherit; }
 .feature-stats .l{ font-family: var(--mono); font-size: 10px; letter-spacing:.12em; text-transform:uppercase; color: var(--ink-3); margin-top: 7px; }
 
 /* toolbar */
+.lib-taxonomy{ padding: 30px 0 8px; border-bottom: 1px solid var(--hair-2); }
+.tax-head{ display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.tax-head .eyebrow{ font-family: var(--mono); font-size: 11px; letter-spacing:.18em; text-transform:uppercase; color: var(--accent); }
+.tax-head h2{ font-family: var(--display); font-size: 34px; font-weight: 600; line-height: 1; margin-top: 8px; }
+.tax-count{ font-family: var(--mono); font-size: 12px; color: var(--ink-3); text-align: right; }
+.lang-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 10px; padding-bottom: 22px; }
+.lang-filter{
+  position: relative; min-height: 92px; text-align: left; border: 1px solid var(--hair); border-radius: 8px;
+  background: color-mix(in oklab, var(--paper-2) 72%, transparent); color: var(--ink);
+  padding: 13px 44px 13px 14px; cursor: pointer; transition: border-color .16s, background .16s, transform .16s;
+  overflow: hidden;
+}
+.lang-filter:hover{ border-color: var(--ink-3); transform: translateY(-1px); }
+.lang-filter.on{ border-color: var(--accent-line); background: var(--accent-soft); }
+.lang-filter .lf-main{ display: block; font-family: var(--display); font-size: 22px; font-weight: 600; line-height: 1.05; }
+.lang-filter .lf-sub{ display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 5px; letter-spacing:.04em; text-transform: uppercase; }
+.lang-filter .lf-count{
+  position: absolute; top: 12px; right: 12px; min-width: 24px; height: 24px; border-radius: 999px;
+  display: inline-grid; place-items: center; padding: 0 7px; font-family: var(--mono); font-size: 11px;
+  color: var(--accent); background: color-mix(in oklab, var(--accent) 12%, transparent); border: 1px solid var(--accent-line);
+}
+.lang-filter .lf-dirs{
+  display: block; margin-top: 11px; font-family: var(--mono); font-size: 10px; line-height: 1.35;
+  color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .lib-bar{ display: flex; align-items: center; gap: 18px; padding: 26px 0 22px; flex-wrap: wrap; }
 .lib-bar .title{ font-family: var(--display); font-size: 26px; font-weight: 600; }
 .lib-bar .count{ font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
@@ -131,6 +156,12 @@ button{ font-family: inherit; }
 .bk-card .meta{ margin-top: 13px; }
 .bk-card .meta .t{ font-family: var(--display); font-size: 20px; font-weight: 600; line-height: 1.12; }
 .bk-card .meta .a{ font-size: 14px; color: var(--ink-3); font-style: italic; margin-top: 1px; }
+.book-taxonomy{ display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.book-taxonomy span{
+  font-family: var(--mono); font-size: 10px; line-height: 1; color: var(--ink-3);
+  border: 1px solid var(--hair-2); background: color-mix(in oklab, var(--paper-2) 72%, transparent);
+  border-radius: 999px; padding: 5px 7px;
+}
 .bk-card .meta .stat{ font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 9px; display: flex; gap: 13px; }
 .bk-card .meta .stat b{ color: var(--accent); font-weight: 500; }
 
