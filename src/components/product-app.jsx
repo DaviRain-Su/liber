@@ -90,6 +90,16 @@ function App(){
     window.scrollTo(0, 0);
   }, [clearLoginState]);
 
+  const returnHome = useCb(() => {
+    setReader(null);
+    setSearch(false);
+    setAgentView(null);
+    setPhonePreview(false);
+    setRoute({ screen:"library" });
+    setEntered(false);
+    window.scrollTo(0, 0);
+  }, []);
+
   /* keyboard: "/" opens search */
   useEf(() => {
     const h = (e) => {
@@ -168,6 +178,7 @@ function App(){
         <>
           <AppBar active={({detail:"library", group:"social", groups:"social", cert:"library"})[route.screen] || route.screen}
             onNav={(k) => setRoute({ screen: k === "library" ? "library" : k })}
+            onHome={returnHome}
             onToggleTheme={toggleTheme} isDark={dark}
             onSearch={() => setSearch(true)} onProfile={() => setRoute({ screen:"profile" })}
             onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? window.BOOKS.find(b=>b.id===route.bookId) : null })} agentOn={!!agentView}

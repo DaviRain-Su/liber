@@ -57,12 +57,12 @@ function Cover({ book, className = "", style }){
 }
 
 /* ---- Top app bar ---- */
-function AppBar({ active, onNav, onToggleTheme, isDark, onSearch, onProfile, onAgentView, agentOn, user, onLogout }){
+function AppBar({ active, onNav, onHome, onToggleTheme, isDark, onSearch, onProfile, onAgentView, agentOn, user, onLogout }){
   const links = [["library","书库"],["charts","榜单"],["shelf","我的书架"],["notes","笔记"],["social","共读"]];
   const ava = user?.seal || user?.name?.slice(0, 1) || "林";
   return (
     <div className="appbar">
-      <div className="brand" onClick={() => onNav("library")}>
+      <div className="brand" onClick={onHome || (() => onNav("library"))} title="回到首页">
         <Mark size={26}/>
         <span className="word">Liber</span>
       </div>
