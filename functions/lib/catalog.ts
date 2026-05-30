@@ -271,6 +271,7 @@ async function storedBlobRef(env: Env, key: string) {
 
 async function storeChapter(env: Env, bookId: string, ch: { n: number; title: string; text: string }) {
   if (!ch.text) throw new Error("章节正文为空");
+  await env.R2.delete(`book/${bookId}/reader.epub`).catch(() => {});
   const ref = await putBlob(env, `book/${bookId}/ch/${ch.n}`, ch.text, "text/plain; charset=utf-8");
   await run(
     env.DB,
@@ -300,6 +301,7 @@ async function deleteStaleChapters(env: Env, bookId: string, keepNumbers: number
       bookId, ...batch,
     );
   }
+  if (stale.length) await env.R2.delete(`book/${bookId}/reader.epub`).catch(() => {});
 }
 
 async function finalizeStoredBook(
@@ -492,7 +494,9 @@ function xmlEscape(value: string): string {
 function xhtmlParagraph(block: string): string {
   const raw = String(block || "").trim();
   const html = raw.split("\n").map((line) => xmlEscape(line.trim())).filter(Boolean).join("<br/>");
-  const klass = /^\d{1,3}[.、]\s+[\p{Script=Han}]{1,8}\s*[:：]/u.test(raw) ? ` class="footnote"` : "";
+  const klass = /^\d{1,3}[.、]\s+.{1,16}\s*[:：]\s*(?:原錯|原错|舊脫|旧脱|刪除|删除|自|由|孫|孙|清|吳|吴|王校)/u.test(raw)
+    ? ` class="footnote"`
+    : "";
   return html ? `<p${klass}>${html}</p>` : "";
 }
 
@@ -716,6 +720,10 @@ function zipStore(files: Array<{ name: string; data: string | Uint8Array }>): Ui
 }
 
 export async function getReaderEpub(env: Env, bookId: string): Promise<Uint8Array | null> {
+  const cacheKey = `book/${bookId}/reader.epub`;
+  const cached = await env.R2.get(cacheKey);
+  if (cached) return new Uint8Array(await cached.arrayBuffer());
+
   const book = await getBook(env, bookId);
   if (!book) return null;
   const rows = await all<any>(
@@ -724,19 +732,20 @@ export async function getReaderEpub(env: Env, bookId: string): Promise<Uint8Arra
     bookId,
   );
   if (!rows.length) return null;
-  const chapters: Array<{ n: number; title: string; text: string }> = [];
-  for (const row of rows) {
+  const chapters = (await Promise.all(rows.map(async (row) => {
     const buf = await getBlob(env, row.blob_key);
     const text = (buf ? new TextDecoder().decode(buf) : row.text_preview || "").trim();
-    if (text) chapters.push({ n: Number(row.n), title: row.title || `第 ${row.n} 章`, text });
-  }
+    return text ? { n: Number(row.n), title: row.title || `第 ${row.n} 章`, text } : null;
+  }))).filter(Boolean) as Array<{ n: number; title: string; text: string }>;
   if (!chapters.length) return null;
-  return zipStore(readerEpubFiles({
+  const epub = zipStore(readerEpubFiles({
     id: book.id,
     title: book.t || bookId,
     author: book.a || "佚名",
     lang: book.lang || "zh",
   }, chapters));
+  await env.R2.put(cacheKey, epub, { httpMetadata: { contentType: "application/epub+zip" } }).catch(() => {});
+  return epub;
 }
 
 export async function searchDynamic(env: Env, term: string) {
