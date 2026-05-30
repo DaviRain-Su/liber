@@ -68,6 +68,10 @@
   .tax-head{ align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 14px; }
   .tax-head h2{ font-size: 28px; }
   .tax-count{ text-align: left; }
+  .tax-path{ margin-bottom: 14px; }
+  .tax-metrics{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .tax-metrics div{ padding: 11px 12px; }
+  .tax-metrics b{ font-size: 21px; }
   .lang-grid{ display: flex; gap: 8px; overflow-x: auto; padding-bottom: 16px; -webkit-overflow-scrolling: touch; }
   .lang-filter{ flex: 0 0 164px; min-height: 88px; }
   .lib-bar{ padding: 20px 0 16px; gap: 12px; }

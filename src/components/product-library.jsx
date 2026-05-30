@@ -6,7 +6,7 @@ import { getCatalogBooks, getCatalogTotal, licenseLabel, loadCatalogBooks, subsc
 /* product-library.jsx — Library browse screen. */
 const { useState: useStateLib, useEffect: useEffLib } = React;
 
-const LANG_ORDER = ["zh", "en", "ja", "ko", "pt", "fr", "de", "es", "it", "da", "no", "sv", "fi", "nl", "pl", "cs", "ru", "hu", "el", "la"];
+const LANG_ORDER = ["zh", "en", "ja", "ko", "pt", "fr", "de", "es", "it", "eo", "ca", "ro", "tl", "he", "da", "no", "sv", "fi", "nl", "pl", "cs", "ru", "hu", "el", "la"];
 const LANG_LABELS = {
   zh: { name: "中文", sub: "Chinese" },
   en: { name: "English", sub: "英文" },
@@ -17,6 +17,11 @@ const LANG_LABELS = {
   de: { name: "Deutsch", sub: "德语" },
   es: { name: "Español", sub: "西班牙语" },
   it: { name: "Italiano", sub: "意大利语" },
+  eo: { name: "Esperanto", sub: "世界语" },
+  ca: { name: "Català", sub: "加泰罗尼亚语" },
+  ro: { name: "Română", sub: "罗马尼亚语" },
+  tl: { name: "Tagalog", sub: "他加禄语" },
+  he: { name: "עברית", sub: "希伯来语" },
   da: { name: "Dansk", sub: "丹麦语" },
   no: { name: "Norsk", sub: "挪威语" },
   sv: { name: "Svenska", sub: "瑞典语" },
@@ -29,9 +34,22 @@ const LANG_LABELS = {
   el: { name: "Ελληνικά", sub: "希腊语" },
   la: { name: "Latina", sub: "拉丁语" },
 };
+const LANG_ALIASES = {
+  中文: "zh",
+  Chinese: "zh",
+  英文: "en",
+  English: "en",
+  日文: "ja",
+  Japanese: "ja",
+};
 
 function langLabel(code) {
   return LANG_LABELS[code] || { name: code || "未知语言", sub: code || "unknown" };
+}
+
+function langCodeFor(book) {
+  const raw = String(book?.lang || "").trim();
+  return LANG_ALIASES[raw] || raw || "unknown";
 }
 
 function directionFor(book) {
@@ -44,7 +62,7 @@ function directionFor(book) {
 function languageGroups(books) {
   const map = new Map();
   for (const book of books) {
-    const code = book.lang || "unknown";
+    const code = langCodeFor(book);
     const row = map.get(code) || { code, count: 0, directions: new Map() };
     row.count += 1;
     const dir = directionFor(book);
@@ -94,8 +112,9 @@ function Library({ onOpenBook, onOpenCharts }){
   const feature = books.find(b => b.featured) || books[0];
   const featureLicense = licenseLabel(feature?.license).replace("Public Domain", "PD").replace("CC0-1.0", "CC0");
   const langs = languageGroups(books);
+  const allDirections = directionOptions(books);
   const currentLang = lang === "all" ? null : langs.find((row) => row.code === lang);
-  const scopedBooks = lang === "all" ? books : books.filter((b) => (b.lang || "unknown") === lang);
+  const scopedBooks = lang === "all" ? books : books.filter((b) => langCodeFor(b) === lang);
   const directions = directionOptions(scopedBooks);
   const directionKey = directions.map((row) => row.name).join("|");
   useEffLib(() => {
@@ -105,7 +124,7 @@ function Library({ onOpenBook, onOpenCharts }){
 
   const list = sortBooks(scopedBooks.filter(b => direction === "all" || directionFor(b) === direction), sort);
   const languageSections = langs.map((row) => {
-    const sectionBooks = books.filter((book) => (book.lang || "unknown") === row.code);
+    const sectionBooks = books.filter((book) => langCodeFor(book) === row.code);
     const sorted = sortBooks(sectionBooks, sort);
     const topDirections = [...row.directions.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -120,6 +139,11 @@ function Library({ onOpenBook, onOpenCharts }){
   const displayCount = currentLang
     ? `当前显示 ${list.length}`
     : `按 ${langs.length} 个语言分区展示`;
+  const selectedPath = [
+    "全部语言",
+    currentLang ? selectedLangLabel.name : null,
+    direction !== "all" ? direction : null,
+  ].filter(Boolean);
 
   if (!feature) {
     return (
@@ -169,10 +193,32 @@ function Library({ onOpenBook, onOpenCharts }){
           <div className="lib-taxonomy">
             <div className="tax-head">
               <div>
-                <span className="eyebrow">按语言浏览</span>
-                <h2>{selectedLangLabel.name}</h2>
+                <span className="eyebrow">书库分类</span>
+                <h2>{currentLang ? selectedLangLabel.name : "语言索引"}</h2>
               </div>
               <span className="tax-count">{selectedSummary}</span>
+            </div>
+            <div className="tax-path" aria-label="当前分类路径">
+              {selectedPath.map((item, index) => (
+                <React.Fragment key={`${item}-${index}`}>
+                  {index > 0 && <span className="tax-sep">/</span>}
+                  <button
+                    className={`tax-crumb ${index === selectedPath.length - 1 ? "on" : ""}`}
+                    onClick={() => {
+                      if (index === 0) { setLang("all"); setDirection("all"); }
+                      if (index === 1 && currentLang) setDirection("all");
+                    }}
+                  >
+                    {item}
+                  </button>
+                </React.Fragment>
+              ))}
+            </div>
+            <div className="tax-metrics">
+              <div><b>{langs.length}</b><span>语言</span></div>
+              <div><b>{allDirections.length}</b><span>方向</span></div>
+              <div><b>{books.length.toLocaleString("zh-CN")}</b><span>馆藏</span></div>
+              <div><b>CC0 / PD</b><span>版权</span></div>
             </div>
             <div className="lang-grid">
               <button className={`lang-filter ${lang === "all" ? "on" : ""}`} onClick={() => { setLang("all"); setDirection("all"); }}>
@@ -203,16 +249,6 @@ function Library({ onOpenBook, onOpenCharts }){
             <span className="title">{currentLang ? `${selectedLangLabel.name} 书库` : "全部书库"}</span>
             <span className="count">{total.toLocaleString("zh-CN")} 卷已入库 · {displayCount}</span>
             <div className="spacer"/>
-            {currentLang && (
-              <div className="chips">
-                <button className={`chip ${direction === "all" ? "on" : ""}`} onClick={() => setDirection("all")}>全部方向 · {scopedBooks.length}</button>
-                {directions.map((row) => (
-                  <button key={row.name} className={`chip ${direction === row.name ? "on" : ""}`} onClick={() => setDirection(row.name)}>
-                    {row.name} · {row.count}
-                  </button>
-                ))}
-              </div>
-            )}
             <div className="sort-sel">
               排序
               <select value={sort} onChange={e => setSort(e.target.value)}>

@@ -112,6 +112,24 @@ button{ font-family: inherit; }
 .tax-head .eyebrow{ font-family: var(--mono); font-size: 11px; letter-spacing:.18em; text-transform:uppercase; color: var(--accent); }
 .tax-head h2{ font-family: var(--display); font-size: 34px; font-weight: 600; line-height: 1; margin-top: 8px; }
 .tax-count{ font-family: var(--mono); font-size: 12px; color: var(--ink-3); text-align: right; }
+.tax-path{ display: flex; align-items: center; gap: 8px; margin: -4px 0 16px; flex-wrap: wrap; }
+.tax-crumb{
+  border: 0; background: transparent; color: var(--ink-3); cursor: pointer;
+  font-family: var(--mono); font-size: 12px; padding: 3px 0;
+}
+.tax-crumb:hover{ color: var(--accent); }
+.tax-crumb.on{ color: var(--ink); cursor: default; }
+.tax-sep{ color: var(--ink-3); font-family: var(--mono); font-size: 12px; }
+.tax-metrics{
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+  margin-bottom: 18px;
+}
+.tax-metrics div{
+  border: 1px solid var(--hair); border-radius: 8px; background: color-mix(in oklab, var(--paper-2) 72%, transparent);
+  padding: 12px 14px;
+}
+.tax-metrics b{ display: block; font-family: var(--display); font-size: 24px; line-height: 1; font-weight: 600; }
+.tax-metrics span{ display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 7px; }
 .lang-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 10px; padding-bottom: 22px; }
 .lang-filter{
   position: relative; min-height: 92px; text-align: left; border: 1px solid var(--hair); border-radius: 8px;
