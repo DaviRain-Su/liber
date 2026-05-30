@@ -111,4 +111,32 @@ function MobileTabBar({ active, onNav }){
   );
 }
 
-export { I, Mark, Cover, AppBar, MobileTabBar };
+/* ---- Profile navigation + follow store (shared via window across screens) ---- */
+function canOpenProfile(name){
+  return !!((window.PEOPLE && window.PEOPLE[name]) || (window.ME && name === window.ME.name));
+}
+function openProfile(name){
+  if (!canOpenProfile(name)) return;
+  window.dispatchEvent(new CustomEvent("liber-open-profile", { detail: name }));
+}
+const FOLLOW_KEY = "liber.following";
+function readFollow(){
+  try { const v = JSON.parse(localStorage.getItem(FOLLOW_KEY)); return Array.isArray(v) ? v : (window.FOLLOW_SEED || []); }
+  catch { return window.FOLLOW_SEED || []; }
+}
+function writeFollow(list){
+  localStorage.setItem(FOLLOW_KEY, JSON.stringify(list));
+  window.dispatchEvent(new Event("liber-following"));
+}
+function isFollowing(name){ return readFollow().includes(name); }
+function toggleFollow(name){
+  const cur = readFollow();
+  const next = cur.includes(name) ? cur.filter(x => x !== name) : [...cur, name];
+  writeFollow(next);
+  return next.includes(name);
+}
+
+if (typeof window !== "undefined")
+  Object.assign(window, { canOpenProfile, openProfile, readFollow, writeFollow, isFollowing, toggleFollow });
+
+export { I, Mark, Cover, AppBar, MobileTabBar, canOpenProfile, openProfile, readFollow, writeFollow, isFollowing, toggleFollow };

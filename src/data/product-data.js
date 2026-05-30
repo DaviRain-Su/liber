@@ -171,6 +171,85 @@ const ME = {
   groups: ["daoist-read", "stoic-morning"],
 };
 
+/* ---- Other readers' public profiles (keyed by display name) ----
+   These are the people whose avatars show up in the feed, threads,
+   annotations and groups. Click an avatar → land here → 关注. */
+const READERS = {
+  "沈砚": {
+    name:"沈砚", handle:"@shenyan", color:"#2e7d57", seal:"沈",
+    bio:"睡前读一章，把东方典籍与西方哲学对照着读。相信慢读比读完更重要。",
+    joined:"2024 年 11 月加入", wallet:"sui:0x3a…b920",
+    stats:{ read:5, finished:6, lines:308, notes:54, agreed:2140, following:88, followers:512 },
+    reading:[ {id:"meditations", at:"卷四 · 33%"}, {id:"daodejing", at:"第八章 · 52%"} ],
+    finished:["artofwar","analects","prince"],
+    publicNotes:[
+      { q:"道可道，非常道；名可名，非常名。", t:"和维特根斯坦「凡不可说的，应保持沉默」对照着读，很有意思。", book:"道德经", chap:"第一章", when:"昨天" },
+      { q:"我们感受到的不是事物本身，而是我们对它的看法。", t:"斯多葛把「判断」和「事件」分开——这是整本《沉思录》的钥匙。", book:"沉思录", chap:"卷四", when:"4 天前" },
+    ],
+  },
+  "周慕白": {
+    name:"周慕白", handle:"@zhoumubai", color:"#9a5b2e", seal:"周",
+    bio:"喜欢被反问着读书。「斯多葛晨读」小组组长，每天清晨一段奥勒留。",
+    joined:"2024 年 6 月加入", wallet:"sui:0x71…4e0c",
+    stats:{ read:4, finished:9, lines:421, notes:77, agreed:3180, following:64, followers:806 },
+    reading:[ {id:"meditations", at:"卷四 · 60%"}, {id:"republic", at:"卷二 · 18%"} ],
+    finished:["prince","artofwar","daodejing"],
+    publicNotes:[
+      { q:"天下皆知美之为美，斯恶已。", t:"美与丑是同时被定义出来的——一旦立了标准，对立面就跟着诞生。", book:"道德经", chap:"第二章", when:"3 天前" },
+      { q:"我们感受到的不是事物本身，而是我们对它的看法。", t:"今日句。准备把它用在早高峰堵车上——烦的是判断，不是堵车。", book:"沉思录", chap:"卷四", when:"今早" },
+    ],
+  },
+  "叶临": {
+    name:"叶临", handle:"@yelin", color:"#7a3d6b", seal:"叶",
+    bio:"在经济学与古典之间来回读。爱看别人在同一句旁的批注，像在安静的图书馆里。",
+    joined:"2025 年 1 月加入", wallet:"sui:0x0c…ad13",
+    stats:{ read:6, finished:3, lines:196, notes:33, agreed:1024, following:120, followers:288 },
+    reading:[ {id:"wealth", at:"第四篇 · 27%"}, {id:"daodejing", at:"第八章 · 44%"} ],
+    finished:["prince","artofwar"],
+    publicNotes:[
+      { q:"上善若水。水善利万物而不争，处众人之所恶，故几于道。", t:"「处众人之所恶」——水愿意待在低处，这是最难的。", book:"道德经", chap:"第八章", when:"2 周前" },
+      { q:"我们的晚餐并非来自屠夫的恩惠，而是出于他对自身利益的考虑。", t:"自利不是自私。斯密最常被误读的一句。", book:"国富论", chap:"第四篇", when:"2 天前" },
+    ],
+  },
+  "陈砚之": {
+    name:"陈砚之", handle:"@chenyanzhi", color:"#b0553a", seal:"陈",
+    bio:"共读小组的发起人：道家共读、古典经济学。读得慢，但坚持每周一聚。",
+    joined:"2024 年 3 月加入", wallet:"sui:0x59…1f87",
+    stats:{ read:3, finished:12, lines:540, notes:103, agreed:4260, following:51, followers:1320 },
+    reading:[ {id:"daodejing", at:"第十二章 · 64%"}, {id:"wealth", at:"第一篇 · 15%"} ],
+    finished:["artofwar","analects","prince","republic"],
+    publicNotes:[
+      { q:"我们的晚餐并非来自屠夫的恩惠，而是出于他对自身利益的考虑。", t:"开篇的别针工厂例子，斯密用它说明分工的威力。今天还成立吗？", book:"国富论", chap:"第一篇", when:"昨天" },
+      { q:"上善若水。水善利万物而不争，处众人之所恶。", t:"读「上善若水」，大家怎么理解「处众人之所恶」？甘居下位反而接近道。", book:"道德经", chap:"第八章", when:"2 小时前" },
+    ],
+  },
+  "何苇": {
+    name:"何苇", handle:"@hewei", color:"#2e7d57", seal:"何",
+    bio:"通勤路上读斯多葛。把读到的句子拿去对付真实生活里的烦躁。",
+    joined:"2025 年 2 月加入", wallet:"sui:0x8d…6b2a",
+    stats:{ read:2, finished:4, lines:112, notes:19, agreed:486, following:73, followers:140 },
+    reading:[ {id:"meditations", at:"卷四 · 48%"}, {id:"daodejing", at:"第三章 · 12%"} ],
+    finished:["prince"],
+    publicNotes:[
+      { q:"我们感受到的不是事物本身，而是我们对它的看法。", t:"早高峰堵车，本来要烦，想起这句，告诉自己烦的是「判断」不是「堵车」。有点用。", book:"沉思录", chap:"卷四", when:"今早" },
+    ],
+  },
+  "许之": {
+    name:"许之", handle:"@xuzhi", color:"#3a4fb0", seal:"许",
+    bio:"经济学背景，来公版馆里补古典。喜欢把抽象的理念落到具体的激励上。",
+    joined:"2024 年 9 月加入", wallet:"sui:0x22…c4d8",
+    stats:{ read:3, finished:5, lines:233, notes:41, agreed:1380, following:96, followers:402 },
+    reading:[ {id:"wealth", at:"第一篇 · 35%"}, {id:"republic", at:"卷一 · 9%"} ],
+    finished:["prince","artofwar","analects"],
+    publicNotes:[
+      { q:"我们的晚餐并非来自屠夫的恩惠，而是出于他对自身利益的考虑。", t:"自利不等于自私——这是斯密最常被误读的一句。", book:"国富论", chap:"第一篇", when:"1 周前" },
+    ],
+  },
+};
+
+/* who 林知秋（你）already follows — toggled live, persisted to localStorage */
+const FOLLOW_SEED = ["沈砚", "叶临"];
+
 /* ---- Shareable AI conversations (对话卡 + 金句卡) ---- */
 const SHARED_CONVOS = [
   {
@@ -464,5 +543,5 @@ const HOT_SENTENCES = [
   { sid:"c2-s1",  bookId:"daodejing", book:"道德经", chap:"第二章", q:"天下皆知美之为美，斯恶已。", liners:433, convos:29, delta:-2, surge:-4 },
 ];
 
-export { BOOKS, CHAPTERS, TOC, ANNOTATIONS, HIGHLIGHTS, REVIEWS, ME, SEED_HL, AI_SUMMARIES, FEED, THREAD, CONVOS, GROUPS, SHARED_CONVOS, ECHOES, AGENTS, LENSES, CHARTS, SURGE, HOT_SENTENCES };
-if (typeof window !== "undefined") Object.assign(window, { BOOKS, CHAPTERS, TOC, ANNOTATIONS, HIGHLIGHTS, REVIEWS, ME, SEED_HL, AI_SUMMARIES, FEED, THREAD, CONVOS, GROUPS, SHARED_CONVOS, ECHOES, AGENTS, LENSES, CHARTS, SURGE, HOT_SENTENCES });
+export { BOOKS, CHAPTERS, TOC, ANNOTATIONS, HIGHLIGHTS, REVIEWS, ME, READERS as PEOPLE, FOLLOW_SEED, SEED_HL, AI_SUMMARIES, FEED, THREAD, CONVOS, GROUPS, SHARED_CONVOS, ECHOES, AGENTS, LENSES, CHARTS, SURGE, HOT_SENTENCES };
+if (typeof window !== "undefined") Object.assign(window, { BOOKS, CHAPTERS, TOC, ANNOTATIONS, HIGHLIGHTS, REVIEWS, ME, PEOPLE: READERS, FOLLOW_SEED, SEED_HL, AI_SUMMARIES, FEED, THREAD, CONVOS, GROUPS, SHARED_CONVOS, ECHOES, AGENTS, LENSES, CHARTS, SURGE, HOT_SENTENCES });

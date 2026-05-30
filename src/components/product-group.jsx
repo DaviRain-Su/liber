@@ -109,8 +109,8 @@ function Group({ groupId, onBack, onOpenReader }){
                 <div className="ta-lab">本周最热批注</div>
                 <div className="ta-quote">「{g.topAnno.quote}」</div>
                 <div className="ta-row">
-                  <span className="ava" style={{background:g.topAnno.color}}>{g.topAnno.u[0]}</span>
-                  <div><div className="nm">{g.topAnno.u}</div><div className="tx">{g.topAnno.t}</div></div>
+                  <span className={"ava"+(window.canOpenProfile(g.topAnno.u)?" ava-link":"")} style={{background:g.topAnno.color}} onClick={window.canOpenProfile(g.topAnno.u)?()=>window.openProfile(g.topAnno.u):undefined}>{g.topAnno.u[0]}</span>
+                  <div><div className={"nm"+(window.canOpenProfile(g.topAnno.u)?" name-link":"")} onClick={window.canOpenProfile(g.topAnno.u)?()=>window.openProfile(g.topAnno.u):undefined}>{g.topAnno.u}</div><div className="tx">{g.topAnno.t}</div></div>
                   <span className="up">{I.up} {g.topAnno.up}</span>
                 </div>
               </div>
@@ -125,9 +125,9 @@ function Group({ groupId, onBack, onOpenReader }){
                 </div>
                 {replies.map((d,i) => (
                   <div className="gd-post" key={i}>
-                    <span className="ava" style={{background:d.color}}>{d.u[0]}</span>
+                    <span className={"ava"+(window.canOpenProfile(d.u)?" ava-link":"")} style={{background:d.color}} onClick={window.canOpenProfile(d.u)?()=>window.openProfile(d.u):undefined}>{d.u[0]}</span>
                     <div className="gd-body">
-                      <div className="gd-top"><span className="nm">{d.u}{d.mine&&" · 你"}</span><span className="chap">{d.chap}</span><span className="when">{d.when}</span></div>
+                      <div className="gd-top"><span className={"nm"+(window.canOpenProfile(d.u)?" name-link":"")} onClick={window.canOpenProfile(d.u)?()=>window.openProfile(d.u):undefined}>{d.u}{d.mine&&" · 你"}</span><span className="chap">{d.chap}</span><span className="when">{d.when}</span></div>
                       <div className="tx">{d.t}</div>
                       <div className="mt"><span>{I.up} 赞同 {d.up}</span><span>{d.replies||0} 回复</span></div>
                     </div>

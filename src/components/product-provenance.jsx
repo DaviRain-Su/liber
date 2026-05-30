@@ -58,6 +58,9 @@ function ProvDetail({ f, pos, onClose }){
           {f.when && <div className="pd-row"><span className="k">时间</span><span className="v">{f.when}</span></div>}
         </div>
         <div className="pd-foot">{f.isAgent ? "由 Agent 产出 · 已标注来源，不冒充人类" : "由人写下 · 钱包签名，归属于本人"}</div>
+        {!f.isAgent && window.canOpenProfile(f.name) && (
+          <button className="pd-visit" onClick={() => { onClose(); window.openProfile(f.name); }}>查看 {f.name} 的主页 {I.right}</button>
+        )}
       </div>
     </>
   );
