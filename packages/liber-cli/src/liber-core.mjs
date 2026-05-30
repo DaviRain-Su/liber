@@ -397,6 +397,11 @@ export async function createIngestPayload(manifest, options = {}) {
   if (manifest?.schema !== MANIFEST_SCHEMA) {
     throw new LiberCliError("MANIFEST_INVALID", `Expected manifest schema ${MANIFEST_SCHEMA}.`);
   }
+  const epubBytes = await readFile(manifest.assets?.epub?.path);
+  const actualSha256 = sha256(epubBytes);
+  if (manifest.assets?.epub?.sha256 && actualSha256 !== manifest.assets.epub.sha256) {
+    throw new LiberCliError("EPUB_HASH_MISMATCH", "EPUB file no longer matches the packaged manifest hash.");
+  }
   const chapters = await extractEpubChapters(manifest.assets?.epub?.path);
   return {
     ...(options.id ? { id: options.id } : {}),
@@ -411,7 +416,9 @@ export async function createIngestPayload(manifest, options = {}) {
     sourceUrl: manifest.source?.url || "",
     license: manifest.source?.license || manifest.publishPolicy?.license || "CC0-1.0",
     featured: Boolean(options.featured),
-    epubSha256: manifest.assets.epub.sha256,
+    epubSha256: actualSha256,
+    epubMediaType: manifest.assets.epub.mediaType || EPUB_MEDIA_TYPE,
+    epubBase64: epubBytes.toString("base64"),
     chapters,
   };
 }
@@ -451,6 +458,10 @@ export function dryRunPublishPlan(manifest, options = {}) {
 
 export function defaultConfigPath() {
   return process.env.LIBER_CONFIG || path.join(homedir(), ".liber", "config.json");
+}
+
+function defaultApiUrl(config = {}) {
+  return (process.env.LIBER_API_URL || config.apiUrl || "https://liber.davirain.xyz").replace(/\/+$/, "");
 }
 
 export async function loadCliConfig(options = {}) {
@@ -493,16 +504,133 @@ export function publicConfigStatus(config = {}, options = {}) {
 
 function resolvePublishOptions(options = {}, config = {}) {
   return {
-    apiUrl: (options.apiUrl || process.env.LIBER_API_URL || config.apiUrl || "https://liber.davirain.xyz").replace(/\/+$/, ""),
+    apiUrl: (options.apiUrl || defaultApiUrl(config)).replace(/\/+$/, ""),
     adminToken: options.adminToken || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN || config.adminToken || "",
   };
+}
+
+async function readJsonResponse(res, failureCode) {
+  const text = await res.text();
+  let body;
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    body = { text };
+  }
+  if (!res.ok) {
+    throw new LiberCliError(failureCode, `HTTP ${res.status}: ${text}`);
+  }
+  return body;
+}
+
+export async function startBrowserAuth(options = {}) {
+  const config = options.config || await loadCliConfig({ configPath: options.configPath });
+  const apiUrl = (options.apiUrl || defaultApiUrl(config)).replace(/\/+$/, "");
+  const fetcher = options.fetchImpl || fetch;
+  const res = await fetcher(`${apiUrl}/api/auth/cli/start`, { method: "POST", headers: { "content-type": "application/json" } });
+  const body = await readJsonResponse(res, "CLI_AUTH_START_FAILED");
+  return { ...body, apiUrl };
+}
+
+export async function pollBrowserAuth(deviceCode, options = {}) {
+  const apiUrl = (options.apiUrl || "https://liber.davirain.xyz").replace(/\/+$/, "");
+  const fetcher = options.fetchImpl || fetch;
+  const res = await fetcher(`${apiUrl}/api/auth/cli/poll/${encodeURIComponent(deviceCode)}`);
+  return readJsonResponse(res, "CLI_AUTH_POLL_FAILED");
+}
+
+export async function waitForBrowserAuth(start, options = {}) {
+  const timeoutMs = Number(options.timeoutMs || 120000);
+  const intervalMs = Number(options.intervalMs || Math.max(1000, Number(start.interval || 2) * 1000));
+  const sleep = options.sleep || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const state = await pollBrowserAuth(start.deviceCode, { apiUrl: start.apiUrl, fetchImpl: options.fetchImpl });
+    if (state.status === "approved") return state;
+    if (state.status === "expired") throw new LiberCliError("CLI_AUTH_EXPIRED", "Browser authorization expired.");
+    await sleep(intervalMs);
+  }
+  throw new LiberCliError("CLI_AUTH_TIMEOUT", "Timed out waiting for browser authorization.");
+}
+
+function hexToBytes(value) {
+  const hex = String(value || "").trim().replace(/^0x/i, "");
+  if (!/^[0-9a-f]{64}$/i.test(hex)) return null;
+  return Uint8Array.from(hex.match(/.{2}/g).map((byte) => Number.parseInt(byte, 16)));
+}
+
+function normalizeKeyScheme(value) {
+  const scheme = String(value || "").toLowerCase();
+  if (!scheme) return null;
+  if (scheme === "ed25519") return "ed25519";
+  if (scheme === "secp256k1") return "secp256k1";
+  if (scheme === "secp256r1") return "secp256r1";
+  throw new LiberCliError("SUI_KEY_SCHEME_UNSUPPORTED", `Unsupported Sui key scheme: ${value}`);
+}
+
+async function loadSuiKeypair(secret, scheme) {
+  const loaders = {
+    ed25519: async () => (await import("@mysten/sui/keypairs/ed25519")).Ed25519Keypair,
+    secp256k1: async () => (await import("@mysten/sui/keypairs/secp256k1")).Secp256k1Keypair,
+    secp256r1: async () => (await import("@mysten/sui/keypairs/secp256r1")).Secp256r1Keypair,
+  };
+  const schemes = scheme ? [scheme] : ["ed25519", "secp256k1", "secp256r1"];
+  const rawBytes = hexToBytes(secret);
+  if (rawBytes && !scheme) {
+    throw new LiberCliError("SUI_KEY_SCHEME_REQUIRED", "Raw hex Sui private keys require --scheme.");
+  }
+  let lastError = null;
+  for (const name of schemes) {
+    try {
+      const Keypair = await loaders[name]();
+      return Keypair.fromSecretKey(rawBytes || secret);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new LiberCliError("SUI_PRIVATE_KEY_INVALID", lastError?.message || "Could not load Sui private key.");
+}
+
+export async function signInWithSuiPrivateKey(options = {}) {
+  const config = options.config || await loadCliConfig({ configPath: options.configPath });
+  const apiUrl = (options.apiUrl || defaultApiUrl(config)).replace(/\/+$/, "");
+  const fetcher = options.fetchImpl || fetch;
+  const secret = String(
+    options.privateKey
+      || process.env.LIBER_SUI_PRIVATE_KEY
+      || (options.keyFile ? await readFile(path.resolve(options.keyFile), "utf8") : "")
+      || "",
+  ).trim();
+  if (!secret && !options.keypair) {
+    throw new LiberCliError("SUI_PRIVATE_KEY_REQUIRED", "Provide --key-file, --private-key, or LIBER_SUI_PRIVATE_KEY.");
+  }
+  const keypair = options.keypair || await loadSuiKeypair(secret, normalizeKeyScheme(options.scheme));
+  const address = keypair.toSuiAddress();
+
+  const nonceRes = await fetcher(`${apiUrl}/api/auth/nonce`, { method: "POST", headers: { "content-type": "application/json" } });
+  const nonce = await readJsonResponse(nonceRes, "SUI_AUTH_NONCE_FAILED");
+  const signed = await keypair.signPersonalMessage(new TextEncoder().encode(nonce.message));
+  const verifyRes = await fetcher(`${apiUrl}/api/auth/verify`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ address, message: nonce.message, signature: signed.signature, nonce: nonce.nonce }),
+  });
+  const session = await readJsonResponse(verifyRes, "SUI_AUTH_VERIFY_FAILED");
+  if (!session.token) throw new LiberCliError("SUI_AUTH_VERIFY_FAILED", "Wallet verification did not return a session token.");
+
+  const tokenRes = await fetcher(`${apiUrl}/api/auth/cli/token`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${session.token}`, "content-type": "application/json" },
+  });
+  const publish = await readJsonResponse(tokenRes, "CLI_TOKEN_MINT_FAILED");
+  return { apiUrl, token: publish.token, wallet: publish.wallet || address, expiresIn: publish.expiresIn };
 }
 
 export async function publishBookManifest(manifest, options = {}) {
   const config = options.config || await loadCliConfig({ configPath: options.configPath });
   const resolved = resolvePublishOptions(options, config);
   if (!resolved.adminToken) {
-    throw new LiberCliError("AUTH_REQUIRED", "Admin token is required. Run `liber auth login --api-url <url> --admin-token <token>` or set LIBER_ADMIN_TOKEN.");
+    throw new LiberCliError("AUTH_REQUIRED", "Publish token is required. Run `liber auth browser --api-url <url>` or configure ADMIN_TOKEN for headless admin use.");
   }
   const payload = await createIngestPayload(manifest, options);
   const fetcher = options.fetchImpl || fetch;

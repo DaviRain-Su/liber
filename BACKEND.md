@@ -151,8 +151,8 @@ Related endpoints:
 - `GET /api/books/:id/proof` — Walrus/Arweave/Sui live reachability + latest Sui checkpoint.
 - `GET /api/sui/object/:id` — resolve a real on-chain object (read-only).
 - `GET /api/blobs/:key` — look up a user-published blob (works/shares) + Walrus availability.
-- `POST /api/books/ingest` — **admin** (Bearer `ADMIN_TOKEN`): import a `CC0-1.0` or `PUBLIC-DOMAIN` book from `{ chapters }`, `{ text }`, or `{ sourceUrl }`; stores chapter blobs, D1 metadata, manifest, and optional Sui registry object. Other licenses are rejected server-side.
-- `POST /api/books/:id/ingest` — **admin** (Bearer `ADMIN_TOKEN`): publish chapter text to Walrus + manifest.
+- `POST /api/books/ingest` — **publish-gated** (Bearer `ADMIN_TOKEN` or CLI publish token): import a `CC0-1.0` or `PUBLIC-DOMAIN` book from `{ chapters }`, `{ text }`, `{ sourceUrl }`, and optional `{ epubBase64 }`; stores the original EPUB, chapter blobs, D1 metadata, manifest, and optional Sui registry object. Other licenses are rejected server-side.
+- `POST /api/books/:id/ingest` — **publish-gated** (Bearer `ADMIN_TOKEN` or CLI publish token): publish chapter text to Walrus + manifest.
 - `GET /api/books/:id/content/:n` — serve chapter text from Walrus when ingested, else seed.
 
 Run `npm run cli -- book inspect <file.epub>` and
@@ -166,6 +166,15 @@ slice.
 Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
 (real Sui personal-message signature check via `@mysten/sui`). Frontend flow in
 `src/lib/wallet.js` (Wallet Standard); guest auth remains available.
+
+CLI browser auth: `POST /api/auth/cli/start` creates a device authorization,
+the browser approves it through wallet login at `/?cli_auth=...`, and
+`GET /api/auth/cli/poll/:device` returns a scoped CLI publish token. That token
+is accepted by `/api/books/ingest` in addition to `ADMIN_TOKEN`.
+
+CLI private-key auth uses the normal wallet nonce verification path, then calls
+`POST /api/auth/cli/token` with the wallet session to mint the same scoped
+publish token. The private key stays local to the CLI.
 
 Subscription payment uses the same wallet path: the frontend builds a Sui coin
 transfer to `PAYMENT_TREASURY`, asks the wallet to sign + execute it, then posts

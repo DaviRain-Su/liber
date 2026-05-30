@@ -14,6 +14,8 @@ type Ctx = Context<{ Bindings: Env; Variables: Variables }>;
 
 const SESSION_TTL = 60 * 60 * 24 * 30; // 30 days
 const NONCE_TTL = 300; // 5 minutes
+const CLI_DEVICE_TTL = 10 * 60; // 10 minutes
+const CLI_TOKEN_TTL = 60 * 60 * 24 * 30; // 30 days
 
 export async function issueNonce(env: Env): Promise<string> {
   const nonce = crypto.randomUUID();
@@ -38,6 +40,64 @@ export async function createSession(env: Env, userId: string): Promise<string> {
   const token = crypto.randomUUID();
   await env.KV.put(`sess:${token}`, userId, { expirationTtl: SESSION_TTL });
   return token;
+}
+
+function userCode(): string {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+export interface CliDevice {
+  deviceCode: string;
+  userCode: string;
+  createdAt: number;
+  expiresAt: number;
+}
+
+export async function createCliDevice(env: Env): Promise<CliDevice> {
+  const deviceCode = crypto.randomUUID();
+  const nowMs = Date.now();
+  const device = { deviceCode, userCode: userCode(), createdAt: nowMs, expiresAt: nowMs + CLI_DEVICE_TTL * 1000 };
+  await env.KV.put(`cli-device:${deviceCode}`, JSON.stringify(device), { expirationTtl: CLI_DEVICE_TTL });
+  return device;
+}
+
+export interface CliPublishToken {
+  userId: string;
+  wallet: string | null;
+  createdAt: number;
+}
+
+export async function getCliPublishToken(env: Env, token?: string | null): Promise<CliPublishToken | null> {
+  if (!token) return null;
+  const raw = await env.KV.get(`cli-publish:${token}`);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function createCliPublishToken(env: Env, user: UserRow): Promise<{ token: string; expiresIn: number }> {
+  const token = crypto.randomUUID();
+  const payload = { userId: user.id, wallet: user.sui_address, createdAt: Date.now() };
+  await env.KV.put(`cli-publish:${token}`, JSON.stringify(payload), { expirationTtl: CLI_TOKEN_TTL });
+  return { token, expiresIn: CLI_TOKEN_TTL };
+}
+
+export async function approveCliDevice(env: Env, deviceCode: string, user: UserRow): Promise<{ token: string; expiresIn: number }> {
+  const raw = await env.KV.get(`cli-device:${deviceCode}`);
+  if (!raw) throw new Error("CLI 授权请求不存在或已过期");
+  const { token, expiresIn } = await createCliPublishToken(env, user);
+  await env.KV.put(
+    `cli-device-result:${deviceCode}`,
+    JSON.stringify({ status: "approved", token, expiresIn, user: { id: user.id, wallet: user.sui_address, name: user.name } }),
+    { expirationTtl: CLI_DEVICE_TTL },
+  );
+  return { token, expiresIn };
+}
+
+export async function pollCliDevice(env: Env, deviceCode: string): Promise<any> {
+  const result = await env.KV.get(`cli-device-result:${deviceCode}`);
+  if (result) return JSON.parse(result);
+  const pending = await env.KV.get(`cli-device:${deviceCode}`);
+  if (pending) return { status: "pending" };
+  return { status: "expired" };
 }
 
 export async function deleteSession(env: Env, token?: string | null): Promise<void> {

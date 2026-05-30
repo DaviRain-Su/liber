@@ -18,7 +18,10 @@ import {
   loadCliConfig,
   publishBookManifest,
   saveCliConfig,
+  signInWithSuiPrivateKey,
+  startBrowserAuth,
   verifyPublishLicense,
+  waitForBrowserAuth,
 } from "../src/liber-core.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -240,8 +243,24 @@ test("createIngestPayload builds backend ingest payload from a manifest", async 
   assert.equal(payload.author, "Laozi");
   assert.equal(payload.license, "CC0-1.0");
   assert.equal(payload.epubSha256, manifest.assets.epub.sha256);
+  assert.equal(payload.epubMediaType, "application/epub+zip");
+  assert.equal(Buffer.from(payload.epubBase64, "base64").toString("utf8").includes("application/epub+zip"), true);
   assert.equal(payload.chapters.length, 1);
   assert.match(payload.chapters[0].text, /First paragraph\./);
+});
+
+test("createIngestPayload rejects an EPUB that no longer matches the manifest hash", async () => {
+  const { epubPath } = await writeEpub("CC0-1.0", ["Original paragraph."]);
+  const manifest = await createBookManifest(epubPath, {
+    source: "https://example.com/dao.epub",
+    license: "CC0-1.0",
+  });
+  await writeFile(epubPath, "not the packaged epub anymore");
+
+  await assert.rejects(
+    () => createIngestPayload(manifest),
+    /EPUB file no longer matches/,
+  );
 });
 
 test("publishBookManifest posts ingest payload with admin authorization", async () => {
@@ -292,6 +311,16 @@ test("CLI auth login/status/logout persists config without leaking the token", a
   assert.deepEqual(after, {});
 });
 
+test("CLI auth browser accepts --no-open as a boolean flag", async () => {
+  await assert.rejects(
+    () => execFileAsync(process.execPath, [CLI_PATH, "auth", "browser", "--no-open", "--timeout", "0", "--api-url", "not-a-url"]),
+    (error) => {
+      assert.doesNotMatch(error.stderr, /Missing value for --no-open/);
+      return true;
+    },
+  );
+});
+
 test("core auth config helpers persist and clear config", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "liber-core-config-"));
   const configPath = path.join(dir, "config.json");
@@ -303,6 +332,84 @@ test("core auth config helpers persist and clear config", async () => {
 
   await clearCliConfig({ configPath });
   assert.deepEqual(await loadCliConfig({ configPath }), {});
+});
+
+test("browser auth flow starts, polls, and returns a publish token", async () => {
+  const calls = [];
+  const start = await startBrowserAuth({
+    apiUrl: "https://liber.example",
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({
+        deviceCode: "device-1",
+        userCode: "ABC123",
+        authorizeUrl: "https://liber.example/?cli_auth=device-1",
+        interval: 1,
+      }), { status: 200 });
+    },
+  });
+  assert.equal(start.apiUrl, "https://liber.example");
+  assert.equal(start.deviceCode, "device-1");
+
+  let polls = 0;
+  const approved = await waitForBrowserAuth(start, {
+    intervalMs: 1,
+    timeoutMs: 100,
+    sleep: async () => {},
+    fetchImpl: async (url) => {
+      polls += 1;
+      assert.equal(url, "https://liber.example/api/auth/cli/poll/device-1");
+      return new Response(JSON.stringify(polls === 1 ? { status: "pending" } : { status: "approved", token: "cli-token", user: { wallet: "0xabc" } }), { status: 200 });
+    },
+  });
+  assert.equal(approved.token, "cli-token");
+  assert.equal(calls[0].url, "https://liber.example/api/auth/cli/start");
+});
+
+test("private-key auth signs a nonce and exchanges the session for a publish token", async () => {
+  const requests = [];
+  const approved = await signInWithSuiPrivateKey({
+    apiUrl: "https://liber.example",
+    keypair: {
+      toSuiAddress: () => "0xabc",
+      signPersonalMessage: async (bytes) => {
+        assert.equal(new TextDecoder().decode(bytes), "Liber 登录\nnonce: n1");
+        return { signature: "signed-message" };
+      },
+    },
+    fetchImpl: async (url, init = {}) => {
+      requests.push({ url, init });
+      if (url.endsWith("/api/auth/nonce")) {
+        return new Response(JSON.stringify({ nonce: "n1", message: "Liber 登录\nnonce: n1" }), { status: 200 });
+      }
+      if (url.endsWith("/api/auth/verify")) {
+        const body = JSON.parse(init.body);
+        assert.equal(body.address, "0xabc");
+        assert.equal(body.signature, "signed-message");
+        return new Response(JSON.stringify({ token: "session-token", user: { wallet: "0xabc" } }), { status: 200 });
+      }
+      if (url.endsWith("/api/auth/cli/token")) {
+        assert.equal(init.headers.authorization, "Bearer session-token");
+        return new Response(JSON.stringify({ token: "publish-token", wallet: "0xabc", expiresIn: 30 }), { status: 200 });
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    },
+  });
+
+  assert.equal(approved.token, "publish-token");
+  assert.equal(approved.wallet, "0xabc");
+  assert.deepEqual(requests.map((r) => r.url), [
+    "https://liber.example/api/auth/nonce",
+    "https://liber.example/api/auth/verify",
+    "https://liber.example/api/auth/cli/token",
+  ]);
+});
+
+test("private-key auth requires a scheme for raw hex keys", async () => {
+  await assert.rejects(
+    () => signInWithSuiPrivateKey({ apiUrl: "https://liber.example", privateKey: "00".repeat(32) }),
+    /Raw hex Sui private keys require --scheme/,
+  );
 });
 
 test("CLI publish supports dry-run and requires a token for real publish", async () => {
@@ -319,7 +426,7 @@ test("CLI publish supports dry-run and requires a token for real publish", async
 
   await assert.rejects(
     () => execFileAsync(process.execPath, [CLI_PATH, "book", "publish", manifestPath]),
-    /Admin token is required/,
+    /Publish token is required/,
   );
 
   const parsed = JSON.parse(await readFile(manifestPath, "utf8"));

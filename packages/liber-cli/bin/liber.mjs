@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import {
   clearCliConfig,
@@ -12,7 +13,10 @@ import {
   publicConfigStatus,
   publishBookManifest,
   saveCliConfig,
+  signInWithSuiPrivateKey,
+  startBrowserAuth,
   verifyPublishLicense,
+  waitForBrowserAuth,
   writeBookManifest,
 } from "../src/liber-core.mjs";
 
@@ -21,6 +25,8 @@ function usage() {
 
 Usage:
   liber license explain
+  liber auth browser [--api-url <url>] [--no-open] [--timeout <seconds>]
+  liber auth key [--api-url <url>] [--key-file <path>|--private-key <key>] [--scheme ed25519|secp256k1|secp256r1]
   liber auth login --api-url <url> [--admin-token <token>] [--wallet <address>]
   liber auth status
   liber auth logout
@@ -42,7 +48,7 @@ function parseFlags(args) {
       continue;
     }
     const key = arg.slice(2);
-    if (key === "json" || key === "dry-run") {
+    if (key === "json" || key === "dry-run" || key === "no-open") {
       flags[key] = true;
     } else {
       const value = args[i + 1];
@@ -56,6 +62,19 @@ function parseFlags(args) {
 
 function printJson(value) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+function openBrowser(url) {
+  const platform = process.platform;
+  const cmd = platform === "darwin" ? "open" : platform === "win32" ? "cmd" : "xdg-open";
+  const args = platform === "win32" ? ["/c", "start", "", url] : [url];
+  try {
+    const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
+    child.unref();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function printLicensePolicy() {
@@ -147,6 +166,41 @@ async function main(argv) {
 
   if (domain === "auth") {
     const { flags } = parseFlags(rest);
+    if (action === "browser") {
+      const cfg = await loadCliConfig({ configPath: flags.config });
+      const started = await startBrowserAuth({ apiUrl: flags["api-url"], config: cfg, configPath: flags.config });
+      if (!flags.json) {
+        process.stdout.write(`Open this URL to authorize Liber CLI:\n${started.authorizeUrl}\n\n`);
+        if (!flags["no-open"]) openBrowser(started.authorizeUrl);
+        process.stdout.write("Waiting for wallet approval...\n");
+      }
+      const approved = await waitForBrowserAuth(started, { timeoutMs: Number(flags.timeout || 120) * 1000 });
+      const saved = await saveCliConfig({
+        apiUrl: started.apiUrl,
+        adminToken: approved.token,
+        wallet: approved.user?.wallet || approved.wallet,
+      }, { configPath: flags.config });
+      const status = publicConfigStatus(saved, { configPath: flags.config });
+      flags.json ? printJson(status) : process.stdout.write(`Saved Liber CLI browser authorization for ${status.wallet || status.apiUrl}\n`);
+      return 0;
+    }
+    if (action === "key") {
+      const approved = await signInWithSuiPrivateKey({
+        apiUrl: flags["api-url"],
+        keyFile: flags["key-file"],
+        privateKey: flags["private-key"],
+        scheme: flags.scheme,
+        configPath: flags.config,
+      });
+      const saved = await saveCliConfig({
+        apiUrl: approved.apiUrl,
+        adminToken: approved.token,
+        wallet: approved.wallet,
+      }, { configPath: flags.config });
+      const status = publicConfigStatus(saved, { configPath: flags.config });
+      flags.json ? printJson(status) : process.stdout.write(`Saved Liber CLI key authorization for ${status.wallet || status.apiUrl}\n`);
+      return 0;
+    }
     if (action === "login") {
       if (!flags["api-url"]) throw new LiberCliError("ARG_REQUIRED", "Missing --api-url.");
       const adminToken = flags["admin-token"] || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN || "";

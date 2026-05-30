@@ -53,10 +53,14 @@ async function walrusPublish(env: Env, bytes: Uint8Array): Promise<string | null
 export async function putBlob(
   env: Env,
   key: string,
-  data: ArrayBuffer | string,
+  data: ArrayBuffer | ArrayBufferView | string,
   contentType = "application/octet-stream",
 ): Promise<StoredRef> {
-  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
+  const bytes = typeof data === "string"
+    ? new TextEncoder().encode(data)
+    : data instanceof ArrayBuffer
+      ? new Uint8Array(data)
+      : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   // mirror to R2 (fast reads + fallback), always
   await env.R2.put(key, bytes, { httpMetadata: { contentType } });
 

@@ -4,13 +4,18 @@ import * as S from "../lib/seed";
 import { chain } from "../lib/chains";
 import { putBlob } from "../lib/storage";
 import { getBook, getChapters, getChapterText, getToc, ingestBook, listBooks, searchDynamic } from "../lib/catalog";
+import { getCliPublishToken } from "../lib/auth";
 
 const books = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-function adminOk(c: any): boolean {
+async function ingestAuth(c: any): Promise<{ ok: boolean; userId?: string | null }> {
   const admin = c.env.ADMIN_TOKEN;
   const auth = c.req.header("Authorization");
-  return !!admin && auth === `Bearer ${admin}`;
+  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (admin && token === admin) return { ok: true, userId: c.get("userId") };
+  const cli = await getCliPublishToken(c.env, token);
+  if (cli) return { ok: true, userId: cli.userId };
+  return { ok: false };
 }
 
 books.get("/books", async (c) => {
@@ -112,11 +117,11 @@ books.get("/search", async (c) => {
 
 // ---- Book text on decentralized storage ----
 
-// Admin-gated ingest: publish a book's available chapter text to Walrus (+R2),
-// recording one blob per chapter plus a manifest. Disabled (401) unless
-// ADMIN_TOKEN is configured and presented as a bearer token.
+// Publish-gated ingest: write chapter text to Walrus (+R2), recording one blob
+// per chapter plus a manifest. Requires ADMIN_TOKEN or a CLI publish token.
 books.post("/books/ingest", async (c) => {
-  if (!adminOk(c)) return c.json({ error: "需要管理员令牌" }, 401);
+  const auth = await ingestAuth(c);
+  if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   const body = await c.req.json();
   if (!body.text && body.sourceUrl) {
     const res = await fetch(body.sourceUrl);
@@ -124,7 +129,7 @@ books.post("/books/ingest", async (c) => {
     body.text = await res.text();
   }
   try {
-    const result = await ingestBook(c.env, body, c.get("userId"));
+    const result = await ingestBook(c.env, body, auth.userId);
     return c.json({ ok: true, ...result });
   } catch (e) {
     return c.json({ error: String(e instanceof Error ? e.message : e) }, 400);
@@ -132,7 +137,8 @@ books.post("/books/ingest", async (c) => {
 });
 
 books.post("/books/:id/ingest", async (c) => {
-  if (!adminOk(c)) return c.json({ error: "需要管理员令牌" }, 401);
+  const auth = await ingestAuth(c);
+  if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   const b = S.bookById(c.req.param("id"));
   if (!b) return c.json({ error: "未找到该书" }, 404);
   const chapters = b.id === "daodejing" ? S.CHAPTERS : [];
@@ -160,7 +166,7 @@ books.post("/books/:id/ingest", async (c) => {
       license: "CC0-1.0",
       featured: !!b.featured,
       chapters: chapters.map((ch: any) => ({ n: ch.n, title: ch.title, paras: ch.paras })),
-    }, c.get("userId"));
+    }, auth.userId);
   } catch {
     // legacy ingest still succeeded; don't fail the request after blob writes.
   }

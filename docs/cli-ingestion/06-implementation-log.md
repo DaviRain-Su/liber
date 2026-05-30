@@ -12,3 +12,10 @@
 - Implemented next slice: stored CLI auth config, EPUB spine text extraction,
   ingest payload generation, and real admin API publish through
   `/api/books/ingest`.
+- Implemented browser-wallet device authorization: CLI starts/polls, browser
+  signs in with Wallet Standard, backend mints a CLI publish token, and book
+  ingest accepts that scoped token.
+- Implemented local Sui private-key authorization: CLI signs the backend nonce
+  locally, receives a wallet session, then exchanges it for a CLI publish token.
+- Publish payloads now include the original EPUB bytes, and backend ingest
+  stores that EPUB alongside extracted chapter text and the JSON manifest.

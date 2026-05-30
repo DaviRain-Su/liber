@@ -16,13 +16,18 @@ import { Charts } from "./product-charts.jsx";
 import { Reader } from "./product-reader.jsx";
 import { SearchOverlay } from "./product-search.jsx";
 import { AgentView } from "./product-agentview.jsx";
+import { CliAuth } from "./cli-auth.jsx";
 import { setToken } from "../lib/api.js";
 
 /* product-app.jsx — router, theme, mount. */
 const { useState: useSt, useEffect: useEf, useCallback: useCb } = React;
 const IS_PHONE_PREVIEW = new URLSearchParams(location.search).get("vp") === "phone";
+const CLI_AUTH = new URLSearchParams(location.search).get("cli_auth");
+const CLI_AUTH_CODE = new URLSearchParams(location.search).get("code");
 
 function App(){
+  if (CLI_AUTH) return <CliAuth deviceCode={CLI_AUTH} userCode={CLI_AUTH_CODE} />;
+
   /* landing gate — the public marketing page is the first thing a new visitor
      sees. A visitor skips it only after completing onboarding or explicitly
      choosing "开始阅读"; neither path creates or displays a guest identity. */

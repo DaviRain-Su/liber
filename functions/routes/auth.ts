@@ -3,7 +3,8 @@ import { setCookie } from "hono/cookie";
 import type { Env, Variables } from "../lib/types";
 import {
   issueNonce, consumeNonce, verifyWalletSignature, createSession, deleteSession,
-  upsertWalletUser, createGuestUser, getUser,
+  upsertWalletUser, createGuestUser, getUser, createCliDevice, approveCliDevice,
+  pollCliDevice, requireUser, createCliPublishToken,
 } from "../lib/auth";
 import { first } from "../lib/db";
 import * as S from "../lib/seed";
@@ -46,6 +47,38 @@ auth.post("/logout", async (c) => {
   await deleteSession(c.env, token);
   setCookie(c, "liber_session", "", { ...cookieOpts, maxAge: 0 });
   return c.json({ ok: true });
+});
+
+auth.post("/cli/start", async (c) => {
+  const device = await createCliDevice(c.env);
+  const origin = new URL(c.req.url).origin;
+  return c.json({
+    ...device,
+    interval: 2,
+    authorizeUrl: `${origin}/?cli_auth=${encodeURIComponent(device.deviceCode)}&code=${encodeURIComponent(device.userCode)}`,
+  });
+});
+
+auth.get("/cli/poll/:device", async (c) => {
+  return c.json(await pollCliDevice(c.env, c.req.param("device")));
+});
+
+auth.post("/cli/approve", async (c) => {
+  const uid = requireUser(c);
+  const user = await getUser(c.env, uid);
+  if (!user || user.is_guest || !user.sui_address) return c.json({ error: "需要钱包登录后才能授权 CLI" }, 401);
+  const { deviceCode } = await c.req.json();
+  if (!deviceCode) return c.json({ error: "缺少 CLI 授权码" }, 400);
+  const result = await approveCliDevice(c.env, deviceCode, user);
+  return c.json({ ok: true, expiresIn: result.expiresIn, wallet: user.sui_address });
+});
+
+auth.post("/cli/token", async (c) => {
+  const uid = requireUser(c);
+  const user = await getUser(c.env, uid);
+  if (!user || user.is_guest || !user.sui_address) return c.json({ error: "需要钱包登录后才能签发 CLI 发布令牌" }, 401);
+  const result = await createCliPublishToken(c.env, user);
+  return c.json({ ok: true, token: result.token, expiresIn: result.expiresIn, wallet: user.sui_address });
 });
 
 auth.get("/me", async (c) => {

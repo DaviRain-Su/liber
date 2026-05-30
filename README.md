@@ -120,7 +120,7 @@ Liber's publish policy is intentionally narrow: publishable source books must be
 all-rights-reserved content are rejected because they add downstream attribution,
 share-alike, non-commercial, or unclear reuse obligations.
 
-Use the CLI before calling the admin ingest endpoint. In this repo:
+Use the CLI before calling the publish ingest endpoint. In this repo:
 
 ```bash
 npm run cli -- license explain
@@ -139,15 +139,33 @@ npm run cli -- book publish ./books/dao.liber-manifest.json --dry-run
 To actually publish from the CLI, save the admin API config once:
 
 ```bash
+npm run cli -- auth browser --api-url https://liber.davirain.xyz
+```
+
+For agent/headless wallet signing, keep the Sui private key outside the saved
+config and use it only to sign the backend login nonce:
+
+```bash
+LIBER_SUI_PRIVATE_KEY="suiprivkey..." npm run cli -- auth key --api-url https://liber.davirain.xyz
+```
+
+For headless admin use, you can still configure a bearer token directly:
+
+```bash
 npm run cli -- auth login --api-url https://liber.davirain.xyz --admin-token "$ADMIN_TOKEN"
 npm run cli -- book publish ./books/dao.liber-manifest.json
 ```
 
 The CLI extracts chapters from the EPUB spine and POSTs them to
 `/api/books/ingest`; server-side ingest still enforces the same license policy.
+The original EPUB is uploaded as the canonical storage asset; extracted plain
+text chapters are reader/search derivatives. The backend stores both layers,
+plus a JSON manifest, in R2/Walrus when configured. Sui stores only the content
+reference and provenance metadata, not the full book bytes.
 
 The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
-can be published to npm and installed by curators or agents:
+can be published to npm and installed by curators or agents. It requires
+Node.js `>=22`:
 
 ```bash
 npm install -g liber-cli
@@ -159,7 +177,7 @@ workflow. Add repository secret `NPM_TOKEN`, bump
 `packages/liber-cli/package.json` version, run the workflow once with
 `dry_run=true`, then rerun with `dry_run=false`.
 
-Use the admin ingest endpoint after setting `ADMIN_TOKEN`:
+Use the ingest endpoint directly after setting `ADMIN_TOKEN`:
 
 ```bash
 curl -XPOST https://<your-domain>/api/books/ingest \

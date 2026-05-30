@@ -29,10 +29,26 @@ export interface IngestBookInput {
   featured?: boolean;
   text?: string;
   chapters?: IngestChapterInput[];
+  epubBase64?: string;
+  epubSha256?: string;
+  epubMediaType?: string;
 }
 
 function compact(s?: string | null): string {
   return (s || "").trim();
+}
+
+async function sha256Hex(data: BufferSource): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const raw = value.replace(/^data:[^;]+;base64,/, "").replace(/\s+/g, "");
+  const bin = atob(raw);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 function safeId(raw: string | undefined, title: string): string {
@@ -259,6 +275,16 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
   if (!chapters.length) throw new Error("正文为空");
 
   const words = chapters.reduce((sum, ch) => sum + ch.text.replace(/\s+/g, "").length, 0);
+  let epubRef: any = null;
+  if (input.epubBase64) {
+    const epubBytes = base64ToBytes(input.epubBase64);
+    const actualHash = await sha256Hex(epubBytes);
+    if (input.epubSha256 && actualHash !== input.epubSha256.toLowerCase()) {
+      throw new Error("EPUB 哈希与 manifest 不一致");
+    }
+    epubRef = await putBlob(env, `book/${bookId}/source.epub`, epubBytes, input.epubMediaType || "application/epub+zip");
+  }
+
   const refs: Array<{ n: number; title: string; text: string; ref: any }> = [];
   for (const ch of chapters) {
     const ref = await putBlob(env, `book/${bookId}/ch/${ch.n}`, ch.text, "text/plain; charset=utf-8");
@@ -282,6 +308,18 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
     author: compact(input.author) || "佚名",
     license,
     sourceUrl: input.sourceUrl || null,
+    epub: epubRef ? {
+      key: epubRef.key,
+      walrus: epubRef.walrus,
+      arweave: epubRef.arweave,
+      sui_index: epubRef.sui_index,
+      size: epubRef.size,
+      sha256: input.epubSha256 || null,
+      mediaType: epubRef.content_type,
+    } : input.epubSha256 ? {
+      sha256: input.epubSha256,
+      mediaType: input.epubMediaType || "application/epub+zip",
+    } : null,
     chapters: refs.map((r) => ({ n: r.n, title: r.title, walrus: r.ref.walrus, size: r.ref.size })),
   };
   const manifestRef = await putBlob(env, `book/${bookId}/manifest`, JSON.stringify(manifest), "application/json");
@@ -311,5 +349,5 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
     suiIndex, createdBy || null, now(), now(),
   );
 
-  return { book: await getBook(env, bookId), manifest: manifestRef, chapters: refs.length, sui: chainRef };
+  return { book: await getBook(env, bookId), manifest: manifestRef, epub: epubRef, chapters: refs.length, sui: chainRef };
 }

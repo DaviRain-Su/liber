@@ -19,7 +19,9 @@ Implemented and locally verified with:
 - `npm pack` to `/private/tmp` plus temporary install and `liber license explain`
 - `npm publish --dry-run` inside `packages/liber-cli`
 - CLI tests for auth config, EPUB chapter extraction, ingest payload generation,
-  and non-dry-run publish with injected fetch.
+  EPUB hash mismatch rejection, and non-dry-run publish with injected fetch.
+- Browser auth device-flow core test covers start/poll/approved token handling.
+- Private-key auth core test covers local nonce signing and CLI token exchange.
 
 ## Release Automation
 
