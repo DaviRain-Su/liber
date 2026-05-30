@@ -18,3 +18,10 @@ Implemented and locally verified with:
 - `npm run build`
 - `npm pack` to `/private/tmp` plus temporary install and `liber license explain`
 - `npm publish --dry-run` inside `packages/liber-cli`
+
+## Release Automation
+
+- Added `.github/workflows/publish-cli.yml` for manual npm publish.
+- Real publish requires GitHub secret `NPM_TOKEN`.
+- Workflow validates `npm test`, `npm run pack:cli`, duplicate npm version, and
+  supports `dry_run=true` before real publish.

@@ -1,0 +1,91 @@
+name: Publish liber-cli to npm
+
+# Manual npm release for packages/liber-cli.
+#
+# Required secret for real publish:
+#   NPM_TOKEN - npm automation token with publish access for liber-cli.
+#
+# Normal flow:
+#   1. Bump packages/liber-cli/package.json version in a commit.
+#   2. Run this workflow with dry_run=true.
+#   3. Run it again with dry_run=false and tag=latest.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run npm publish --dry-run instead of publishing"
+        required: true
+        type: boolean
+        default: true
+      tag:
+        description: "npm dist-tag"
+        required: true
+        type: choice
+        default: latest
+        options:
+          - latest
+          - next
+          - beta
+
+concurrency:
+  group: npm-publish-liber-cli
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      NPM_CONFIG_CACHE: ${{ runner.temp }}/npm-cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run pack:cli
+
+      - name: Read package metadata
+        id: pkg
+        shell: bash
+        run: |
+          node -e "const p=require('./packages/liber-cli/package.json'); console.log('name='+p.name); console.log('version='+p.version)" >> "$GITHUB_OUTPUT"
+
+      - name: Check version is unpublished
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          if npm view "${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}" version >/dev/null 2>&1; then
+            echo "${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }} already exists on npm."
+            exit 1
+          fi
+
+      - name: Check npm token
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "Missing GitHub secret NPM_TOKEN."
+            exit 1
+          fi
+
+      - name: Publish dry run
+        if: ${{ inputs.dry_run }}
+        run: npm publish --workspace liber-cli --access public --tag ${{ inputs.tag }} --dry-run
+
+      - name: Publish to npm
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace liber-cli --access public --tag ${{ inputs.tag }}

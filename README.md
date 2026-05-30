@@ -143,6 +143,11 @@ npm install -g liber-cli
 liber book inspect ./books/dao.epub --json
 ```
 
+Publishing is manual through the `Publish liber-cli to npm` GitHub Actions
+workflow. Add repository secret `NPM_TOKEN`, bump
+`packages/liber-cli/package.json` version, run the workflow once with
+`dry_run=true`, then rerun with `dry_run=false`.
+
 Use the admin ingest endpoint after setting `ADMIN_TOKEN`:
 
 ```bash
