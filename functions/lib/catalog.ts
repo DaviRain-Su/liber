@@ -301,6 +301,14 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
       ch.text.slice(0, 5000), ch.text.length, now(),
     );
   }
+  const chapterNumbers = [...new Set(refs.map((r) => r.n))];
+  if (chapterNumbers.length) {
+    await run(
+      env.DB,
+      `DELETE FROM library_chapters WHERE book_id = ? AND n NOT IN (${chapterNumbers.map(() => "?").join(",")})`,
+      bookId, ...chapterNumbers,
+    );
+  }
 
   const manifest = {
     id: bookId,

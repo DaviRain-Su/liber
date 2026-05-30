@@ -22,3 +22,6 @@
 - Added `npm run smoke:real-content`, a repeatable Project Gutenberg EPUB smoke
   test that defaults to read-only mode and can publish after local auth is
   configured.
+- Added Project Gutenberg cleanup for imported EPUB text: strip legal
+  header/footer, drop Gutenberg-only preface chapters, clean derived titles,
+  and remove stale D1 chapter rows on re-ingest.

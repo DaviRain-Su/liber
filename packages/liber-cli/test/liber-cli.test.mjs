@@ -148,10 +148,14 @@ ${spineItems}
   </rootfiles>
 </container>` },
     { name: "OEBPS/content.opf", body: opf },
-    ...chapterBodies.map((body, i) => ({
-      name: `OEBPS/chapter${i + 1}.xhtml`,
-      body: `<html><head><title>Ignored</title><style>.x{}</style></head><body><nav>Skip me</nav><h1>Chapter ${i + 1}</h1><p>${body}</p></body></html>`,
-    })),
+    ...chapterBodies.map((body, i) => {
+      const title = typeof body === "object" ? body.title : `Chapter ${i + 1}`;
+      const content = typeof body === "object" ? body.body : body;
+      return {
+        name: `OEBPS/chapter${i + 1}.xhtml`,
+        body: `<html><head><title>Ignored</title><style>.x{}</style></head><body><nav>Skip me</nav><h1>${title}</h1><p>${content}</p></body></html>`,
+      };
+    }),
   ]);
   await writeFile(epubPath, zip);
   return { dir, epubPath, sha256: createHash("sha256").update(zip).digest("hex") };
@@ -228,6 +232,40 @@ test("extractEpubChapters extracts readable spine text", async () => {
   assert.match(chapters[0].text, /First paragraph\./);
   assert.doesNotMatch(chapters[0].text, /<p>/);
   assert.doesNotMatch(chapters[0].text, /Skip me/);
+});
+
+test("extractEpubChapters removes Project Gutenberg license wrappers", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of The Art of War",
+      body: `The Project Gutenberg eBook of The Art of War
+
+This eBook is for the use of anyone anywhere.
+
+*** START OF THE PROJECT GUTENBERG EBOOK THE ART OF WAR ***
+
+Chapter I. LAYING PLANS
+
+Sun Tzu said: The art of war is of vital importance.
+
+*** END OF THE PROJECT GUTENBERG EBOOK THE ART OF WAR ***
+
+Updated editions will replace the previous one.`,
+    },
+    {
+      title: "Preface to the Project Gutenberg Etext",
+      body: "This Project Gutenberg Etext of The Art of War was prepared by volunteers.",
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.equal(chapters[0].title, "Chapter I. LAYING PLANS");
+  assert.match(chapters[0].text, /Chapter I\. LAYING PLANS/);
+  assert.match(chapters[0].text, /Sun Tzu said/);
+  assert.doesNotMatch(chapters[0].text, /This eBook is for the use/);
+  assert.doesNotMatch(chapters[0].text, /PROJECT GUTENBERG EBOOK/);
+  assert.doesNotMatch(chapters[0].text, /Updated editions/);
 });
 
 test("createIngestPayload builds backend ingest payload from a manifest", async () => {

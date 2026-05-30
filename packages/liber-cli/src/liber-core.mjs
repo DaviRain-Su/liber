@@ -230,6 +230,32 @@ function chapterTitleFromHtml(raw, fallback) {
   return fallback;
 }
 
+function stripProjectGutenbergBoilerplate(text) {
+  let out = String(text || "").replace(/\r\n/g, "\n");
+  const start = out.match(/\*\*\*\s*START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[\s\S]*?\*\*\*/i);
+  if (start) out = out.slice((start.index || 0) + start[0].length);
+  const end = out.search(/\*\*\*\s*END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK/i);
+  if (end >= 0) out = out.slice(0, end);
+  return out
+    .split("\n")
+    .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+}
+
+function cleanChapterTitle(title, text, fallback) {
+  const value = String(title || "").trim();
+  if (!/project gutenberg ebook/i.test(value)) return value || fallback;
+  return String(text || "").split("\n").map((line) => line.trim()).filter(Boolean)[0] || fallback;
+}
+
+function isProjectGutenbergOnlyChapter(title, text) {
+  const haystack = `${title}\n${text}`.toLowerCase();
+  return /preface to the project gutenberg etext/.test(haystack)
+    || /project gutenberg etext of/.test(haystack);
+}
+
 function spineTextItems(parsed) {
   const byId = new Map(parsed.manifest.map((item) => [item.id, item]));
   return parsed.spine
@@ -251,11 +277,13 @@ export async function extractEpubChapters(filePath) {
   for (const item of items) {
     const raw = entryText(pkg.entries, item.href);
     if (!raw) continue;
-    const text = htmlToText(raw);
+    const text = stripProjectGutenbergBoilerplate(htmlToText(raw));
     if (!text) continue;
+    const title = cleanChapterTitle(chapterTitleFromHtml(raw, `Chapter ${chapters.length + 1}`), text, `Chapter ${chapters.length + 1}`);
+    if (isProjectGutenbergOnlyChapter(title, text)) continue;
     chapters.push({
       n: chapters.length + 1,
-      title: chapterTitleFromHtml(raw, `Chapter ${chapters.length + 1}`),
+      title,
       text,
     });
   }
