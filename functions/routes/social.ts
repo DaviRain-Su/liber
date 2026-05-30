@@ -26,13 +26,23 @@ async function liveGroups(env: Env, userId?: string | null) {
         gid,
       ),
       all<any>(env.DB, `SELECT COUNT(*) AS n FROM group_posts WHERE group_id = ?`, gid),
-      all<any>(env.DB, `SELECT percent FROM progress WHERE book_id = ?`, b.id),
       all<any>(
         env.DB,
-        `SELECT COUNT(*) AS n FROM notes WHERE book_id = ?
+        `SELECT p.percent
+         FROM group_members gm JOIN progress p ON p.user_id = gm.user_id
+         WHERE gm.group_id = ? AND p.book_id = ?`,
+        gid, b.id,
+      ),
+      all<any>(
+        env.DB,
+        `SELECT COUNT(*) AS n
+         FROM group_members gm JOIN notes n ON n.user_id = gm.user_id
+         WHERE gm.group_id = ? AND n.book_id = ?
          UNION ALL
-         SELECT COUNT(*) AS n FROM highlights WHERE book_id = ?`,
-        b.id, b.id,
+         SELECT COUNT(*) AS n
+         FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id
+         WHERE gm.group_id = ? AND h.book_id = ?`,
+        gid, b.id, gid, b.id,
       ),
       getToc(env, b.id),
     ]);
