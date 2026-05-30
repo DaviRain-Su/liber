@@ -98,6 +98,32 @@ Settings → Functions → bindings, or via `wrangler.toml`), and deploy:
 npm run deploy        # build + wrangler pages deploy
 ```
 
+## Web3 integration (P4) — optional env vars
+
+All Web3 features are config-gated: with these unset, the app falls back to R2 /
+seed and makes no external calls. Set them in `wrangler.toml` `[vars]` (public,
+non-secret) except `ADMIN_TOKEN`, which should be a Pages **secret**.
+
+| Var | Purpose |
+| --- | --- |
+| `WALRUS_PUBLISHER` | Walrus publisher base URL; enables real blob writes (works/shares/book text). Public testnet: `https://publisher.walrus-testnet.walrus.space` |
+| `WALRUS_AGGREGATOR` | Walrus aggregator base URL; blob reads + reachability. Public testnet: `https://aggregator.walrus-testnet.walrus.space` |
+| `ARWEAVE_GATEWAY` | Arweave gateway for backup-copy reachability, e.g. `https://arweave.net` |
+| `SUI_RPC` | Sui fullnode JSON-RPC for read-only chain verification, e.g. `https://fullnode.testnet.sui.io:443` |
+| `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint |
+
+Related endpoints:
+
+- `GET /api/books/:id/proof` — Walrus/Arweave/Sui live reachability + latest Sui checkpoint.
+- `GET /api/sui/object/:id` — resolve a real on-chain object (read-only).
+- `GET /api/blobs/:key` — look up a user-published blob (works/shares) + Walrus availability.
+- `POST /api/books/:id/ingest` — **admin** (Bearer `ADMIN_TOKEN`): publish chapter text to Walrus + manifest.
+- `GET /api/books/:id/content/:n` — serve chapter text from Walrus when ingested, else seed.
+
+Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
+(real Sui personal-message signature check via `@mysten/sui`). Frontend flow in
+`src/lib/wallet.js` (Wallet Standard); guest auth remains available.
+
 ## Roadmap
 
 - **P2** — richer AI companion (streaming, lens personas already wired), share → fork lineage.
