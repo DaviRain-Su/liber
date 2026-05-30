@@ -42,6 +42,10 @@ const BOOKS = [
   { id: "mengxi-bitan-gutenberg-zh", pg: 27292, lang: "zh", title: "夢溪筆談", category: "中文 · 笔记", expect: "夢溪筆談" },
   { id: "yanshi-jiaxun-gutenberg-zh", pg: 25365, lang: "zh", title: "顔氏家訓", category: "中文 · 家训", expect: "顔氏家訓" },
   { id: "wenxin-diaolong-gutenberg-zh", pg: 23822, lang: "zh", title: "文心雕龍", category: "中文 · 文论", expect: "文心雕龍" },
+  { id: "lin-er-bao-gutenberg-zh", pg: 27399, lang: "zh", title: "麟兒報", category: "中文 · 古典小说", expect: "麟兒報" },
+  { id: "shuihu-houzhuan-gutenberg-zh", pg: 25217, lang: "zh", title: "水滸後傳", category: "中文 · 古典小说", expect: "水滸後傳" },
+  { id: "xueyuemei-zhuan-gutenberg-zh", pg: 26739, lang: "zh", title: "雪月梅傳", category: "中文 · 古典小说", expect: "雪月梅傳" },
+  { id: "zuixing-shi-gutenberg-zh", pg: 24027, lang: "zh", title: "醉醒石", category: "中文 · 古典小说", expect: "醉醒石" },
 
   { id: "alice-wonderland-gutenberg-en", pg: 11, lang: "en", title: "Alice's Adventures in Wonderland", category: "English · Fiction", expect: "Alice" },
   { id: "pride-prejudice-gutenberg-en", pg: 1342, lang: "en", title: "Pride and Prejudice", category: "English · Fiction", expect: "Pride" },
@@ -101,6 +105,14 @@ const BOOKS = [
   { id: "sign-four-gutenberg-en", pg: 2097, lang: "en", title: "The Sign of the Four", category: "English · Detective", expect: "Sign of the Four" },
   { id: "souls-black-folk-gutenberg-en", pg: 408, lang: "en", title: "The Souls of Black Folk", category: "English · Essays", expect: "Souls" },
   { id: "narrative-douglass-gutenberg-en", pg: 23, lang: "en", title: "Narrative of the Life of Frederick Douglass", category: "English · Memoir", expect: "Douglass" },
+  { id: "paradise-lost-gutenberg-en", pg: 20, lang: "en", title: "Paradise Lost", category: "English · Epic Poetry", expect: "Paradise Lost" },
+  { id: "federalist-papers-gutenberg-en", pg: 18, lang: "en", title: "The Federalist Papers", category: "English · Political Essays", expect: "Federalist" },
+  { id: "utopia-gutenberg-en", pg: 2130, lang: "en", title: "Utopia", category: "English · Political Philosophy", expect: "Utopia" },
+  { id: "importance-earnest-gutenberg-en", pg: 844, lang: "en", title: "The Importance of Being Earnest", category: "English · Drama", expect: "Earnest" },
+  { id: "doll-house-gutenberg-en", pg: 2542, lang: "en", title: "A Doll's House", category: "English · Drama", expect: "Doll" },
+  { id: "pygmalion-gutenberg-en", pg: 3825, lang: "en", title: "Pygmalion", category: "English · Drama", expect: "Pygmalion" },
+  { id: "don-quixote-en-gutenberg-en", pg: 996, lang: "en", title: "Don Quixote", category: "English · Fiction", expect: "Quixote" },
+  { id: "siddhartha-gutenberg-en", pg: 2500, lang: "en", title: "Siddhartha", category: "English · Fiction", expect: "Siddhartha" },
   { id: "art-of-war-gutenberg", pg: 132, lang: "en", title: "The Art of War", category: "English · Strategy", expect: "Art of War" },
 
   { id: "madame-bovary-gutenberg-fr", pg: 14155, lang: "fr", title: "Madame Bovary", category: "Français · Roman", expect: "Bovary" },
@@ -125,6 +137,7 @@ const BOOKS = [
   { id: "divina-commedia-gutenberg-it", pg: 1000, lang: "it", title: "La Divina Commedia", category: "Italiano · Poesia", expect: "Commedia" },
   { id: "pinocchio-gutenberg-it", pg: 52484, lang: "it", title: "Le avventure di Pinocchio", category: "Italiano · Narrativa", expect: "Pinocchio" },
   { id: "promessi-sposi-gutenberg-it", pg: 45334, lang: "it", title: "I promessi sposi", category: "Italiano · Romanzo", expect: "Promessi" },
+  { id: "orlando-furioso-gutenberg-it", pg: 3747, lang: "it", title: "Orlando Furioso", category: "Italiano · Poema", expect: "Orlando" },
 
   { id: "don-quijote-gutenberg-es", pg: 2000, lang: "es", title: "Don Quijote", category: "Español · Novela", expect: "Quijote" },
   { id: "celestina-gutenberg-es", pg: 1619, lang: "es", title: "La Celestina", category: "Español · Teatro", expect: "Celestina" },
@@ -137,6 +150,8 @@ const BOOKS = [
   { id: "bras-cubas-gutenberg-pt", pg: 54829, lang: "pt", title: "Memórias Póstumas de Brás Cubas", category: "Português · Romance", expect: "Braz" },
   { id: "quincas-borba-gutenberg-pt", pg: 55682, lang: "pt", title: "Quincas Borba", category: "Português · Romance", expect: "Quincas" },
   { id: "minas-salomao-gutenberg-pt", pg: 22015, lang: "pt", title: "As Minas de Salomão", category: "Português · Aventura", expect: "Salomão" },
+  { id: "iracema-gutenberg-pt", pg: 67740, lang: "pt", title: "Iracema", category: "Português · Romance", expect: "Iracema" },
+  { id: "viagens-minha-terra-gutenberg-pt", pg: 24401, lang: "pt", title: "Viagens na Minha Terra", category: "Português · Romance", expect: "Viagens" },
 
   { id: "max-havelaar-gutenberg-nl", pg: 11024, lang: "nl", title: "Max Havelaar", category: "Nederlands · Roman", expect: "Havelaar" },
   { id: "kalevala-gutenberg-fi", pg: 7000, lang: "fi", title: "Kalevala", category: "Suomi · Eepos", expect: "Kalevala" },
@@ -154,6 +169,7 @@ const BOOKS = [
   { id: "atsumono-gutenberg-ja", pg: 36459, lang: "ja", title: "羹", category: "日本語 · 小説", expect: "羹" },
   { id: "america-monogatari-gutenberg-ja", pg: 35327, lang: "ja", title: "あめりか物語", category: "日本語 · 小説", expect: "あめりか" },
   { id: "doko-e-gutenberg-ja", pg: 32941, lang: "ja", title: "何處へ", category: "日本語 · 小説", expect: "何處" },
+  { id: "horadanshaku-tabi-gutenberg-ja", pg: 34084, lang: "ja", title: "法螺男爵旅土産", category: "日本語 · 小説", expect: "法螺男爵" },
 
   { id: "duhovnye-ody-gutenberg-ru", pg: 14741, lang: "ru", title: "Духовные оды", category: "Русский · Поэзия", expect: "Духовные" },
   { id: "pan-tadeusz-gutenberg-pl", pg: 31536, lang: "pl", title: "Pan Tadeusz", category: "Polski · Poezja", expect: "Tadeusz" },
@@ -169,6 +185,10 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === "--publish" || arg === "--json") {
       out[arg.slice(2)] = true;
+      continue;
+    }
+    if (arg === "--continue-on-error") {
+      out.continueOnError = true;
       continue;
     }
     if (arg === "--api-url" || arg === "--ids") {
@@ -321,6 +341,7 @@ async function importOne(book, options) {
     accepted: license.accepted,
     chapters: payload.chapters.length,
     sampleTitles: payload.chapters.slice(0, 12).map((chapter) => chapter.title),
+    tailSampleTitles: payload.chapters.slice(-12).map((chapter) => chapter.title),
     published: Boolean(publish),
     live,
   };
@@ -331,7 +352,24 @@ async function main() {
   const selected = BOOKS.filter((book) => options.ids.includes(book.id));
   if (!selected.length) throw new Error(`No matching books for --ids ${options.ids.join(",")}`);
   const results = [];
-  for (const book of selected) results.push(await importOne(book, options));
+  for (const book of selected) {
+    try {
+      results.push(await importOne(book, options));
+    } catch (error) {
+      if (!options.continueOnError) throw error;
+      process.stderr.write(`[gutenberg] ${book.id} failed: ${error.message}\n`);
+      results.push({
+        id: book.id,
+        pg: book.pg,
+        title: book.title,
+        lang: book.lang,
+        category: book.category,
+        source: sourceUrl(book),
+        accepted: false,
+        error: error.message,
+      });
+    }
+  }
   const output = { mode: options.publish ? "publish" : "dry-run", apiUrl: options.apiUrl, results };
   process.stdout.write(options.json ? `${JSON.stringify(output, null, 2)}\n` : `${results.map((r) => `${r.id}: ${r.title}`).join("\n")}\n`);
 }

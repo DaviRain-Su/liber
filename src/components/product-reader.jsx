@@ -103,11 +103,11 @@ function hasReaderEpub(book) {
 }
 
 function readerModeKey(bookId) {
-  return `liber.reader.mode.v3.${bookId || "unknown"}`;
+  return `liber.reader.mode.v4.${bookId || "unknown"}`;
 }
 
 function defaultReaderMode(book) {
-  return hasReaderEpub(book) ? "epub" : "text";
+  return "text";
 }
 
 function flattenEpubToc(items = [], depth = 0, out = []) {
@@ -575,7 +575,10 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         </div>
         <div className="spacer"/>
         <button className={`rd-tool ${tocOpen?"on":""}`} onClick={() => { setTocOpen(v=>!v); setSetOpen(false); }}>{I.list} 目录</button>
-        <button className={`rd-tool ${readMode==="epub"?"on":""}`} disabled={!hasEpub} title={hasEpub ? "EPUB 阅读版" : "暂无 EPUB 阅读版"} onClick={() => setReadMode(m => m === "epub" ? "text" : "epub")}>{I.book} EPUB</button>
+        <div className="rd-mode-toggle" role="group" aria-label="阅读模式">
+          <button className={`rd-tool ${readMode==="text"?"on":""}`} title="互动阅读版" onClick={() => setReadMode("text")}>{I.note} 互动</button>
+          <button className={`rd-tool ${readMode==="epub"?"on":""}`} disabled={!hasEpub} title={hasEpub ? "EPUB 阅读版" : "暂无 EPUB 阅读版"} onClick={() => setReadMode("epub")}>{I.book} EPUB</button>
+        </div>
         <button className={`rd-tool ${setOpen?"on":""}`} id="rd-set-btn" onClick={() => { setSetOpen(v=>!v); setTocOpen(false); }}>{I.type} 显示</button>
         <button className={`rd-tool ${aiOpen?"on":""}`} onClick={() => { setAiOpen(v=>!v); if(layout==="archive") setRailTab("ai"); }}>{I.spark} AI 书友</button>
       </div>

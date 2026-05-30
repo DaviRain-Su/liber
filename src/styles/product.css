@@ -237,6 +237,11 @@ button{ font-family: inherit; }
 .rd-tool:disabled{ opacity: .45; cursor: not-allowed; }
 .rd-tool:disabled:hover{ background: transparent; color: var(--ink-2); }
 .rd-tool svg{ flex-shrink: 0; }
+.rd-mode-toggle{
+  display: inline-flex; align-items: center; gap: 2px; padding: 2px;
+  border: 1px solid var(--hair-2); border-radius: 6px; background: color-mix(in oklab, var(--paper) 72%, transparent);
+}
+.rd-mode-toggle .rd-tool{ height: 32px; padding: 0 10px; border-radius: 4px; }
 
 /* reading region split: text + (optional) right rail */
 .rd-body{ flex: 1; display: flex; min-height: 0; position: relative; }
