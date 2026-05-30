@@ -70,6 +70,7 @@ function ConvoCardForm({ convo, expanded, onToggleExpand, onFork, onSave, saved,
 
 /* ---- 金句卡 ---- */
 function InsightCardForm({ convo, expanded, onToggleExpand, onFork, onSave, saved, onOpenTree }){
+  const [tplOpen, setTplOpen] = React.useState(false);
   return (
     <div className="cf cform-insight">
       <div className="ci-mark">”</div>
@@ -85,7 +86,20 @@ function InsightCardForm({ convo, expanded, onToggleExpand, onFork, onSave, save
               </div>
             ))}
           </div>}
-      <CCFoot convo={convo} onFork={onFork} onSave={onSave} saved={saved} dark onExport={() => exportInsightImage(convo)}/>
+      <CCFoot convo={convo} onFork={onFork} onSave={onSave} saved={saved} dark onExport={() => setTplOpen(o=>!o)}/>
+      {tplOpen && (
+        <div className="ci-tpl" style={{ display:"flex", gap:8, alignItems:"center", margin:"10px 0 0", flexWrap:"wrap" }}>
+          <span style={{ fontSize:12, opacity:0.7, fontFamily:"var(--mono, monospace)" }}>存为图片 · 选模板</span>
+          {Object.values(INSIGHT_THEMES).map(t => (
+            <button key={t.key} title={`${t.label}色模板`}
+              onClick={() => { exportInsightImage(convo, t.key); setTplOpen(false); }}
+              style={{ width:36, height:30, borderRadius:6, cursor:"pointer", background:t.bg, color:t.fg,
+                       border:`1.5px solid ${t.accent}`, fontFamily:"var(--display, serif)", fontSize:16, lineHeight:1 }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="ci-byline" onClick={onOpenTree && convo.forks>0 ? ()=>onOpenTree(convo) : undefined} style={onOpenTree && convo.forks>0 ? {cursor:"pointer"} : null}>
         {convo.forks} 人从这里接着往下问{onOpenTree && convo.forks>0 && " · 看对话树"}
       </div>
@@ -157,27 +171,34 @@ function ForkTreeModal({ convo, onClose, onFork }){
 }
 
 /* ============================================================
-   Export 金句卡 as a PNG (canvas, no deps)
+   Export 金句卡 as a PNG (canvas, no deps) — 3 templates
    ============================================================ */
-async function exportInsightImage(convo){
+const INSIGHT_THEMES = {
+  ink:      { key:"ink",      label:"墨", bg:"#211b15", grain:"rgba(236,226,207,0.05)", accent:"#c0432b", fg:"#ece2cf", fgSoft:"rgba(236,226,207,0.62)", fgFaint:"rgba(236,226,207,0.4)", fgGhost:"rgba(236,226,207,0.28)", rule:"rgba(236,226,207,0.16)", divider:"rgba(192,67,43,0.7)", sealBg:"#c0432b", sealFg:"#ece2cf" },
+  paper:    { key:"paper",    label:"纸", bg:"#f4efe4", grain:"rgba(33,27,21,0.05)",    accent:"#c0432b", fg:"#211b15", fgSoft:"rgba(33,27,21,0.6)",    fgFaint:"rgba(33,27,21,0.42)",  fgGhost:"rgba(33,27,21,0.3)",   rule:"rgba(33,27,21,0.14)",   divider:"rgba(192,67,43,0.8)", sealBg:"#c0432b", sealFg:"#f4efe4" },
+  cinnabar: { key:"cinnabar", label:"朱", bg:"#b23a26", grain:"rgba(255,240,225,0.06)", accent:"#f7e3cf", fg:"#fbeee6", fgSoft:"rgba(251,238,230,0.74)", fgFaint:"rgba(251,238,230,0.52)", fgGhost:"rgba(251,238,230,0.36)", rule:"rgba(251,238,230,0.22)", divider:"rgba(251,238,230,0.85)", sealBg:"#211b15", sealFg:"#fbeee6" },
+};
+
+async function exportInsightImage(convo, theme = "ink"){
+  const p = INSIGHT_THEMES[theme] || INSIGHT_THEMES.ink;
   const W = 1080, H = 1350, pad = 110;
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const x = cv.getContext("2d");
   try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch {}
 
   /* bg */
-  x.fillStyle = "#211b15"; x.fillRect(0,0,W,H);
+  x.fillStyle = p.bg; x.fillRect(0,0,W,H);
   /* grain dots */
-  x.fillStyle = "rgba(236,226,207,0.05)";
+  x.fillStyle = p.grain;
   for (let yy=40; yy<H; yy+=24) for (let xx=40; xx<W; xx+=24) x.fillRect(xx,yy,1.4,1.4);
   /* accent quote mark */
-  x.fillStyle = "#c0432b";
+  x.fillStyle = p.accent;
   x.font = '700 280px Georgia, "Times New Roman", serif';
   x.textBaseline = "alphabetic";
   x.fillText("”", pad-14, 330);
 
   /* insight — big serif, wrapped */
-  x.fillStyle = "#ece2cf";
+  x.fillStyle = p.fg;
   const fontSize = 78, lineH = 108, maxW = W - pad*2;
   x.font = `600 ${fontSize}px "Cormorant Garamond", "Noto Serif SC", "Songti SC", serif`;
   const lines = wrapCJK(x, convo.insight, maxW);
@@ -186,12 +207,12 @@ async function exportInsightImage(convo){
 
   /* divider */
   yy += 18;
-  x.strokeStyle = "rgba(192,67,43,0.7)"; x.lineWidth = 3;
+  x.strokeStyle = p.divider; x.lineWidth = 3;
   x.beginPath(); x.moveTo(pad, yy); x.lineTo(pad+64, yy); x.stroke();
 
   /* provenance */
   yy += 52;
-  x.fillStyle = "rgba(236,226,207,0.62)";
+  x.fillStyle = p.fgSoft;
   x.font = '30px "IBM Plex Mono", monospace';
   x.fillText(`由一段关于《${convo.bookT} · ${convo.chap}》的对话提炼`, pad, yy);
   yy += 44;
@@ -200,29 +221,29 @@ async function exportInsightImage(convo){
 
   /* footer brand bar */
   const fy = H - 110;
-  x.strokeStyle = "rgba(236,226,207,0.16)"; x.lineWidth = 1.5;
+  x.strokeStyle = p.rule; x.lineWidth = 1.5;
   x.beginPath(); x.moveTo(pad, fy); x.lineTo(W-pad, fy); x.stroke();
   /* seal */
-  x.fillStyle = "#c0432b"; x.fillRect(pad, fy+26, 44, 56);
-  x.fillStyle = "#ece2cf"; x.font = '600 30px "Cormorant Garamond","Songti SC",serif';
+  x.fillStyle = p.sealBg; x.fillRect(pad, fy+26, 44, 56);
+  x.fillStyle = p.sealFg; x.font = '600 30px "Cormorant Garamond","Songti SC",serif';
   x.textAlign = "center"; x.fillText(convo.seal, pad+22, fy+66); x.textAlign = "left";
   /* brand text */
-  x.fillStyle = "#ece2cf"; x.font = '600 34px "Cormorant Garamond","Songti SC",serif';
+  x.fillStyle = p.fg; x.font = '600 34px "Cormorant Garamond","Songti SC",serif';
   x.fillText("Liber", pad+62, fy+52);
-  x.fillStyle = "rgba(236,226,207,0.5)"; x.font = '20px "IBM Plex Mono", monospace';
+  x.fillStyle = p.fgFaint; x.font = '20px "IBM Plex Mono", monospace';
   x.fillText("永存的开放图书馆 · 已永久存证", pad+62, fy+80);
   /* right: CC0 */
   x.textAlign = "right";
-  x.fillStyle = "rgba(236,226,207,0.4)"; x.font = '22px "IBM Plex Mono", monospace';
+  x.fillStyle = p.fgFaint; x.font = '22px "IBM Plex Mono", monospace';
   x.fillText("CC0 · 自由传播", W-pad, fy+52);
-  x.fillStyle = "rgba(236,226,207,0.28)"; x.font = '18px "IBM Plex Mono", monospace';
+  x.fillStyle = p.fgGhost; x.font = '18px "IBM Plex Mono", monospace';
   x.fillText("walrus://0x8f3a…d21c", W-pad, fy+80);
   x.textAlign = "left";
 
   cv.toBlob((blob) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `${convo.bookT}·金句.png`; a.click();
+    a.href = url; a.download = `${convo.bookT}·金句·${p.label}.png`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   }, "image/png");
 }
