@@ -72,6 +72,25 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   useE(() => { localStorage.setItem(hlKey, JSON.stringify(hls)); }, [hls]);
   useE(() => { localStorage.setItem(ntKey, JSON.stringify(notes)); }, [notes]);
 
+  /* hydrate this book's highlights/notes from the backend (cross-device), best-effort */
+  useE(() => {
+    if (typeof window === "undefined" || !window.liberApi) return;
+    let cancelled = false;
+    window.liberApi.reading.get(book.id).then(r => {
+      if (cancelled || !r) return;
+      if (r.highlights && Object.keys(r.highlights).length) setHls(prev => ({ ...r.highlights, ...prev }));
+      if (r.notes && Object.keys(r.notes).length) setNotes(prev => {
+        const merged = { ...prev };
+        for (const sid of Object.keys(r.notes)) {
+          const have = new Set((merged[sid] || []).map(n => n.t));
+          merged[sid] = [ ...(merged[sid] || []), ...r.notes[sid].filter(n => !have.has(n.t)) ];
+        }
+        return merged;
+      });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [book.id]);
+
   /* popovers / drawers */
   const [sel, setSel]   = useS(null);   // {x,y,text,sids}
   const [notePop, setNotePop] = useS(null); // {x,y,sid}
@@ -117,8 +136,12 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   }, [cIdx]);
   useE(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [cIdx]);
 
-  /* persist place */
-  useE(() => { localStorage.setItem("liber.place", JSON.stringify({ bookId: book.id, n: ch.n })); }, [cIdx]);
+  /* persist place (local + backend progress, best-effort) */
+  useE(() => {
+    localStorage.setItem("liber.place", JSON.stringify({ bookId: book.id, n: ch.n }));
+    if (typeof window !== "undefined" && window.liberApi)
+      window.liberApi.reading.progress(book.id, ch.n, Math.round((cIdx / chapters.length) * 100)).catch(() => {});
+  }, [cIdx]);
 
   /* ---- text selection -> popover ---- */
   const onMouseUp = useCb(() => {
@@ -137,7 +160,9 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
 
   const applyHl = (color) => {
     if (!sel) return;
-    setHls(prev => { const n = { ...prev }; sel.sids.forEach(id => n[id] = color); return n; });
+    const sids = sel.sids;
+    setHls(prev => { const n = { ...prev }; sids.forEach(id => n[id] = color); return n; });
+    if (window.liberApi) sids.forEach(id => window.liberApi.reading.highlight(book.id, id, color).catch(() => {}));
     window.getSelection().removeAllRanges();
     setSel(null);
   };
@@ -187,24 +212,31 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const [noteDraft, setNoteDraft] = useS("");
   const addNote = (sid) => {
     if (!noteDraft.trim()) return;
-    setNotes(prev => ({ ...prev, [sid]: [ ...(prev[sid]||[]), { u:"林知秋", color:"#3a4fb0", t: noteDraft.trim(), up:0, replies:0, mine:true } ] }));
+    const text = noteDraft.trim();
+    setNotes(prev => ({ ...prev, [sid]: [ ...(prev[sid]||[]), { u:"林知秋", color:"#3a4fb0", t: text, up:0, replies:0, mine:true } ] }));
+    if (window.liberApi) window.liberApi.reading.note(book.id, sid, text).catch(() => {});
     setNoteDraft("");
   };
 
-  /* ---- AI send ---- */
+  /* ---- AI send — live Workers AI, falling back to the canned brain ---- */
   const sendAI = (text) => {
     const q = (text != null ? text : draft).trim();
     if (!q) return;
+    const ctx = aiCtx;
     setFeed(f => [...f, { who:"user", t:q }]);
     setDraft("");
     setTyping(true);
     setAiOpen(true);
-    setTimeout(() => {
-      const r = aiReply(aiMode, q, aiCtx);
-      setFeed(f => [...f, { who:"bot", ...r }]);
-      setTyping(false);
-      setAiCtx(null);
-    }, 950);
+    const fallback = () => setFeed(f => [...f, { who:"bot", ...aiReply(aiMode, q, ctx) }]);
+    const finish = () => { setTyping(false); setAiCtx(null); };
+    if (typeof window !== "undefined" && window.liberApi) {
+      window.liberApi.ai.chat({ bookId: book.id, lens: aiMode, question: q, context: ctx, chapter: `第 ${ch.n} 章 · ${ch.title}` })
+        .then(res => { if (res && res.text && !res.error) setFeed(f => [...f, { who:"bot", t: res.text, ref: res.ref }]); else fallback(); })
+        .catch(fallback)
+        .finally(finish);
+    } else {
+      setTimeout(() => { fallback(); finish(); }, 950);
+    }
   };
 
   /* nav */
@@ -518,6 +550,8 @@ function ShareComposer({ book, ch, aiCtx, feed, onClose, onPublish }){
     let arr = []; try { arr = JSON.parse(localStorage.getItem("liber.shared")) || []; } catch {}
     arr.unshift(rec);
     localStorage.setItem("liber.shared", JSON.stringify(arr));
+    if (window.liberApi)
+      window.liberApi.shares.publish({ bookId: book.id, form, title: draftConvo.title, insight, quote, visibility: vis, chap: draftConvo.chap, seal: book.seal, msgs }).catch(() => {});
     onPublish(form === "insight" ? "金句卡已分享" : "对话卡已分享");
   };
 
