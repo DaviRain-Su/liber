@@ -27,6 +27,7 @@
 
   --maxw: 1180px;
   --grain: 1;
+  --asset-cache-version: 2;
 }
 
 /* Display-font tweak hooks */
