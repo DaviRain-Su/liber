@@ -429,7 +429,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
               <div className="np-list">
                 {list.map((n,i) => (
                   <div className="np-note" key={i}>
-                    <div className={"ava"+(n.ai?" agent":"")} style={{ background: n.color }}>{n.ai ? "AI" : n.u[0]}</div>
+                    <div className={"ava"+(n.ai?" agent":"")+(!n.ai&&window.canOpenProfile(n.u)?" ava-link":"")} style={{ background: n.color }} onClick={!n.ai&&window.canOpenProfile(n.u)?()=>window.openProfile(n.u):undefined}>{n.ai ? "AI" : n.u[0]}</div>
                     <div>
                       <ProvBadge note={n} mine={n.mine}/>
                       <div className="tx">{n.t}</div>

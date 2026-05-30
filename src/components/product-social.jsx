@@ -151,11 +151,13 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
 }
 
 function FeedCard({ f, onOpenThread, onOpenBook, onOpenGroup }){
+  const who = f.u;
+  const canOpen = window.canOpenProfile(who);
   const head = (
     <div className="fc-top">
-      <div className="ava" style={{ background:f.color }}>{f.u==="书友 · AI"?"AI":f.u[0]}</div>
+      <div className={"ava"+(canOpen?" ava-link":"")} style={{ background:f.color }} onClick={canOpen?()=>window.openProfile(who):undefined}>{f.u==="书友 · AI"?"AI":f.u[0]}</div>
       <div className="fc-who">
-        <div className="fc-u">{f.u}</div>
+        <div className={"fc-u"+(canOpen?" name-link":"")} onClick={canOpen?()=>window.openProfile(who):undefined}>{f.u}</div>
         <div className="fc-act">
           {f.kind==="anno" && <>批注了 <b>{f.book}</b> · {f.chap}</>}
           {f.kind==="highlight" && <>划线了 <b>{f.book}</b> · {f.chap}</>}
@@ -209,9 +211,9 @@ function ThreadOverlay({ thread, onClose }){
         <div className="tm-quote">「{thread.quote}」</div>
         <div className="tm-body">
           <div className="tm-note root">
-            <div className="ava" style={{ background:thread.root.color }}>{thread.root.u[0]}</div>
+            <div className={"ava"+(window.canOpenProfile(thread.root.u)?" ava-link":"")} style={{ background:thread.root.color }} onClick={window.canOpenProfile(thread.root.u)?()=>window.openProfile(thread.root.u):undefined}>{thread.root.u[0]}</div>
             <div className="nb2">
-              <div className="nm">{thread.root.u} <span className="when">{thread.root.when}</span></div>
+              <div className="nm"><span className={window.canOpenProfile(thread.root.u)?"name-link":""} onClick={window.canOpenProfile(thread.root.u)?()=>window.openProfile(thread.root.u):undefined}>{thread.root.u}</span> <span className="when">{thread.root.when}</span></div>
               <div className="tx">{thread.root.t}</div>
               <div className="mt"><span>{I.up} 赞同 {thread.root.up}</span><span>回复</span></div>
             </div>
@@ -219,9 +221,9 @@ function ThreadOverlay({ thread, onClose }){
           <div className="tm-replies">
             {replies.map((r,i) => (
               <div className="tm-note" key={i}>
-                <div className="ava" style={{ background:r.color }}>{r.ai?"AI":r.u[0]}</div>
+                <div className={"ava"+(window.canOpenProfile(r.u)?" ava-link":"")} style={{ background:r.color }} onClick={window.canOpenProfile(r.u)?()=>window.openProfile(r.u):undefined}>{r.ai?"AI":r.u[0]}</div>
                 <div className="nb2">
-                  <div className="nm">{r.u}{r.mine&&" · 你"} <span className="when">{r.when}</span></div>
+                  <div className="nm"><span className={window.canOpenProfile(r.u)?"name-link":""} onClick={window.canOpenProfile(r.u)?()=>window.openProfile(r.u):undefined}>{r.u}</span>{r.mine&&" · 你"} <span className="when">{r.when}</span></div>
                   <div className="tx">{r.t}</div>
                   <div className="mt"><span>{I.up} 赞同 {r.up}</span><span>回复</span></div>
                 </div>

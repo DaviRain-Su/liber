@@ -43,7 +43,11 @@ function App(){
     window.addEventListener("liber-device", h);
     const o = () => { localStorage.removeItem("liber.onboarded"); setOnboarded(false); };
     window.addEventListener("liber-show-onboarding", o);
-    return () => { window.removeEventListener("liber-device", h); window.removeEventListener("liber-show-onboarding", o); };
+    /* click an avatar anywhere → open that reader's profile, remembering where we came from */
+    const p = (e) => { setReader(null); setSearch(false); setAgentView(null);
+      setRoute(r => ({ screen:"profile", userId: e.detail, from: r.screen === "profile" ? r.from : r.screen })); };
+    window.addEventListener("liber-open-profile", p);
+    return () => { window.removeEventListener("liber-device", h); window.removeEventListener("liber-show-onboarding", o); window.removeEventListener("liber-open-profile", p); };
   }, []);
 
   /* route: {screen:'library'|'detail', bookId} ; reader is an overlay */
@@ -185,14 +189,14 @@ function App(){
             onNav={(k) => setRoute({ screen: k === "library" ? "library" : k })}
             onHome={returnHome}
             onToggleTheme={toggleTheme} isDark={dark}
-            onSearch={() => setSearch(true)} onProfile={() => setRoute({ screen:"profile" })}
+            onSearch={() => setSearch(true)} onProfile={() => setRoute(r => ({ screen:"profile", from: r.screen === "profile" ? r.from : r.screen }))}
             onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? window.BOOKS.find(b=>b.id===route.bookId) : null })} agentOn={!!agentView}
             user={authUser} onLogout={logout} />
           {route.screen === "library" && <Library onOpenBook={openBook} onOpenCharts={() => setRoute({ screen:"charts" })} />}
           {route.screen === "detail" && <Detail bookId={route.bookId} onOpenReader={openReader} onOpenCert={(id) => setRoute({ screen:"cert", bookId:id })} onBack={() => setRoute({ screen:"library" })} onOpenAgents={() => setRoute({ screen:"agents" })} />}
           {route.screen === "notes" && <Notebook onOpenBook={openBook} />}
           {route.screen === "social" && <Social onOpenBook={openBook} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} onContinue={(c) => openReader(c.book, undefined, c)} />}
-          {route.screen === "profile" && <Profile onOpenBook={openBook} authUser={authUser} onLogout={logout} />}
+          {route.screen === "profile" && <Profile key={route.userId || "me"} userId={route.userId} onOpenBook={openBook} onBack={() => setRoute({ screen: route.from || "library" })} authUser={authUser} onLogout={logout} />}
           {route.screen === "cert" && <Certificate bookId={route.bookId} onBack={() => setRoute({ screen:"detail", bookId:route.bookId })} onOpenBook={openReader} />}
           {route.screen === "shelf" && <Shelf onOpenBook={openBook} onOpenReader={openReader} onOpenGroup={(id) => setRoute({ screen: id ? "group" : "groups", groupId:id })} />}
           {route.screen === "groups" && <GroupsList onOpenGroup={(id) => setRoute({ screen:"group", groupId:id })} onBack={() => setRoute({ screen:"social" })} />}

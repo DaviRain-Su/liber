@@ -149,10 +149,10 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
                   </div>
                   {reviews.map((r,i) => (
                     <div className="review" key={i}>
-                      <div className="ava" style={{ background: r.color }}>{r.u[0]}</div>
+                      <div className={"ava"+(window.canOpenProfile(r.u)?" ava-link":"")} style={{ background: r.color }} onClick={window.canOpenProfile(r.u)?()=>window.openProfile(r.u):undefined}>{r.u[0]}</div>
                       <div className="rb">
                         <div className="top">
-                          <span className="nm">{r.u}</span>
+                          <span className={"nm"+(window.canOpenProfile(r.u)?" name-link":"")} onClick={window.canOpenProfile(r.u)?()=>window.openProfile(r.u):undefined}>{r.u}</span>
                           <span className="stars">{"★".repeat(r.rating)}{"☆".repeat(5-r.rating)}</span>
                           <span className="chap">{r.chap}</span>
                           <span className="when">{r.when}</span>
