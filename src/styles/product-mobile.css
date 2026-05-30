@@ -87,6 +87,8 @@
   .rd-bar .rd-title .bk{ font-size: 16px; }
   .rd-tool{ padding: 0 8px; font-size: 11px; gap: 4px; height: 34px; }
   .rd-col{ padding: 44px 24px 200px !important; max-width: 100% !important; }
+  .rd-epub-panel{ padding: 14px 12px 96px !important; }
+  .rd-epub-status{ inset: 14px 12px 96px !important; }
   .rd-chap-title{ font-size: 32px; }
   .reader{ --read-measure: 100% !important; }
   /* persistent archive rail never on mobile */

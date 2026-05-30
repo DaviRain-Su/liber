@@ -319,6 +319,32 @@ test("extractEpubChapters splits Chinese Gutenberg spine files by internal title
   assert.doesNotMatch(chapters[0].text, /墨子 - Mozi/);
 });
 
+test("extractEpubChapters keeps Chinese classic numbered sections as paragraphs", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Project Gutenberg eBook of 墨子",
+      raw: `<p>《親士》</p>
+<p>1
+親士:
+入國而不存其士，則亡國矣。
+2
+親士:
+昔者文公出走而正天下。
+1. 干 : 原錯為“于”。
+3
+親士:
+吾聞之曰：“非無安居也。”</p>`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 1);
+  assert.match(chapters[0].text, /入國而不存其士/);
+  assert.match(chapters[0].text, /亡國矣。\n\n2 親士:/);
+  assert.match(chapters[0].text, /出走而正天下。\n\n1\. 干 :/);
+  assert.match(chapters[0].text, /原錯為“于”。\n\n3 親士:/);
+});
+
 test("extractEpubChapters cleans source chrome from Chinese classics", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {
@@ -405,6 +431,67 @@ Body two.`,
   assert.match(chapters[1].text, /Body two/);
 });
 
+test("extractEpubChapters reads nested NCX chapter points", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "Le rouge et le noir",
+      raw: `<h1 id="vol">VOLUME PREMIER</h1>
+<h2 id="c1">CHAPITRE PREMIER UNE PETITE VILLE</h2>
+<p>La petite ville de Verrières.</p>
+<h2 id="c2">CHAPITRE II UN MAIRE</h2>
+<p>L'importance.</p>`,
+    },
+  ], {
+    manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
+    spineAttrs: `toc="ncx"`,
+    extraEntries: [{
+      name: "OEBPS/toc.ncx",
+      body: `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>
+  <navPoint id="v" playOrder="1"><navLabel><text>VOLUME PREMIER</text></navLabel><content src="chapter1.xhtml#vol"/>
+    <navPoint id="c1" playOrder="2"><navLabel><text>CHAPITRE PREMIER UNE PETITE VILLE</text></navLabel><content src="chapter1.xhtml#c1"/></navPoint>
+    <navPoint id="c2" playOrder="3"><navLabel><text>CHAPITRE II UN MAIRE</text></navLabel><content src="chapter1.xhtml#c2"/></navPoint>
+  </navPoint>
+</navMap></ncx>`,
+    }],
+  });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["CHAPITRE PREMIER UNE PETITE VILLE", "CHAPITRE II UN MAIRE"]);
+});
+
+test("extractEpubChapters filters Gutenberg edition notices from navigation", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "The Adventures of Sherlock Holmes",
+      raw: `<h1 id="notice">THERE IS AN ILLUSTRATED EDITION OF THIS TITLE WHICH MAY VIEWED AT EBOOK #48320</h1>
+<p>Not a chapter.</p>
+<h2 id="c1">I. A SCANDAL IN BOHEMIA</h2>
+<p>To Sherlock Holmes she is always the woman.</p>
+<h2 id="c2">II. THE RED-HEADED LEAGUE</h2>
+<p>I had called upon my friend.</p>`,
+    },
+  ], {
+    manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
+    spineAttrs: `toc="ncx"`,
+    extraEntries: [{
+      name: "OEBPS/toc.ncx",
+      body: `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>
+  <navPoint id="n" playOrder="1"><navLabel><text>THERE IS AN ILLUSTRATED EDITION OF THIS TITLE WHICH MAY VIEWED AT EBOOK #48320</text></navLabel><content src="chapter1.xhtml#notice"/></navPoint>
+  <navPoint id="c1" playOrder="2"><navLabel><text>I. A SCANDAL IN BOHEMIA</text></navLabel><content src="chapter1.xhtml#c1"/></navPoint>
+  <navPoint id="c2" playOrder="3"><navLabel><text>II. THE RED-HEADED LEAGUE</text></navLabel><content src="chapter1.xhtml#c2"/></navPoint>
+</navMap></ncx>`,
+    }],
+  });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["I. A SCANDAL IN BOHEMIA", "II. THE RED-HEADED LEAGUE"]);
+  assert.doesNotMatch(chapters[0].text, /ILLUSTRATED EDITION/);
+});
+
 test("extractEpubChapters splits Chinese numbered classic headings", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {
@@ -423,6 +510,25 @@ test("extractEpubChapters splits Chinese numbered classic headings", async () =>
   assert.equal(chapters.length, 2);
   assert.deepEqual(chapters.map((ch) => ch.title), ["學而第一", "為政第二"]);
   assert.match(chapters[1].text, /為政以德/);
+});
+
+test("extractEpubChapters splits inline Chinese chapter headings in one paragraph", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "老子",
+      raw: `<p>第一章
+道可道，非常道。
+第二章
+天下皆知美之為美。
+第三章
+不尚賢，使民不爭。</p>`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["第一章", "第二章", "第三章"]);
+  assert.match(chapters[1].text, /^天下皆知美/);
 });
 
 test("extractEpubChapters merges numbered aphorism spine continuations", async () => {

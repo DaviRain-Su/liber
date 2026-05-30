@@ -222,11 +222,10 @@ function parseNcxNavigation(pkg) {
   if (!xml) return [];
 
   const entries = [];
-  const navPointRe = /<navPoint\b[\s\S]*?<\/navPoint>/gi;
+  const navPointRe = /<navPoint\b[^>]*>[\s\S]*?<navLabel\b[^>]*>\s*<text\b[^>]*>([\s\S]*?)<\/text>\s*<\/navLabel>\s*<content\b([^>]*?)(?:\/>|>)/gi;
   for (const point of xml.matchAll(navPointRe)) {
-    const raw = point[0];
-    const label = stripHtmlInline(raw.match(/<navLabel\b[^>]*>\s*<text\b[^>]*>([\s\S]*?)<\/text>\s*<\/navLabel>/i)?.[1] || "");
-    const src = attrs(raw.match(/<content\b([^>]*?)(?:\/>|>)/i)?.[1] || "").src;
+    const label = stripHtmlInline(point[1] || "");
+    const src = attrs(point[2] || "").src;
     if (!label || !src) continue;
     entries.push({ label, ...resolveEpubHref(toc.href, src) });
   }
@@ -245,6 +244,11 @@ function englishChapterTitle(text) {
   const value = String(text || "").replace(/\s+/g, " ").trim();
   const chapterStart = value.match(/^(CHAPTER|Chapter|chapter)\s*([IVXLCDM]+|\d+)(\.?)(?:\s+(.{1,140}))?$/u);
   if (chapterStart) return `${chapterStart[1]} ${chapterStart[2]}${chapterStart[3] || ""}${chapterStart[4] ? ` ${chapterStart[4].trim()}` : ""}`.replace(/\s+/g, " ").trim();
+  const localizedStart = value.match(/^(CHAPITRE|Chapitre|chapitre|CAP[ÍI]TULO|Cap[íi]tulo|CAPITOLO|Capitolo|CANTO|Canto|LIVRE|Livre|ACTE|Acte)\s+(.{1,180})$/u);
+  if (localizedStart) return `${localizedStart[1]} ${localizedStart[2].trim()}`.replace(/\s+/g, " ").trim();
+  if (/^(?:PREMIÈRE|PREMIERE|DEUXIÈME|DEUXIEME|TROISIÈME|TROISIEME|QUATRIÈME|QUATRIEME)\s+PARTIE$/iu.test(value)) return value;
+  if (/^[IVXLCDM]+\.\s+.{2,180}$/u.test(value)) return value;
+  if (/^[IVXLCDM]+$/u.test(value)) return value;
   const letterStart = value.match(/^(LETTER|Letter|letter)\s+(\d+)(\.?)(?:\s+(.{1,140}))?$/u);
   if (letterStart) return `${letterStart[1]} ${letterStart[2]}${letterStart[3] || ""}${letterStart[4] ? ` ${letterStart[4].trim()}` : ""}`.replace(/\s+/g, " ").trim();
   const bookStart = value.match(/^(BOOK|Book|book)\s+([IVXLCDM]+|\d+)(\.?)(?:\s+(.{1,140}))?$/u);
@@ -262,6 +266,8 @@ function isNavigationNoiseTitle(title, bookTitle) {
   return isNoiseTitle(title, bookTitle)
     || /project gutenberg|full license|license$/i.test(title)
     || /transcriber'?s notes?/i.test(title)
+    || /illustrated edition|may (?:be )?viewed at ebook/i.test(title)
+    || /^oeuvres$/i.test(title)
     || /^contents?$/i.test(title)
     || /^list of illustrations?$/i.test(title)
     || /^cover$/i.test(title)
@@ -272,7 +278,7 @@ function isNavigableChapterTitle(title, bookTitle) {
   if (!title || isNavigationNoiseTitle(title, bookTitle)) return false;
   if (englishChapterTitle(title)) return true;
   if (/^(?:preface|prologue|epilogue|etymology)\.?$/i.test(title)) return true;
-  if (/^extracts?\b/i.test(title)) return true;
+  if (/^extracts?\b.+\)/i.test(title)) return true;
   if (/^(?:letter|book)\s+\d+/i.test(title)) return true;
   if (classifyLogicalHeading(title, bookTitle)?.kind === "chapter") return true;
   return false;
@@ -296,7 +302,8 @@ function cleanExtractedChapterText(title, text) {
     .replace(/\[[^\]\n]*(?:公元前|公元|BC|AD)[^\]\n]*\]\s*(?:相關資源|相关资源)?/giu, "")
     .replace(/(?:相關資源|相关资源)/gu, "")
     .replace(/(^|\s)\d+\s+卷[一二两三四五六七八九十百千〇零\d]+[:：]\s*[\p{Script=Han}]{1,20}(?=\s|$)/gu, "$1");
-  const blocks = prepared
+  const sectioned = splitInlineChineseClassicSections(prepared, title);
+  const blocks = sectioned
     .replace(/屬於：\[[^\]]+\]/g, "")
     .replace(/属于：\[[^\]]+\]/g, "")
     .split(/\n{2,}/)
@@ -306,6 +313,16 @@ function cleanExtractedChapterText(title, text) {
     .filter((block) => !/^\[[^\]]*(?:公元前|公元|BC|AD)[^\]]*\]$/iu.test(block))
     .filter((block) => !(title && exactTitlePrefix.test(block)));
   return normalizeTextBlocks(blocks.join("\n\n"));
+}
+
+function splitInlineChineseClassicSections(text, title) {
+  const heading = String(title || "").replace(/\s+/g, "");
+  if (!heading || heading.length > 24 || !/\p{Script=Han}/u.test(heading)) return String(text || "");
+  const escaped = escapeRegExp(heading);
+  return String(text || "")
+    .replace(new RegExp(`\\s+(\\d{1,3}\\s+${escaped}\\s*[:：])`, "gu"), "\n\n$1")
+    .replace(/\s+(\d{1,3}\.\s+[\p{Script=Han}]{1,8}\s*[:：])/gu, "\n\n$1")
+    .trim();
 }
 
 function makeChapter(n, title, text) {
@@ -495,6 +512,27 @@ function splitNumberedPoemBlock(block) {
   return parts;
 }
 
+function splitInlineChineseChapterBlock(block) {
+  const text = String(block || "").trim();
+  const re = /(?:^|\s)(第\s*[一二两三四五六七八九十百千〇零\d]+\s*(?:章|回|節|节|篇|卦|卷))(?=\s)/gu;
+  const matches = [...text.matchAll(re)];
+  if (matches.length < 2) return null;
+
+  const parts = [];
+  const preface = text.slice(0, matches[0].index).trim();
+  if (preface) parts.push(preface);
+  for (let i = 0; i < matches.length; i += 1) {
+    const m = matches[i];
+    const next = matches[i + 1];
+    const headingStart = m.index + (m[0].startsWith(" ") ? 1 : 0);
+    const bodyStart = m.index + m[0].length;
+    const body = text.slice(bodyStart, next?.index ?? text.length).trim();
+    parts.push(text.slice(headingStart, bodyStart).trim());
+    if (body) parts.push(body);
+  }
+  return parts;
+}
+
 function splitInlineVolumeBlock(block) {
   const text = String(block || "").trim();
   const re = /(?:^|\s)(卷之[一二两三四五六七八九十百千〇零\d]+[\p{Script=Han}]{1,16}(?:上|中|下)?)(?=\s|　|$)/gu;
@@ -549,6 +587,12 @@ function expandLogicalBlocks(blocks) {
     const anthology = splitAnthologyBlock(block);
     if (anthology) {
       out.push(...anthology);
+      continue;
+    }
+
+    const inlineChinese = splitInlineChineseChapterBlock(block);
+    if (inlineChinese) {
+      out.push(...inlineChinese);
       continue;
     }
 
@@ -647,7 +691,6 @@ export async function extractEpubChapters(filePath) {
   const chapters = [];
   const bookTitle = pkg.parsed.metadata.title || "";
   const navigationChapters = chaptersFromNavigation(pkg, items, bookTitle);
-  if (navigationChapters.length) return navigationChapters;
 
   for (const item of items) {
     const raw = entryText(pkg.entries, item.href);
@@ -671,6 +714,12 @@ export async function extractEpubChapters(filePath) {
     }
   }
 
+  if (navigationChapters.length) {
+    const enoughCoverage = !chapters.length
+      || navigationChapters.length >= chapters.length * 0.7
+      || navigationChapters.length >= 20;
+    if (enoughCoverage) return navigationChapters;
+  }
   if (!chapters.length) throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
   return chapters;
 }

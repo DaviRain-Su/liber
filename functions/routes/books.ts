@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import * as S from "../lib/seed";
 import { chain } from "../lib/chains";
-import { putBlob } from "../lib/storage";
+import { getBlob, putBlob } from "../lib/storage";
 import {
   beginChunkedBookIngest,
   finalizeChunkedBookIngest,
@@ -52,6 +52,23 @@ books.get("/books/:id/chapters", async (c) => {
   const chapters = await getChapters(c.env, b.id);
   const toc = await getToc(c.env, b.id);
   return c.json({ chapters, toc });
+});
+
+books.get("/books/:id/source.epub", async (c) => {
+  const b = await getBook(c.env, c.req.param("id"));
+  if (!b) return c.json({ error: "未找到该书" }, 404);
+  const bytes = await getBlob(c.env, `book/${b.id}/source.epub`);
+  if (!bytes) return c.json({ error: "未找到 EPUB 源文件" }, 404);
+  const filename = `${b.id}.epub`;
+  const utf8Name = encodeURIComponent(`${b.t || b.id}.epub`);
+  return new Response(bytes, {
+    headers: {
+      "Content-Type": "application/epub+zip",
+      "Content-Disposition": `inline; filename="${filename}"; filename*=UTF-8''${utf8Name}`,
+      "Cache-Control": "public, max-age=3600",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 });
 
 // live reachability probe: a thrown fetch = unreachable; any HTTP response

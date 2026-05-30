@@ -50,6 +50,111 @@ function chapterPlaceholder(bookId, n, title, text = "正文加载中…", statu
   };
 }
 
+const epubFont = {
+  song: "'Songti SC', 'Noto Serif SC', 'Source Han Serif SC', serif",
+  kai: "'KaiTi', 'STKaiti', 'Cormorant Garamond', serif",
+  hei: "ui-monospace, 'IBM Plex Mono', 'SFMono-Regular', monospace",
+};
+const epubPalette = {
+  cream: { bg: "#f4efe5", fg: "#2d261f" },
+  paper: { bg: "#f7f3ea", fg: "#27221c" },
+  sepia: { bg: "#f3e8d2", fg: "#30261a" },
+  night: { bg: "#14110c", fg: "#d9cfba" },
+};
+
+function applyEpubTheme(rendition, { font, size, lead, rtheme }) {
+  if (!rendition?.themes) return;
+  const palette = epubPalette[rtheme] || epubPalette.cream;
+  rendition.themes.register("liber", {
+    body: {
+      "background": `${palette.bg} !important`,
+      "color": `${palette.fg} !important`,
+      "font-family": `${epubFont[font] || epubFont.song} !important`,
+      "font-size": `${size}px !important`,
+      "line-height": `${lead} !important`,
+      "padding": "0 8% !important",
+    },
+    p: {
+      "margin": "0 0 1em 0 !important",
+      "text-indent": "1.25em !important",
+    },
+    img: {
+      "max-width": "100% !important",
+      "height": "auto !important",
+    },
+    a: {
+      "color": "#a94d35 !important",
+    },
+  });
+  rendition.themes.select("liber");
+}
+
+function EpubReader({ bookId, controlRef, font, size, lead, rtheme }) {
+  const hostRef = useR(null);
+  const renditionRef = useR(null);
+  const [status, setStatus] = useS("loading");
+  const [error, setError] = useS("");
+
+  useE(() => {
+    let cancelled = false;
+    let epubBook = null;
+    let rendition = null;
+    setStatus("loading");
+    setError("");
+    const source = `/api/books/${encodeURIComponent(bookId)}/source.epub`;
+
+    import("epubjs").then((mod) => {
+      if (cancelled) return null;
+      const ePub = mod.default?.default || mod.default || mod["module.exports"]?.default || mod["module.exports"];
+      if (typeof ePub !== "function") throw new Error("EPUB 阅读器初始化失败");
+      epubBook = ePub(source);
+      rendition = epubBook.renderTo(hostRef.current, {
+        width: "100%",
+        height: "100%",
+        flow: "paginated",
+        spread: "none",
+      });
+      renditionRef.current = rendition;
+      controlRef.current = {
+        next: () => rendition.next(),
+        prev: () => rendition.prev(),
+      };
+      applyEpubTheme(rendition, { font, size, lead, rtheme });
+      return rendition.display();
+    }).then(() => {
+      if (!cancelled) setStatus("ready");
+    }).catch((err) => {
+      if (!cancelled) {
+        setStatus("error");
+        setError(err?.message || "原版 EPUB 暂时无法加载");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      if (controlRef.current) controlRef.current = null;
+      renditionRef.current = null;
+      try { rendition?.destroy?.(); } catch { /* ignore */ }
+      try { epubBook?.destroy?.(); } catch { /* ignore */ }
+    };
+  }, [bookId]);
+
+  useE(() => {
+    applyEpubTheme(renditionRef.current, { font, size, lead, rtheme });
+  }, [font, size, lead, rtheme, status]);
+
+  return (
+    <div className="rd-epub-panel">
+      <div className="rd-epub-host" ref={hostRef}/>
+      {status !== "ready" && (
+        <div className={`rd-epub-status ${status}`}>
+          {status === "error" ? error : "正在打开原版 EPUB…"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const missingBook = { id: bookId, t: "未找到该书", a: "", sub: "", cls: "ink", seal: "书" };
   const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
@@ -112,6 +217,9 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     window.addEventListener("liber-reader-layout", h);
     return () => window.removeEventListener("liber-reader-layout", h);
   }, []);
+  const [readMode, setReadMode] = useS(() => localStorage.getItem("liber.reader.mode") || "text");
+  const epubControl = useR(null);
+  useE(() => { localStorage.setItem("liber.reader.mode", readMode); }, [readMode]);
 
   /* reading settings (persisted) */
   const load = (k, d) => { const v = localStorage.getItem("liber.set."+k); return v == null ? d : v; };
@@ -311,15 +419,24 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   };
 
   /* nav */
-  const go = (d) => setCIdx(i => {
+  const go = (d) => {
+    if (readMode === "epub" && epubControl.current) {
+      setTurn(d > 0 ? "next" : "prev");
+      if (turnTimer.current) window.clearTimeout(turnTimer.current);
+      turnTimer.current = window.setTimeout(() => setTurn(null), 420);
+      (d > 0 ? epubControl.current.next : epubControl.current.prev)();
+      return;
+    }
+    setCIdx(i => {
     const next = Math.min(chapterCount - 1, Math.max(0, i + d));
     if (next === i) return i;
     setTurn(d > 0 ? "next" : "prev");
     if (turnTimer.current) window.clearTimeout(turnTimer.current);
     turnTimer.current = window.setTimeout(() => setTurn(null), 420);
     return next;
-  });
-  const jumpTo = (n) => { const i = chapters.findIndex(c => c.n === n); if (i >= 0){ setCIdx(i); setTocOpen(false); } };
+    });
+  };
+  const jumpTo = (n) => { const i = chapters.findIndex(c => c.n === n); if (i >= 0){ setReadMode("text"); setCIdx(i); setTocOpen(false); } };
 
   useE(() => {
     const onKey = (e) => {
@@ -329,7 +446,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [aiOpen, tocOpen, setOpen, notePop]);
+  }, [aiOpen, tocOpen, setOpen, notePop, readMode]);
 
   /* ---- render one sentence ---- */
   const renderSentence = (s) => {
@@ -376,54 +493,59 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         </div>
         <div className="spacer"/>
         <button className={`rd-tool ${tocOpen?"on":""}`} onClick={() => { setTocOpen(v=>!v); setSetOpen(false); }}>{I.list} 目录</button>
+        <button className={`rd-tool ${readMode==="epub"?"on":""}`} onClick={() => setReadMode(m => m === "epub" ? "text" : "epub")}>{I.book} EPUB</button>
         <button className={`rd-tool ${setOpen?"on":""}`} id="rd-set-btn" onClick={() => { setSetOpen(v=>!v); setTocOpen(false); }}>{I.type} 显示</button>
         <button className={`rd-tool ${aiOpen?"on":""}`} onClick={() => { setAiOpen(v=>!v); if(layout==="archive") setRailTab("ai"); }}>{I.spark} AI 书友</button>
       </div>
 
       {/* reading region */}
       <div className="rd-body">
-        <div className="rd-scroll" ref={scrollRef}>
-          <div className="rd-col" key={`${book.id}-${ch.n}`} onMouseUp={onMouseUp}>
-            <div className="rd-chap-no">第 {String(ch.n).padStart(2,"0")} 章</div>
-            <h1 className="rd-chap-title">{ch.title}</h1>
-            <div className="rd-chap-rule"/>
-            <div className="rd-text">
-              {ch.paras.map(renderParagraph)}
-            </div>
-            {(() => {
-              const echoSid = ch.paras.flat().find(s => window.ECHOES[s.id]);
-              const echo = echoSid ? window.ECHOES[echoSid.id] : null;
-              const crossRec = echo ? echo.items.find(it => it.inLib) : null;
-              const nextChap = chapters[cIdx+1];
-              if (!crossRec && !nextChap) return null;
-              return (
-                <div className="rd-chapter-end">
-                  <div className="rce-rule"/>
-                  <div className="rce-h">读完这一章 · 顺着线索读下去</div>
-                  <div className="rce-cards">
-                    {nextChap && (
-                      <div className="rce-card" onClick={() => go(1)}>
-                        <span className="rce-seal" style={{ background:"#211b15", color:"#ece2cf" }}>{book.seal}</span>
-                        <div className="rce-mid"><div className="rce-lab">本书 · 接着读</div><div className="rce-t">第 {nextChap.n} 章 · {nextChap.title}</div></div>
-                        <span className="rce-go">{I.right}</span>
-                      </div>
-                    )}
-                    {crossRec && (
-                      <div className="rce-card" onClick={() => onOpenBook && onOpenBook(crossRec.bookId)}>
-                        <span className="rce-seal" style={{ background: crossRec.color }}>{crossRec.seal}</span>
-                        <div className="rce-mid"><div className="rce-lab">跨书 · {echo.theme}</div><div className="rce-t">{crossRec.bookT} · {crossRec.chap}</div><div className="rce-why">{crossRec.why}</div></div>
-                        <span className="rce-go">{I.right}</span>
-                      </div>
-                    )}
+        {readMode === "epub" ? (
+          <EpubReader bookId={book.id} controlRef={epubControl} font={font} size={size} lead={lead} rtheme={rtheme}/>
+        ) : (
+          <div className="rd-scroll" ref={scrollRef}>
+            <div className="rd-col" key={`${book.id}-${ch.n}`} onMouseUp={onMouseUp}>
+              <div className="rd-chap-no">第 {String(ch.n).padStart(2,"0")} 章</div>
+              <h1 className="rd-chap-title">{ch.title}</h1>
+              <div className="rd-chap-rule"/>
+              <div className="rd-text">
+                {ch.paras.map(renderParagraph)}
+              </div>
+              {(() => {
+                const echoSid = ch.paras.flat().find(s => window.ECHOES[s.id]);
+                const echo = echoSid ? window.ECHOES[echoSid.id] : null;
+                const crossRec = echo ? echo.items.find(it => it.inLib) : null;
+                const nextChap = chapters[cIdx+1];
+                if (!crossRec && !nextChap) return null;
+                return (
+                  <div className="rd-chapter-end">
+                    <div className="rce-rule"/>
+                    <div className="rce-h">读完这一章 · 顺着线索读下去</div>
+                    <div className="rce-cards">
+                      {nextChap && (
+                        <div className="rce-card" onClick={() => go(1)}>
+                          <span className="rce-seal" style={{ background:"#211b15", color:"#ece2cf" }}>{book.seal}</span>
+                          <div className="rce-mid"><div className="rce-lab">本书 · 接着读</div><div className="rce-t">第 {nextChap.n} 章 · {nextChap.title}</div></div>
+                          <span className="rce-go">{I.right}</span>
+                        </div>
+                      )}
+                      {crossRec && (
+                        <div className="rce-card" onClick={() => onOpenBook && onOpenBook(crossRec.bookId)}>
+                          <span className="rce-seal" style={{ background: crossRec.color }}>{crossRec.seal}</span>
+                          <div className="rce-mid"><div className="rce-lab">跨书 · {echo.theme}</div><div className="rce-t">{crossRec.bookT} · {crossRec.chap}</div><div className="rce-why">{crossRec.why}</div></div>
+                          <span className="rce-go">{I.right}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* archive persistent rail */}
-        {layout === "archive" && (
+        {layout === "archive" && readMode === "text" && (
           <div className="rd-rail">
             <div className="rail-tabs">
               <button className={railTab==="anno"?"on":""} onClick={() => setRailTab("anno")}>本章批注</button>
@@ -443,14 +565,14 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
       {/* bottom progress */}
       <div className="rd-foot">
         <div className="pg-nav">
-          <button onClick={() => go(-1)} disabled={cIdx===0}>{I.left}</button>
-          <button onClick={() => go(1)} disabled={cIdx===chapterCount-1}>{I.right}</button>
+          <button onClick={() => go(-1)} disabled={readMode === "text" && cIdx===0}>{I.left}</button>
+          <button onClick={() => go(1)} disabled={readMode === "text" && cIdx===chapterCount-1}>{I.right}</button>
         </div>
         <div className="pg-track" onClick={(e)=>{ const r=e.currentTarget.getBoundingClientRect(); const f=(e.clientX-r.left)/r.width; const el=scrollRef.current; if(el) el.scrollTop=(el.scrollHeight-el.clientHeight)*f; }}>
-          <div className="pg-fill" style={{ width: (prog*100)+"%" }}/>
-          <div className="pg-dot" style={{ left: (prog*100)+"%" }}/>
+          <div className="pg-fill" style={{ width: readMode === "epub" ? "0%" : (prog*100)+"%" }}/>
+          <div className="pg-dot" style={{ left: readMode === "epub" ? "0%" : (prog*100)+"%" }}/>
         </div>
-        <div className="pg-label">第 {ch.n} 章 · 全书 {pct}%</div>
+        <div className="pg-label">{readMode === "epub" ? "原版 EPUB" : `第 ${ch.n} 章 · 全书 ${pct}%`}</div>
       </div>
 
       {/* selection popover */}

@@ -164,7 +164,7 @@ function reflowWrappedBlocks(blocks: string[]): string[] {
 }
 
 function normalizeTextBlocks(text: string, title: string): string[] {
-  const blocks = text
+  const blocks = splitInlineChineseClassicSections(text, title)
     .replace(/\r\n/g, "\n")
     .split(/\n{2,}/)
     .map((block) => block.split("\n").map((line) => line.replace(/[ \t\f\v]+/g, " ").trim()).filter(Boolean).join("\n"))
@@ -173,6 +173,16 @@ function normalizeTextBlocks(text: string, title: string): string[] {
   if (blocks[0]?.replace(/\s+/g, " ").trim().toLowerCase() === normalizedTitle) blocks.shift();
   const paras = shouldReflowBlocks(blocks) ? reflowWrappedBlocks(blocks) : blocks;
   return paras;
+}
+
+function splitInlineChineseClassicSections(text: string, title: string): string {
+  const heading = title.replace(/\s+/g, "");
+  if (!heading || heading.length > 24 || !/\p{Script=Han}/u.test(heading)) return text;
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text
+    .replace(new RegExp(`\\s+(\\d{1,3}\\s+${escaped}\\s*[:：])`, "gu"), "\n\n$1")
+    .replace(/\s+(\d{1,3}\.\s+[\p{Script=Han}]{1,8}\s*[:：])/gu, "\n\n$1")
+    .trim();
 }
 
 export function textToChapter(bookId: string, n: number, title: string, text: string) {
