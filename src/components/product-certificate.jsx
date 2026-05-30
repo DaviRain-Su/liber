@@ -7,6 +7,11 @@ function Certificate({ bookId, onBack, onOpenBook }){
   const book = (window.BOOKS||[]).find(b => b.id === bookId) || window.BOOKS[0];
   const [verifying, setVerifying] = useSc(false);
   const [steps, setSteps] = useSc([]); // verified step keys
+  const [net, setNet] = useSc(null);   // live storage-network reachability (from /api)
+  useEc(() => {
+    if (!window.liberApi) return;
+    window.liberApi.books.proof(bookId).then(r => { if (r && r.networks) setNet(r.networks); }).catch(() => {});
+  }, []);
   const checks = [
     { k:"walrus", label:"Walrus 正文分块", detail:"读取 142 个内容块，哈希校验通过" },
     { k:"arweave", label:"Arweave 冷备份", detail:"永久副本存在，跨网络可达" },
@@ -57,6 +62,11 @@ function Certificate({ bookId, onBack, onOpenBook }){
             {/* storage copies */}
             <div className="cert-sec">
               <div className="cs-h">跨网络副本</div>
+              {net && net.configured && (
+                <div className="cs-net" style={{fontSize:12, color:"var(--ink-3)", margin:"-2px 0 10px", fontFamily:"var(--mono)"}}>
+                  实时探测 · Walrus {net.walrus===false?"⚠ 暂不可达":"✓ 网络可达"} · Arweave {net.arweave===false?"⚠ 暂不可达":"✓ 网关可达"}
+                </div>
+              )}
               {copies.map((c,i) => (
                 <div className={`copy-row ${steps.includes(c.net==="Walrus"?"walrus":c.net==="Arweave"?"arweave":"")?"verified":""}`} key={i}>
                   <span className={`copy-dot ${c.status}`}/>

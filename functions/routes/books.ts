@@ -26,10 +26,42 @@ books.get("/books/:id/chapters", (c) => {
   return c.json({ chapters: b.id === "daodejing" ? S.CHAPTERS : [], toc: S.TOC });
 });
 
-books.get("/books/:id/proof", (c) => {
+// live reachability probe: a thrown fetch = unreachable; any HTTP response
+// (even 404) means DNS/TLS/route works. null when the endpoint isn't configured.
+async function reachable(url?: string): Promise<boolean | null> {
+  if (!url) return null;
+  try { await fetch(url, { method: "GET" }); return true; } catch { return false; }
+}
+
+books.get("/books/:id/proof", async (c) => {
   const b = S.bookById(c.req.param("id"));
   if (!b) return c.json({ error: "未找到该书" }, 404);
-  return c.json({ blob: b.blob, backup: b.backup, index: b.index, license: "CC0 1.0 Universal" });
+  const [walrus, arweave] = await Promise.all([
+    reachable(c.env.WALRUS_AGGREGATOR),
+    reachable(c.env.ARWEAVE_GATEWAY),
+  ]);
+  return c.json({
+    blob: b.blob, backup: b.backup, index: b.index, license: "CC0 1.0 Universal",
+    networks: { configured: !!c.env.WALRUS_AGGREGATOR, walrus, arweave },
+  });
+});
+
+// Real, content-addressed blobs published by users (works / shares). Looks up
+// the D1 record and, when a Walrus aggregator is configured and the id is real,
+// probes live availability against it.
+books.get("/blobs/:key{.+}", async (c) => {
+  const key = c.req.param("key");
+  const rec = await c.env.DB.prepare(
+    `SELECT key, walrus, arweave, sui_index, size, content_type, created_at FROM blobs WHERE key = ?`,
+  ).bind(key).first<any>();
+  if (!rec) return c.json({ error: "未找到该 blob" }, 404);
+  let available: boolean | null = null;
+  const agg = c.env.WALRUS_AGGREGATOR;
+  const blobId = typeof rec.walrus === "string" && rec.walrus.startsWith("walrus://") ? rec.walrus.slice(9) : null;
+  if (agg && blobId && !blobId.includes("…")) {
+    try { const res = await fetch(`${agg.replace(/\/$/, "")}/v1/blobs/${blobId}`); available = res.ok; } catch { available = false; }
+  }
+  return c.json({ blob: rec, available });
 });
 
 books.get("/search", (c) => {
