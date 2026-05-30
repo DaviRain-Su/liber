@@ -218,7 +218,10 @@ social.post("/comments/:type/:id", async (c) => {
      VALUES (?,?,?,?,?,0,?,?)`,
     cid, type, tid, uid, body, ref.walrus, now(),
   );
-  return c.json({ ok: true, id: cid, walrus: ref.walrus });
+  // register the comment on Sui when configured (no-op otherwise); record the digest/objectId
+  const chain = await registerObject(c.env, { contentId: ref.walrus, kind: "comment", license: "CC0-1.0" });
+  if (chain) await run(c.env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, chain.objectId || chain.digest, `comment/${cid}`);
+  return c.json({ ok: true, id: cid, walrus: ref.walrus, sui: chain });
 });
 
 // ---- Votes (agree/upvote), generic + idempotent per (user, target) ----

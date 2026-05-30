@@ -255,6 +255,14 @@ function CommentsPanel({ targetType, targetId }){
     if (window.liberApi) window.liberApi.comments.add(targetType, targetId, t).catch(() => {});
     setDraft("");
   };
+  const [upvoted, setUpvoted] = useSs([]); // comment ids upvoted this session
+  const upvote = (cmId) => {
+    if (String(cmId).startsWith("local")) return;       // not yet persisted
+    const on = upvoted.includes(cmId);
+    setUpvoted(v => on ? v.filter(x=>x!==cmId) : [...v, cmId]);
+    setList(l => (l||[]).map(cm => cm.id===cmId ? { ...cm, up:(cm.up||0)+(on?-1:1) } : cm));
+    if (window.liberApi) window.liberApi.vote("comment", cmId).catch(() => {});
+  };
   const wrap = { margin:"10px 0 2px", padding:"12px 14px", border:"1px solid var(--line, rgba(0,0,0,.1))", borderRadius:8, background:"var(--paper-2, rgba(0,0,0,.02))" };
   const row = { display:"flex", gap:8, alignItems:"flex-start", margin:"8px 0" };
   const av = (c) => ({ flex:"0 0 24px", width:24, height:24, borderRadius:"50%", background:c, color:"#fff", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" });
@@ -270,6 +278,7 @@ function CommentsPanel({ targetType, targetId }){
             <div style={{ flex:1 }}>
               <div style={{ fontSize:12, opacity:.6 }}>{cm.u}{cm.mine && " · 你"} <span style={{ marginLeft:6 }}>{cm.when}</span>{cm.walrus && <span title={cm.walrus} style={{ marginLeft:6, color:"var(--accent)" }}>· 已存证</span>}</div>
               <div style={{ fontSize:14, lineHeight:1.6 }}>{cm.t}</div>
+              <div style={{ fontSize:12, marginTop:2, cursor:"pointer", color: upvoted.includes(cm.id) ? "var(--accent)" : "inherit", opacity:.7, display:"inline-flex", alignItems:"center", gap:3 }} onClick={() => upvote(cm.id)}>{I.up} 赞同 {cm.up || 0}</div>
             </div>
           </div>
         ))}
