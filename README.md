@@ -89,8 +89,10 @@ Hono Pages Functions (`functions/`, served at `/api/*`) deploy together, with
 
 The Cloudflare resources are already provisioned and their ids are filled into
 `wrangler.toml` (D1 `liber`, KV `liber-KV`, R2 `liber-content`). Run
-`npm run db:migrate` to apply the D1 schema. `public/_redirects` keeps SPA routes
-falling back to `index.html` while `/api/*` reaches the Functions.
+`npm run db:migrate` to apply the D1 schema. Do not add a blanket `_redirects`
+rule like `/* / 200`: on Cloudflare Pages it rewrites Vite assets to `index.html`
+and causes strict MIME errors for CSS and JS. The current app keeps navigation in
+React state, so it does not need an SPA fallback rule.
 
 Pick **one** trigger per Pages project (running both just double-deploys):
 
