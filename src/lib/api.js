@@ -13,6 +13,11 @@ export function setToken(t) {
   try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
 }
 
+export async function ensureGuestSession() {
+  if (getToken()) return null;
+  return api.auth.guest();
+}
+
 async function req(method, path, body) {
   const headers = { "Content-Type": "application/json" };
   const token = getToken();

@@ -5,14 +5,23 @@ import { CommentsPanel } from "./product-social.jsx";
 /* product-notebook.jsx — your highlights/notes archive + AI chapter summaries + export. */
 const { useState: useSn, useMemo: useMemoN, useEffect: useEffN } = React;
 
-/* gather the reader's real highlights + notes from localStorage, merged with seeds */
-function gatherHighlights(){
+/* gather the reader's real highlights + notes from localStorage + backend, merged with seeds */
+function gatherHighlights(serverReading = {}){
   const out = [];
   (window.SEED_HL || []).forEach(h => out.push({ ...h, seed:true }));
   (window.BOOKS || []).forEach(b => {
     let hl = {}, nt = {};
     try { hl = JSON.parse(localStorage.getItem("liber.hl."+b.id)) || {}; } catch {}
     try { nt = JSON.parse(localStorage.getItem("liber.nt."+b.id)) || {}; } catch {}
+    const srv = serverReading[b.id] || {};
+    hl = { ...(srv.highlights || {}), ...hl };
+    if (srv.notes) {
+      nt = { ...nt };
+      Object.keys(srv.notes).forEach((sid) => {
+        const have = new Set((nt[sid] || []).map(n => n.t));
+        nt[sid] = [ ...(nt[sid] || []), ...srv.notes[sid].filter(n => !have.has(n.t)) ];
+      });
+    }
     const sentMap = {};
     if (b.id === "daodejing") (window.CHAPTERS||[]).forEach(c => c.paras.flat().forEach(s => { sentMap[s.id] = { t:s.t, chap:"第"+c.n+"章" }; }));
     Object.keys(hl).forEach(sid => {
@@ -33,7 +42,8 @@ function gatherHighlights(){
 }
 
 function Notebook({ onOpenBook }){
-  const all = useMemoN(() => gatherHighlights(), []);
+  const [serverReading, setServerReading] = useSn({});
+  const all = useMemoN(() => gatherHighlights(serverReading), [serverReading]);
   const books = useMemoN(() => ["全部", ...Array.from(new Set(all.map(h => h.book)))], [all]);
   const [bookF, setBookF] = useSn("全部");
   const [typeF, setTypeF] = useSn("summary"); // summary | highlight | note | work
@@ -43,6 +53,21 @@ function Notebook({ onOpenBook }){
   useEffN(() => {
     if (!window.liberApi) return;
     window.liberApi.works.list().then(r => { if (r && Array.isArray(r.works) && r.works.length) setWorks(r.works.map(w => ({ ...w, when: w.when || "已发布" }))); }).catch(() => {});
+  }, []);
+  useEffN(() => {
+    if (!window.liberApi) return;
+    let live = true;
+    Promise.all((window.BOOKS || []).map((b) =>
+      window.liberApi.reading.get(b.id)
+        .then((r) => [b.id, r])
+        .catch(() => null)
+    )).then((rows) => {
+      if (!live) return;
+      const next = {};
+      rows.filter(Boolean).forEach(([id, r]) => { next[id] = r; });
+      setServerReading(next);
+    });
+    return () => { live = false; };
   }, []);
 
   const hls = all.filter(h => bookF === "全部" || h.book === bookF);

@@ -1,6 +1,7 @@
 import React from "react";
 import { I, Mark } from "./product-shared.jsx";
 import { walletLogin } from "../lib/wallet.js";
+import { ensureGuestSession, getToken } from "../lib/api.js";
 
 /* product-onboarding.jsx — welcome + value props + decentralized sign-in + interests. */
 const { useState: useOnb, useEffect: useEonb } = React;
@@ -51,7 +52,8 @@ function Onboarding({ onFinish }){
   };
   const togglePick = (k) => setPicks(p => p.includes(k) ? p.filter(x=>x!==k) : [...p, k]);
 
-  const finish = (guest) => {
+  const finish = async (guest) => {
+    if (guest || !getToken()) await ensureGuestSession().catch(() => null);
     localStorage.setItem("liber.onboarded", "1");
     if (account) localStorage.setItem("liber.account", JSON.stringify(account));
     if (guest) localStorage.setItem("liber.guest", "1");

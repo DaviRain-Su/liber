@@ -16,6 +16,7 @@ import { Charts } from "./product-charts.jsx";
 import { Reader } from "./product-reader.jsx";
 import { SearchOverlay } from "./product-search.jsx";
 import { AgentView } from "./product-agentview.jsx";
+import { ensureGuestSession } from "../lib/api.js";
 
 /* product-app.jsx — router, theme, mount. */
 const { useState: useSt, useEffect: useEf } = React;
@@ -85,6 +86,7 @@ function App(){
 
   /* landing CTAs */
   const enterAsGuest = () => {           // 开始阅读 → 直接进书库（访客）
+    ensureGuestSession().catch(() => {});
     localStorage.setItem("liber.guest", "1");
     localStorage.setItem("liber.onboarded", "1"); // guest skips onboarding
     setRoute({ screen:"library" });

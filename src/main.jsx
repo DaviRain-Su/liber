@@ -19,11 +19,9 @@ import "./data/product-data.js";
 
 /* API client. Exposed as window.liberApi; screens call it with graceful
    fallback to seed/localStorage when the backend isn't reachable. */
-import api, { getToken } from "./lib/api.js";
+import api from "./lib/api.js";
 if (typeof window !== "undefined") {
   window.liberApi = api;
-  /* best-effort guest session so reading / AI / share writes persist server-side */
-  if (!getToken()) api.auth.guest().catch(() => {});
 }
 
 import { App } from "./components/product-app.jsx";

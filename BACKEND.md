@@ -23,20 +23,20 @@ Browser ── /            → static SPA (dist/)
 - **Merge-on-read.** User content lives in D1 and is merged with the seed on
   read, mirroring the frontend's old "seed + localStorage" behaviour (e.g.
   annotations for a sentence = seed + public D1 notes).
-- **Swappable Web3.** `functions/lib/storage.ts` is the only file that knows
-  about storage: today it writes to R2 and returns content-derived
-  `walrus://` / `ar://` / `sui::` addresses. Going real Web3 (Walrus + Arweave +
-  Sui) later changes only this file.
-- **Auth.** Guest sessions work today (`/api/auth/guest`). Real Sui
-  wallet-signature login (`/api/auth/verify`) is wired but stubbed until P4
-  (wallet integration with `@mysten/dapp-kit`).
+- **Swappable Web3.** `functions/lib/storage.ts` owns decentralized blob
+  storage (R2 fallback, optional Walrus/Arweave), while `functions/lib/chains/`
+  owns wallet verification, read-only chain proof, and optional registry writes.
+  The active chain is selected with `CHAIN`.
+- **Auth.** Guest sessions work today (`/api/auth/guest`). Wallet-signature
+  login (`/api/auth/verify`) delegates verification to the active chain adapter
+  (`sui` today; `evm` scaffolded).
 
 ## Layout
 
 ```
 wrangler.toml              bindings (D1/KV/R2/AI) + Pages output dir
 tsconfig.json              TS config for functions/
-migrations/0001_init.sql   D1 schema
+migrations/*.sql           D1 schema, applied in order by npm run db:migrate*
 functions/
   api/[[route]].ts         Hono app mounted at /api
   lib/   types · db · auth · storage · ai · seed
@@ -53,7 +53,7 @@ src/lib/api.js             frontend API client (window.liberApi)
 | Books | `GET /api/books` · `/books/:id` · `/books/:id/chapters` · `/books/:id/proof` · `/search?q=` |
 | Reading (auth) | `GET /api/reading/:book` · `PUT …/highlight` · `POST …/note` · `PUT …/progress` |
 | Social | `GET /api/annotations/:book/:sid` · `/feed` · `/shares` · `/groups[/:id]` · `/threads/:key` · `/works` (+ POST writes, auth) |
-| Comments / votes | `GET/POST /api/comments/:type/:id` · `POST /api/vote/:type/:id` (generic over share/work/book; D1-backed, `comments.walrus` reserved for later decentralized storage). Apply `migrations/0002_comments_votes.sql` to D1. |
+| Comments / votes | `GET/POST /api/comments/:type/:id` · `POST /api/vote/:type/:id` (generic over share/work/book; D1-backed, comments mirrored through the storage layer). |
 | AI | `POST /api/ai/chat` · `GET /api/ai/conversations[/:id]` |
 | Charts | `GET /api/charts?window=today|week|month` |
 | MCP (open) | `GET /api/mcp` · `POST /api/mcp/call` `{tool,args}` |
@@ -63,7 +63,7 @@ src/lib/api.js             frontend API client (window.liberApi)
 ```bash
 npm install
 npm run build                 # produce dist/ (Pages Functions need it)
-npm run db:migrate:local      # apply schema to the local D1
+npm run db:migrate:local      # apply all migrations to the local D1
 npm run dev:api               # wrangler pages dev — serves SPA + /api with local D1/KV/R2
 # (Workers AI has no local emulator; /api/ai/chat returns a graceful offline reply locally)
 ```
@@ -89,7 +89,7 @@ curl localhost:8788/api/reading/daodejing -H "Authorization: Bearer $TOKEN"
 npx wrangler d1 create liber          # → copy database_id into wrangler.toml
 npx wrangler kv namespace create KV   # → copy id into wrangler.toml
 npx wrangler r2 bucket create liber-content
-npm run db:migrate                    # apply schema to the remote D1
+npm run db:migrate                    # apply all migrations to the remote D1
 ```
 
 Then bind D1/KV/R2 and **Workers AI** to the Pages project (dashboard →
@@ -101,9 +101,10 @@ npm run deploy        # build + wrangler pages deploy
 
 ## Web3 integration (P4) — optional env vars
 
-All Web3 features are config-gated: with these unset, the app falls back to R2 /
-seed and makes no external calls. Set them in `wrangler.toml` `[vars]` (public,
-non-secret) except `ADMIN_TOKEN`, which should be a Pages **secret**.
+All Web3 features are config-gated: the committed `wrangler.toml` leaves the
+network endpoints empty, so the app falls back to R2 / seed and makes no
+external calls. Set public endpoints in `wrangler.toml` `[vars]`; set
+`ADMIN_TOKEN` and signer keys as Pages **secrets**.
 
 | Var | Purpose |
 | --- | --- |
@@ -130,11 +131,10 @@ one adapter file. On-chain **registration is optional and high-value-only** — 
 needs a deployed contract (e.g. a Sui Move package) and stays a no-op until the
 signer key + contract id are configured, so nothing depends on it.
 
-On publish, `POST /api/works` and `POST /api/shares` call
-`<SUI_PACKAGE>::<SUI_MODULE>::register(...)` when `SUI_RPC` + `SUI_SIGNER_KEY` +
-`SUI_PACKAGE` are all set, persist the resulting object id / tx digest into
-`blobs.sui_index`, and return it as `sui` in the response. With any unset, the
-call is skipped and publishing is unaffected.
+On publish, `POST /api/works`, `POST /api/shares`, and comment writes call the
+active chain adapter's `registerObject(...)` only when that adapter has all of
+its signing/config vars. For Sui this means `SUI_RPC` + `SUI_SIGNER_KEY` +
+`SUI_PACKAGE`. With any unset, the call is skipped and publishing is unaffected.
 
 Related endpoints:
 

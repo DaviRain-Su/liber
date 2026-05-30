@@ -7,10 +7,7 @@ import type { ChainAdapter, ChainRef, ChainInfo } from "./types";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
-// SuiClient is a real runtime export; its named type isn't surfaced by the
-// ./client barrel under this Workers tsconfig — import the value, type loosely.
-// @ts-ignore
-import { SuiClient } from "@mysten/sui/client";
+import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 
 function rpcUrl(env: Env): string | null {
   return env.SUI_RPC || null;
@@ -28,6 +25,13 @@ async function rpc(env: Env, method: string, params: unknown[]): Promise<any> {
   const j: any = await res.json();
   if (j.error) throw new Error(j.error.message || "sui rpc error");
   return j.result;
+}
+
+function networkFromUrl(url: string) {
+  if (/mainnet/i.test(url)) return "mainnet";
+  if (/devnet/i.test(url)) return "devnet";
+  if (/localnet|localhost|127\.0\.0\.1/i.test(url)) return "localnet";
+  return "testnet";
 }
 
 export const suiAdapter: ChainAdapter = {
@@ -76,7 +80,7 @@ export const suiAdapter: ChainAdapter = {
     if (!url || !key || !pkg) return null;
     const moduleName = env.SUI_MODULE || "registry";
     try {
-      const sc: any = new SuiClient({ url });
+      const sc = new SuiJsonRpcClient({ url, network: networkFromUrl(url) });
       const kp = Ed25519Keypair.fromSecretKey(key);
       const tx = new Transaction();
       tx.moveCall({
@@ -92,7 +96,7 @@ export const suiAdapter: ChainAdapter = {
         transaction: tx,
         options: { showEffects: true, showObjectChanges: true },
       });
-      const created = (res.objectChanges || []).find((ch: any) => ch.type === "created");
+      const created = (res.objectChanges || []).find((ch: any) => ch.type === "created") as { objectId?: string } | undefined;
       return { chain: "sui", digest: res.digest, objectId: created?.objectId };
     } catch {
       return null;

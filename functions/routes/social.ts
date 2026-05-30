@@ -37,11 +37,19 @@ social.get("/shares", async (c) => {
   );
   // real aggregate counts for share cards: comments, saves, agree (votes)
   const cmtCounts: Record<string, number> = {};
-  for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM comments WHERE target_type='share' GROUP BY target_id`)) cmtCounts[r2.target_id] = r2.n;
+  try {
+    for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM comments WHERE target_type='share' GROUP BY target_id`)) cmtCounts[r2.target_id] = r2.n;
+  } catch {
+    // Older D1 databases may not have 0002 yet; don't take down /shares.
+  }
   const saveCounts: Record<string, number> = {};
   for (const r2 of await all(c.env.DB, `SELECT share_id, COUNT(*) AS n FROM convo_saves GROUP BY share_id`)) saveCounts[r2.share_id] = r2.n;
   const voteCounts: Record<string, number> = {};
-  for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type='share' GROUP BY target_id`)) voteCounts[r2.target_id] = r2.n;
+  try {
+    for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type='share' GROUP BY target_id`)) voteCounts[r2.target_id] = r2.n;
+  } catch {
+    // Same migration window as comments.
+  }
 
   const byId: Record<string, any> = {};
   const children: Record<string, any[]> = {};

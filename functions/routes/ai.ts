@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
-import { all, run, id, now } from "../lib/db";
+import { all, first, run, id, now } from "../lib/db";
 import { companionReply } from "../lib/ai";
 import * as S from "../lib/seed";
 
@@ -19,6 +19,8 @@ ai.post("/chat", async (c) => {
   let convoId: string | null = b.conversationId || null;
   let history: Array<{ role: "user" | "assistant"; content: string }> = b.history || [];
   if (uid && convoId) {
+    const owned = await first(c.env.DB, `SELECT 1 AS x FROM conversations WHERE id = ? AND user_id = ?`, convoId, uid);
+    if (!owned) return c.json({ error: "未找到该对话" }, 404);
     const msgs = await all(c.env.DB, `SELECT role, text FROM messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 16`, convoId);
     history = msgs.map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
   }
@@ -47,6 +49,8 @@ ai.get("/conversations", async (c) => {
 ai.get("/conversations/:id", async (c) => {
   const uid = c.get("userId");
   if (!uid) return c.json({ error: "未登录" }, 401);
+  const owned = await first(c.env.DB, `SELECT 1 AS x FROM conversations WHERE id = ? AND user_id = ?`, c.req.param("id"), uid);
+  if (!owned) return c.json({ error: "未找到该对话" }, 404);
   const msgs = await all(c.env.DB, `SELECT role, text, ref, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC`, c.req.param("id"));
   return c.json({ messages: msgs });
 });
