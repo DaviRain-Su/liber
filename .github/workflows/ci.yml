@@ -1,12 +1,11 @@
 name: CI
 
-# Verifies pull requests and feature-branch pushes (typecheck + CLI tests + build).
-# Pushes to main are already built/typechecked by deploy.yml, so they're
-# excluded here to avoid duplicate runs.
+# Verifies every push and pull request (typecheck + CLI tests + build) on all
+# branches, including main. Deploys are run locally with `npm run deploy` (see
+# README), so there is no deploy workflow and no Cloudflare token in CI.
 on:
   pull_request:
   push:
-    branches-ignore: [main]
 
 jobs:
   verify:
