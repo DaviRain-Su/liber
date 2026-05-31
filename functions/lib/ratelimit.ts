@@ -21,7 +21,22 @@ export async function rateLimit(
   limit: number,
   windowSec: number,
 ): Promise<{ ok: boolean; remaining: number }> {
-  if (!env.KV || limit <= 0) return { ok: true, remaining: limit };
+  if (limit <= 0) return { ok: true, remaining: limit };
+  // Prefer an atomic Cloudflare Rate Limiting binding if one is present (per-key,
+  // stops a concurrent burst). Pages config does not currently support this
+  // binding, so in practice this path is dormant and the KV fallback runs — but
+  // it auto-upgrades the day Pages exposes one.
+  if (env.AI_RATE_LIMITER && typeof env.AI_RATE_LIMITER.limit === "function") {
+    try {
+      const { success } = await env.AI_RATE_LIMITER.limit({ key });
+      return { ok: success, remaining: success ? 1 : 0 };
+    } catch {
+      // fall through to the KV best-effort limiter
+    }
+  }
+  // KV fallback — approximate under bursts (read-then-write race), but throttles
+  // sustained loops. Used in local dev / if the binding is unavailable.
+  if (!env.KV) return { ok: true, remaining: limit };
   const window = Math.floor(Date.now() / 1000 / windowSec);
   const bucket = `rl:${key}:${window}`;
   const current = Number((await env.KV.get(bucket)) || 0);

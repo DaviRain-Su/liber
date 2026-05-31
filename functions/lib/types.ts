@@ -50,6 +50,9 @@ export interface Env {
   ALLOWED_ORIGINS?: string;
   // Per-IP requests/minute cap for the public AI endpoints (default 20).
   AI_RATE_PER_MIN?: string;
+  // Cloudflare native Rate Limiting binding (atomic). Configured 20/60s in
+  // wrangler.toml. When absent (e.g. local dev) the limiter falls back to KV.
+  AI_RATE_LIMITER?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
   // Extra hostnames allowed as a /books/ingest server-fetched sourceUrl
   // (comma-separated). Public-domain sources (gutenberg/archive/wikisource) are
   // always allowed; everything else is rejected to prevent SSRF.

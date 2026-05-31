@@ -23,6 +23,13 @@ bucket_name = "liber-content"
 [ai]
 binding = "AI"
 
+# NOTE: public AI endpoints are rate-limited per-IP in code via a KV best-effort
+# limiter (functions/lib/ratelimit.ts), which throttles sustained abuse loops.
+# Cloudflare's atomic Rate Limiting binding is NOT supported in Pages config
+# ("unsafe" bindings are rejected), so for hard burst protection enable rate
+# limiting on an AI Gateway (set AI_GATEWAY_ID) — the limiter auto-upgrades to
+# the AI_RATE_LIMITER binding if a future Pages release exposes one.
+
 # --- Platform ops bindings (semantic search, async jobs, share-card screenshots).
 # Resources provisioned 2026-05-31: Vectorize `liber-semantic` (1024/cosine),
 # Queue `liber-platform`, and Browser Rendering (Workers Paid). Every use is still
