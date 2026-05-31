@@ -622,6 +622,85 @@ button{ font-family: inherit; }
 .reader[data-layout="immersive"] .rd-chap-no,
 .reader[data-layout="immersive"] .rd-chap-title{ text-align: center; }
 
+/* ============================================================
+   PAGE-TURN MODES (滑动 / 书页 / 卷页 / 淡出)
+   ============================================================ */
+.set-row .lab .set-hint{ text-transform: none; letter-spacing: 0; color: var(--accent); font-weight: 500; }
+.rd-scroll-paged{ position: relative; flex: 1; overflow: hidden; }
+.rd-paged-vp{ position: absolute; inset: 0; padding: 50px 8% 58px; overflow: hidden; }
+.rd-scroll-paged .rd-paged-flow{ max-width: none; padding: 0; height: 100%; column-fill: auto; will-change: transform, opacity; }
+.rd-scroll-paged[data-style="slide"] .rd-paged-flow,
+.rd-scroll-paged[data-style="book"] .rd-paged-flow{ transition: transform .5s cubic-bezier(.3,.7,.25,1); }
+.rd-scroll-paged[data-style="fade"] .rd-paged-flow{ transition: opacity .2s ease; }
+
+/* book: open-spread feel — center spine shadow + soft page edges */
+.rd-scroll-paged[data-style="book"] .rd-paged-vp{ padding-left: 6%; padding-right: 6%; }
+.rd-spine{ display: none; }
+.rd-scroll-paged[data-style="book"] .rd-spine{
+  display: block; position: absolute; top: 40px; bottom: 48px; left: 50%; width: 60px; transform: translateX(-50%);
+  pointer-events: none; z-index: 2;
+  background: linear-gradient(90deg, transparent, rgba(33,27,21,.05) 32%, rgba(33,27,21,.13) 50%, rgba(33,27,21,.05) 68%, transparent);
+}
+.reader[data-rtheme="night"] .rd-scroll-paged[data-style="book"] .rd-spine{
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.28) 32%, rgba(0,0,0,.5) 50%, rgba(0,0,0,.28) 68%, transparent);
+}
+
+/* side page arrows */
+.rd-pg-arrow{
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 4;
+  width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  background: color-mix(in oklab, var(--paper) 80%, transparent); color: var(--ink-2);
+  border: 1px solid var(--hair); backdrop-filter: blur(6px);
+  transition: background .15s, color .15s, opacity .15s;
+}
+.rd-pg-arrow:hover{ color: var(--accent); border-color: var(--accent-line); }
+.rd-pg-arrow.left{ left: 14px; }
+.rd-pg-arrow.right{ right: 14px; }
+.rd-pg-arrow:disabled{ opacity: .28; cursor: default; }
+.rd-page-ind{
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 4;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3); letter-spacing: .06em;
+}
+
+/* 卷页 — realistic paper page-curl (hinged single-page flip) */
+.rd-scroll-paged[data-style="curl"] .rd-paged-vp{ perspective: 2600px; perspective-origin: 0% 50%; }
+.rd-curl{
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  transform-origin: left center; transform-style: preserve-3d;
+  will-change: transform;
+}
+.rd-curl.fwd{ animation: curlFwd .74s cubic-bezier(.46,.03,.34,1) forwards; }
+.rd-curl.bwd{ animation: curlBwd .74s cubic-bezier(.46,.03,.34,1) forwards; }
+@keyframes curlFwd{ from{ transform: rotateY(0deg); } to{ transform: rotateY(-172deg); } }
+@keyframes curlBwd{ from{ transform: rotateY(-172deg); } to{ transform: rotateY(0deg); } }
+.rd-curl-face{
+  position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden;
+  box-shadow: 16px 0 44px rgba(33,27,21,.26);
+}
+.rd-curl-back{
+  position: absolute; inset: 0; backface-visibility: hidden;
+  transform: rotateY(180deg);
+  box-shadow: inset 0 0 60px rgba(33,27,21,.14);
+}
+/* curved light/shade across the lifting leaf */
+.rd-curl-sheen{
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg,
+    rgba(33,27,21,.20) 0%, rgba(33,27,21,.05) 14%,
+    rgba(255,255,255,.12) 50%, rgba(33,27,21,.04) 82%, rgba(33,27,21,.12) 100%);
+}
+.reader[data-rtheme="night"] .rd-curl-back{ box-shadow: inset 0 0 60px rgba(0,0,0,.4); }
+.reader[data-rtheme="night"] .rd-curl-sheen{
+  background: linear-gradient(100deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.1) 14%, rgba(255,255,255,.06) 50%, rgba(0,0,0,.1) 82%, rgba(0,0,0,.3) 100%);
+}
+@media (max-width: 760px){
+  .rd-paged-vp{ padding: 40px 16px 50px; }
+  .rd-scroll-paged[data-style="book"] .rd-paged-vp{ padding-left: 16px; padding-right: 16px; }
+  .rd-pg-arrow{ width: 36px; height: 36px; }
+  .rd-pg-arrow.left{ left: 6px; } .rd-pg-arrow.right{ right: 6px; }
+}
+
 /* ---- empty/scroll niceties ---- */
 .rd-scroll::-webkit-scrollbar, .ai-feed::-webkit-scrollbar, .toc-drawer .dbody::-webkit-scrollbar, .rail-body::-webkit-scrollbar{ width: 9px; }
 .rd-scroll::-webkit-scrollbar-thumb, .ai-feed::-webkit-scrollbar-thumb, .toc-drawer .dbody::-webkit-scrollbar-thumb, .rail-body::-webkit-scrollbar-thumb{ background: var(--hair); border-radius: 9px; border: 2px solid transparent; background-clip: padding-box; }
