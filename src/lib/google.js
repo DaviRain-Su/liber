@@ -49,7 +49,7 @@ export async function mountGoogleButton(el, { onSuccess, onError } = {}) {
       },
     });
     el.innerHTML = "";
-    window.google.accounts.id.renderButton(el, { type: "standard", theme: "outline", size: "large", text: "continue_with", shape: "pill", width: 260 });
+    window.google.accounts.id.renderButton(el, { type: "standard", theme: "outline", size: "large", text: "continue_with", shape: "pill", logo_alignment: "center", width: 400 });
     return true;
   } catch (e) {
     onError && onError(e);
