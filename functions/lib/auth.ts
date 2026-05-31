@@ -9,6 +9,7 @@ import { getCookie } from "hono/cookie";
 import type { Env, Variables } from "./types";
 import { first, run, id, now } from "./db";
 import { chain } from "./chains";
+import { timingSafeEqual } from "./verify.mjs";
 
 type Ctx = Context<{ Bindings: Env; Variables: Variables }>;
 
@@ -80,13 +81,9 @@ export async function createCliPublishToken(env: Env, user: UserRow): Promise<{ 
   return { token, expiresIn: CLI_TOKEN_TTL };
 }
 
-// Constant-time string compare — avoids leaking ADMIN_TOKEN via response timing.
-export function constantTimeEqual(a?: string | null, b?: string | null): boolean {
-  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
+// Constant-time string compare (shared, unit-tested impl in verify.mjs) —
+// avoids leaking ADMIN_TOKEN via response timing.
+export const constantTimeEqual = timingSafeEqual;
 
 // Extract a Bearer token from the Authorization header, or null.
 export function bearerToken(c: Ctx): string | null {

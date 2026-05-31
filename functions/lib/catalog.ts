@@ -409,6 +409,7 @@ export function normalizeBook(row: any) {
     long: row.description ?? row.long ?? "",
     featured: !!row.featured,
     dynamic: row.dynamic ?? true,
+    createdAt: Number(row.created_at ?? row.createdAt ?? 0) || 0,
     license: row.license ?? "CC0-1.0",
     sourceUrl: row.source_url ?? row.sourceUrl ?? "",
     hasEpub: Boolean(
@@ -445,23 +446,33 @@ export async function countBooks(env: Env, opts: { cat?: string } = {}) {
 export async function listBooks(env: Env, opts: { cat?: string; sort?: string; limit?: number } = {}) {
   const cat = scopedCategory(opts.cat);
   const limit = Math.max(1, Math.min(Number(opts.limit) || 1000, 2000));
-  const sql = `SELECT id, title, subtitle, author, category, lang, year, pages, words AS words_count,
-                      cover_class, seal, blurb, description, featured, walrus, arweave, sui_index,
-                      license, source_url, created_at
-               FROM library_books
-               ${cat ? "WHERE category = ?" : ""}
-               ORDER BY created_at DESC
+  // Sort in SQL on real metrics so the ranking is correct even with a LIMIT.
+  // readsN = distinct readers (progress), liners = total highlights.
+  const sort = opts.sort || "reads";
+  const order =
+    sort === "lines" || sort === "划线最多" ? "liners DESC, lb.created_at DESC"
+      : sort === "recent" || sort === "new" || sort === "最近上链" ? "lb.created_at DESC"
+        : "readsN DESC, lb.created_at DESC";
+  const sql = `SELECT lb.id, lb.title, lb.subtitle, lb.author, lb.category, lb.lang, lb.year, lb.pages,
+                      lb.words AS words_count, lb.cover_class, lb.seal, lb.blurb, lb.description,
+                      lb.featured, lb.walrus, lb.arweave, lb.sui_index, lb.license, lb.source_url,
+                      lb.created_at,
+                      COALESCE(p.readers, 0) AS readsN,
+                      COALESCE(h.lines_n, 0) AS liners
+               FROM library_books lb
+               LEFT JOIN (SELECT book_id, COUNT(DISTINCT user_id) AS readers FROM progress GROUP BY book_id) p ON p.book_id = lb.id
+               LEFT JOIN (SELECT book_id, COUNT(*) AS lines_n FROM highlights GROUP BY book_id) h ON h.book_id = lb.id
+               ${cat ? "WHERE lb.category = ?" : ""}
+               ORDER BY ${order}
                LIMIT ?`;
-  const rows = await all<any>(
-    env.DB,
-    sql,
-    ...(cat ? [cat, limit] : [limit]),
-  );
+  const rows = await all<any>(env.DB, sql, ...(cat ? [cat, limit] : [limit]));
   const dynamic = rows.map(normalizeBook);
-  let list = dynamic.length ? dynamic : S.BOOKS.map((b) => ({ ...b, dynamic: false }));
-  if (cat && !dynamic.length) list = list.filter((b) => b.cat === cat);
-  if (opts.sort === "lines") list = [...list].sort((a, b) => b.liners - a.liners);
-  else list = [...list].sort((a, b) => b.readsN - a.readsN);
+  if (dynamic.length) return dynamic;
+  // seed fallback (no live catalog yet)
+  let list = S.BOOKS.map((b) => ({ ...b, dynamic: false }));
+  if (cat) list = list.filter((b) => b.cat === cat);
+  if (sort === "lines" || sort === "划线最多") list = [...list].sort((a, b) => (b.liners || 0) - (a.liners || 0));
+  else if (!(sort === "recent" || sort === "new" || sort === "最近上链")) list = [...list].sort((a, b) => (b.readsN || 0) - (a.readsN || 0));
   return list;
 }
 

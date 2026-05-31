@@ -222,6 +222,13 @@ async function liveFeed(env: Env) {
        ORDER BY gp.created_at DESC LIMIT 20`,
     ),
   ]);
+  // Live agree counts — the votes table is the source of truth (the denormalized
+  // s.agree column is never incremented), so the feed must merge it the same way
+  // /shares does, or shared conversations always render 0 upvotes.
+  const shareVotes: Record<string, number> = {};
+  try {
+    for (const v of await all<any>(env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type='share' GROUP BY target_id`)) shareVotes[v.target_id] = v.n;
+  } catch { /* votes table may predate migration 0002 */ }
   return [
     ...notes.map((n) => ({
       kind: "anno", userId: n.user_id, u: n.name || "读者", color: n.color || "#3a4fb0", book: n.book_title || n.book_id,
@@ -229,7 +236,7 @@ async function liveFeed(env: Env) {
     })),
     ...shares.map((s) => ({
       kind: "convo", userId: s.user_id, u: s.name || "读者", color: s.color || "#3a4fb0", book: s.book_title || s.book_id,
-      title: s.title || "分享了一段阅读对话", quote: s.quote, up: 0, saved: 0, when: "刚刚", createdAt: s.created_at,
+      title: s.title || "分享了一段阅读对话", quote: s.quote, up: shareVotes[s.id] || 0, saved: 0, when: "刚刚", createdAt: s.created_at,
     })),
     ...posts.map((p) => ({
       kind: "group", userId: p.user_id, u: p.name || "读者", color: p.color || "#3a4fb0", groupId: p.group_id, t: p.text, chap: p.chap || "",
@@ -506,10 +513,17 @@ social.get("/comments/:type/:id", async (c) => {
     type, tid,
   );
   const mine = c.get("userId");
+  // Merge live vote counts: comment upvotes are cast via /vote/comment/:id into
+  // the votes table; the comments.up column is never incremented, so without
+  // this every comment renders 0 regardless of real votes.
+  const voteCounts: Record<string, number> = {};
+  try {
+    for (const v of await all<any>(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type='comment' GROUP BY target_id`)) voteCounts[v.target_id] = v.n;
+  } catch { /* votes table may predate migration 0002 */ }
   return c.json({
     comments: rows.map((r) => ({
       id: r.id, u: r.name || "读者", color: r.color || "#3a4fb0", seal: r.seal || "读",
-      userId: r.user_id, t: r.text, up: r.up || 0, when: "刚刚", mine: r.user_id === mine, walrus: r.walrus || null,
+      userId: r.user_id, t: r.text, up: (r.up || 0) + (voteCounts[r.id] || 0), when: "刚刚", mine: r.user_id === mine, walrus: r.walrus || null,
     })),
   });
 });

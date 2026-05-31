@@ -2,7 +2,6 @@ import React from "react";
 import { I, Cover } from "./product-shared.jsx";
 import { findCatalogBook, getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
-import { stablecoinSubscribe } from "../lib/wallet.js";
 
 /* product-profile.jsx — profile for ME or any other reader.
    Reached from the app bar (me) or by clicking an avatar in comments/feed
@@ -57,6 +56,7 @@ function MembershipCard(){
     setPaying(true);
     setPayMsg("请在钱包中确认交易…");
     try {
+      const { stablecoinSubscribe } = await import("../lib/wallet.js"); // heavy @mysten/sui — load on click
       const res = await stablecoinSubscribe();
       setPlan((prev) => ({ ...(prev || {}), usage: res?.usage || prev?.usage }));
       setPayMsg("Pro 已开通，感谢支持。");

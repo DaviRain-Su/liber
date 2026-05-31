@@ -1,7 +1,8 @@
 import React from "react";
 import { I, Mark } from "./product-shared.jsx";
-import { walletLogin } from "../lib/wallet.js";
-import { passkeyLogin } from "../lib/passkey.js";
+// wallet.js (@mysten/sui) and passkey.js (@simplewebauthn) are heavy and only
+// needed once the user actually signs in — dynamic-import them in the handlers
+// below so they split out of the first-paint bundle.
 import { getToken } from "../lib/api.js";
 import { getCatalogTotal } from "../lib/catalog.js";
 
@@ -40,6 +41,7 @@ function Onboarding({ onFinish }){
     setConnecting(w.k);
     setAuthError("");
     try {
+      const { walletLogin } = await import("../lib/wallet.js");
       const acct = await walletLogin(w.name);   // real Sui wallet: connect → sign nonce → verify
       setConnecting(null);
       setAccount({ wallet:w.name, addr:acct.address });
@@ -58,6 +60,7 @@ function Onboarding({ onFinish }){
     setConnecting("passkey");
     setAuthError("");
     try {
+      const { passkeyLogin } = await import("../lib/passkey.js");
       const res = await passkeyLogin();
       setConnecting(null);
       setAccount({ wallet:"通行密钥", addr: res?.user?.handle || "passkey" });

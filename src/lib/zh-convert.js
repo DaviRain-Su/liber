@@ -56,6 +56,16 @@ const S2T_PHRASES = [
   ["干杯", "乾杯"],
   ["树干", "樹幹"],
   ["后台", "後台"],
+  // 后 = queen/empress (the 后→後 default covers "after")
+  ["皇太后", "皇太后"], ["太后", "太后"], ["皇后", "皇后"], ["王后", "王后"],
+  ["后宫", "后宮"], ["后羿", "后羿"], ["皇天后土", "皇天后土"],
+  // 里 = village / li-unit (the 里→裡 default covers "inside")
+  ["公里", "公里"], ["英里", "英里"], ["里程", "里程"], ["千里", "千里"],
+  ["万里", "萬里"], ["邻里", "鄰里"], ["乡里", "鄉里"], ["故里", "故里"],
+  // 发 = hair (the 发→發 default covers "emit/develop")
+  ["白发", "白髮"], ["长发", "長髮"], ["短发", "短髮"], ["假发", "假髮"],
+  ["卷发", "卷髮"], ["美发", "美髮"], ["披发", "披髮"], ["毛发", "毛髮"],
+  ["银发", "銀髮"], ["怒发冲冠", "怒髮衝冠"],
 ];
 
 const T2S_ENTRIES = [
@@ -186,21 +196,19 @@ const T2S_ENTRIES = [
 ];
 
 const T2S = new Map(T2S_ENTRIES);
+// Single-char simplified→traditional is inherently lossy: several traditional
+// forms collapse to one simplified char. Default each ambiguous char to its MOST
+// COMMON traditional reading and let S2T_PHRASES override the less-common one
+// (e.g. 后→後 "after" by default; 皇后→皇后 "queen" by phrase). 干 (乾/幹/干) is
+// too ambiguous for a safe single-char default, so it stays identity.
 const S2T_OVERRIDES = [
-  ["后", "后"],
+  ["后", "後"],
+  ["里", "裡"],
+  ["余", "餘"],
   ["干", "干"],
-  ["里", "里"],
-  ["余", "余"],
 ];
 const S2T = new Map([...T2S_ENTRIES].reverse().map(([traditional, simplified]) => [simplified, traditional]));
 for (const [simplified, traditional] of S2T_OVERRIDES) S2T.set(simplified, traditional);
-
-function applyPhraseMap(text, phrases) {
-  return phrases
-    .slice()
-    .sort((a, b) => b[0].length - a[0].length)
-    .reduce((out, [from, to]) => out.split(from).join(to), text);
-}
 
 function applyCharMap(text, map) {
   let out = "";
@@ -208,10 +216,32 @@ function applyCharMap(text, map) {
   return out;
 }
 
+// Phrase-aware conversion: stash each phrase match behind a placeholder the
+// single-char map can't touch, convert the rest char-by-char, then restore the
+// (already-converted) phrases. Without this the char map would overwrite a
+// phrase's output — e.g. the 皇后→皇后 phrase, then 后→後 char map, yields 皇後.
+// Longest phrases are matched first so 皇太后 wins over 太后 wins over 后.
+function convertWithPhrases(text, phrases, map) {
+  const sorted = phrases.slice().sort((a, b) => b[0].length - a[0].length);
+  const restore = [];
+  let staged = text;
+  for (let i = 0; i < sorted.length; i++) {
+    const [from, to] = sorted[i];
+    if (from && staged.includes(from)) {
+      const placeholder = `${i}`;
+      staged = staged.split(from).join(placeholder);
+      restore.push([placeholder, to]);
+    }
+  }
+  staged = applyCharMap(staged, map);
+  for (const [placeholder, to] of restore) staged = staged.split(placeholder).join(to);
+  return staged;
+}
+
 export function convertChineseText(value, mode = "original") {
   const text = value == null ? "" : String(value);
-  if (mode === "hans") return applyCharMap(applyPhraseMap(text, T2S_PHRASES), T2S);
-  if (mode === "hant") return applyCharMap(applyPhraseMap(text, S2T_PHRASES), S2T);
+  if (mode === "hans") return convertWithPhrases(text, T2S_PHRASES, T2S);
+  if (mode === "hant") return convertWithPhrases(text, S2T_PHRASES, S2T);
   return text;
 }
 

@@ -378,12 +378,27 @@ export async function renderShareCard(env: Env, payload: Record<string, unknown>
   return { id: assetId, key, contentType: "image/png", width: 1200, height: 630 };
 }
 
+// A job 'running' longer than this is treated as crashed (its isolate was
+// evicted / timed out before the failure branch ran) and becomes re-claimable.
+// Far longer than any real platform job, so a live job is never reclaimed.
+const PLATFORM_JOB_STALE_MS = 10 * 60 * 1000;
+
 export async function runPlatformJob(env: Env, input: string | PlatformQueueMessage) {
   const jobId = typeof input === "string" ? input : input.id;
   const row = await first<any>(env.DB, `SELECT * FROM platform_jobs WHERE id = ?`, jobId);
   if (!row) throw new Error("未找到任务");
   const payload = parsePayload(row.payload);
-  await run(env.DB, `UPDATE platform_jobs SET status = 'running', attempts = attempts + 1, started_at = ?, updated_at = ? WHERE id = ?`, now(), now(), jobId);
+  // Atomically claim the job so concurrent callers (queue consumer vs /jobs/drain
+  // vs /jobs/:id/run) cannot both execute it (double share-card render / double
+  // Vectorize upsert). The claim also reclaims a job stuck 'running' past
+  // PLATFORM_JOB_STALE_MS — a crashed prior run — which would otherwise never
+  // complete (the queue silently acks the skipped retry; there is no DLQ).
+  const claim = await run(
+    env.DB,
+    `UPDATE platform_jobs SET status = 'running', attempts = attempts + 1, started_at = ?, updated_at = ? WHERE id = ? AND (status != 'running' OR started_at < ?)`,
+    now(), now(), jobId, now() - PLATFORM_JOB_STALE_MS,
+  );
+  if (!claim.meta?.changes) return { id: jobId, status: "running", skipped: true, reason: "任务已在执行中" };
   try {
     const result = row.type === "index-book"
       ? await indexBookSemantics(env, String(row.target_id || payload.bookId || ""))
@@ -414,12 +429,16 @@ export async function runPlatformJob(env: Env, input: string | PlatformQueueMess
 }
 
 export async function runDuePlatformJobs(env: Env, limit = 5) {
+  // Pick up due queued jobs, plus jobs stuck 'running' past the stale window
+  // (crashed prior runs) so they get re-claimed and completed rather than lost.
   const rows = await all<any>(
     env.DB,
     `SELECT id FROM platform_jobs
-     WHERE status = 'queued' AND (run_after IS NULL OR run_after <= ?)
+     WHERE (status = 'queued' AND (run_after IS NULL OR run_after <= ?))
+        OR (status = 'running' AND started_at IS NOT NULL AND started_at < ?)
      ORDER BY priority DESC, created_at ASC LIMIT ?`,
     now(),
+    now() - PLATFORM_JOB_STALE_MS,
     Math.max(1, Math.min(limit, 20)),
   );
   const results: any[] = [];

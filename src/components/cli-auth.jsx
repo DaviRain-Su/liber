@@ -1,5 +1,4 @@
 import React from "react";
-import { walletLogin } from "../lib/wallet.js";
 import { api } from "../lib/api.js";
 
 const { useState } = React;
@@ -12,6 +11,7 @@ function CliAuth({ deviceCode, userCode }) {
     setStatus("working");
     setMessage("");
     try {
+      const { walletLogin } = await import("../lib/wallet.js"); // heavy @mysten/sui — load on click
       const login = await walletLogin();
       await api.auth.cliApprove(deviceCode);
       setStatus("done");

@@ -10,6 +10,7 @@ import {
   passkeyRegisterOptions, passkeyRegisterVerify, passkeyLoginOptions, passkeyLoginVerify,
 } from "../lib/passkey";
 import { readingStats } from "../lib/reading-summary";
+import { loginMessage } from "../lib/verify.mjs";
 import { run } from "../lib/db";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -19,7 +20,7 @@ const cookieOpts = { httpOnly: true, secure: true, sameSite: "Lax" as const, max
 // 1) request a nonce + the message the wallet should sign
 auth.post("/nonce", async (c) => {
   const nonce = await issueNonce(c.env);
-  return c.json({ nonce, message: `Liber 登录\nnonce: ${nonce}` });
+  return c.json({ nonce, message: loginMessage(nonce) });
 });
 
 // 2) verify a wallet signature via the active chain adapter, then mint a session.
@@ -29,7 +30,7 @@ auth.post("/verify", async (c) => {
   // server-issued message template (see /nonce). Without this, message/nonce are
   // independent fields and a captured (message, signature) pair could be replayed
   // with a freshly requested nonce. The nonce itself is single-use (consumed).
-  if (typeof message !== "string" || message !== `Liber 登录\nnonce: ${nonce}`) {
+  if (typeof message !== "string" || message !== loginMessage(nonce)) {
     return c.json({ error: "签名消息与 nonce 不匹配" }, 400);
   }
   if (!(await consumeNonce(c.env, nonce))) return c.json({ error: "nonce 无效或已过期" }, 400);

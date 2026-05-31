@@ -3,7 +3,7 @@ import type { Env, Variables } from "../lib/types";
 import { requireUser } from "../lib/auth";
 import { first, run, now } from "../lib/db";
 import { getUsage } from "../lib/usage";
-import { normalizeSuiAddress } from "@mysten/sui/utils";
+import { paymentReceived, sameSuiAddress, validStripeSignature } from "../lib/verify.mjs";
 
 const billing = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -96,22 +96,6 @@ billing.get("/crypto/config", (c) => {
   return c.json({ payment: cfg });
 });
 
-function ownerAddress(owner: any): string | null {
-  if (typeof owner === "string") return owner;
-  if (owner?.AddressOwner) return owner.AddressOwner;
-  if (owner?.addressOwner) return owner.addressOwner;
-  return null;
-}
-
-function sameSuiAddress(a: string | null | undefined, b: string | null | undefined): boolean {
-  if (!a || !b) return false;
-  try {
-    return normalizeSuiAddress(a) === normalizeSuiAddress(b);
-  } catch {
-    return a.toLowerCase() === b.toLowerCase();
-  }
-}
-
 async function suiRpc(env: Env, method: string, params: unknown[]): Promise<any> {
   if (!env.SUI_RPC) throw new Error("SUI_RPC not configured");
   const res = await fetch(env.SUI_RPC, {
@@ -146,12 +130,7 @@ billing.post("/crypto/confirm", async (c) => {
   if (status !== "success") return c.json({ error: "交易未成功" }, 400);
   if (!sameSuiAddress(sender, expectedSender)) return c.json({ error: "交易发送者与当前钱包不一致" }, 400);
 
-  const need = BigInt(cfg.amount);
-  const received = (tx.balanceChanges || []).some((bc: any) => {
-    if (bc.coinType !== cfg.coinType) return false;
-    if (!sameSuiAddress(ownerAddress(bc.owner), cfg.treasury)) return false;
-    try { return BigInt(bc.amount) >= need; } catch { return false; }
-  });
+  const received = paymentReceived(tx.balanceChanges, { coinType: cfg.coinType, treasury: cfg.treasury, amount: cfg.amount });
   if (!received) return c.json({ error: "未检测到足额稳定币转入收款地址" }, 400);
 
   const expiresAt = now() + cfg.planDays * 24 * 60 * 60 * 1000;
@@ -188,30 +167,6 @@ billing.post("/checkout", async (c) => {
   if (!res.ok) return c.json({ error: j?.error?.message || `Stripe ${res.status}` }, 502);
   return c.json({ id: j.id, url: j.url });
 });
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return out === 0;
-}
-
-async function hmacHex(secret: string, payload: string): Promise<string> {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(payload));
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function validStripeSignature(secret: string, header: string | null | undefined, body: string): Promise<boolean> {
-  if (!header) return false;
-  const parts = header.split(",").map((p) => p.split("="));
-  const timestamp = parts.find(([k]) => k === "t")?.[1];
-  const sigs = parts.filter(([k]) => k === "v1").map(([, v]) => v);
-  if (!timestamp || !sigs.length) return false;
-  const expected = await hmacHex(secret, `${timestamp}.${body}`);
-  return sigs.some((sig) => timingSafeEqual(sig, expected));
-}
 
 billing.post("/webhook", async (c) => {
   const secret = c.env.STRIPE_WEBHOOK_SECRET;
