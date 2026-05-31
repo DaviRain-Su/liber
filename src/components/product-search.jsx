@@ -21,6 +21,7 @@ function buildSentenceIndex(){
 function SearchOverlay({ initial, onClose, onOpenBook }){
   const [q, setQ] = useSse(initial || "");
   const [apiRes, setApiRes] = useSse(null);
+  const [semanticRes, setSemanticRes] = useSse(null);
   const [readers, setReaders] = useSse([]);
   const [catalog, setCatalog] = useSse(() => getCatalogBooks());
   const inputRef = useRse(null);
@@ -46,7 +47,18 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
     const id = setTimeout(() => { window.liberApi.search(t).then(r => setApiRes({ term: t, ...r })).catch(() => {}); }, 180);
     return () => clearTimeout(id);
   }, [term]);
+  useEse(() => {
+    if (!window.liberApi?.platform?.semanticSearch || !term) { setSemanticRes(null); return; }
+    const t = term;
+    const id = setTimeout(() => {
+      window.liberApi.platform.semanticSearch(t, 6)
+        .then(r => setSemanticRes({ term: t, ...r }))
+        .catch(() => {});
+    }, 260);
+    return () => clearTimeout(id);
+  }, [term]);
   const useApi = apiRes && apiRes.term === term;
+  const useSemantic = semanticRes && semanticRes.term === term && Array.isArray(semanticRes.matches);
   const allowSeedFallback = !window.liberApi;
   const books = term
     ? (useApi && Array.isArray(apiRes.books) ? apiRes.books : allowSeedFallback ? catalog.filter(b => b.t.includes(term) || b.a.includes(term) || (b.sub || "").toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term)) : [])
@@ -54,8 +66,9 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
   const sents = term
     ? (useApi && Array.isArray(apiRes.sentences) ? apiRes.sentences : allowSeedFallback ? sentences.filter(s => s.t.includes(term)) : [])
     : [];
+  const semantic = term && useSemantic ? semanticRes.matches.filter(s => s.text).slice(0, 6) : [];
   const people = term ? readers.filter(p => (p.name || "").includes(term) || (p.handle || "").includes(term) || (p.bio || "").includes(term)) : [];
-  const empty = term && !books.length && !sents.length && !people.length;
+  const empty = term && !books.length && !sents.length && !semantic.length && !people.length;
 
   const hi = (text) => {
     if (!term) return text;
@@ -97,6 +110,18 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
                 <div className="sm-sent" key={i} onClick={()=>open(s.bookId)}>
                   <span className="qm">”</span>
                   <div><div className="q">{hi(s.t)}</div><div className="c">{s.book} · {s.chap}</div></div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {semantic.length>0 && (
+            <div className="sm-sec">
+              <div className="sm-h">{semanticRes.semantic ? "语义回声" : "语义回声 · D1 兜底"} · {semantic.length}</div>
+              {semantic.map((s,i) => (
+                <div className="sm-sent sm-sem" key={s.id || i} onClick={()=>s.bookId && open(s.bookId)}>
+                  <span className="qm">≈</span>
+                  <div><div className="q">{hi(s.text)}</div><div className="c">{s.book || s.bookId} · {s.title || s.chapter} {typeof s.score === "number" && <span className="score">{s.score.toFixed(3)}</span>}</div></div>
                 </div>
               ))}
             </div>

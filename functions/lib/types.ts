@@ -2,7 +2,15 @@
 
 // Workers AI binding — typed minimally so we don't depend on SDK internals.
 export interface WorkersAI {
-  run(model: string, input: Record<string, unknown>): Promise<any>;
+  run(model: string, input: Record<string, unknown>, options?: Record<string, unknown>): Promise<any>;
+}
+
+export interface PlatformQueueMessage {
+  id: string;
+  type: string;
+  targetType?: string | null;
+  targetId?: string | null;
+  payload?: Record<string, unknown>;
 }
 
 export interface Env {
@@ -10,6 +18,8 @@ export interface Env {
   KV: KVNamespace;
   R2: R2Bucket;
   AI: WorkersAI;
+  PLATFORM_QUEUE?: Queue<PlatformQueueMessage>;
+  BROWSER?: BrowserRun;
   SESSION_TTL?: string;
   // Decentralized storage endpoints (optional; storage.ts falls back to R2 when unset).
   WALRUS_PUBLISHER?: string;
@@ -33,10 +43,18 @@ export interface Env {
   // AI provider gateway (functions/lib/aiProvider.ts):
   //   AI_PROVIDER: "workers-ai" (default) | "deepseek" | "openai-compat"
   //   AI_MODEL: provider-specific model id (optional; each provider has a default)
+  //   AI_TRANSLATION_MODEL: optional cheaper/specialized model for classical Chinese translation
+  //   AI_GATEWAY_ID: optional Cloudflare AI Gateway id for Workers AI analytics/cache/rate limits
   //   AI_API_KEY / DEEPSEEK_API_KEY: secret for hosted providers
   //   AI_BASE_URL: override endpoint (e.g. a Cloudflare AI Gateway OpenAI-compat URL)
   AI_PROVIDER?: string;
   AI_MODEL?: string;
+  AI_TRANSLATION_MODEL?: string;
+  AI_GATEWAY_ID?: string;
+  AI_GATEWAY_CACHE_TTL?: string;
+  SEMANTIC_EMBEDDING_MODEL?: string;
+  PLATFORM_QUEUE_ENABLED?: string;
+  BROWSER_RENDER_BASE_URL?: string;
   AI_API_KEY?: string;
   DEEPSEEK_API_KEY?: string;
   AI_BASE_URL?: string;

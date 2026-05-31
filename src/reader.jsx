@@ -20,6 +20,7 @@ import "./styles/product-mobile.css";
 import "./styles/convo-forms.css";
 import "./styles/product-agent.css";
 import "./styles/product-charts.css";
+import "./styles/product-reader-empty.css";
 import "./styles/product-news.css";
 
 /* Seed data is a bootstrapped singleton: importing it populates window.* (BOOKS,
@@ -36,6 +37,7 @@ if (typeof window !== "undefined") {
 /* product-reader pulls in product-shared, which installs window.openProfile /
    window.canOpenProfile, so avatar interactions resolve even standalone. */
 import { Reader } from "./components/product-reader.jsx";
+import { LiberTweaks } from "./components/product-tweaks.jsx";
 import { getCatalogBooks, loadCatalogBooks } from "./lib/catalog.js";
 
 const { useState: useSt, useEffect: useEf } = React;
@@ -76,3 +78,6 @@ function ReaderApp() {
 }
 
 createRoot(document.getElementById("reader-root")).render(<ReaderApp />);
+
+const tweaksRoot = document.getElementById("tweaks");
+if (tweaksRoot) createRoot(tweaksRoot).render(<LiberTweaks />);

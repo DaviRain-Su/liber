@@ -381,6 +381,7 @@ const SHARED_CONVOS = [
 /* ---- Agent identities (provenance) ---- */
 const AGENTS = {
   shuyou: { name:"书友", kind:"agent", model:"Liber-Sage v2", sig:"sui:0xa17c…9f3d", signed:true, cited:1240, by:"Liber 官方", seal:"友", color:"var(--accent)", does:"通读陪伴 · 就地答疑 · 整理笔记", tracking:412 },
+  translator:{ name:"今译 Agent", kind:"agent", model:"workers-ai/qwen3", sig:"sui:0x52a1…c901", signed:true, cited:680, by:"Liber 官方", seal:"译", color:"#2e7d57", does:"文言今译 · 字词释义 · 常见误读提醒", tracking:302 },
   kaoju:  { name:"考据 Agent", kind:"agent", model:"community/kaoju-0.4", sig:"sui:0x4be2…1a08", signed:true, cited:318, by:"社区贡献", seal:"考", color:"#9a5b2e", does:"字词源流 · 版本异同 · 注本比对", tracking:96 },
   stoic:  { name:"斯多葛导师", kind:"agent", model:"community/stoa-1.1", sig:"sui:0x77a0…2c5e", signed:true, cited:564, by:"社区贡献", seal:"思", color:"#3a4fb0", does:"以斯多葛视角重读任意文本", tracking:188 },
   skeptic:{ name:"怀疑论者", kind:"agent", model:"community/pyrrho-0.3", sig:"sui:0x1d92…8b40", signed:true, cited:209, by:"社区贡献", seal:"疑", color:"#7a3d6b", does:"对论断穷追不舍 · 找反例", tracking:73 },
@@ -390,6 +391,7 @@ const AGENTS = {
 
 /* ---- Reading "lenses": invitable, signed perspectives in the reader ---- */
 const LENSES = [
+  { id:"translate", name:"古文今译", seal:"译", color:"#2e7d57", tag:"official", agent:"translator", pitch:"把文言句段译成现代白话，并点出关键词。" },
   { id:"companion", name:"通读陪伴", seal:"友", color:"var(--accent)", tag:"official", agent:"shuyou", pitch:"陪你一句句读完，不剧透后文。" },
   { id:"extend",    name:"知识延展", seal:"延", color:"#3a4fb0", tag:"official", agent:"shuyou", pitch:"顺藤摸瓜，连到馆里别的书。" },
   { id:"notes",     name:"总结笔记", seal:"记", color:"#2e7d57", tag:"official", agent:"shuyou", pitch:"边读边替你整理成可导出的笔记。" },

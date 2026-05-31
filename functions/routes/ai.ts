@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { all, first, run, id, now } from "../lib/db";
 import { companionReply } from "../lib/ai";
+import { activeProvider } from "../lib/aiProvider";
+import { correctCachedTranslation, getCachedTranslation, putCachedTranslation, translationCacheKey } from "../lib/aiCache";
 import { withinQuota, recordUsage, getUsage, estimateTokens } from "../lib/usage";
 import { enqueueSids } from "../lib/graph/embed";
 import * as S from "../lib/seed";
@@ -10,6 +12,11 @@ import * as S from "../lib/seed";
 // conversation persisted (and a 'convo' signal recorded for the rankings).
 const ai = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+function chapterNumber(value?: string | null): number | null {
+  const m = String(value || "").match(/第\s*(\d+)\s*章/);
+  return m ? Number(m[1]) : null;
+}
+
 ai.post("/chat", async (c) => {
   const uid = c.get("userId");
   const b = await c.req.json();
@@ -17,6 +24,16 @@ ai.post("/chat", async (c) => {
   if (!question) return c.json({ error: "问题为空" }, 400);
   const lens = b.lens || "companion";
   const book = b.bookId ? S.bookById(b.bookId) : null;
+  const isTranslation = lens === "translate";
+  const sourceText = String(b.context || question).trim();
+  const model = isTranslation ? (c.env.AI_TRANSLATION_MODEL || c.env.AI_MODEL) : c.env.AI_MODEL;
+  const cacheKey = isTranslation && sourceText
+    ? await translationCacheKey({ bookId: b.bookId, chapter: b.chapter, sourceText, question, model })
+    : null;
+  if (cacheKey) {
+    const cached = await getCachedTranslation(c.env, cacheKey);
+    if (cached) return c.json({ ...cached, conversationId: null });
+  }
 
   // metered free-tier quota (logged-in users only; guests unmetered for now)
   if (uid && !(await withinQuota(c.env, uid))) {
@@ -34,6 +51,16 @@ ai.post("/chat", async (c) => {
   }
 
   const reply = await companionReply(c.env, { lens, question, context: b.context, bookTitle: book?.t, chapter: b.chapter, history });
+  if (cacheKey && !reply.error) {
+    await putCachedTranslation(c.env, {
+      cacheKey,
+      bookId: b.bookId || null,
+      chapterN: chapterNumber(b.chapter),
+      sourceText,
+      translatedText: reply.text,
+      model,
+    });
+  }
 
   if (uid) {
     if (!convoId) {
@@ -53,8 +80,19 @@ ai.post("/chat", async (c) => {
 // Current month's AI usage + plan/quota (for a usage meter / upgrade prompt).
 ai.get("/usage", async (c) => {
   const uid = c.get("userId");
-  if (!uid) return c.json({ usage: null });
-  return c.json({ usage: await getUsage(c.env, uid) });
+  const provider = activeProvider(c.env);
+  if (!uid) return c.json({ usage: null, provider });
+  return c.json({ usage: await getUsage(c.env, uid), provider });
+});
+
+ai.put("/translations/:cacheKey", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "未登录" }, 401);
+  const body = await c.req.json();
+  const translatedText = String(body.translatedText || "").trim();
+  if (!translatedText) return c.json({ error: "纠错内容为空" }, 400);
+  await correctCachedTranslation(c.env, { cacheKey: c.req.param("cacheKey"), translatedText, userId: uid });
+  return c.json({ ok: true });
 });
 
 ai.get("/conversations", async (c) => {

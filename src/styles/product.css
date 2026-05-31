@@ -572,7 +572,7 @@ button{ font-family: inherit; }
 
 /* ---- Settings popover ---- */
 .set-pop{
-  position: fixed; z-index: 830; width: 320px; background: var(--paper); border: 1px solid var(--hair);
+  position: fixed; z-index: 830; width: 360px; max-width: calc(100vw - 24px); background: var(--paper); border: 1px solid var(--hair);
   border-radius: 14px; box-shadow: 0 24px 60px rgba(33,27,21,.32); padding: 18px; animation: notePop .16s ease;
 }
 .set-row{ padding: 14px 0; border-bottom: 1px solid var(--hair-2); }
@@ -587,6 +587,8 @@ button{ font-family: inherit; }
 }
 .seg button:hover{ border-color: var(--ink-3); }
 .seg button.on{ color:#fff; background: var(--accent); border-color: var(--accent); }
+.seg.reader-layout-seg{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.seg.reader-layout-seg button{ min-width: 0; padding: 9px 4px; }
 .theme-seg button{ display:flex; flex-direction:column; align-items:center; gap:7px; padding: 9px 4px; }
 .theme-seg .sw{ width: 100%; height: 22px; border-radius: 4px; border: 1px solid var(--hair); }
 .theme-seg .sw.cream{ background:#f5efe2; } .theme-seg .sw.sepia{ background:#f3e8d2; }
@@ -598,6 +600,49 @@ button{ font-family: inherit; }
 /* ============================================================
    READER LAYOUT VARIANTS
    ============================================================ */
+/* --- FOLIO: framed page surface for long Chinese prose --- */
+.reader[data-layout="folio"] .rd-scroll{
+  background:
+    linear-gradient(90deg, rgba(33,27,21,.035) 0 1px, transparent 1px 100%),
+    color-mix(in oklab, var(--paper) 88%, var(--paper-2));
+  background-size: 28px 100%, auto;
+}
+.reader[data-layout="folio"] .rd-col{
+  max-width: min(var(--read-measure), 44rem);
+  min-height: calc(100vh - 220px);
+  margin-top: 34px;
+  margin-bottom: 120px;
+  padding: 76px 68px 190px;
+  background: color-mix(in oklab, var(--paper) 94%, #fff 6%);
+  border: 1px solid var(--hair-2);
+  border-radius: 3px;
+  box-shadow: 0 28px 80px rgba(33,27,21,.14);
+}
+.reader[data-layout="folio"] .rd-chap-no,
+.reader[data-layout="folio"] .rd-chap-title{ text-align: center; }
+.reader[data-layout="folio"] .rd-chap-rule{ margin-left: auto; margin-right: auto; }
+.reader[data-layout="folio"] .rd-text p{ margin-bottom: 1.1em; }
+.reader[data-layout="folio"][data-rtheme="night"] .rd-scroll{ background: #100d09; }
+.reader[data-layout="folio"][data-rtheme="night"] .rd-col{
+  background: #18140f;
+  border-color: rgba(236,226,207,.12);
+  box-shadow: none;
+}
+.reader[data-mode="epub"][data-layout="folio"] .rd-body{
+  background:
+    linear-gradient(90deg, rgba(33,27,21,.035) 0 1px, transparent 1px 100%),
+    color-mix(in oklab, var(--paper) 88%, var(--paper-2));
+  background-size: 28px 100%, auto;
+}
+.reader[data-mode="epub"][data-layout="folio"] .rd-epub-panel{
+  padding: 46px 52px 96px;
+}
+.reader[data-mode="epub"][data-layout="folio"] .rd-epub-host{
+  width: min(840px, 100%);
+  border-radius: 3px;
+  box-shadow: 0 30px 90px rgba(33,27,21,.16);
+}
+
 /* --- ARCHIVE: persistent right rail with annotations/AI --- */
 .reader[data-layout="archive"] .rd-rail{
   width: 330px; flex-shrink: 0; border-left: 1px solid var(--hair); background: var(--paper-2);
@@ -610,6 +655,62 @@ button{ font-family: inherit; }
 .rd-rail .rail-tabs button.on{ color: var(--accent); border-bottom-color: var(--accent); }
 .rd-rail .rail-body{ flex:1; overflow-y:auto; }
 
+/* --- VERTICAL: Chinese vertical reading without losing sentence anchors --- */
+.reader[data-layout="vertical"] .rd-scroll{
+  overflow-x: auto;
+  overflow-y: hidden;
+  background:
+    linear-gradient(90deg, transparent calc(100% - 1px), var(--hair-2) 0) 0 0 / 42px 100%,
+    var(--paper);
+}
+.reader[data-layout="vertical"] .rd-col{
+  width: max-content;
+  max-width: none;
+  height: calc(100vh - 112px);
+  margin: 0 auto;
+  padding: 58px 74px 118px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+.reader[data-layout="vertical"] .rd-chap-no{
+  margin-left: 16px;
+  letter-spacing: .14em;
+}
+.reader[data-layout="vertical"] .rd-chap-title{
+  margin: 0 0 0 20px;
+  font-size: 34px;
+  line-height: 1.35;
+}
+.reader[data-layout="vertical"] .rd-chap-rule{
+  width: 2px;
+  height: 52px;
+  margin: 0 24px;
+}
+.reader[data-layout="vertical"] .rd-text{
+  writing-mode: vertical-rl;
+  height: 100%;
+  max-height: 100%;
+  line-height: 2.05;
+  letter-spacing: .02em;
+}
+.reader[data-layout="vertical"] .rd-text p{
+  margin: 0 0 0 1.25em;
+  text-indent: 1em;
+}
+.reader[data-layout="vertical"] .rd-chapter-end{ display: none; }
+.reader[data-layout="vertical"][data-rtheme="night"] .rd-scroll{ background-color: #14110c; }
+.reader[data-mode="epub"][data-layout="vertical"] .rd-body{
+  background:
+    linear-gradient(90deg, transparent calc(100% - 1px), var(--hair-2) 0) 0 0 / 42px 100%,
+    var(--paper);
+}
+.reader[data-mode="epub"][data-layout="vertical"] .rd-epub-panel{
+  padding: 26px 54px 82px;
+}
+.reader[data-mode="epub"][data-layout="vertical"] .rd-epub-host{
+  width: min(760px, 100%);
+}
+
 /* --- IMMERSIVE: minimal chrome, narrow centred text, auto-hide bars --- */
 .reader[data-layout="immersive"] .rd-bar{ background: transparent; border-bottom: 0; backdrop-filter: none; }
 .reader[data-layout="immersive"] .rd-bar .rd-title{ opacity: 0; transition: opacity .3s; }
@@ -621,6 +722,13 @@ button{ font-family: inherit; }
 .reader[data-layout="immersive"] .rd-chap-rule{ margin-left: auto; margin-right: auto; }
 .reader[data-layout="immersive"] .rd-chap-no,
 .reader[data-layout="immersive"] .rd-chap-title{ text-align: center; }
+.reader[data-mode="epub"][data-layout="immersive"] .rd-epub-panel{ padding-top: 62px; }
+.reader[data-mode="epub"][data-layout="immersive"] .rd-epub-host{
+  width: min(760px, 100%);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 
 /* ============================================================
    PAGE-TURN MODES (滑动 / 书页 / 卷页 / 淡出)

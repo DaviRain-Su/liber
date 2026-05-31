@@ -1,0 +1,46 @@
+# Separate queue consumer Worker. Pages Functions produce jobs into
+# `liber-platform`; this Worker consumes them so heavy AI/index/render work does
+# not sit inside a reader request.
+name = "liber-platform-worker"
+main = "workers/platform-worker.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "liber"
+database_id = "67796523-5da8-4f69-ba0d-ad5dbaa9ed4d"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "liber-content"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "378c4030ed364bc68af05685fb2ea176"
+
+[ai]
+binding = "AI"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "liber-semantic"
+
+[browser]
+binding = "BROWSER"
+
+[[queues.consumers]]
+queue = "liber-platform"
+max_batch_size = 4
+max_batch_timeout = 15
+max_retries = 3
+
+[vars]
+CHAIN = "sui"
+WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
+ARWEAVE_GATEWAY = "https://arweave.net"
+AI_PROVIDER = "workers-ai"
+AI_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
+AI_GATEWAY_CACHE_TTL = "604800"
+SEMANTIC_EMBEDDING_MODEL = "@cf/baai/bge-m3"
+PLATFORM_QUEUE_ENABLED = "true"

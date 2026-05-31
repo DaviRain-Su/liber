@@ -2,6 +2,15 @@ import React from "react";
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakToggle, TweakSlider, TweakButton } from "./tweaks-panel.jsx";
 
 /* product-tweaks.jsx — Tweaks island: reader layout variants + visual knobs. */
+const READER_LAYOUT_OPTIONS = [
+  { value: "classic", label: "经典" },
+  { value: "folio", label: "书页" },
+  { value: "archive", label: "批注" },
+  { value: "vertical", label: "竖排" },
+  { value: "immersive", label: "沉浸" },
+];
+const READER_LAYOUT_VALUES = new Set(READER_LAYOUT_OPTIONS.map((item) => item.value));
+
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "readerLayout": "classic",
   "accent": "#c0432b",
@@ -11,8 +20,27 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "device": "desktop"
 }/*EDITMODE-END*/;
 
+function initialTweaks() {
+  const next = { ...TWEAK_DEFAULTS };
+  try {
+    const layout = localStorage.getItem("liber.reader.layout");
+    if (READER_LAYOUT_VALUES.has(layout)) next.readerLayout = layout;
+    const theme = document.documentElement.getAttribute("data-theme");
+    if (theme === "dark") next.dark = true;
+  } catch {
+    /* keep defaults */
+  }
+  return next;
+}
+
 function LiberTweaks(){
-  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const defaults = React.useMemo(initialTweaks, []);
+  const [t, setTweak] = useTweaks(defaults);
+  const readerLayoutRef = React.useRef(defaults.readerLayout);
+
+  React.useEffect(() => {
+    readerLayoutRef.current = t.readerLayout;
+  }, [t.readerLayout]);
 
   /* device preview wiring */
   React.useEffect(() => {
@@ -39,9 +67,18 @@ function LiberTweaks(){
     if (t.dark !== isDark) window.dispatchEvent(new Event("liber-toggle-theme"));
   }, [t.dark]);
   React.useEffect(() => {
-    localStorage.setItem("liber.reader.layout", t.readerLayout);
-    window.dispatchEvent(new CustomEvent("liber-reader-layout", { detail: t.readerLayout }));
+    const layout = READER_LAYOUT_VALUES.has(t.readerLayout) ? t.readerLayout : "classic";
+    localStorage.setItem("liber.reader.layout", layout);
+    window.dispatchEvent(new CustomEvent("liber-reader-layout", { detail: layout }));
   }, [t.readerLayout]);
+  React.useEffect(() => {
+    const syncLayout = (event) => {
+      const layout = READER_LAYOUT_VALUES.has(event.detail) ? event.detail : "classic";
+      if (layout !== readerLayoutRef.current) setTweak("readerLayout", layout);
+    };
+    window.addEventListener("liber-reader-layout", syncLayout);
+    return () => window.removeEventListener("liber-reader-layout", syncLayout);
+  }, [setTweak]);
 
   return (
     <TweaksPanel title="Tweaks">
@@ -55,10 +92,10 @@ function LiberTweaks(){
 
       <TweakSection label="阅读器布局" />
       <TweakRadio label="布局" value={t.readerLayout}
-        options={[{value:"classic",label:"经典"},{value:"archive",label:"档案"},{value:"immersive",label:"沉浸"}]}
+        options={READER_LAYOUT_OPTIONS}
         onChange={(v) => setTweak("readerLayout", v)} />
       <div style={{ fontSize:11, color:"#8a7d68", padding:"2px 12px 8px", lineHeight:1.5 }}>
-        经典 = 居中正文 + 抽屉式 AI／目录；档案 = 常驻右栏看批注与 AI；沉浸 = 极简自动隐藏。打开任意一本书阅读查看。
+        经典 = 居中正文；书页 = 仿纸页；批注 = 常驻右栏；竖排 = 中文竖排；沉浸 = 极简自动隐藏。打开任意一本书阅读查看。
       </div>
 
       <TweakSection label="视觉" />

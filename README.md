@@ -32,7 +32,7 @@ the library. The full surface:
 | Area | Screens |
 | --- | --- |
 | **Main journey** | Library (browse / filter / featured) → Book detail (TOC, on-chain proof, popular highlights, reviews) → **full-screen Reader** |
-| **Reader interactions** | select → highlight / annotate / ask-AI / cross-book "echoes"; AI companion drawer with summonable community "lenses"; others' annotations inline; TOC + progress; reading settings; three layouts (classic / archive / immersive) |
+| **Reader interactions** | select → highlight / annotate / ask-AI / one-click classical Chinese 今译 / cross-book "echoes"; AI companion drawer with summonable community "lenses"; others' annotations inline; TOC + progress; reading settings; three layouts (classic / archive / immersive) |
 | **Social / co-reading** | activity feed, shareable AI-conversation cards (对话卡 / 金句卡) with fork-trees and PNG export, discussion threads, co-reading groups |
 | **Personal** | Notebook (AI summaries, highlight archive, Markdown/HTML export, write-a-CC0-essay), My Shelf, Profile |
 | **Open / agent layer** | on-chain certificate page, global search, **Agent View** (MCP/structured representation of any page), provenance badges (human vs signed AI agent), Agent Square directory, open rankings (`liber.get_charts`) |
@@ -96,15 +96,27 @@ theme switching is still available from the top navigation bar.
 
 This is a full-stack **Cloudflare Pages** app: the Vite SPA (`dist/`) and the
 Hono Pages Functions (`functions/`, served at `/api/*`) deploy together, with
-**D1** (`DB`), **KV** (`KV`), **R2** (`R2`), and **Workers AI** (`AI`) bound per
-`wrangler.toml`. See [BACKEND.md](BACKEND.md) for the API surface.
+**D1** (`DB`), **KV** (`KV`), **R2** (`R2`), **Workers AI** (`AI`),
+**Vectorize**, **Queues**, and **Browser Rendering** bound per `wrangler.toml`.
+Workers AI can optionally route through Cloudflare AI Gateway for analytics,
+rate limits, logs, and cacheable 今译/释义 calls. See [BACKEND.md](BACKEND.md)
+for the API surface.
 
 The Cloudflare resources are already provisioned and their ids are filled into
 `wrangler.toml` (D1 `liber`, KV `liber-KV`, R2 `liber-content`). Run
-`npm run db:migrate` to apply the D1 schema. Do not add a blanket `_redirects`
-rule like `/* / 200`: on Cloudflare Pages it rewrites Vite assets to `index.html`
-and causes strict MIME errors for CSS and JS. The current app keeps navigation in
-React state, so it does not need an SPA fallback rule.
+`npm run db:migrate` to apply the D1 schema. Create the `liber-platform` Queue
+and `liber-semantic` Vectorize index, then deploy both the Pages app and the
+Queue consumer Worker:
+
+```bash
+npm run deploy
+npm run platform:deploy
+```
+
+Do not add a blanket `_redirects` rule like `/* / 200`: on Cloudflare Pages it
+rewrites Vite assets to `index.html` and causes strict MIME errors for CSS and
+JS. The current app keeps navigation in React state, so it does not need an SPA
+fallback rule.
 
 Pick **one** trigger per Pages project (running both just double-deploys):
 
@@ -124,6 +136,16 @@ Future schema changes: add a new SQL file under `migrations/`, wire it into the
 `db:migrate` scripts, and the GitHub Actions deploy will apply it before Pages
 deploys. For local full-stack dev (`wrangler pages dev` + local D1/KV/R2), see
 [BACKEND.md](BACKEND.md).
+
+### Platform Jobs
+
+The paid Workers platform layer is now part of the product surface:
+
+- `GET /api/platform/status` shows D1/R2/Workers AI/AI Gateway/Vectorize/Queue/Browser capability state and job counters.
+- `POST /api/platform/index/book/:id` enqueues full-book semantic indexing.
+- `GET /api/platform/search?q=...` returns Vectorize semantic matches and falls back to D1 search when Vectorize is unavailable.
+- `POST /api/platform/render/share-card` queues Browser Rendering PNG generation into R2.
+- `POST /api/platform/jobs/drain` manually runs queued jobs if the Queue consumer has not been deployed yet.
 
 ### Importing Real CC0 / Public Domain Books
 
@@ -191,19 +213,30 @@ public-domain EPUB, builds the ingest payload with the original EPUB included,
 and probes the live API without writing. Add `-- --publish` only after
 `liber auth browser`, `liber auth key`, or `ADMIN_TOKEN` is configured locally.
 
-For the larger multilingual public-domain catalogue, use:
+The Gutenberg importer is now Chinese-first by default. Daily curation should
+run the Chinese public-domain catalogue first, because the reader experience is
+optimized around classical Chinese chapter splitting, 繁简显示, 竖排, and
+古文今译:
 
 ```bash
 npm run import:gutenberg-classics -- --json
+npm run import:gutenberg-classics -- --publish --json --ids <comma-separated chinese ids>
+```
+
+To explicitly inspect or import the wider multilingual backlog, opt in:
+
+```bash
+npm run import:gutenberg-classics -- --all-langs --json
 npm run import:gutenberg-classics -- --publish --json --ids <comma-separated ids>
 ```
 
 The importer records ISO language codes and language-prefixed categories from
-Project Gutenberg EPUBs that pass the same `PUBLIC-DOMAIN` license checks. It
-also reports TOC quality warnings and rejects extreme splits such as dictionary
-or index EPUBs that produce hundreds of pseudo-chapters. It also rejects
-mojibake/garbled text, because some Gutenberg records have valid metadata but
-corrupted generated EPUB/text bodies.
+Project Gutenberg EPUBs that pass the same `PUBLIC-DOMAIN` license checks.
+Chinese candidates also go through stricter title/TOC checks for 第几回/章/卷,
+inline chapter headings, terminal headings split across spine files, Chinese
+numbering gaps, TOC fragments, and mojibake/garbled text. Wider multilingual
+candidates stay available, but they should not displace the Chinese quality
+route.
 
 The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
 can be published to npm and installed by curators or agents. It requires

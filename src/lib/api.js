@@ -138,6 +138,17 @@ export const api = {
     usage: () => get("/ai/usage"),
     conversations: () => get("/ai/conversations"),
     conversation: (id) => get(`/ai/conversations/${id}`),
+    correctTranslation: (cacheKey, translatedText) => put(`/ai/translations/${encodeURIComponent(cacheKey)}`, { translatedText }),
+  },
+
+  platform: {
+    status: () => get("/platform/status"),
+    semanticSearch: (q, limit = 8) => get(`/platform/search?q=${encodeURIComponent(q)}&limit=${encodeURIComponent(limit)}`),
+    jobs: (status = "") => get("/platform/jobs" + (status ? `?status=${encodeURIComponent(status)}` : "")),
+    enqueue: (payload) => post("/platform/jobs", payload),
+    drain: (limit = 5) => post("/platform/jobs/drain", { limit }),
+    indexBook: (id) => post(`/platform/index/book/${encodeURIComponent(id)}`),
+    renderShareCard: (payload) => post("/platform/render/share-card", payload),
   },
 
   billing: {

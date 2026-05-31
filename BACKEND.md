@@ -2,8 +2,11 @@
 
 The backend is a **Cloudflare Pages Function** (Hono) served at `/api/*`, on the
 same origin as the SPA — so no CORS in production and a single deploy. State
-lives in **D1** (SQLite), blobs in **R2**, sessions/nonces in **KV**, and the AI
-companion runs on **Workers AI**.
+lives in **D1** (SQLite), blobs in **R2**, sessions/nonces in **KV**, semantic
+vectors in **Vectorize**, heavy jobs in **Queues**, generated images in **R2**,
+and the AI companion runs on **Workers AI**. When `AI_GATEWAY_ID` is configured,
+Workers AI requests route through **Cloudflare AI Gateway** for analytics, rate
+limits, logs, and cacheable translation calls.
 
 ```
 Browser ── /            → static SPA (dist/)
@@ -11,7 +14,12 @@ Browser ── /            → static SPA (dist/)
                            ├─ D1  (DB)   relational data
                            ├─ R2  (R2)   content blobs
                            ├─ KV  (KV)   sessions + nonces
-                           └─ AI  (AI)   Workers AI companion
+                           ├─ AI  (AI)   Workers AI companion + embeddings
+                           ├─ Vectorize  semantic search / cross-book echoes
+                           ├─ Queue      enqueue import/index/render jobs
+                           └─ Browser    share-card / thumbnail rendering
+liber-platform-worker  ←── liber-platform queue consumer
+                           └─ AI Gateway (optional analytics/cache/rate limits)
 ```
 
 ## Design
@@ -36,13 +44,15 @@ Browser ── /            → static SPA (dist/)
 ## Layout
 
 ```
-wrangler.toml              bindings (D1/KV/R2/AI) + Pages output dir
+wrangler.toml              Pages bindings (D1/KV/R2/AI/Vectorize/Queue/Browser)
+wrangler.platform.toml     queue-consumer Worker bindings
 tsconfig.json              TS config for functions/
 migrations/*.sql           D1 schema, applied in order by npm run db:migrate*
 functions/
   api/[[route]].ts         Hono app mounted at /api
-  lib/   types · db · auth · storage · ai · seed
-  routes/ auth · books · reading · social · ai · charts · mcp
+  lib/   types · db · auth · storage · ai · platform · seed
+  routes/ auth · books · reading · social · ai · charts · mcp · platform
+workers/platform-worker.ts Queue consumer for background platform jobs
 src/lib/api.js             frontend API client (window.liberApi)
 ```
 
@@ -57,6 +67,7 @@ src/lib/api.js             frontend API client (window.liberApi)
 | Social | `GET /api/annotations/:book/:sid` · `/feed` · `/shares` · `/groups[/:id]` · `/threads/:key` · `/works` (+ POST writes, auth) |
 | Comments / votes | `GET/POST /api/comments/:type/:id` · `POST /api/vote/:type/:id` (generic over share/work/book; D1-backed, comments mirrored through the storage layer). |
 | AI | `POST /api/ai/chat` · `GET /api/ai/usage` · `GET /api/ai/conversations[/:id]` |
+| Platform | `GET /api/platform/status` · `GET /api/platform/search?q=` · admin `POST /api/platform/index/book/:id` · `/jobs` · `/jobs/drain` · `/render/share-card` |
 | Billing | `GET /api/billing/plan` · `GET /api/billing/crypto/config` · `POST /api/billing/crypto/confirm` · optional Stripe `POST /api/billing/checkout` / `webhook` |
 | Charts | `GET /api/charts?window=today|week|month` |
 | MCP (open) | `GET /api/mcp` · `POST /api/mcp/call` `{tool,args}` |
@@ -69,6 +80,7 @@ npm install
 npm run build                 # produce dist/ (Pages Functions need it)
 npm run db:migrate:local      # apply all migrations to the local D1
 npm run dev:api               # wrangler pages dev — serves SPA + /api with local D1/KV/R2
+npm run platform:dev          # remote dev for the Queue consumer Worker
 # (Workers AI has no local emulator; /api/ai/chat returns a graceful offline reply locally)
 ```
 
@@ -93,6 +105,8 @@ curl localhost:8788/api/reading/daodejing -H "Authorization: Bearer $TOKEN"
 npx wrangler d1 create liber          # → copy database_id into wrangler.toml
 npx wrangler kv namespace create KV   # → copy id into wrangler.toml
 npx wrangler r2 bucket create liber-content
+npx wrangler queues create liber-platform
+npx wrangler vectorize create liber-semantic --dimensions 1024 --metric cosine
 npm run db:migrate                    # apply all migrations to the remote D1
 ```
 
@@ -101,7 +115,15 @@ Settings → Functions → bindings, or via `wrangler.toml`), and deploy:
 
 ```bash
 npm run deploy        # build + wrangler pages deploy
+npm run platform:deploy
 ```
+
+The Pages app is the Queue producer. `liber-platform-worker` is the Queue
+consumer: it runs `index-book` jobs (D1 chapter chunks → Workers AI embeddings →
+Vectorize + `semantic_documents`) and `render-share-card` jobs (Browser
+Rendering → PNG in R2 + `share_assets`). If the Queue binding is unavailable,
+jobs remain in D1 and can be drained manually with
+`POST /api/platform/jobs/drain`.
 
 ## Web3 integration (P4) — optional env vars
 
@@ -121,8 +143,15 @@ external calls. Set public endpoints in `wrangler.toml` `[vars]`; set
 | `SUI_PACKAGE` | Published Move package id exposing `<module>::register(content_id, kind, license)`. |
 | `SUI_MODULE` | Move module name (default `registry`). |
 | `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint and manual pro activation endpoint. |
-| `AI_MODEL` | Override the AI book-companion model (any Workers AI text model id). Default: `@cf/qwen/qwen1.5-14b-chat-awq` (stronger Chinese than the prior Llama 3.1 8B). |
-| `GRAPH_ENABLED` | Living cross-book echoes (knowledge graph). `true` to enqueue embeddings + read live `echo_edges`; unset = inert, `get_echoes` returns the seed dictionary as today. Needs the `VECTORIZE` + `EMBED_QUEUE` bindings and the standalone `workers/embed-consumer` Worker. See `docs/KNOWLEDGE_GRAPH_SPEC.md`. |
+| `AI_PROVIDER` | AI backend selector. Default: `workers-ai`; alternatives: `deepseek` or `openai-compat`. |
+| `AI_MODEL` | Override the AI book-companion model. Workers AI default: `@cf/qwen/qwen3-30b-a3b-fp8`, replacing the deprecated Qwen1.5 model and keeping strong Chinese support at low cost. |
+| `AI_TRANSLATION_MODEL` | Optional model override for the reader's `古文今译` lens. Defaults to `AI_MODEL`; use this to keep translation on a cheaper Workers AI model while routing agentic chat elsewhere. |
+| `AI_GATEWAY_ID` | Optional Cloudflare AI Gateway id for Workers AI binding calls. Enables Gateway analytics/rate limits/logs; translation calls opt into Gateway cache when available. |
+| `AI_GATEWAY_CACHE_TTL` | Optional Gateway cache TTL used for deterministic translation/释义 calls. Default in `wrangler.toml`: `604800`. |
+| `SEMANTIC_EMBEDDING_MODEL` | Workers AI embedding model used before Vectorize upserts. Default in `wrangler.toml`: `@cf/baai/bge-m3`. Keep the Vectorize index dimensions aligned with this model. |
+| `PLATFORM_QUEUE_ENABLED` | Set to `false` to leave jobs only in D1 instead of sending to `PLATFORM_QUEUE`. |
+| `AI_BASE_URL` / `AI_API_KEY` / `DEEPSEEK_API_KEY` | OpenAI-compatible or DeepSeek provider configuration. `AI_BASE_URL` can point at an AI Gateway provider endpoint when using hosted models. |
+| `GRAPH_ENABLED` | Living cross-book echoes (knowledge graph). `true` to enqueue embeddings + read live `echo_edges`; unset = inert, `get_echoes` returns the seed dictionary as today. Needs Vectorize plus the embed queue/consumer. See `docs/KNOWLEDGE_GRAPH_SPEC.md`. |
 | `GRAPH_EMBED_MODEL` | Embedding model for the graph. Default `@cf/baai/bge-m3` (1024-d, multilingual). Changing it re-embeds. |
 | `GRAPH_MIN_SCORE` | Cosine threshold for writing an echo edge. Default `0.78`; set from the `npm run graph:spike` results. |
 | `GRAPH_TOPK` | Nearest neighbours queried per sentence. Default `8`. |
@@ -177,6 +206,13 @@ Run `npm run smoke:real-content -- --json` for a read-only live smoke test
 against Project Gutenberg #132. Add `-- --publish` only after local publish
 auth is configured; it will import that EPUB into the live catalogue and then
 probe `/api/books/:id`, `/content/1`, search, and proof.
+
+For ongoing Gutenberg curation, `npm run import:gutenberg-classics` defaults to
+the Chinese catalogue. This keeps the platform route centered on Chinese public
+domain books, where the importer has dedicated checks for classical chapter
+forms (`第…回/章/卷`, inline headings, cross-spine terminal headings, numbering
+gaps, TOC fragments, and garbled text). Use `--all-langs` only when deliberately
+auditing the wider multilingual backlog.
 
 Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
 (real Sui personal-message signature check via `@mysten/sui`). Frontend flow in

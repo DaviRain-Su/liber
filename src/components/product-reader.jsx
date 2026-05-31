@@ -5,17 +5,27 @@ import { ConvoArtifact } from "./product-convocard.jsx";
 import { EchoOverlay } from "./product-echo.jsx";
 import { stablecoinSubscribe } from "../lib/wallet.js";
 import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
+import { convertChineseText, isChineseScriptMode } from "../lib/zh-convert.js";
 
 /* product-reader.jsx — full-screen reader with selection menu, highlights,
    others' annotations, AI companion drawer, TOC, settings, progress.
-   Three layouts: classic | archive | immersive. */
+   Layouts: classic | folio | archive | vertical | immersive. */
 const { useState: useS, useEffect: useE, useRef: useR, useCallback: useCb } = React;
+const READER_LAYOUT_OPTIONS = [
+  { value: "classic", label: "经典" },
+  { value: "folio", label: "书页" },
+  { value: "archive", label: "批注" },
+  { value: "vertical", label: "竖排" },
+  { value: "immersive", label: "沉浸" },
+];
+const READER_LAYOUTS = new Set(READER_LAYOUT_OPTIONS.map((item) => item.value));
 const profileRef = (x) => x?.userId ? { userId:x.userId, name:x.u || x.name } : (x?.u || x?.name || x);
 const canProfile = (x) => window.canOpenProfile(profileRef(x));
 const openProfile = (x) => window.openProfile(profileRef(x));
 
 /* ---- AI canned brain (mode-aware) ---- */
 const AI_MODES = [
+  { k:"translate", label:"古文今译", role:"古文今译模式" },
   { k:"companion", label:"通读陪伴", role:"通读陪伴模式" },
   { k:"extend",    label:"知识延展", role:"知识延展模式" },
   { k:"notes",     label:"总结笔记", role:"总结笔记模式" },
@@ -23,6 +33,8 @@ const AI_MODES = [
 ];
 function aiReply(mode, q, ctx){
   const c = ctx ? `就你选中的「${ctx}」` : "这一句";
+  if (mode === "translate")
+    return { t:`今译：${ctx || q}。\n字词：逐句对照原文理解，先抓主语和动作，再看虚词转折。\n提醒：这是本地离线兜底；联网后会用 Workers AI 给出更准确的今译。`, ref:"古文今译 · offline" };
   if (mode === "debate")
     return { t:`那我反问你：你说的这个理解，换一个处境还成立吗？${ctx?`比如把「${ctx}」放到完全相反的情形里——它会不会反而说明了相反的事？`:""}先别急着下结论，我们一层层往下问。`, ref:"反问 · 苏格拉底式" };
   if (mode === "notes")
@@ -62,21 +74,45 @@ const epubPalette = {
   night: { bg: "#14110c", fg: "#d9cfba" },
 };
 
-function applyEpubTheme(rendition, { font, size, lead, rtheme }) {
+function applyEpubTheme(rendition, { font, size, lead, rtheme, layout = "classic" }) {
   if (!rendition?.themes) return;
   const palette = epubPalette[rtheme] || epubPalette.cream;
+  const isVertical = layout === "vertical";
+  const body = {
+    "background": `${palette.bg} !important`,
+    "color": `${palette.fg} !important`,
+    "font-family": `${epubFont[font] || epubFont.song} !important`,
+    "font-size": `${size}px !important`,
+    "line-height": `${lead} !important`,
+    "padding": isVertical ? "5% 2.4em !important" : "0 8% !important",
+  };
+  const paragraph = {
+    "margin": isVertical ? "0 0 0 1.25em !important" : "0 0 1em 0 !important",
+    "text-indent": isVertical ? "1em !important" : "1.25em !important",
+  };
+  if (isVertical) {
+    Object.assign(body, {
+      "writing-mode": "vertical-rl !important",
+      "text-orientation": "mixed !important",
+      "height": "100vh !important",
+      "max-height": "100vh !important",
+    });
+    Object.assign(paragraph, {
+      "writing-mode": "vertical-rl !important",
+      "text-orientation": "mixed !important",
+    });
+  }
   rendition.themes.register("liber", {
+    html: isVertical ? {
+      "writing-mode": "vertical-rl !important",
+      "text-orientation": "mixed !important",
+      "height": "100vh !important",
+    } : {},
     body: {
-      "background": `${palette.bg} !important`,
-      "color": `${palette.fg} !important`,
-      "font-family": `${epubFont[font] || epubFont.song} !important`,
-      "font-size": `${size}px !important`,
-      "line-height": `${lead} !important`,
-      "padding": "0 8% !important",
+      ...body,
     },
     p: {
-      "margin": "0 0 1em 0 !important",
-      "text-indent": "1.25em !important",
+      ...paragraph,
     },
     "p.footnote": {
       "border-left": "2px solid rgba(169, 77, 53, .28) !important",
@@ -118,6 +154,15 @@ function storedReaderMode(book) {
   }
 }
 
+function storedReaderLayout() {
+  try {
+    const value = localStorage.getItem("liber.reader.layout") || "classic";
+    return READER_LAYOUTS.has(value) ? value : "classic";
+  } catch {
+    return "classic";
+  }
+}
+
 function readStoredMap(key) {
   try {
     const value = JSON.parse(localStorage.getItem(key));
@@ -142,11 +187,49 @@ function sameEpubHref(left = "", right = "") {
   return Boolean(clean(left) && clean(left) === clean(right));
 }
 
-function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation, onRelocated, onUnavailable }) {
+function epubContentDocument(contents) {
+  return contents?.document || contents?.content?.document || contents?.window?.document || null;
+}
+
+function applyChineseScriptToDocument(doc, mode, originalText) {
+  if (!doc?.body) return;
+  const win = doc.defaultView || window;
+  const filter = win.NodeFilter || globalThis.NodeFilter;
+  if (!filter) return;
+  const walker = doc.createTreeWalker(doc.body, filter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.nodeValue || !node.nodeValue.trim()) return filter.FILTER_REJECT;
+      const parent = node.parentElement;
+      if (parent?.closest?.("script, style, svg, math, code, pre")) return filter.FILTER_REJECT;
+      return filter.FILTER_ACCEPT;
+    },
+  });
+  let node = walker.nextNode();
+  while (node) {
+    if (!originalText.has(node)) originalText.set(node, node.nodeValue);
+    node.nodeValue = convertChineseText(originalText.get(node), mode);
+    node = walker.nextNode();
+  }
+  doc.documentElement?.setAttribute("data-liber-script", mode);
+}
+
+function applyEpubScriptMode(rendition, mode, originalText) {
+  const contents = typeof rendition?.getContents === "function" ? rendition.getContents() : [];
+  for (const content of contents) applyChineseScriptToDocument(epubContentDocument(content), mode, originalText);
+}
+
+function EpubReader({ bookId, controlRef, font, size, lead, rtheme, scriptMode, layout, onNavigation, onRelocated, onUnavailable }) {
   const hostRef = useR(null);
   const renditionRef = useR(null);
+  const scriptModeRef = useR(scriptMode);
+  const originalTextRef = useR(new WeakMap());
   const [status, setStatus] = useS("loading");
   const [error, setError] = useS("");
+
+  useE(() => {
+    scriptModeRef.current = scriptMode;
+    applyEpubScriptMode(renditionRef.current, scriptMode, originalTextRef.current);
+  }, [scriptMode, status]);
 
   useE(() => {
     let cancelled = false;
@@ -176,10 +259,13 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation
         prev: () => rendition.prev(),
         display: (href) => rendition.display(href),
       };
+      rendition.hooks?.content?.register?.((contents) => {
+        applyChineseScriptToDocument(epubContentDocument(contents), scriptModeRef.current, originalTextRef.current);
+      });
       rendition.on?.("relocated", (loc) => {
         if (!cancelled) onRelocated?.(loc);
       });
-      applyEpubTheme(rendition, { font, size, lead, rtheme });
+      applyEpubTheme(rendition, { font, size, lead, rtheme, layout });
       return rendition.display();
     }).then(() => {
       if (!cancelled) setStatus("ready");
@@ -195,14 +281,16 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, onNavigation
       cancelled = true;
       if (controlRef.current) controlRef.current = null;
       renditionRef.current = null;
+      originalTextRef.current = new WeakMap();
       try { rendition?.destroy?.(); } catch { /* ignore */ }
       try { epubBook?.destroy?.(); } catch { /* ignore */ }
     };
   }, [bookId, onNavigation, onRelocated, onUnavailable]);
 
   useE(() => {
-    applyEpubTheme(renditionRef.current, { font, size, lead, rtheme });
-  }, [font, size, lead, rtheme, status]);
+    applyEpubTheme(renditionRef.current, { font, size, lead, rtheme, layout });
+    try { renditionRef.current?.resize?.(); } catch { /* ignore */ }
+  }, [font, size, lead, rtheme, layout, status]);
 
   return (
     <div className="rd-epub-panel">
@@ -276,13 +364,18 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   }, [bookId, ch?.n, ch?.placeholder, ch?.status]);
 
   /* layout (driven by tweaks + the in-reader 版式 switcher) */
-  const [layout, setLayout] = useS(localStorage.getItem("liber.reader.layout") || "classic");
+  const [layout, setLayout] = useS(storedReaderLayout);
+  const setReaderLayout = useCb((value) => {
+    const next = READER_LAYOUTS.has(value) ? value : "classic";
+    setLayout(next);
+    try { localStorage.setItem("liber.reader.layout", next); } catch { /* ignore */ }
+    window.dispatchEvent(new CustomEvent("liber-reader-layout", { detail: next }));
+  }, []);
   useE(() => {
-    const h = e => setLayout(e.detail);
+    const h = e => { if (READER_LAYOUTS.has(e.detail)) setLayout(e.detail); };
     window.addEventListener("liber-reader-layout", h);
     return () => window.removeEventListener("liber-reader-layout", h);
   }, []);
-  const chooseLayout = (k) => { setLayout(k); localStorage.setItem("liber.reader.layout", k); window.dispatchEvent(new CustomEvent("liber-reader-layout", { detail: k })); };
   const [readMode, setReadModeState] = useS(() => storedReaderMode(seedBook));
   const epubControl = useR(null);
   const [epubToc, setEpubToc] = useS([]);
@@ -321,11 +414,17 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     return +raw;
   });
   const [rtheme, setRtheme] = useS(() => load("rtheme", "cream"));
+  const [scriptMode, setScriptMode] = useS(() => {
+    const value = load("script", "original");
+    return isChineseScriptMode(value) ? value : "original";
+  });
   useE(() => { localStorage.setItem("liber.set.font", font); }, [font]);
   useE(() => { localStorage.setItem("liber.set.size", size); }, [size]);
   useE(() => { localStorage.setItem("liber.set.lead", lead); }, [lead]);
   useE(() => { localStorage.setItem("liber.set.meas", meas); localStorage.setItem("liber.set.ver", "2"); }, [meas]);
   useE(() => { localStorage.setItem("liber.set.rtheme", rtheme); }, [rtheme]);
+  useE(() => { localStorage.setItem("liber.set.script", scriptMode); }, [scriptMode]);
+  const tx = useCb((value) => convertChineseText(value, scriptMode), [scriptMode]);
 
   /* ---- page-turn mode: scroll | slide | book | curl | fade (applies to 互动/text reading) ---- */
   const [pageMode, setPageMode] = useS(() => load("pagemode", "scroll"));
@@ -424,14 +523,23 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   useE(() => {
     const el = scrollRef.current; if (!el) return;
     const onScroll = () => {
+      if (layout === "vertical") {
+        const max = el.scrollWidth - el.clientWidth;
+        setProg(max > 0 ? Math.min(1, Math.abs(el.scrollLeft) / max) : 0);
+        return;
+      }
       const max = el.scrollHeight - el.clientHeight;
       setProg(max > 0 ? el.scrollTop / max : 0);
     };
     el.addEventListener("scroll", onScroll, { passive:true });
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
-  }, [cIdx]);
-  useE(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [cIdx]);
+  }, [cIdx, layout]);
+  useE(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = 0;
+    scrollRef.current.scrollLeft = 0;
+  }, [cIdx, layout]);
 
   /* persist place (local + backend progress, best-effort) */
   useE(() => {
@@ -517,6 +625,17 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     window.getSelection().removeAllRanges();
     setSel(null);
   };
+  const translateSelection = () => {
+    if (!sel) return;
+    const text = sel.text;
+    setAiCtx(text);
+    setAiMode("translate");
+    setAiOpen(true);
+    if (layout === "archive") setRailTab("ai");
+    window.getSelection().removeAllRanges();
+    setSel(null);
+    sendAI("翻译成现代白话", { mode: "translate", context: text });
+  };
   const openEcho = () => {
     if (!sel) return;
     setEcho({ sid: sel.sids[0], text: sel.text });
@@ -559,18 +678,19 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const heatCountFor = (sid) => Math.max(Number(heat[sid] || 0), hls[sid] ? 1 : 0);
 
   /* ---- AI send — live Workers AI, falling back to the canned brain ---- */
-  const sendAI = (text) => {
+  const sendAI = (text, options = {}) => {
     const q = (text != null ? text : draft).trim();
     if (!q) return;
-    const ctx = aiCtx;
+    const mode = options.mode || aiMode;
+    const ctx = options.context ?? aiCtx;
     setFeed(f => [...f, { who:"user", t:q }]);
     setDraft("");
     setTyping(true);
     setAiOpen(true);
-    const fallback = () => setFeed(f => [...f, { who:"bot", ...aiReply(aiMode, q, ctx) }]);
+    const fallback = () => setFeed(f => [...f, { who:"bot", ...aiReply(mode, q, ctx) }]);
     const finish = () => { setTyping(false); setAiCtx(null); };
     if (typeof window !== "undefined" && window.liberApi) {
-      window.liberApi.ai.chat({ bookId: book.id, lens: aiMode, question: q, context: ctx, chapter: `第 ${ch.n} 章 · ${ch.title}` })
+      window.liberApi.ai.chat({ bookId: book.id, lens: mode, question: q, context: ctx, chapter: `第 ${ch.n} 章 · ${ch.title}` })
         .then(res => { if (res && res.text && !res.error) setFeed(f => [...f, { who:"bot", t: res.text, ref: res.ref }]); else fallback(); })
         .catch(fallback)
         .finally(finish);
@@ -693,7 +813,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     return (
       <span key={s.id} className={cls.join(" ")} data-sid={s.id}
         onClick={hasAnno ? (e) => openNotePop(s.id, e) : undefined}>
-        {s.t}
+        {tx(s.t)}
         {lineHeat > 0 && (
           <span className="hl-heat" title={`${lineHeat} 人划线`}>
             {I.hl}<span>{lineHeat}</span>
@@ -728,7 +848,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const chapterBody = (
     <>
       <div className="rd-chap-no">第 {String(ch.n).padStart(2,"0")} 章{ch.paras.length ? ` · 约 ${chapMins} 分钟` : ""}</div>
-      <h1 className="rd-chap-title">{ch.title}</h1>
+      <h1 className="rd-chap-title">{tx(ch.title)}</h1>
       <div className="rd-chap-rule"/>
       <div className="rd-text">
         {ch.paras.map(renderParagraph)}
@@ -747,14 +867,14 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
               {nextChap && (
                 <div className="rce-card" onClick={() => go(1)}>
                   <span className="rce-seal" style={{ background:"#211b15", color:"#ece2cf" }}>{book.seal}</span>
-                  <div className="rce-mid"><div className="rce-lab">本书 · 接着读</div><div className="rce-t">第 {nextChap.n} 章 · {nextChap.title}</div></div>
+                  <div className="rce-mid"><div className="rce-lab">本书 · 接着读</div><div className="rce-t">第 {nextChap.n} 章 · {tx(nextChap.title)}</div></div>
                   <span className="rce-go">{I.right}</span>
                 </div>
               )}
               {crossRec && (
                 <div className="rce-card" onClick={() => onOpenBook && onOpenBook(crossRec.bookId)}>
                   <span className="rce-seal" style={{ background: crossRec.color }}>{crossRec.seal}</span>
-                  <div className="rce-mid"><div className="rce-lab">跨书 · {echo.theme}</div><div className="rce-t">{crossRec.bookT} · {crossRec.chap}</div><div className="rce-why">{crossRec.why}</div></div>
+                  <div className="rce-mid"><div className="rce-lab">跨书 · {tx(echo.theme)}</div><div className="rce-t">{tx(crossRec.bookT)} · {tx(crossRec.chap)}</div><div className="rce-why">{tx(crossRec.why)}</div></div>
                   <span className="rce-go">{I.right}</span>
                 </div>
               )}
@@ -772,17 +892,35 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     ? epubToc
     : (toc.length ? toc : chapters.map(c => ({ n: c.n, title: c.title, has: true })));
   const waitingForEpubToc = readMode === "epub" && hasEpub && !epubToc.length;
+  const seekTextProgress = useCb((e) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    if (paged) {
+      setPage(Math.max(0, Math.min(pageCount - 1, Math.round(f * (pageCount - 1)))));
+      return;
+    }
+    if (layout === "vertical") {
+      const max = el.scrollWidth - el.clientWidth;
+      const target = max * f;
+      el.scrollLeft = el.scrollLeft < 0 ? -target : target;
+      if (f > 0 && Math.abs(el.scrollLeft) < 1) el.scrollLeft = -target;
+      return;
+    }
+    el.scrollTop = (el.scrollHeight - el.clientHeight) * f;
+  }, [layout, paged, pageCount]);
 
   return (
-    <div className="reader" data-layout={layout} data-rtheme={rtheme} data-turn={turn || undefined}
+    <div className="reader" data-layout={layout} data-mode={readMode} data-rtheme={rtheme} data-turn={turn || undefined}
       style={{ "--read-size": size+"px", "--read-leading": lead, "--read-measure": meas+"rem", "--read-font": fontFam }}>
 
       {/* top bar */}
       <div className="rd-bar">
         <button className="icon-btn" onClick={onClose} title="返回 (Esc)">{I.left}</button>
         <div className="rd-title">
-          <span className="bk">{book.t}</span>
-          <span className="ch">{readMode === "epub" ? `EPUB${activeEpubItem?.title ? ` · ${activeEpubItem.title}` : ""}` : `第 ${ch.n} 章 · ${ch.title}`}</span>
+          <span className="bk">{tx(book.t)}</span>
+          <span className="ch">{readMode === "epub" ? `EPUB${activeEpubItem?.title ? ` · ${tx(activeEpubItem.title)}` : ""}` : `第 ${ch.n} 章 · ${tx(ch.title)}`}</span>
         </div>
         <div className="spacer"/>
         <button className={`rd-tool ${tocOpen?"on":""}`} onClick={() => { setTocOpen(v=>!v); setSetOpen(false); }}>{I.list} 目录</button>
@@ -804,6 +942,8 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
             size={size}
             lead={lead}
             rtheme={rtheme}
+            scriptMode={scriptMode}
+            layout={layout}
             onNavigation={setEpubToc}
             onRelocated={setEpubLocation}
             onUnavailable={onEpubUnavailable}
@@ -812,7 +952,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <div className="rd-scroll" ref={scrollRef}>
             <div className="rd-empty">
               <div className="rd-empty-seal" style={{ background: book.cls ? undefined : "var(--accent)" }}>{book.seal || "书"}</div>
-              <h1 className="rd-empty-h">《{book.t}》的正文还在入库中</h1>
+              <h1 className="rd-empty-h">《{tx(book.t)}》的正文还在入库中</h1>
               {hasEpub ? (
                 <>
                   <p className="rd-empty-p">这本书有原版 EPUB，可以直接打开阅读。</p>
@@ -873,7 +1013,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
             </div>
             <div className="rail-body">
               {railTab === "anno" ? (
-                <RailAnnotations ch={ch} annoFor={annoFor} />
+                <RailAnnotations ch={ch} annoFor={annoFor} tx={tx} />
               ) : (
                 <AIPanel inline {...{ aiMode, setAiMode, aiCtx, setAiCtx, feed, typing, draft, setDraft, sendAI, onShare:()=>setShareOpen(true), summoned, onSummon:()=>setLensPicker(true) }} />
               )}
@@ -888,7 +1028,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <button onClick={() => go(-1)} disabled={readMode === "text" && cIdx===0}>{I.left}</button>
           <button onClick={() => go(1)} disabled={readMode === "text" && cIdx===chapterCount-1}>{I.right}</button>
         </div>
-        <div className="pg-track" onClick={(e)=>{ const r=e.currentTarget.getBoundingClientRect(); const f=(e.clientX-r.left)/r.width; if(paged){ setPage(Math.max(0, Math.min(pageCount-1, Math.round(f*(pageCount-1))))); } else { const el=scrollRef.current; if(el) el.scrollTop=(el.scrollHeight-el.clientHeight)*f; } }}>
+        <div className="pg-track" onClick={seekTextProgress}>
           <div className="pg-fill" style={{ width: readMode === "epub" ? "0%" : (barProg*100)+"%" }}/>
           <div className="pg-dot" style={{ left: readMode === "epub" ? "0%" : (barProg*100)+"%" }}/>
         </div>
@@ -906,6 +1046,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           )}
           <span className="sep"/>
           <button onClick={startNote}>{I.note} 批注</button>
+          <button onClick={translateSelection}>{I.spark} 今译</button>
           <button onClick={askAI}>{I.spark} 问 AI</button>
           <button onClick={openEcho}>{I.echo} 回声</button>
           <button onClick={() => { navigator.clipboard && navigator.clipboard.writeText(sel.text); setSel(null); }}>{I.copy} 复制</button>
@@ -926,7 +1067,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
                 {lineHeat > 0 && <span className="np-heat">{I.hl}{lineHeat} 人划线</span>}
                 <span className="x" onClick={() => setNotePop(null)}>{I.x}</span>
               </div>
-              {sObj && <div className="np-quote">「{sObj.t}」</div>}
+              {sObj && <div className="np-quote">「{tx(sObj.t)}」</div>}
               <div className="np-list">
                 {list.map((n,i) => (
                   <div className="np-note" key={i}>
@@ -955,10 +1096,10 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <div className="drawer-scrim" style={{ background:"transparent" }} onClick={() => setSetOpen(false)}/>
           <div className="set-pop" style={{ right: 22, top: 64 }}>
             <div className="set-row">
-              <div className="lab">版式</div>
-              <div className="seg layout-seg">
-                {[["classic","经典"],["archive","批注栏"],["immersive","沉浸"]].map(([k,l]) => (
-                  <button key={k} className={layout===k?"on":""} onClick={() => chooseLayout(k)}>{l}</button>
+              <div className="lab">阅读体验</div>
+              <div className="seg reader-layout-seg">
+                {READER_LAYOUT_OPTIONS.map(({ value, label }) => (
+                  <button key={value} className={layout===value?"on":""} onClick={() => setReaderLayout(value)}>{label}</button>
                 ))}
               </div>
             </div>
@@ -967,6 +1108,14 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
               <div className="seg page-seg">
                 {[["scroll","卷轴"],["slide","滑动"],["book","书页"],["curl","卷页"],["fade","淡出"]].map(([k,l]) => (
                   <button key={k} className={pageMode===k?"on":""} onClick={() => setPageMode(k)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="set-row">
+              <div className="lab">中文显示</div>
+              <div className="seg">
+                {[["original","原文"],["hans","简体"],["hant","繁体"]].map(([k,l]) => (
+                  <button key={k} className={scriptMode===k?"on":""} onClick={() => setScriptMode(k)}>{l}</button>
                 ))}
               </div>
             </div>
@@ -1009,7 +1158,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
         <>
           <div className="drawer-scrim" onClick={() => setTocOpen(false)}/>
           <div className="toc-drawer">
-            <div className="dh"><span className="t">目录 · {book.t}</span><span className="x" onClick={() => setTocOpen(false)}>{I.x}</span></div>
+            <div className="dh"><span className="t">目录 · {tx(book.t)}</span><span className="x" onClick={() => setTocOpen(false)}>{I.x}</span></div>
             <div className="dbody">
               {waitingForEpubToc && (
                 <div className="toc-empty">正在读取 EPUB 阅读版目录…</div>
@@ -1024,7 +1173,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
                     onClick={() => t.href ? jumpEpubTo(t.href) : (t.has && jumpTo(t.n))}
                   >
                     <span className="num">{String(t.n || idx + 1).padStart(2,"0")}</span>
-                    <span className="tt">{t.title}</span>
+                    <span className="tt">{tx(t.title)}</span>
                     {!t.has && <span className="lk">{I.lock}</span>}
                   </div>
                 );
@@ -1242,7 +1391,9 @@ function AIPanel({ aiMode, setAiMode, aiCtx, setAiCtx, feed, typing, draft, setD
     window.liberApi.billing.plan().then(r => { if (live) setBilling(r); }).catch(() => {});
     return () => { live = false; };
   }, []);
-  const suggests = ["这一句到底在说什么？", "和后文有什么关系？", "帮我总结这一章"];
+  const suggests = aiMode === "translate"
+    ? ["翻译成现代白话", "逐字解释关键词", "这句话有哪些常见误读？"]
+    : ["这一句到底在说什么？", "和后文有什么关系？", "帮我总结这一章"];
   const hasExchange = feed.some(m => m.who === "user");
   const active = (window.LENSES||[]).filter(l => l.tag === "official" || (summoned||[]).includes(l.id));
   const usage = billing?.usage;
@@ -1319,7 +1470,7 @@ function AIPanel({ aiMode, setAiMode, aiCtx, setAiCtx, feed, typing, draft, setD
 }
 
 /* ---- archive rail annotations ---- */
-function RailAnnotations({ ch, annoFor }){
+function RailAnnotations({ ch, annoFor, tx = (value) => value }){
   const sentences = ch.paras.flat().filter(s => annoFor(s.id).length);
   if (!sentences.length) return <div className="rail-section"><div className="rs-h">本章批注</div><div style={{ color:"var(--ink-3)", fontSize:14, fontStyle:"italic" }}>这一章还没有批注。选中一句，留下第一条。</div></div>;
   return (
@@ -1327,7 +1478,7 @@ function RailAnnotations({ ch, annoFor }){
       <div className="rs-h">本章批注 · {sentences.length} 句被标注</div>
       {sentences.map(s => annoFor(s.id).map((n,i) => (
         <div className="rail-note" key={s.id+i}>
-          {i===0 && <div className="rn-q">「{s.t.length>22?s.t.slice(0,22)+"…":s.t}」</div>}
+          {i===0 && <div className="rn-q">「{tx(s.t).length>22?tx(s.t).slice(0,22)+"…":tx(s.t)}」</div>}
           <div className="rn-row">
             <div className={"ava"+(n.ai?" agent":"")} style={{ background:n.color }}>{n.ai?"AI":n.u[0]}</div>
             <div>

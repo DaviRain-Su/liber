@@ -97,6 +97,12 @@
 .av-json{ font-size: 12.5px; }
 .av-json .tbody{ padding: 14px 16px; }
 .term .num{ color: #c98aa0; }
+.av-platform-grid{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.av-platform-card{ display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 10px 12px; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper); }
+.av-platform-card .dot{ width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex-shrink: 0; }
+.av-platform-card.on .dot{ background: #2e9e6b; box-shadow: 0 0 0 4px color-mix(in oklab,#2e9e6b 14%, transparent); }
+.av-platform-card b{ display: block; font-family: var(--mono); font-size: 12px; color: var(--ink); }
+.av-platform-card em{ display: block; margin-top: 3px; font-family: var(--mono); font-size: 10px; font-style: normal; color: var(--ink-3); word-break: break-word; }
 .av-tools{ display: flex; flex-direction: column; gap: 8px; }
 .av-tool{ background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; padding: 11px 13px; }
 .av-tool .at-top{ display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -110,6 +116,7 @@
   .av-toggle span{ display: none; }
   .av-toggle{ padding: 0 9px; }
   .agentview-drawer{ width: 100%; max-width: 100%; }
+  .av-platform-grid{ grid-template-columns: 1fr; }
 }
 
 /* ============================================================

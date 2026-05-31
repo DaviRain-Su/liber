@@ -4,7 +4,7 @@ import { findCatalogBook, getCatalogTotal, licenseLabel } from "../lib/catalog.j
 
 /* product-agentview.jsx — "Agent View": flip any page into the structured,
    addressable, MCP representation an AI Agent sees. Reuses .term styles. */
-const { useState: useAv } = React;
+const { useState: useAv, useEffect: useEav } = React;
 
 const MCP_TOOLS = [
   { name:"liber.search", sig:"(query) → Book[]", desc:"全文检索书名 / 作者 / 句子" },
@@ -27,12 +27,22 @@ function JLine({ k, v, t, last, indent=1 }){
 }
 
 function AgentView({ context, onClose, onCopy, onSquare, onGraph }){
+  const [platform, setPlatform] = useAv(null);
   const book = context.book;
   const ctxCharts = context.charts;
   const corpus = !book && !ctxCharts;
   const addr = book
     ? { uri:`liber://${book.id}`, blob:book.blob, index:book.index, license:book.license || "CC0-1.0" }
     : { uri:"liber://registry", blob:"walrus://0x00…root", index:"sui::registry::Library", license:"CC0-1.0" };
+
+  useEav(() => {
+    if (!corpus || !window.liberApi?.platform?.status) return undefined;
+    let live = true;
+    window.liberApi.platform.status()
+      .then((r) => { if (live) setPlatform(r); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [corpus]);
 
   if (ctxCharts){
     const winMap = { today:"today", week:"7d", month:"30d" };
@@ -116,6 +126,27 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }){
               <div className="ar"><span className="k">license</span><code>{licenseLabel(addr.license)}</code></div>
             </div>
           </div>
+
+          {corpus && (
+            <div className="av-sec">
+              <div className="av-h">Cloudflare 平台能力</div>
+              <div className="av-platform-grid">
+                {[
+                  ["Vectorize", platform?.capabilities?.vectorize, `${platform?.counts?.semanticDocs ?? "—"} docs`],
+                  ["Queues", platform?.capabilities?.queues, `${platform?.counts?.pendingJobs ?? "—"} pending`],
+                  ["D1 + R2", platform?.capabilities?.d1 && platform?.capabilities?.r2, `${platform?.counts?.jobs ?? "—"} jobs`],
+                  ["AI Gateway", platform?.capabilities?.aiGateway, platform?.provider?.model || "Workers AI"],
+                  ["Logs / Trace", platform?.capabilities?.logsAndTrace, "ops events"],
+                  ["Browser", platform?.capabilities?.browserRendering, `${platform?.counts?.shareAssets ?? "—"} assets`],
+                ].map(([name, on, meta]) => (
+                  <div className={"av-platform-card" + (on ? " on" : "")} key={name}>
+                    <span className="dot"></span>
+                    <div><b>{name}</b><em>{meta}</em></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* structured object */}
           <div className="av-sec">

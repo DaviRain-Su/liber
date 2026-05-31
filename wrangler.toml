@@ -23,15 +23,30 @@ bucket_name = "liber-content"
 [ai]
 binding = "AI"
 
-# --- Knowledge graph (living cross-book echoes). See docs/KNOWLEDGE_GRAPH_SPEC.md. ---
-# Inert until GRAPH_ENABLED=true. Create the index + queue first:
-#   wrangler vectorize create liber-echoes --dimensions=1024 --metric=cosine
-#   wrangler queues create liber-embed && wrangler queues create liber-embed-dlq
-# Then uncomment the two bindings below and deploy workers/embed-consumer separately.
+# --- Platform ops bindings (semantic search, async jobs, share-card screenshots).
+# Commented out until the backing resources exist, so `wrangler pages deploy`
+# succeeds. The platform-ops code degrades gracefully when these are unbound
+# (every use is guarded; see /api/platform/status for live binding state).
+# To activate platform ops:
+#   wrangler vectorize create liber-semantic --dimensions=1024 --metric=cosine
+#   wrangler queues create liber-platform
+#   (Browser Rendering / BROWSER requires a Workers Paid plan)
+# then uncomment the three bindings below and re-deploy (plus `npm run platform:deploy`).
 # [[vectorize]]
 # binding = "VECTORIZE"
-# index_name = "liber-echoes"
+# index_name = "liber-semantic"
 #
+# [[queues.producers]]
+# binding = "PLATFORM_QUEUE"
+# queue = "liber-platform"
+#
+# [browser]
+# binding = "BROWSER"
+
+# --- Knowledge graph (living cross-book echoes). See docs/KNOWLEDGE_GRAPH_SPEC.md. ---
+# The graph can share the VECTORIZE binding above when dimensions/model match.
+# If you split it into a dedicated index/queue later, wire the standalone
+# workers/embed-consumer Worker separately.
 # [[queues.producers]]
 # binding = "EMBED_QUEUE"
 # queue = "liber-embed"
@@ -52,3 +67,14 @@ SUI_RPC = "https://fullnode.testnet.sui.io:443"
 # accepted coin type are chosen. Set these as Pages variables/secrets:
 # PAYMENT_TREASURY, PAYMENT_COIN_TYPE, PAYMENT_MONTHLY_AMOUNT.
 PAYMENT_CHAIN = "sui:testnet"
+
+# Workers AI is enabled through the AI binding above. Create an AI Gateway in
+# Cloudflare dashboard when you want analytics/rate limits/cache, then set:
+# AI_GATEWAY_ID = "default"
+AI_PROVIDER = "workers-ai"
+AI_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
+# Optional override when translation should use a different model:
+# AI_TRANSLATION_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
+AI_GATEWAY_CACHE_TTL = "604800"
+SEMANTIC_EMBEDDING_MODEL = "@cf/baai/bge-m3"
+PLATFORM_QUEUE_ENABLED = "true"

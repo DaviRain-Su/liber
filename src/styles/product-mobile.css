@@ -123,6 +123,48 @@
   /* persistent archive rail never on mobile */
   .reader[data-layout="archive"] .rd-rail{ display: none; }
   .reader[data-layout="archive"] .rd-col{ max-width: 100% !important; }
+  .reader[data-layout="folio"] .rd-scroll{ background: var(--paper); }
+  .reader[data-layout="folio"] .rd-col{
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  .reader[data-layout="vertical"] .rd-scroll{
+    overflow-x: auto;
+    overflow-y: hidden;
+    background:
+      linear-gradient(90deg, transparent calc(100% - 1px), var(--hair-2) 0) 0 0 / 36px 100%,
+      var(--paper);
+  }
+  .reader[data-layout="vertical"] .rd-col{
+    width: max-content;
+    max-width: none !important;
+    height: calc(100dvh - 130px);
+    padding: 38px 42px 116px !important;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+  .reader[data-layout="vertical"] .rd-chap-no,
+  .reader[data-layout="vertical"] .rd-chap-title,
+  .reader[data-layout="vertical"] .rd-text,
+  .reader[data-layout="vertical"] .rd-text p{
+    writing-mode: vertical-rl;
+  }
+  .reader[data-layout="vertical"] .rd-chap-title{ font-size: 30px; margin: 0 0 0 18px; }
+  .reader[data-layout="vertical"] .rd-chap-rule{ width: 2px; height: 46px; margin: 0 20px; }
+  .reader[data-layout="vertical"] .rd-text{ height: 100%; max-height: 100%; line-height: 2; }
+  .reader[data-layout="vertical"] .rd-text p{ margin: 0 0 0 1.1em; text-indent: 1em; }
+  .reader[data-mode="epub"][data-layout="folio"] .rd-epub-panel,
+  .reader[data-mode="epub"][data-layout="vertical"] .rd-epub-panel,
+  .reader[data-mode="epub"][data-layout="immersive"] .rd-epub-panel{ padding: 14px 12px 96px !important; }
+  .reader[data-mode="epub"][data-layout="immersive"] .rd-epub-host{
+    width: 100%;
+    border: 0;
+    box-shadow: none;
+  }
   /* AI + TOC drawers go full width */
   .ai-drawer{ width: 100%; max-width: 100%; }
   .toc-drawer{ width: 84%; }

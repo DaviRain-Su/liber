@@ -2,46 +2,11 @@ import React from "react";
 import { Cover } from "./product-shared.jsx";
 import { ChartsBand } from "./product-charts.jsx";
 import { getCatalogBooks, getCatalogTotal, licenseLabel, loadCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
+import { compareLanguageCodes, languageCodeFor, languageLabel } from "../lib/languages.js";
 
 /* product-library.jsx — Library browse screen. */
 const { useState: useStateLib, useEffect: useEffLib } = React;
 
-const LANG_ORDER = ["zh", "en", "ja", "ko", "pt", "fr", "de", "es", "it", "eo", "ca", "ro", "tl", "he", "da", "no", "sv", "fi", "nl", "pl", "cs", "ru", "hu", "el", "la"];
-const LANG_LABELS = {
-  zh: { name: "中文", sub: "Chinese" },
-  en: { name: "English", sub: "英文" },
-  ja: { name: "日本語", sub: "日文" },
-  ko: { name: "한국어", sub: "韩文" },
-  pt: { name: "Português", sub: "葡萄牙语" },
-  fr: { name: "Français", sub: "法语" },
-  de: { name: "Deutsch", sub: "德语" },
-  es: { name: "Español", sub: "西班牙语" },
-  it: { name: "Italiano", sub: "意大利语" },
-  eo: { name: "Esperanto", sub: "世界语" },
-  ca: { name: "Català", sub: "加泰罗尼亚语" },
-  ro: { name: "Română", sub: "罗马尼亚语" },
-  tl: { name: "Tagalog", sub: "他加禄语" },
-  he: { name: "עברית", sub: "希伯来语" },
-  da: { name: "Dansk", sub: "丹麦语" },
-  no: { name: "Norsk", sub: "挪威语" },
-  sv: { name: "Svenska", sub: "瑞典语" },
-  fi: { name: "Suomi", sub: "芬兰语" },
-  nl: { name: "Nederlands", sub: "荷兰语" },
-  pl: { name: "Polski", sub: "波兰语" },
-  cs: { name: "Čeština", sub: "捷克语" },
-  ru: { name: "Русский", sub: "俄语" },
-  hu: { name: "Magyar", sub: "匈牙利语" },
-  el: { name: "Ελληνικά", sub: "希腊语" },
-  la: { name: "Latina", sub: "拉丁语" },
-};
-const LANG_ALIASES = {
-  中文: "zh",
-  Chinese: "zh",
-  英文: "en",
-  English: "en",
-  日文: "ja",
-  Japanese: "ja",
-};
 const SUBJECTS = [
   {
     id: "thought",
@@ -68,15 +33,6 @@ const SUBJECTS = [
     match: /./,
   },
 ];
-
-function langLabel(code) {
-  return LANG_LABELS[code] || { name: code || "未知语言", sub: code || "unknown" };
-}
-
-function langCodeFor(book) {
-  const raw = String(book?.lang || "").trim();
-  return LANG_ALIASES[raw] || raw || "unknown";
-}
 
 function directionFor(book) {
   const cat = String(book?.cat || book?.category || "").trim();
@@ -110,7 +66,7 @@ function subjectMeta(id) {
 function languageGroups(books) {
   const map = new Map();
   for (const book of books) {
-    const code = langCodeFor(book);
+    const code = languageCodeFor(book);
     const row = map.get(code) || { code, count: 0, subjects: new Map() };
     row.count += 1;
     const subject = subjectFor(book);
@@ -118,10 +74,8 @@ function languageGroups(books) {
     map.set(code, row);
   }
   return [...map.values()].sort((a, b) => {
-    const ai = LANG_ORDER.indexOf(a.code);
-    const bi = LANG_ORDER.indexOf(b.code);
-    if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-    return b.count - a.count || a.code.localeCompare(b.code);
+    const order = compareLanguageCodes(a.code, b.code);
+    return order || b.count - a.count;
   });
 }
 
@@ -174,7 +128,7 @@ function Library({ onOpenBook, onOpenCharts }){
   const langs = languageGroups(books);
   const allDirections = directionOptions(books);
   const currentLang = lang === "all" ? null : langs.find((row) => row.code === lang);
-  const scopedBooks = lang === "all" ? books : books.filter((b) => langCodeFor(b) === lang);
+  const scopedBooks = lang === "all" ? books : books.filter((b) => languageCodeFor(b) === lang);
   const subjectScopedBooks = subject === "all" ? scopedBooks : scopedBooks.filter((b) => subjectFor(b) === subject);
   const subjects = subjectOptions(scopedBooks);
   const directions = directionOptions(subjectScopedBooks);
@@ -194,7 +148,7 @@ function Library({ onOpenBook, onOpenCharts }){
 
   const list = sortBooks(subjectScopedBooks.filter(b => direction === "all" || directionFor(b) === direction), sort);
   const languageSections = langs.map((row) => {
-    const sectionBooks = books.filter((book) => langCodeFor(book) === row.code);
+    const sectionBooks = books.filter((book) => languageCodeFor(book) === row.code);
     const sorted = sortBooks(sectionBooks, sort);
     const subjectRows = SUBJECTS
       .map((meta) => ({
@@ -203,9 +157,9 @@ function Library({ onOpenBook, onOpenCharts }){
         books: sortBooks(sectionBooks.filter((book) => subjectFor(book) === meta.id), sort).slice(0, 4),
       }))
       .filter((item) => item.count > 0);
-    return { ...row, meta: langLabel(row.code), books: sorted.slice(0, 5), subjectRows };
+    return { ...row, meta: languageLabel(row.code), books: sorted.slice(0, 5), subjectRows };
   });
-  const selectedLangLabel = currentLang ? langLabel(currentLang.code) : { name: "全部语言", sub: "All languages" };
+  const selectedLangLabel = currentLang ? languageLabel(currentLang.code) : { name: "全部语言", sub: "All languages" };
   const selectedSubjectLabel = subject === "all" ? null : subjectMeta(subject);
   const selectedSummary = currentLang
     ? `${selectedLangLabel.name} · ${currentLang.count} 卷 · ${subjects.length} 个主题子类`
@@ -303,7 +257,7 @@ function Library({ onOpenBook, onOpenCharts }){
                 <span className="lf-count">{books.length}</span>
               </button>
               {langs.map((row) => {
-                const meta = langLabel(row.code);
+                const meta = languageLabel(row.code);
                 const preview = SUBJECTS
                   .map((item) => ({ name: item.name, count: row.subjects.get(item.id) || 0 }))
                   .filter((item) => item.count > 0)
@@ -424,7 +378,7 @@ function Library({ onOpenBook, onOpenCharts }){
                     <div className="meta">
                       <div className="t">{b.t}</div>
                       <div className="a">{b.a}</div>
-                      <div className="book-taxonomy"><span>{langLabel(langCodeFor(b)).name}</span><span>{subjectMeta(subjectFor(b)).name}</span><span>{directionFor(b)}</span></div>
+                      <div className="book-taxonomy"><span>{languageLabel(languageCodeFor(b)).name}</span><span>{subjectMeta(subjectFor(b)).name}</span><span>{directionFor(b)}</span></div>
                       <div className="stat"><span><b>{b.reads}</b> 在读</span><span>{b.lines} 划线</span></div>
                     </div>
                   </div>
