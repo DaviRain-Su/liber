@@ -137,6 +137,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
         </a>
         <div className="nav-links">
           <a href="#discover">书库</a>
+          <a href="#yijing">经典图谱</a>
           <a href="#permanence">永久保存</a>
           <a href="#ai">AI 书友</a>
           <a href="#social">共读</a>
@@ -487,6 +488,33 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
         </div>
       </section>
 
+      {/* ============ 经典图谱 / 姊妹站 ============ */}
+      <section className="sec" id="yijing">
+        <div className="wrap">
+          <div className="perm-grid">
+            <div className="reveal">
+              <span className="kicker">姊妹站 · 经典图谱</span>
+              <h2 className="display-m" style={{ marginTop: 18 }}>以《易经》为枢纽，<br />把道、儒、释与西方<br /><span className="serif-it" style={{ color: "var(--accent)" }}>连成一张图谱。</span></h2>
+              <p className="sub" style={{ maxWidth: "44ch" }}><b>经典图谱</b>（Classical Atlas）以六十四卦为主干，向外牵起道家、儒家、佛家与西方系统思维。星图导航、卦象立体可视化、逐句注解、跨文本互引——把彼此呼应的经典，连成一张可游走的网络。</p>
+              <div className="reveal d1" style={{ marginTop: 32, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+                <a className="btn btn-primary" href="https://yijing.davirain.xyz/" target="_blank" rel="noopener noreferrer">前往经典图谱 <span className="arr">↗</span></a>
+                <span className="badge-perm">◇ 外部站点 · 新标签页打开</span>
+              </div>
+            </div>
+            <div className="reveal d1">
+              <div className="stack">
+                <div className="layer"><div className="lnum">易</div><div className="ltxt"><div className="lt">易经 · 六十四卦</div><div className="ld">全卦经文、十翼与白话注解</div></div><div className="ltag">主干</div></div>
+                <div className="layer"><div className="lnum">道</div><div className="ltxt"><div className="lt">道家</div><div className="ld">道德经、庄子等</div></div><div className="ltag">7 部</div></div>
+                <div className="layer"><div className="lnum">儒</div><div className="ltxt"><div className="lt">儒家</div><div className="ld">中庸、阳明心学等</div></div><div className="ltag">5 部</div></div>
+                <div className="layer"><div className="lnum">释</div><div className="ltxt"><div className="lt">佛家</div><div className="ld">心经、金刚经、坛经等</div></div><div className="ltag">7 部</div></div>
+                <div className="layer"><div className="lnum">西</div><div className="ltxt"><div className="lt">西方系统思维</div><div className="ld">群论等跨文化对照</div></div><div className="ltag">9 项</div></div>
+              </div>
+              <div style={{ marginTop: 18 }}><span className="badge-perm">◇ 星图导航 · 卦象可视化 · 全文检索</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ============ CTA ============ */}
       <section className="cta" id="join">
         <div className="wrap">
@@ -512,7 +540,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
               </a>
               <p className="muted" style={{ fontSize: 15, maxWidth: "30ch" }}>人类的公共知识，永久、开放、对 AI 友好。一座不会丢失的图书馆。</p>
             </div>
-            <div className="foot-col"><h4>探索</h4><a href="#discover">书库</a><a href="#ai">AI 书友</a><a href="#social">共读</a><a href="#collection">馆藏</a><a href="#news">动态</a></div>
+            <div className="foot-col"><h4>探索</h4><a href="#discover">书库</a><a href="#yijing">经典图谱</a><a href="#ai">AI 书友</a><a href="#social">共读</a><a href="#collection">馆藏</a><a href="#news">动态</a></div>
             <div className="foot-col"><h4>协议</h4><a href="#permanence">Walrus 存储</a><a href="#permanence">Arweave 备份</a><a href="#permanence">Sui 索引</a><a href="#open">MCP 接口</a></div>
             <div className="foot-col"><h4>社区</h4><a href="#open">GitHub</a><a href="#open">开发文档</a><a href="#join">加入共建</a><a href="#join">Discord</a></div>
           </div>
