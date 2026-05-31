@@ -4,7 +4,7 @@ import { all, first, run, id, now } from "../lib/db";
 import { getUser, requireUser, type UserRow } from "../lib/auth";
 import { putBlob } from "../lib/storage";
 import { chain } from "../lib/chains";
-import { getBook, getChapterText, hasLibraryBooks, listBooks, textToChapter } from "../lib/catalog";
+import { getBook, getChapterText, hasLibraryBooks, textToChapter } from "../lib/catalog";
 import { readingStats } from "../lib/reading-summary";
 import * as S from "../lib/seed";
 
@@ -208,18 +208,21 @@ async function buildLiveGroupsBatch(env: Env, books: any[], userId?: string | nu
 }
 
 async function liveGroups(env: Env, userId?: string | null) {
-  const books = await listBooks(env);
-  const liveBooks = books.filter((b: any) => b.dynamic);
+  // Only id/title/seal are needed here — NOT the reads/liners aggregates that
+  // listBooks computes (those whole-table GROUP-BY scans dominate at scale).
+  const books = await all<any>(env.DB, `SELECT id, title, seal FROM library_books ORDER BY created_at DESC LIMIT 300`);
+  if (!books.length) return [];
+  const liveBooks = books.map((r) => ({ id: r.id, t: r.title, seal: r.seal }));
   // Prioritise groups that actually have members/posts, fill up to a cap with
-  // top books, and build them all in a few batched queries.
+  // recent books, and build them all in a few batched queries.
   const active = new Set<string>();
   try {
     for (const r of await all<any>(env.DB, `SELECT DISTINCT group_id FROM group_members`)) active.add(r.group_id);
     for (const r of await all<any>(env.DB, `SELECT DISTINCT group_id FROM group_posts`)) active.add(r.group_id);
   } catch { /* tables may be empty on a fresh db */ }
   const ranked = [
-    ...liveBooks.filter((b: any) => active.has(`live-${b.id}`)),
-    ...liveBooks.filter((b: any) => !active.has(`live-${b.id}`)),
+    ...liveBooks.filter((b) => active.has(`live-${b.id}`)),
+    ...liveBooks.filter((b) => !active.has(`live-${b.id}`)),
   ].slice(0, 24);
   return buildLiveGroupsBatch(env, ranked, userId);
 }
