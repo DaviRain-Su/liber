@@ -20,7 +20,8 @@
     "test:cli": "npm --workspace liber-cli test",
     "pack:cli": "npm --cache ./.npm-cache --workspace liber-cli pack --dry-run",
     "test:ui": "node --test test/*.test.mjs",
-    "test": "npm run typecheck && npm run test:ui && npm run test:cli",
+    "test:ts": "node --import tsx --test test/*.test.ts",
+    "test": "npm run typecheck && npm run test:ui && npm run test:ts && npm run test:cli",
     "dev:api": "npm run build && wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy",
     "platform:deploy": "wrangler deploy --config wrangler.platform.toml",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.22.4",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "wrangler": "^3.90.0"

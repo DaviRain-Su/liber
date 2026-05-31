@@ -11,6 +11,9 @@
 // to a stronger provider (DeepSeek/Claude) server-side, keep free tier on
 // Workers AI, and meter per user. Callers just await aiChat().
 import type { Env } from "./types";
+// workersAiText (Workers AI dual-shape response parser) lives in ai-parse.mjs so
+// it can be unit-tested without a live AI binding (test/ai-parse.test.mjs).
+import { workersAiText } from "./ai-parse.mjs";
 
 export interface ChatMsg { role: "system" | "user" | "assistant"; content: string }
 export interface ChatOpts { maxTokens?: number; temperature?: number; model?: string; gatewayCache?: boolean }
@@ -36,20 +39,6 @@ function gatewayOptions(env: Env, opts: ChatOpts = {}): Record<string, unknown> 
   const ttl = parseInt(env.AI_GATEWAY_CACHE_TTL || "", 10);
   if (Number.isFinite(ttl) && ttl > 0 && opts.gatewayCache === true) gateway.cacheTtl = ttl;
   return { gateway };
-}
-
-// Workers AI returns one of two response shapes depending on the model:
-//   - classic:                  { response: "..." }
-//   - OpenAI chat.completion (qwen3 / reasoning models):
-//                               { choices: [{ message: { content, reasoning_content } }] }
-// Pull the assistant text from whichever is present (reasoning is ignored).
-function workersAiText(res: any): string {
-  if (res == null) return "";
-  if (typeof res.response === "string" && res.response.trim()) return res.response.trim();
-  const content = res?.choices?.[0]?.message?.content;
-  if (typeof content === "string" && content.trim()) return content.trim();
-  if (res.result) return workersAiText(res.result);
-  return typeof res.response === "string" ? res.response.trim() : "";
 }
 
 // Returns the assistant's text. Throws on failure — callers keep their own
