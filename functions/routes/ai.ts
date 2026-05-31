@@ -3,6 +3,7 @@ import type { Env, Variables } from "../lib/types";
 import { all, first, run, id, now } from "../lib/db";
 import { companionReply } from "../lib/ai";
 import { withinQuota, recordUsage, getUsage, estimateTokens } from "../lib/usage";
+import { enqueueSids } from "../lib/graph/embed";
 import * as S from "../lib/seed";
 
 // AI book companion (Workers AI). Guests can chat; logged-in users get their
@@ -43,6 +44,8 @@ ai.post("/chat", async (c) => {
     await run(c.env.DB, `INSERT INTO messages (id, conversation_id, role, text, ref, created_at) VALUES (?,?,?,?,?,?)`, id("m_"), convoId, "assistant", reply.text, reply.ref, now());
     if (b.bookId) await run(c.env.DB, `INSERT INTO events (id, type, book_id, sid, user_id, created_at) VALUES (?,?,?,?,?,?)`, id("e_"), "convo", b.bookId, b.sid || null, uid, now());
     await recordUsage(c.env, uid, estimateTokens(question, reply.text));
+    // a sentence someone asked the AI about is a strong signal for the graph.
+    if (b.sid) c.executionCtx.waitUntil(enqueueSids(c.env, [b.sid]));
   }
   return c.json({ ...reply, conversationId: convoId });
 });

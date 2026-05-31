@@ -45,6 +45,14 @@ export interface Env {
   // Agentic book companion (functions/lib/agent.ts); needs a tool-capable provider.
   AGENT_ENABLED?: string;     // "true" to enable
   AGENT_MAX_TURNS?: string;   // default 6, max 12
+  // Living knowledge graph (functions/lib/graph/*). All optional; with GRAPH_ENABLED
+  // unset the pipeline is inert and get_echoes returns the seed dictionary as today.
+  VECTORIZE?: VectorizeIndex;     // vector index binding ([[vectorize]] in wrangler.toml)
+  EMBED_QUEUE?: Queue;            // producer binding ([[queues.producers]])
+  GRAPH_ENABLED?: string;         // "true" to enqueue embeddings + read live echoes
+  GRAPH_EMBED_MODEL?: string;     // default @cf/baai/bge-m3 (1024-d, multilingual)
+  GRAPH_MIN_SCORE?: string;       // edge cosine threshold, default 0.78 (tune via spike)
+  GRAPH_TOPK?: string;            // neighbours queried per sentence, default 8
   // Stablecoin subscription checkout on Sui. Leave treasury/coin unset to disable.
   PAYMENT_CHAIN?: string;          // default "sui:testnet"
   PAYMENT_TREASURY?: string;       // receiving wallet address

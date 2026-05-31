@@ -14,6 +14,7 @@ import ai from "../routes/ai";
 import charts from "../routes/charts";
 import mcp from "../routes/mcp";
 import billing from "../routes/billing";
+import graph from "../routes/graph";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>().basePath("/api");
 
@@ -31,6 +32,7 @@ app.route("/ai", ai);
 app.route("/charts", charts);
 app.route("/mcp", mcp);
 app.route("/billing", billing);
+app.route("/graph", graph);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);

@@ -7,6 +7,8 @@ import type { Env } from "../types";
 import * as S from "../seed";
 import { getCharts } from "../charts";
 import { getBook, getChapters, hasLibraryBooks, searchDynamic } from "../catalog";
+import { echoesForSid } from "../graph/echoes";
+import { graphMap } from "../graph/maintenance";
 
 export interface LiberTool {
   name: string;
@@ -62,7 +64,8 @@ export const TOOLS: LiberTool[] = [
       properties: { sid: { type: "string", description: "句子 id，如 c8-s1" } },
       required: ["sid"],
     },
-    execute: async (_env, args) => S.ECHOES[args?.sid] || null,
+    // live echo_edges first (KNOWLEDGE_GRAPH_SPEC), seed ECHOES fallback.
+    execute: async (env, args) => echoesForSid(env, String(args?.sid || "")),
   },
   {
     name: "get_highlights",
@@ -99,6 +102,23 @@ export const TOOLS: LiberTool[] = [
     description: "公开的读者×AI 对话(对话卡/金句卡)。",
     parameters: { type: "object", properties: { book: { type: "string" } }, required: [] },
     execute: async (_env, _args) => S.SHARED_CONVOS.map((x: any) => ({ id: x.id, title: x.title || x.insight, book: x.bookT, forks: x.forks })),
+  },
+  {
+    name: "get_graph",
+    description: "全馆「思维链接」图谱:书与书之间的跨书呼应网络(节点=书,边=呼应强度)。Liber 最独特的连接层,内容即接口。",
+    parameters: {
+      type: "object",
+      properties: { limit: { type: "number", description: "最多返回的边数,默认 200" } },
+      required: [],
+    },
+    execute: async (env, args) => {
+      const map = await graphMap(env, { limit: Number(args?.limit) || 200 });
+      return {
+        source: map.source,
+        nodes: map.nodes.map((n: any) => ({ id: n.id, title: n.t, weight: n.weight })),
+        edges: map.edges,
+      };
+    },
   },
 ];
 

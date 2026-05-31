@@ -46,6 +46,30 @@
   .echo-modal{ width: 100%; max-width: 100%; height: 100%; max-height: 100vh; top: 0; left: 0; transform: none; border-radius: 0; }
 }
 
+/* ---- Knowledge-graph view (思维链接 · product-graph.jsx) ---- */
+.graph-modal{
+  position: fixed; z-index: 846; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: 620px; max-width: 94vw; max-height: 90vh; display: flex; flex-direction: column;
+  background: var(--paper); border: 1px solid var(--hair); border-radius: 16px;
+  box-shadow: 0 40px 90px rgba(33,27,21,.42); overflow: hidden; animation: notePop .2s ease;
+}
+.graph-head{ display: flex; align-items: flex-start; padding: 20px 24px 16px; border-bottom: 1px solid var(--hair-2); }
+.graph-kick{ display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.graph-theme{ font-family: var(--display); font-size: 22px; font-weight: 600; margin-top: 8px; line-height: 1.25; }
+.graph-head .x{ margin-left: auto; cursor: pointer; color: var(--ink-3); }
+.graph-canvas{ flex: 1; min-height: 320px; padding: 8px 12px; background: var(--paper-2); display: flex; align-items: center; justify-content: center; }
+.graph-empty{ font-family: var(--mono); font-size: 12px; color: var(--ink-3); text-align: center; padding: 60px 20px; line-height: 1.6; }
+.graph-legend{ display: flex; flex-wrap: wrap; gap: 18px; padding: 12px 24px; border-top: 1px solid var(--hair-2); font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.graph-legend span{ display: inline-flex; align-items: center; gap: 7px; }
+.graph-legend .gl-dot{ width: 12px; height: 12px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.graph-legend .gl-line{ width: 18px; height: 0; border-top: 2px solid var(--accent-line); display: inline-block; }
+.graph-foot{ padding: 13px 24px; border-top: 1px solid var(--hair-2); background: var(--paper-2); font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--ink-3); }
+.graph-foot b{ color: var(--accent); font-weight: 500; }
+.graph-foot code{ font-family: var(--mono); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 4px; padding: 0 5px; color: var(--accent); }
+@media (max-width: 760px){
+  .graph-modal{ width: 100%; max-width: 100%; height: 100%; max-height: 100vh; top: 0; left: 0; transform: none; border-radius: 0; }
+}
+
 /* ============================================================
    B · AGENT VIEW
    ============================================================ */

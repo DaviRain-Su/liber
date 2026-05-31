@@ -1,24 +1,53 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
 import { getCatalogTotal } from "../lib/catalog.js";
+import api from "../lib/api.js";
+import { layoutForce } from "../lib/force-graph.js";
 
 /* product-echo.jsx — cross-book "echoes" overlay (L4 connection layer).
    Given a sentence, show where the idea echoes across the library:
-   a small constellation + echo cards with AI-explained connections. */
-const { useState: useEc2 } = React;
+   a small constellation + echo cards with AI-explained connections.
+   Echoes are fetched LIVE (get_echoes: merged seed + auto-discovered edges),
+   with the static seed ECHOES as a graceful fallback. */
+const { useState: useEc2, useEffect: useEcEf, useMemo: useEcMemo } = React;
+
+// cover-class → swatch color (mirrors .cover.* in liber.css); used when a live
+// echo item carries no explicit color (seed items do; auto-discovered ones don't).
+const CLS_COLOR = { ink:"#211b15", cinnabar:"#b0553a", cream:"#caa96a", jade:"#20402f", indigo:"#1f2747", slate:"#2c2b2f" };
+const itemColor = (it) => it.color || CLS_COLOR[(window.BOOKS || []).find(b => b.id === it.bookId)?.cls] || CLS_COLOR.ink;
+const itemSeal = (it) => it.seal || (window.BOOKS || []).find(b => b.id === it.bookId)?.seal || "·";
 
 function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }){
-  const data = (window.ECHOES || {})[sid];
+  const seed = (window.ECHOES || {})[sid] || null;
+  const [data, setData] = useEc2(seed);
+
+  /* fetch live echoes; keep the seed as the instant + fallback render. */
+  useEcEf(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await api.graph.echoes(sid);
+        const live = r && r.result;
+        if (alive && live && live.items && live.items.length) setData(live);
+      } catch { /* keep seed fallback */ }
+    })();
+    return () => { alive = false; };
+  }, [sid]);
+
   const items = data ? data.items : [];
   const theme = data ? data.theme : "主题呼应";
 
-  /* constellation geometry: center = this book, nodes around */
-  const cx = 130, cy = 120, R = 88;
-  const n = Math.max(items.length, 1);
-  const nodes = items.map((it, i) => {
-    const ang = (-90 + (360 / n) * i) * Math.PI / 180;
-    return { ...it, x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
-  });
+  /* constellation: force-directed neighbourhood — the anchor sentence at the
+     centre, each echo a neighbour pulled toward it (stronger score = closer). */
+  const W = 260, H = 240, cx = W / 2, cy = H / 2;
+  const { nodes, anchor } = useEcMemo(() => {
+    if (!items.length) return { nodes: [], anchor: { x: cx, y: cy } };
+    const gNodes = [{ id: "__anchor__" }, ...items.map((it, i) => ({ id: "n" + i, ...it }))];
+    const gEdges = items.map((it, i) => ({ source: "__anchor__", target: "n" + i, weight: 1 + Math.round((it.score || 0) * 4) }));
+    const { pts } = layoutForce(gNodes, gEdges, W, H, { iters: 220, repel: 3200, restLen: 86 });
+    const a = pts.find((p) => p.id === "__anchor__") || { x: cx, y: cy };
+    return { nodes: pts.filter((p) => p.id !== "__anchor__"), anchor: a };
+  }, [data]);
 
   return (
     <>
@@ -48,16 +77,16 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }){
         <div className="echo-constellation">
           <svg viewBox="0 0 260 240" width="100%" height="240">
             {nodes.map((nd,i) => (
-              <line key={"l"+i} x1={cx} y1={cy} x2={nd.x} y2={nd.y} stroke="var(--accent-line)" strokeWidth="1" strokeDasharray="3 3"/>
+              <line key={"l"+i} x1={anchor.x} y1={anchor.y} x2={nd.x} y2={nd.y} stroke="var(--accent-line)" strokeWidth={1 + Math.min(nd.score ? nd.score*3 : 0, 2)} strokeDasharray={nd.score ? "0" : "3 3"}/>
             ))}
             {nodes.map((nd,i) => (
-              <g key={"n"+i}>
-                <circle cx={nd.x} cy={nd.y} r="18" fill={nd.color}/>
-                <text x={nd.x} y={nd.y+5} textAnchor="middle" fontFamily="var(--display)" fontSize="15" fill="#fff">{nd.seal}</text>
+              <g key={"n"+i} style={{ cursor: nd.inLib ? "pointer" : "default" }} onClick={() => nd.inLib && onOpenBook(nd.bookId)}>
+                <circle cx={nd.x} cy={nd.y} r="18" fill={itemColor(nd)}/>
+                <text x={nd.x} y={nd.y+5} textAnchor="middle" fontFamily="var(--display)" fontSize="15" fill="#fff">{itemSeal(nd)}</text>
               </g>
             ))}
-            <circle cx={cx} cy={cy} r="26" fill="#211b15"/>
-            <text x={cx} y={cy+6} textAnchor="middle" fontFamily="var(--display)" fontSize="19" fill="#ece2cf">{book.seal}</text>
+            <circle cx={anchor.x} cy={anchor.y} r="26" fill="#211b15"/>
+            <text x={anchor.x} y={anchor.y+6} textAnchor="middle" fontFamily="var(--display)" fontSize="19" fill="#ece2cf">{book.seal}</text>
           </svg>
         </div>
 
@@ -66,7 +95,7 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }){
           {items.map((it,i) => (
             <div className="echo-card" key={i}>
               <div className="ec-top">
-                <span className="ec-seal" style={{ background: it.color }}>{it.seal}</span>
+                <span className="ec-seal" style={{ background: itemColor(it) }}>{itemSeal(it)}</span>
                 <div className="ec-meta"><div className="ec-bk">{it.bookT}{!it.inLib && <span className="ec-corpus">馆藏</span>}</div><div className="ec-ch">{it.chap}</div></div>
               </div>
               <div className="ec-quote">「{it.quote}」</div>

@@ -14,5 +14,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["functions/**/*.ts"]
+  "include": ["functions/**/*.ts", "workers/**/*.ts"]
 }

@@ -23,6 +23,19 @@ bucket_name = "liber-content"
 [ai]
 binding = "AI"
 
+# --- Knowledge graph (living cross-book echoes). See docs/KNOWLEDGE_GRAPH_SPEC.md. ---
+# Inert until GRAPH_ENABLED=true. Create the index + queue first:
+#   wrangler vectorize create liber-echoes --dimensions=1024 --metric=cosine
+#   wrangler queues create liber-embed && wrangler queues create liber-embed-dlq
+# Then uncomment the two bindings below and deploy workers/embed-consumer separately.
+# [[vectorize]]
+# binding = "VECTORIZE"
+# index_name = "liber-echoes"
+#
+# [[queues.producers]]
+# binding = "EMBED_QUEUE"
+# queue = "liber-embed"
+
 # Decentralized-storage endpoints (public, not secrets). Left blank so storage
 # falls back to R2 until you opt in. To use the public Walrus testnet, set:
 #   WALRUS_PUBLISHER  = "https://publisher.walrus-testnet.walrus.space"

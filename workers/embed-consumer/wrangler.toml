@@ -1,0 +1,41 @@
+# Standalone consumer Worker for the knowledge-graph embed queue.
+# Deploy separately from the Pages app:  wrangler deploy -c workers/embed-consumer/wrangler.toml
+# It shares the SAME D1 / Vectorize / Workers AI as the Pages project; fill the
+# ids to match wrangler.toml (root). Inert until GRAPH_ENABLED=true is set here.
+name = "liber-embed-consumer"
+main = "index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "liber"
+database_id = "67796523-5da8-4f69-ba0d-ad5dbaa9ed4d"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "liber-content"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "liber-echoes"
+
+[ai]
+binding = "AI"
+
+[[queues.consumers]]
+queue = "liber-embed"
+max_batch_size = 20
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "liber-embed-dlq"
+
+# Nightly graph maintenance: theme labelling + cold-link decay (18:00 UTC).
+[triggers]
+crons = ["0 18 * * *"]
+
+[vars]
+GRAPH_ENABLED = "true"
+GRAPH_EMBED_MODEL = "@cf/baai/bge-m3"
+GRAPH_MIN_SCORE = "0.78"
+GRAPH_TOPK = "8"

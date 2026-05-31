@@ -12,6 +12,7 @@ const MCP_TOOLS = [
   { name:"liber.get_highlights", sig:"(book) → Highlight[]", desc:"热门划线与计数" },
   { name:"liber.get_conversations", sig:"(book, sid?) → Convo[]", desc:"读者×AI 的公开对话与 fork 树" },
   { name:"liber.get_echoes", sig:"(sid) → Echo[]", desc:"跨书呼应（连接层）" },
+  { name:"liber.get_graph", sig:"(limit?) → {nodes,edges}", desc:"全馆思维链接图谱（书↔书呼应网络）" },
   { name:"liber.post_annotation", sig:"(sid, text, sig) → id", desc:"以签名身份写入批注" },
 ];
 
@@ -25,7 +26,7 @@ function JLine({ k, v, t, last, indent=1 }){
   );
 }
 
-function AgentView({ context, onClose, onCopy, onSquare }){
+function AgentView({ context, onClose, onCopy, onSquare, onGraph }){
   const book = context.book;
   const ctxCharts = context.charts;
   const corpus = !book && !ctxCharts;
@@ -185,7 +186,10 @@ function AgentView({ context, onClose, onCopy, onSquare }){
           </div>
         </div>
 
-        <div className="av-foot">全部 CC0 · 无需鉴权 · 无抽成 · 无下架 — <b>内容即接口</b><br/><span className="av-square-link" onClick={onSquare}>浏览 Agent 广场 —谁在读这座图书馆 →</span></div>
+        <div className="av-foot">全部 CC0 · 无需鉴权 · 无抽成 · 无下架 — <b>内容即接口</b><br/>
+          {onGraph && <span className="av-square-link" onClick={onGraph}>看全馆思维链接图谱 →</span>}
+          {onGraph && <br/>}
+          <span className="av-square-link" onClick={onSquare}>浏览 Agent 广场 —谁在读这座图书馆 →</span></div>
       </div>
     </>
   );

@@ -18,6 +18,7 @@ import { News, NewsPost } from "./product-news.jsx";
 import { Reader } from "./product-reader.jsx";
 import { SearchOverlay } from "./product-search.jsx";
 import { AgentView } from "./product-agentview.jsx";
+import { GraphView } from "./product-graph.jsx";
 import { CliAuth } from "./cli-auth.jsx";
 import { setToken } from "../lib/api.js";
 import { findCatalogBook, getCatalogBooks, loadCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
@@ -64,6 +65,7 @@ function App(){
   const [reader, setReader] = useSt(null); // {bookId, startChapter} | null
   const [search, setSearch] = useSt(false); // search overlay open
   const [agentView, setAgentView] = useSt(null); // Agent View context | null
+  const [graphView, setGraphView] = useSt(false); // knowledge-graph overlay open
   const [dark, setDark] = useSt(() => document.documentElement.getAttribute("data-theme") === "dark");
   const [authUser, setAuthUser] = useSt(null);
   const [, setCatalogBooks] = useSt(() => getCatalogBooks());
@@ -243,7 +245,13 @@ function App(){
           context={agentView}
           onCopy={(t)=>{ navigator.clipboard && navigator.clipboard.writeText(t); }}
           onSquare={() => { setAgentView(null); setRoute({ screen:"agents" }); }}
+          onGraph={() => { setAgentView(null); setGraphView(true); }}
           onClose={() => setAgentView(null)} />
+      )}
+      {graphView && (
+        <GraphView
+          onOpenBook={(bid) => { setGraphView(false); setRoute({ screen:"detail", bookId:bid }); }}
+          onClose={() => setGraphView(false)} />
       )}
       {phonePreview && (
         <div className="phone-preview-scrim" onClick={() => { setPhonePreview(false); window.dispatchEvent(new CustomEvent("liber-device-reset")); }}>
