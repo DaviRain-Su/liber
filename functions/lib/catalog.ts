@@ -476,13 +476,12 @@ export async function getToc(env: Env, bookId: string) {
   const rows = await all<any>(env.DB, `SELECT n, title FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
   if (rows.length) return rows.map((r) => ({ n: r.n, title: r.title, has: true }));
   if (await hasLibraryBooks(env)) return [];
-  const seed = S.bookById(bookId);
-  return seed?.id === "daodejing" ? S.TOC : [];
+  return S.BOOK_CONTENT[bookId]?.toc || [];
 }
 
 export async function getChapters(env: Env, bookId: string) {
   const rows = await all<any>(env.DB, `SELECT n, title, blob_key, text_preview FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
-  if (!rows.length) return !(await hasLibraryBooks(env)) && bookId === "daodejing" ? S.CHAPTERS : [];
+  if (!rows.length) return !(await hasLibraryBooks(env)) ? (S.BOOK_CONTENT[bookId]?.chapters || []) : [];
   const chapters: Array<{ n: number; title: string; paras: Array<Array<{ id: string; t: string }>> }> = [];
   for (const r of rows) {
     const buf = await getBlob(env, r.blob_key);
@@ -499,8 +498,9 @@ export async function getChapterText(env: Env, bookId: string, n: number) {
     return { source: "library", n, title: row.title, text: buf ? new TextDecoder().decode(buf) : row.text_preview };
   }
   if (await hasLibraryBooks(env)) return null;
-  if (bookId === "daodejing") {
-    const ch = S.CHAPTERS.find((x: any) => x.n === n);
+  const seedChapters = S.BOOK_CONTENT[bookId]?.chapters;
+  if (seedChapters) {
+    const ch = seedChapters.find((x: any) => x.n === n);
     if (ch) return { source: "seed", n, title: ch.title, text: ch.paras.flat().map((s: any) => s.t).join("\n") };
   }
   return null;

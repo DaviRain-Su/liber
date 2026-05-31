@@ -27,7 +27,8 @@ function gatherHighlights(serverReading = {}, summary = null){
       });
     }
     const sentMap = {};
-    if (b.id === "daodejing") (window.CHAPTERS||[]).forEach(c => c.paras.flat().forEach(s => { sentMap[s.id] = { t:s.t, chap:"第"+c.n+"章" }; }));
+    const seedContent = (window.BOOK_CONTENT || {})[b.id];
+    if (seedContent) (seedContent.chapters||[]).forEach(c => c.paras.flat().forEach(s => { sentMap[s.id] = { t:s.t, chap:"第"+c.n+"章" }; }));
     Object.keys(hl).forEach(sid => {
       const s = sentMap[sid]; if (!s) return;
       if (out.some(o => o.sid === sid && o.book === b.t)) return;

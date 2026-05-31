@@ -1,6 +1,7 @@
 import React from "react";
 import { Cover, I } from "./product-shared.jsx";
 import { CommentsPanel } from "./product-social.jsx";
+import { AddToBooklist } from "./product-booklist.jsx";
 import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks, licenseLabel } from "../lib/catalog.js";
 import { addShelfBook, getShelfReadingIds } from "../lib/shelf.js";
 
@@ -21,14 +22,14 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
   const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
   const [detail, setDetail] = React.useState(() => ({
     book: seedBook,
-    toc: seedBook.id === "daodejing" ? window.TOC : null,
+    toc: (window.BOOK_CONTENT?.[seedBook.id]?.toc) || null,
     highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null,
     reviews: seedBook.id === "daodejing" ? window.REVIEWS : null,
   }));
   React.useEffect(() => {
     const fallback = {
       book: seedBook,
-      toc: seedBook.id === "daodejing" ? window.TOC : null,
+      toc: (window.BOOK_CONTENT?.[seedBook.id]?.toc) || null,
       highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null,
       reviews: seedBook.id === "daodejing" ? window.REVIEWS : null,
     };
@@ -43,6 +44,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
   const { book, toc, highlights, reviews } = detail;
   const originalEpub = hasOriginalEpub(book);
   const [cmtOpen, setCmtOpen] = React.useState(false);
+  const [blOpen, setBlOpen] = React.useState(false);
   const [shelfSaved, setShelfSaved] = React.useState(() => getShelfReadingIds().includes(bookId));
   React.useEffect(() => {
     setShelfSaved(getShelfReadingIds().includes(book.id));
@@ -71,6 +73,9 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
                 </button>
                 <button className="btn btn-ghost btn-block" onClick={saveToShelf}>
                   {shelfSaved ? "已在书架" : "＋ 加入书架"}
+                </button>
+                <button className="btn btn-ghost btn-block" onClick={() => setBlOpen(true)}>
+                  ＋ 加入书单
                 </button>
               </div>
               <div className="detail-mini">
@@ -207,6 +212,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
                 </div>
                 {cmtOpen && <CommentsPanel targetType="book" targetId={book.id} />}
               </div>
+              {blOpen && <AddToBooklist bookId={book.id} onClose={() => setBlOpen(false)} />}
             </div>
           </div>
         </div>

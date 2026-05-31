@@ -114,6 +114,73 @@ const TOC = [
   { n:33, title:"知人者智", has:true },
 ];
 
+/* ---- 论语 (The Analects) — opening chapters, classical-Chinese public domain ---- */
+const ANALECTS_CHAPTERS = [
+  { n:1, title:"学而", paras: [
+    [ {id:"analects-c1-s1", t:"子曰：「学而时习之，不亦说乎？", hot:true},
+      {id:"analects-c1-s2", t:"有朋自远方来，不亦乐乎？"},
+      {id:"analects-c1-s3", t:"人不知而不愠，不亦君子乎？」", people:true} ],
+    [ {id:"analects-c1-s4", t:"有子曰：「其为人也孝弟，而好犯上者，鲜矣；"},
+      {id:"analects-c1-s5", t:"不好犯上，而好作乱者，未之有也。"},
+      {id:"analects-c1-s6", t:"君子务本，本立而道生。"},
+      {id:"analects-c1-s7", t:"孝弟也者，其为仁之本与！」"} ],
+    [ {id:"analects-c1-s8", t:"子曰：「巧言令色，鲜矣仁。」"} ],
+    [ {id:"analects-c1-s9", t:"曾子曰：「吾日三省吾身：为人谋而不忠乎？与朋友交而不信乎？传不习乎？」"} ],
+    [ {id:"analects-c1-s10", t:"子曰：「弟子入则孝，出则弟，谨而信，泛爱众，而亲仁。行有余力，则以学文。」"} ] ],
+  },
+  { n:2, title:"为政", paras: [
+    [ {id:"analects-c2-s1", t:"子曰：「为政以德，譬如北辰，居其所而众星共之。」", hot:true} ],
+    [ {id:"analects-c2-s2", t:"子曰：「诗三百，一言以蔽之，曰：思无邪。」"} ],
+    [ {id:"analects-c2-s3", t:"子曰：「吾十有五而志于学，三十而立，四十而不惑，五十而知天命，六十而耳顺，七十而从心所欲，不逾矩。」", people:true} ],
+    [ {id:"analects-c2-s4", t:"子曰：「温故而知新，可以为师矣。」"} ],
+    [ {id:"analects-c2-s5", t:"子曰：「学而不思则罔，思而不学则殆。」"} ] ],
+  },
+];
+const ANALECTS_TOC = [
+  { n:1, title:"学而", has:true },
+  { n:2, title:"为政", has:true },
+  { n:3, title:"八佾", has:false },
+  { n:4, title:"里仁", has:false },
+  { n:5, title:"公冶长", has:false },
+];
+
+/* ---- 孙子兵法 (The Art of War) — opening chapters, classical-Chinese public domain ---- */
+const ARTOFWAR_CHAPTERS = [
+  { n:1, title:"始计", paras: [
+    [ {id:"artofwar-c1-s1", t:"孙子曰：兵者，国之大事，死生之地，存亡之道，不可不察也。", hot:true} ],
+    [ {id:"artofwar-c1-s2", t:"故经之以五事，校之以计，而索其情：一曰道，二曰天，三曰地，四曰将，五曰法。"} ],
+    [ {id:"artofwar-c1-s3", t:"道者，令民与上同意也，故可以与之死，可以与之生，而不畏危。"},
+      {id:"artofwar-c1-s4", t:"将者，智、信、仁、勇、严也。"} ],
+    [ {id:"artofwar-c1-s5", t:"兵者，诡道也。", people:true},
+      {id:"artofwar-c1-s6", t:"故能而示之不能，用而示之不用，近而示之远，远而示之近。"} ],
+    [ {id:"artofwar-c1-s7", t:"夫未战而庙算胜者，得算多也；未战而庙算不胜者，得算少也。"},
+      {id:"artofwar-c1-s8", t:"多算胜，少算不胜，而况于无算乎！"} ] ],
+  },
+  { n:2, title:"作战", paras: [
+    [ {id:"artofwar-c2-s1", t:"孙子曰：凡用兵之法，驰车千驷，革车千乘，带甲十万，千里馈粮。"} ],
+    [ {id:"artofwar-c2-s2", t:"其用战也胜，久则钝兵挫锐，攻城则力屈，久暴师则国用不足。"} ],
+    [ {id:"artofwar-c2-s3", t:"故兵贵胜，不贵久。", hot:true} ],
+    [ {id:"artofwar-c2-s4", t:"故知兵之将，民之司命，国家安危之主也。", people:true} ] ],
+  },
+];
+const ARTOFWAR_TOC = [
+  { n:1, title:"始计", has:true },
+  { n:2, title:"作战", has:true },
+  { n:3, title:"谋攻", has:false },
+  { n:4, title:"军形", has:false },
+  { n:5, title:"兵势", has:false },
+];
+
+/* Per-book readable content, keyed by book id. The reader and book detail read
+   here first (offline / no backend); the API serves the same seed for any book
+   that hasn't been ingested into D1 yet. Books missing here open to an empty
+   state instead of dangling on "正文加载中…". */
+const BOOK_CONTENT = {
+  daodejing: { toc: TOC, chapters: CHAPTERS },
+  analects: { toc: ANALECTS_TOC, chapters: ANALECTS_CHAPTERS },
+  artofwar: { toc: ARTOFWAR_TOC, chapters: ARTOFWAR_CHAPTERS },
+};
+
 /* ---- Others' annotations, keyed by sentence id ---- */
 const ANNOTATIONS = {
   "c1-s1": [
@@ -543,5 +610,5 @@ const HOT_SENTENCES = [
   { sid:"c2-s1",  bookId:"daodejing", book:"道德经", chap:"第二章", q:"天下皆知美之为美，斯恶已。", liners:433, convos:29, delta:-2, surge:-4 },
 ];
 
-export { BOOKS, CHAPTERS, TOC, ANNOTATIONS, HIGHLIGHTS, REVIEWS, ME, READERS as PEOPLE, FOLLOW_SEED, SEED_HL, AI_SUMMARIES, FEED, THREAD, CONVOS, GROUPS, SHARED_CONVOS, ECHOES, AGENTS, LENSES, CHARTS, SURGE, HOT_SENTENCES };
-if (typeof window !== "undefined") Object.assign(window, { BOOKS, CHAPTERS, TOC, ANNOTATIONS, HIGHLIGHTS, REVIEWS, ME, PEOPLE: READERS, FOLLOW_SEED, SEED_HL, AI_SUMMARIES, FEED, THREAD, CONVOS, GROUPS, SHARED_CONVOS, ECHOES, AGENTS, LENSES, CHARTS, SURGE, HOT_SENTENCES });
+export { BOOKS, CHAPTERS, TOC, BOOK_CONTENT, ANNOTATIONS, HIGHLIGHTS, REVIEWS, ME, READERS as PEOPLE, FOLLOW_SEED, SEED_HL, AI_SUMMARIES, FEED, THREAD, CONVOS, GROUPS, SHARED_CONVOS, ECHOES, AGENTS, LENSES, CHARTS, SURGE, HOT_SENTENCES };
+if (typeof window !== "undefined") Object.assign(window, { BOOKS, CHAPTERS, TOC, BOOK_CONTENT, ANNOTATIONS, HIGHLIGHTS, REVIEWS, ME, PEOPLE: READERS, FOLLOW_SEED, SEED_HL, AI_SUMMARIES, FEED, THREAD, CONVOS, GROUPS, SHARED_CONVOS, ECHOES, AGENTS, LENSES, CHARTS, SURGE, HOT_SENTENCES });

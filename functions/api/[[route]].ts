@@ -9,6 +9,7 @@ import auth from "../routes/auth";
 import books from "../routes/books";
 import reading from "../routes/reading";
 import social from "../routes/social";
+import booklists from "../routes/booklists";
 import ai from "../routes/ai";
 import charts from "../routes/charts";
 import mcp from "../routes/mcp";
@@ -24,6 +25,7 @@ app.get("/health", (c) => c.json({ ok: true, service: "liber-api", time: Date.no
 app.route("/auth", auth);
 app.route("/", books); // /books, /search
 app.route("/reading", reading);
+app.route("/booklists", booklists);
 app.route("/", social); // /feed, /shares, /groups, /threads, /works, /annotations
 app.route("/ai", ai);
 app.route("/charts", charts);

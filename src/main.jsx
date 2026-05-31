@@ -12,6 +12,8 @@ import "./styles/product-mobile.css";
 import "./styles/convo-forms.css";
 import "./styles/product-agent.css";
 import "./styles/product-charts.css";
+import "./styles/product-booklist.css";
+import "./styles/product-reader-empty.css";
 import "./styles/product-news.css";
 
 /* Data is a bootstrapped singleton: importing it populates window.* (BOOKS,

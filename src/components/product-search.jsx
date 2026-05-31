@@ -5,10 +5,16 @@ import { getCatalogBooks, getCatalogTotal, loadCatalogBooks, subscribeCatalog } 
 /* product-search.jsx — global search overlay: books, sentences/highlights, people. */
 const { useState: useSse, useEffect: useEse, useRef: useRse, useMemo: useMse } = React;
 
-/* build a sentence index from 道德经 chapters + popular highlights */
+/* build a sentence index from every seeded book's chapters (道德经/论语/孙子兵法…) */
 function buildSentenceIndex(){
   const out = [];
-  (window.CHAPTERS||[]).forEach(c => c.paras.flat().forEach(s => out.push({ t:s.t, book:"道德经", bookId:"daodejing", chap:"第"+c.n+"章", n:c.n })));
+  const content = window.BOOK_CONTENT || {};
+  const titleOf = (bid) => (window.BOOKS || []).find(b => b.id === bid)?.t || bid;
+  Object.keys(content).forEach(bid => {
+    const t = titleOf(bid);
+    (content[bid].chapters || []).forEach(c => c.paras.flat().forEach(s =>
+      out.push({ t:s.t, book:t, bookId:bid, chap:"第"+c.n+"章", n:c.n })));
+  });
   return out;
 }
 

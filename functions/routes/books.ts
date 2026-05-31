@@ -261,7 +261,7 @@ books.post("/books/:id/ingest", async (c) => {
   if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   const b = S.bookById(c.req.param("id"));
   if (!b) return c.json({ error: "未找到该书" }, 404);
-  const chapters = b.id === "daodejing" ? S.CHAPTERS : [];
+  const chapters = S.BOOK_CONTENT[b.id]?.chapters || [];
   if (!chapters.length) return c.json({ error: "暂无可入库的正文" }, 400);
 
   const refs: Array<{ n: number; title: string; walrus: string; size: number }> = [];
