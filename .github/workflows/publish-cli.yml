@@ -1,32 +1,24 @@
 name: Publish liber-cli to npm
 
-# Manual npm release for packages/liber-cli.
+# Manual npm release for packages/liber-cli. Runs only via "Run workflow"
+# (workflow_dispatch) — never on push. A real publish needs the NPM_TOKEN secret.
 #
-# Required secret for real publish:
-#   NPM_TOKEN - npm automation token with publish access for liber-cli.
-#
-# Normal flow:
+# Flow:
 #   1. Bump packages/liber-cli/package.json version in a commit.
-#   2. Run this workflow with dry_run=true.
-#   3. Run it again with dry_run=false and tag=latest.
+#   2. Run with dry_run = true to verify the package.
+#   3. Run again with dry_run = false to publish.
 
 on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Run npm publish --dry-run instead of publishing"
-        required: true
-        type: boolean
-        default: true
+        description: "Dry run only (true) or actually publish (false)"
+        required: false
+        default: "true"
       tag:
-        description: "npm dist-tag"
-        required: true
-        type: choice
-        default: latest
-        options:
-          - latest
-          - next
-          - beta
+        description: "npm dist-tag (latest, next, or beta)"
+        required: false
+        default: "latest"
 
 concurrency:
   group: npm-publish-liber-cli
@@ -58,10 +50,13 @@ jobs:
         id: pkg
         shell: bash
         run: |
-          node -e "const p=require('./packages/liber-cli/package.json'); console.log('name='+p.name); console.log('version='+p.version)" >> "$GITHUB_OUTPUT"
+          {
+            echo "name=$(jq -r .name packages/liber-cli/package.json)"
+            echo "version=$(jq -r .version packages/liber-cli/package.json)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check version is unpublished
-        if: ${{ !inputs.dry_run }}
+        if: ${{ inputs.dry_run != 'true' }}
         shell: bash
         run: |
           if npm view "${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}" version >/dev/null 2>&1; then
@@ -70,7 +65,7 @@ jobs:
           fi
 
       - name: Check npm token
-        if: ${{ !inputs.dry_run }}
+        if: ${{ inputs.dry_run != 'true' }}
         shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -81,11 +76,11 @@ jobs:
           fi
 
       - name: Publish dry run
-        if: ${{ inputs.dry_run }}
-        run: npm publish --workspace liber-cli --access public --tag ${{ inputs.tag }} --dry-run
+        if: ${{ inputs.dry_run == 'true' }}
+        run: npm publish --workspace liber-cli --access public --tag "${{ inputs.tag }}" --dry-run
 
       - name: Publish to npm
-        if: ${{ !inputs.dry_run }}
+        if: ${{ inputs.dry_run != 'true' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspace liber-cli --access public --tag ${{ inputs.tag }}
+        run: npm publish --workspace liber-cli --access public --tag "${{ inputs.tag }}"
