@@ -137,6 +137,13 @@ export const api = {
     with: (userId) => get(`/messages/with/${encodeURIComponent(userId)}`),
     send: (userId, text, quote) => post(`/messages/with/${encodeURIComponent(userId)}`, { text, quote }),
   },
+  // 通知 (notifications feed)
+  notifications: {
+    list: () => get("/notifications"),
+    unread: () => get("/notifications/unread"),
+    readAll: () => post("/notifications/read"),
+    read: (id) => post(`/notifications/${encodeURIComponent(id)}/read`),
+  },
   works: {
     list: () => get("/works"),
     publish: (title, body) => post("/works", { title, body }),

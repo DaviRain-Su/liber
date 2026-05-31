@@ -28,6 +28,7 @@ const Reader = lz(() => import("./product-reader.jsx"), "Reader");
 const AgentView = lz(() => import("./product-agentview.jsx"), "AgentView");
 const GraphView = lz(() => import("./product-graph.jsx"), "GraphView");
 const Messenger = lz(() => import("./product-messaging.jsx"), "Messenger");
+const NotificationsPop = lz(() => import("./product-messaging.jsx"), "Notifications");
 
 const SUSPENSE_FALLBACK = <div style={{ minHeight: "50vh" }} aria-busy="true" />;
 import { setToken } from "../lib/api.js";
@@ -85,6 +86,8 @@ function App(){
   const [graphView, setGraphView] = useSt(false); // knowledge-graph overlay open
   const [messenger, setMessenger] = useSt(null);  // 私信 overlay: {userId,name,...} | true | null
   const [mailDot, setMailDot] = useSt(false);      // unread DM indicator
+  const [notifOpen, setNotifOpen] = useSt(false);  // 通知 dropdown open
+  const [bellDot, setBellDot] = useSt(false);      // unread notifications indicator
   const [dark, setDark] = useSt(() => document.documentElement.getAttribute("data-theme") === "dark");
   const [authUser, setAuthUser] = useSt(null);
   const [, setCatalogBooks] = useSt(() => getCatalogBooks());
@@ -159,14 +162,19 @@ function App(){
 
   useEf(refreshAuth, [refreshAuth, entered, onboarded]);
 
-  /* poll unread 私信 count for the AppBar mail dot */
+  /* poll unread 私信 + 通知 counts for the AppBar mail/bell dots */
   useEf(() => {
-    if (!authUser || !window.liberApi?.messages) { setMailDot(false); return; }
+    if (!authUser || !window.liberApi) { setMailDot(false); setBellDot(false); return; }
     let live = true;
-    const poll = () => window.liberApi.messages.unread().then(r => { if (live) setMailDot((r?.unread || 0) > 0); }).catch(() => {});
+    const poll = () => {
+      window.liberApi.messages?.unread().then(r => { if (live) setMailDot((r?.unread || 0) > 0); }).catch(() => {});
+      window.liberApi.notifications?.unread().then(r => { if (live) setBellDot((r?.unread || 0) > 0); }).catch(() => {});
+    };
     poll();
     const t = setInterval(poll, 45000);
-    return () => { live = false; clearInterval(t); };
+    const onNotifs = () => poll();
+    window.addEventListener("liber-notifs", onNotifs);
+    return () => { live = false; clearInterval(t); window.removeEventListener("liber-notifs", onNotifs); };
   }, [authUser]);
   useEf(() => { localStorage.setItem("liber.route", JSON.stringify(route)); }, [route]);
   useEf(() => {
@@ -256,7 +264,8 @@ function App(){
             onSearch={() => setSearch(true)} onProfile={() => setRoute(r => ({ screen:"profile", from: r.screen === "profile" ? r.from : r.screen }))}
             onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? findCatalogBook(route.bookId) : null })} agentOn={!!agentView}
             user={authUser} onLogout={logout}
-            onMail={() => setMessenger(true)} mailDot={mailDot} />
+            onMail={() => { setNotifOpen(false); setMessenger(true); }} mailDot={mailDot}
+            onBell={() => setNotifOpen(o => !o)} bellDot={bellDot} />
           <React.Suspense fallback={SUSPENSE_FALLBACK}>
           {route.screen === "library" && <Library onOpenBook={openBook} onOpenCharts={() => setRoute({ screen:"charts" })} />}
           {route.screen === "detail" && <Detail bookId={route.bookId} onOpenReader={openReader} onOpenCert={(id) => setRoute({ screen:"cert", bookId:id })} onBack={() => setRoute({ screen:"library" })} onOpenAgents={() => setRoute({ screen:"agents" })} />}
@@ -288,6 +297,11 @@ function App(){
       {messenger && (
         <React.Suspense fallback={SUSPENSE_FALLBACK}>
           <Messenger startWith={messenger === true ? null : messenger} onClose={() => { setMessenger(null); setMailDot(false); }} />
+        </React.Suspense>
+      )}
+      {notifOpen && (
+        <React.Suspense fallback={null}>
+          <NotificationsPop onClose={() => setNotifOpen(false)} onOpenBook={(bid) => { setNotifOpen(false); setReader(null); setRoute({ screen:"detail", bookId:bid }); }} />
         </React.Suspense>
       )}
       {agentView && (

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { all, first, run, id, now } from "../lib/db";
 import { getUser, requireUser, type UserRow } from "../lib/auth";
+import { notifyFrom, targetOwnerId } from "../lib/notify";
 import { putBlob } from "../lib/storage";
 import { chain } from "../lib/chains";
 import { getBook, getChapterText, hasLibraryBooks, textToChapter } from "../lib/catalog";
@@ -377,6 +378,7 @@ social.post("/readers/:id/follow", async (c) => {
     await run(c.env.DB, `DELETE FROM follows WHERE follower_id = ? AND followee_id = ?`, uid, targetId);
   } else {
     await run(c.env.DB, `INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?,?,?)`, uid, targetId, now());
+    await notifyFrom(c.env, uid, { userId: targetId, kind: "follow", text: "关注了你" });
   }
   return c.json({
     following: !exists,
@@ -658,6 +660,9 @@ social.post("/comments/:type/:id", async (c) => {
   // register the comment on Sui when configured (no-op otherwise); record the digest/objectId
   const chainRef = await chain(c.env).registerObject(c.env, { contentId: ref.walrus, kind: "comment", license: "CC0-1.0" });
   if (chainRef) await run(c.env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, chainRef.objectId || chainRef.digest, `comment/${cid}`);
+  // notify the thing's owner that someone replied
+  const ownerId = await targetOwnerId(c.env, type, tid);
+  if (ownerId) await notifyFrom(c.env, uid, { userId: ownerId, kind: "reply", text: `回复了你：${body.slice(0, 40)}`, target: tid });
   return c.json({ ok: true, id: cid, walrus: ref.walrus, sui: chainRef });
 });
 
@@ -671,6 +676,8 @@ social.post("/vote/:type/:id", async (c) => {
     await run(c.env.DB, `DELETE FROM votes WHERE user_id=? AND target_type=? AND target_id=?`, uid, type, tid);
   } else {
     await run(c.env.DB, `INSERT INTO votes (user_id, target_type, target_id, created_at) VALUES (?,?,?,?)`, uid, type, tid, now());
+    const ownerId = await targetOwnerId(c.env, type, tid);
+    if (ownerId) await notifyFrom(c.env, uid, { userId: ownerId, kind: "agree", text: "赞同了你", target: tid });
   }
   const row = await first(c.env.DB, `SELECT COUNT(*) AS n FROM votes WHERE target_type=? AND target_id=?`, type, tid);
   return c.json({ voted: !ex, count: row?.n || 0 });

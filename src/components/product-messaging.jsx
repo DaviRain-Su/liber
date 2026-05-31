@@ -116,4 +116,54 @@ function Messenger({ startWith, onClose }){
   );
 }
 
-export { Messenger };
+/* ============================ NOTIFICATIONS ============================ */
+const NOTIF_FILTERS = [["all","全部"],["follow","关注"],["reply","回复"],["agree","赞同"],["dm","私信"]];
+
+function Notifications({ onClose, onOpenBook }){
+  const api = typeof window !== "undefined" ? window.liberApi : null;
+  const [items, setItems] = useMsg([]);
+  const [filter, setFilter] = useMsg("all");
+  const load = () => api?.notifications?.list().then(r => { if (Array.isArray(r?.notifications)) setItems(r.notifications); }).catch(() => {});
+  useMsgE(() => { load(); }, []);
+  const ICON = { follow: I.userplus, reply: I.note, agree: I.heart, dm: I.mail, agent: I.agent };
+  const shown = filter === "all" ? items : items.filter(n => n.kind === filter);
+  const unreadOf = (k) => items.filter(n => (k === "all" || n.kind === k) && !n.read).length;
+  const bump = () => window.dispatchEvent(new Event("liber-notifs"));
+  const markOne = (n) => { if (!n.read) { api?.notifications?.read(n.id).catch(() => {}); setItems(its => its.map(x => x.id === n.id ? { ...x, read: true } : x)); bump(); } };
+  const readAll = () => { api?.notifications?.readAll().catch(() => {}); setItems(its => its.map(n => ({ ...n, read: true }))); bump(); };
+  const canGo = (n) => !!((["follow","dm"].includes(n.kind) && n.actorId) || n.book);
+  const act = (n) => {
+    markOne(n);
+    if (n.kind === "follow" && n.actorId) { onClose(); window.openProfile && window.openProfile({ userId: n.actorId, name: n.who }); return; }
+    if (n.kind === "dm" && n.actorId) { onClose(); window.dispatchEvent(new CustomEvent("liber-open-dm", { detail: { userId: n.actorId, name: n.who } })); return; }
+    if (n.book) { onClose(); onOpenBook && onOpenBook(n.book); return; }
+  };
+  return (
+    <>
+      <div className="dropdown-scrim" onClick={onClose}/>
+      <div className="notif-pop">
+        <div className="notif-head"><span>通知</span><button className="notif-readall" onClick={readAll}>全部已读</button></div>
+        <div className="notif-filters">
+          {NOTIF_FILTERS.map(([k,label]) => { const u = unreadOf(k); return (
+            <button key={k} className={filter===k?"on":""} onClick={()=>setFilter(k)}>{label}{u>0 && <span className="nf-count">{u}</span>}</button>
+          ); })}
+        </div>
+        <div className="notif-list">
+          {shown.map(n => (
+            <div className={"notif"+(n.read?" read":"")+(canGo(n)?" go":"")} key={n.id} onClick={canGo(n)?()=>act(n):()=>markOne(n)}>
+              {!n.read && <span className="notif-unread"/>}
+              <span className="notif-ava" style={{ background:n.color }}>{String(n.who||"读")[0]}</span>
+              <div className="notif-body">
+                <div className="notif-t"><b>{n.who}</b> {n.text}</div>
+                <div className="notif-meta"><span className="notif-kind">{ICON[n.kind] || I.bell}</span><span>{n.when}</span></div>
+              </div>
+            </div>
+          ))}
+          {shown.length===0 && <div className="notif-empty">没有这类通知。</div>}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export { Messenger, Notifications };

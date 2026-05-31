@@ -17,6 +17,7 @@ import billing from "../routes/billing";
 import graph from "../routes/graph";
 import platform from "../routes/platform";
 import messages from "../routes/messages";
+import notifications from "../routes/notifications";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>().basePath("/api");
 
@@ -57,6 +58,7 @@ app.route("/billing", billing);
 app.route("/graph", graph);
 app.route("/platform", platform);
 app.route("/messages", messages);
+app.route("/notifications", notifications);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
