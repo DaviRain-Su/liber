@@ -45,6 +45,18 @@ jobs:
 
       - run: npm run build
 
+      # Make a missing token LOUD. Without it the deploy + migrate steps below
+      # are skipped and the job still goes green — which silently masked the fact
+      # that migrations were never applied. This step surfaces that as a warning
+      # in the run summary (it never fails, so first-time setup isn't blocked).
+      - name: Check deploy credentials
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "::warning title=Deploy + migrations skipped::CLOUDFLARE_API_TOKEN is not set, so NOTHING was deployed and NO D1 migrations were applied. Add the secret (repo Settings → Secrets and variables → Actions → New repository secret, 'Edit Cloudflare Workers' token template) to enable auto-deploy."
+          else
+            echo "CLOUDFLARE_API_TOKEN present — will apply migrations and deploy."
+          fi
+
       - name: Apply D1 migrations
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         run: npm run db:migrate

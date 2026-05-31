@@ -2,6 +2,7 @@ import React from "react";
 import { I, Cover } from "./product-shared.jsx";
 import { findCatalogBook, getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
+import { stablecoinSubscribe } from "../lib/wallet.js";
 
 /* product-profile.jsx — profile for ME or any other reader.
    Reached from the app bar (me) or by clicking an avatar in comments/feed
@@ -30,6 +31,65 @@ function useFollowSet(){
     return () => window.removeEventListener("liber-following", h);
   }, []);
   return set;
+}
+
+/* AI membership / 包月 — lives on my own profile, not in the AI chat panel.
+   Shows plan + monthly quota, plus a stablecoin (链上) subscribe action when the
+   treasury/coin/amount are configured server-side. */
+function MembershipCard(){
+  const [plan, setPlan] = useSp(null);
+  const [paying, setPaying] = useSp(false);
+  const [payMsg, setPayMsg] = useSp("");
+  useEpf(() => {
+    if (!window.liberApi?.billing?.plan) return;
+    let live = true;
+    window.liberApi.billing.plan().then((r) => { if (live) setPlan(r); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  if (!plan) return null;
+  const usage = plan.usage;
+  const payment = plan.billing?.crypto;
+  const isPro = usage?.plan === "pro" && usage?.limit === null;
+  const payLabel = payment?.amountLabel || "稳定币";
+  const quota = usage && usage.limit !== null ? `本月剩余 ${usage.remaining} / ${usage.limit} 次` : "本月不限量";
+  const payStable = async () => {
+    if (paying) return;
+    setPaying(true);
+    setPayMsg("请在钱包中确认交易…");
+    try {
+      const res = await stablecoinSubscribe();
+      setPlan((prev) => ({ ...(prev || {}), usage: res?.usage || prev?.usage }));
+      setPayMsg("Pro 已开通，感谢支持。");
+    } catch (err) {
+      setPayMsg(err?.message || "支付确认失败");
+    } finally {
+      setPaying(false);
+    }
+  };
+  return (
+    <div className={`pf-membership ${isPro ? "pro" : ""}`}>
+      <div className="pf-mem-main">
+        <div className="pf-mem-h">
+          <b>{isPro ? "Pro 会员" : "AI 包月会员"}</b>
+          {isPro && <span className="pf-mem-badge">已开通</span>}
+        </div>
+        <div className="pf-mem-sub">
+          {isPro
+            ? "AI 书友、古文今译、知识延展不限量畅聊。"
+            : payment?.configured
+              ? `${payLabel} / 月 · 链上确认后即时开通，AI 不限量`
+              : "链上订阅待配置收款地址与币种，敬请期待。"}
+        </div>
+        {usage && <div className="pf-mem-quota">{quota}</div>}
+        {payMsg && <div className="pf-mem-msg">{payMsg}</div>}
+      </div>
+      {!isPro && payment?.configured && (
+        <button className="btn btn-primary pf-mem-btn" disabled={paying} onClick={payStable}>
+          {I.lock} {paying ? "确认中…" : "稳定币订阅"}
+        </button>
+      )}
+    </div>
+  );
 }
 
 function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpdated }){
@@ -247,6 +307,8 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
             <Stat n={followingCount} l="关注中"/>
             <Stat n={followerCount} l="关注者"/>
           </div>
+
+          {isMe && hasAccount && <MembershipCard />}
 
           <div className="pf-tabs">
             <button className={tab==="shelf"?"on":""} onClick={()=>setTab("shelf")}>在读 · {reading.length}</button>
