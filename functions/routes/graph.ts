@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { getCliPublishToken } from "../lib/auth";
-import { graphStats, backfillAll, runMaintenance } from "../lib/graph/maintenance";
+import { graphStats, graphMap, backfillAll, runMaintenance } from "../lib/graph/maintenance";
 
 // Knowledge-graph admin + status (KNOWLEDGE_GRAPH_SPEC). Backfill/maintenance are
 // publish-gated (ADMIN_TOKEN or CLI token), mirroring the book-ingest endpoints;
@@ -19,6 +19,13 @@ async function adminAuth(c: any): Promise<boolean> {
 
 // Graph state snapshot: how much is embedded / linked / themed.
 graph.get("/stats", async (c) => c.json(await graphStats(c.env)));
+
+// Library-wide echo graph for visualization (book↔book). Live edges when
+// present, else derived from the seed ECHOES so the viz works today too.
+graph.get("/map", async (c) => {
+  const limit = Number(c.req.query("limit") || 400);
+  return c.json(await graphMap(c.env, { limit }));
+});
 
 // Enqueue the whole catalogue for embedding. Idempotent (consumer skips
 // already-embedded sids). Returns counts; actual work happens in the consumer.

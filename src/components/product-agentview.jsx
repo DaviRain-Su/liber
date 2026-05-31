@@ -25,7 +25,7 @@ function JLine({ k, v, t, last, indent=1 }){
   );
 }
 
-function AgentView({ context, onClose, onCopy, onSquare }){
+function AgentView({ context, onClose, onCopy, onSquare, onGraph }){
   const book = context.book;
   const ctxCharts = context.charts;
   const corpus = !book && !ctxCharts;
@@ -185,7 +185,10 @@ function AgentView({ context, onClose, onCopy, onSquare }){
           </div>
         </div>
 
-        <div className="av-foot">全部 CC0 · 无需鉴权 · 无抽成 · 无下架 — <b>内容即接口</b><br/><span className="av-square-link" onClick={onSquare}>浏览 Agent 广场 —谁在读这座图书馆 →</span></div>
+        <div className="av-foot">全部 CC0 · 无需鉴权 · 无抽成 · 无下架 — <b>内容即接口</b><br/>
+          {onGraph && <span className="av-square-link" onClick={onGraph}>看全馆思维链接图谱 →</span>}
+          {onGraph && <br/>}
+          <span className="av-square-link" onClick={onSquare}>浏览 Agent 广场 —谁在读这座图书馆 →</span></div>
       </div>
     </>
   );

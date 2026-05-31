@@ -149,6 +149,15 @@ export const api = {
 
   charts: (window = "today") => get(`/charts?window=${window}`),
   mcp: { manifest: () => get("/mcp"), call: (tool, args) => post("/mcp/call", { tool, args }) },
+
+  // Knowledge graph (living cross-book echoes). stats/map are open + read-only;
+  // backfill/maintenance are publish-gated. Callers should fall back to the seed
+  // ECHOES when these reject (static deploy / offline).
+  graph: {
+    stats: () => get("/graph/stats"),
+    map: (limit = 400) => get(`/graph/map?limit=${limit}`),
+    echoes: (sid) => post("/mcp/call", { tool: "get_echoes", args: { sid } }),
+  },
 };
 
 export default api;

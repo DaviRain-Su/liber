@@ -7,6 +7,7 @@ import * as S from "../seed";
 import { getChapters, hasLibraryBooks, listBooks } from "../catalog";
 import { aiChat } from "../aiProvider";
 import { enqueueSids, graphEnabled } from "./embed";
+import { parseSid, toFullSid } from "./sid";
 
 // Enqueue every sentence in the catalogue for embedding. Idempotent: the
 // consumer skips sids already embedded with the current model. Returns how many
@@ -67,6 +68,84 @@ export async function graphStats(env: Env): Promise<Record<string, any>> {
     curatedEdges: curated?.n || 0,
     edgesWithWhy: withWhy?.n || 0,
     themedEdges: themed?.n || 0,
+  };
+}
+
+// Library-wide echo graph for visualization (frontend product-graph.jsx).
+// Live echo_edges when present; otherwise derived from the hand-written seed
+// ECHOES so the viz is meaningful even before any live data exists. Nodes are
+// books (sized by how many echoes touch them); edges are book↔book links
+// (weighted by how many sentence-level echoes connect that pair).
+export async function graphMap(env: Env, opts: { limit?: number } = {}): Promise<{ source: string; nodes: any[]; edges: any[] }> {
+  const limit = Math.min(Math.max(opts.limit || 400, 1), 2000);
+  const bookMeta = (id: string) => {
+    const b = S.bookById(id);
+    return { t: b?.t || id, seal: b?.seal || "·", cls: b?.cls || "ink" };
+  };
+
+  // pair key + accumulators
+  const pairWeight = new Map<string, { a: string; b: string; weight: number; score: number }>();
+  const nodeHits = new Map<string, number>();
+  const bump = (aBook: string, bBook: string, score: number) => {
+    if (!aBook || !bBook || aBook === bBook) return;
+    const [a, b] = aBook < bBook ? [aBook, bBook] : [bBook, aBook];
+    const key = `${a}|${b}`;
+    const cur = pairWeight.get(key) || { a, b, weight: 0, score: 0 };
+    cur.weight += 1;
+    cur.score = Math.max(cur.score, score);
+    pairWeight.set(key, cur);
+    nodeHits.set(a, (nodeHits.get(a) || 0) + 1);
+    nodeHits.set(b, (nodeHits.get(b) || 0) + 1);
+  };
+
+  let source = "seed";
+  if (graphEnabled(env)) {
+    const rows = await all<any>(
+      env.DB,
+      `SELECT src_book, dst_book, score FROM echo_edges WHERE status != 'hidden' ORDER BY score DESC LIMIT ?`,
+      limit,
+    ).catch(() => []);
+    if (rows.length) {
+      source = "live";
+      for (const r of rows) bump(r.src_book, r.dst_book, Number(r.score || 0));
+    }
+  }
+  if (source === "seed") {
+    // derive book↔book pairs from seed ECHOES (anchor = seed book 道德经)
+    for (const [, data] of Object.entries(S.ECHOES)) {
+      const items = (data as any)?.items || [];
+      for (const it of items) {
+        if (!it.bookId) continue; // seed marks out-of-library items without an id
+        bump("daodejing", it.bookId, 0.9);
+      }
+    }
+  }
+
+  const nodes = [...nodeHits.entries()].map(([id, hits]) => ({ id, ...bookMeta(id), weight: hits }));
+  const edges = [...pairWeight.values()].map((p) => ({ source: p.a, target: p.b, weight: p.weight, score: Number(p.score.toFixed(3)) }));
+  return { source, nodes, edges };
+}
+
+// Echo graph centered on ONE sentence: the anchor + its direct neighbours, with
+// the real quotes/why. Powers the reader's per-sentence echo constellation when
+// live (falls back to seed in echoesForSid on the read path).
+export async function sentenceGraph(env: Env, sid: string): Promise<{ anchor: string; neighbours: any[] } | null> {
+  if (!graphEnabled(env)) return null;
+  const full = toFullSid(sid);
+  const rows = await all<any>(
+    env.DB,
+    `SELECT CASE WHEN src_sid = ? THEN dst_sid ELSE src_sid END AS other_sid,
+            CASE WHEN src_sid = ? THEN dst_book ELSE src_book END AS other_book,
+            score
+       FROM echo_edges
+      WHERE (src_sid = ? OR dst_sid = ?) AND status != 'hidden'
+      ORDER BY score DESC LIMIT 12`,
+    full, full, full, full,
+  ).catch(() => []);
+  if (!rows.length) return null;
+  return {
+    anchor: full,
+    neighbours: rows.map((r: any) => ({ sid: r.other_sid, book: r.other_book, n: parseSid(r.other_sid)?.n, score: Number(r.score || 0) })),
   };
 }
 
