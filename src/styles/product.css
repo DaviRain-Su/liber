@@ -325,7 +325,7 @@ button{ font-family: inherit; }
 .reader{
   position: fixed; inset: 0; z-index: 800; background: var(--paper);
   display: flex; flex-direction: column;
-  --read-size: 21px; --read-leading: 1.95; --read-measure: 38rem; --read-font: var(--body);
+  --read-size: 21px; --read-leading: 1.95; --read-measure: 46rem; --read-font: var(--body);
 }
 .reader[data-rtheme="sepia"]{ background: #f3e8d2; }
 .reader[data-rtheme="night"]{ background: #14110c; }
@@ -379,11 +379,12 @@ button{ font-family: inherit; }
 .rd-chap-title{ font-family: var(--display); font-size: 42px; font-weight: 600; margin: 12px 0 4px; }
 .rd-chap-rule{ width: 48px; height: 2px; background: var(--accent); margin: 26px 0 40px; opacity: .8; }
 
-.rd-text{ font-family: var(--read-font); font-size: var(--read-size); line-height: var(--read-leading); color: var(--ink); text-wrap: pretty; hyphens: auto; }
+.rd-text{ font-family: var(--read-font); font-size: var(--read-size); line-height: var(--read-leading); color: var(--ink); text-wrap: pretty; }
 .reader[data-rtheme="night"] .rd-text{ color: #d9cfba; }
 .reader[data-rtheme="night"] .rd-chap-title{ color: #ece2cf; }
-.rd-text p{ margin: 0 0 .95em; text-indent: 1.25em; overflow-wrap: break-word; }
-.rd-text p:first-child{ text-indent: 0; }
+/* Match the design's airy, margin-separated paragraphs (1.5em gap, no first-line
+   indent) — the reader had drifted to tight .95em + a 1.25em CJK indent. */
+.rd-text p{ margin: 0 0 1.5em; text-indent: 0; overflow-wrap: break-word; }
 .rd-sentence{ cursor: text; transition: background .16s; border-radius: 2px; padding: 0 1px; }
 /* user highlight */
 .rd-sentence.hl-user{ background: var(--accent-soft); box-shadow: 0 1px 0 var(--accent-line); }
