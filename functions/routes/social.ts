@@ -277,7 +277,7 @@ async function liveFeed(env: Env) {
   const [notes, shares, posts] = await Promise.all([
     all<any>(
       env.DB,
-      `SELECT n.text, n.up, n.created_at, n.book_id, n.user_id, lb.title AS book_title, u.name, u.color
+      `SELECT n.id, n.sid, n.text, n.up, n.created_at, n.book_id, n.user_id, lb.title AS book_title, u.name, u.color
        FROM notes n JOIN users u ON u.id = n.user_id
        LEFT JOIN library_books lb ON lb.id = n.book_id
        WHERE n.public = 1 ORDER BY n.created_at DESC LIMIT 20`,
@@ -291,7 +291,7 @@ async function liveFeed(env: Env) {
     ),
     all<any>(
       env.DB,
-      `SELECT gp.group_id, gp.text, gp.chap, gp.up, gp.user_id, gp.created_at, u.name, u.color
+      `SELECT gp.id, gp.group_id, gp.text, gp.chap, gp.up, gp.user_id, gp.created_at, u.name, u.color
        FROM group_posts gp JOIN users u ON u.id = gp.user_id
        ORDER BY gp.created_at DESC LIMIT 20`,
     ),
@@ -300,20 +300,37 @@ async function liveFeed(env: Env) {
   // s.agree column is never incremented), so the feed must merge it the same way
   // /shares does, or shared conversations always render 0 upvotes.
   const shareVotes = await voteCountsFor(env, "share", shares.map((s) => s.id));
-  return [
-    ...notes.map((n) => ({
-      kind: "anno", userId: n.user_id, u: n.name || "读者", color: n.color || "#3a4fb0", book: n.book_title || n.book_id,
-      chap: "", t: n.text, up: n.up || 0, replies: 0, when: "刚刚", createdAt: n.created_at,
-    })),
+  // Each item carries a STABLE threadKey so the discussion overlay opens a real,
+  // per-item thread (the root is the item itself; replies are live thread_replies)
+  // instead of a shared seed thread.
+  const items: any[] = [
+    ...notes.map((n) => {
+      const cn = chapterNumberFromSid(n.sid);
+      return {
+        kind: "anno", id: `note:${n.id}`, threadKey: `note:${n.id}`, userId: n.user_id, u: n.name || "读者", color: n.color || "#3a4fb0",
+        book: n.book_title || n.book_id, bookId: n.book_id, sid: n.sid, chap: cn ? `第 ${cn} 章` : "",
+        t: n.text, up: n.up || 0, replies: 0, when: "刚刚", createdAt: n.created_at,
+      };
+    }),
     ...shares.map((s) => ({
-      kind: "convo", userId: s.user_id, u: s.name || "读者", color: s.color || "#3a4fb0", book: s.book_title || s.book_id,
-      title: s.title || "分享了一段阅读对话", quote: s.quote, up: shareVotes[s.id] || 0, saved: 0, when: "刚刚", createdAt: s.created_at,
+      kind: "convo", id: `share:${s.id}`, threadKey: `share:${s.id}`, userId: s.user_id, u: s.name || "读者", color: s.color || "#3a4fb0",
+      book: s.book_title || s.book_id, title: s.title || "分享了一段阅读对话", quote: s.quote, up: shareVotes[s.id] || 0, saved: 0, replies: 0, when: "刚刚", createdAt: s.created_at,
     })),
     ...posts.map((p) => ({
-      kind: "group", userId: p.user_id, u: p.name || "读者", color: p.color || "#3a4fb0", groupId: p.group_id, t: p.text, chap: p.chap || "",
-      up: p.up || 0, members: 0, when: "刚刚", createdAt: p.created_at,
+      kind: "group", id: `gpost:${p.id}`, threadKey: `gpost:${p.id}`, userId: p.user_id, u: p.name || "读者", color: p.color || "#3a4fb0",
+      groupId: p.group_id, t: p.text, chap: p.chap || "", up: p.up || 0, members: 0, replies: 0, when: "刚刚", createdAt: p.created_at,
     })),
   ].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)).slice(0, 30);
+  // Real reply counts, bounded to the visible items' thread keys.
+  const keys = items.map((it) => it.threadKey);
+  if (keys.length) {
+    try {
+      const counts: Record<string, number> = {};
+      for (const r of await all<any>(env.DB, `SELECT thread_key, COUNT(*) AS n FROM thread_replies WHERE thread_key IN (${keys.map(() => "?").join(",")}) GROUP BY thread_key`, ...keys)) counts[r.thread_key] = Number(r.n || 0);
+      for (const it of items) it.replies = counts[it.threadKey] || 0;
+    } catch { /* thread_replies may predate migration 0002 — leave replies at 0 */ }
+  }
+  return items;
 }
 
 social.get("/readers", async (c) => {
@@ -552,7 +569,9 @@ social.get("/threads/:key", async (c) => {
     c.req.param("key"),
   );
   const mine = c.get("userId");
-  return c.json({ thread: S.THREAD, replies: replies.map((r) => ({ userId: r.user_id, u: r.name, color: r.color, when: "刚刚", t: r.text, up: r.up || 0, mine: r.user_id === mine })) });
+  // Replies only — the discussion root is the real feed item the client opened,
+  // not a seed thread.
+  return c.json({ replies: replies.map((r) => ({ userId: r.user_id, u: r.name, color: r.color, when: "刚刚", t: r.text, up: r.up || 0, mine: r.user_id === mine })) });
 });
 
 social.post("/threads/:key", async (c) => {

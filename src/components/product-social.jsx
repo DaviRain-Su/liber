@@ -26,6 +26,19 @@ const profileRef = (x) => x?.userId ? { userId:x.userId, name:x.u || x.name } : 
 const canProfile = (x) => window.canOpenProfile(profileRef(x));
 const openProfile = (x) => window.openProfile(profileRef(x));
 
+/* Build a REAL discussion thread from the clicked feed item: the item itself is
+   the root note and replies load live for its stable threadKey — no seed thread. */
+function threadFromFeed(f){
+  return {
+    key: f.threadKey || f.id || null,
+    book: f.book || "",
+    chap: f.chap || "",
+    quote: f.kind === "convo" ? (f.quote || "") : "",
+    root: { userId:f.userId, u:f.u || "读者", color:f.color || "#3a4fb0", when:f.when || "刚刚", t:f.t || f.title || f.quote || "", up:f.up || 0 },
+    replies: [],
+  };
+}
+
 function Social({ onOpenBook, onOpenGroup, onContinue }){
   const [tab, setTab] = useSs("feed"); // feed | convos | groups
   const [thread, setThread] = useSs(null); // open discussion overlay
@@ -83,7 +96,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
 
               {tab === "feed" && (
                 feed.length ? feed.map((f,i) => (
-                  <FeedCard key={i} f={f} onOpenThread={() => window.THREAD && setThread({ ...window.THREAD, key: "daodejing:c2-s1" })} onOpenBook={onOpenBook}
+                  <FeedCard key={i} f={f} onOpenThread={() => setThread(threadFromFeed(f))} onOpenBook={onOpenBook}
                     onOpenGroup={f.kind==="group" ? () => onOpenGroup(f.groupId || groups[0]?.id) : null} />
                 )) : <EmptySocial text="还没有真实动态。划线、批注、发布对话后会出现在这里。" />
               )}
@@ -198,18 +211,24 @@ function FeedCard({ f, onOpenThread, onOpenBook, onOpenGroup }){
         <span>{I.up} {f.up||0}</span>
         {f.replies != null && <span className="lk" onClick={onOpenThread}>{f.replies} 条回复 · 加入讨论</span>}
         {f.saved != null && <span>{f.saved} 收藏</span>}
-        {f.members != null && <span className="lk" onClick={onOpenGroup||undefined}>{f.members} 人在读 · 进入小组</span>}
+        {onOpenGroup && <span className="lk" onClick={onOpenGroup}>进入小组</span>}
       </div>
     </div>
   );
 }
 
 function ThreadOverlay({ thread, onClose }){
-  const [replies, setReplies] = useSs(thread.replies);
+  const [replies, setReplies] = useSs(thread.replies || []);
   const [draft, setDraft] = useSs("");
+  const [loading, setLoading] = useSs(!!(window.liberApi && thread.key));
   useEffS(() => {
-    if (!window.liberApi || !thread.key) return;
-    window.liberApi.thread.get(thread.key).then(r => { if (r && Array.isArray(r.replies) && r.replies.length) setReplies(prev => [...prev, ...r.replies]); }).catch(() => {});
+    if (!window.liberApi || !thread.key) { setLoading(false); return; }
+    let live = true;
+    window.liberApi.thread.get(thread.key)
+      .then(r => { if (live && r && Array.isArray(r.replies)) setReplies(r.replies); })
+      .catch(() => {})
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
   }, []);
   const add = () => {
     if(!draft.trim()) return;
@@ -218,32 +237,38 @@ function ThreadOverlay({ thread, onClose }){
     if (window.liberApi && thread.key) window.liberApi.thread.reply(thread.key, text).catch(() => {});
     setDraft("");
   };
+  const root = thread.root || {};
   return (
     <>
       <div className="drawer-scrim" style={{ zIndex:860 }} onClick={onClose}/>
       <div className="thread-modal">
         <div className="tm-head">
-          <div><div className="tm-bk">{thread.book} · {thread.chap}</div><div className="tm-liners">{thread.liners} 人划线 · {replies.length+1} 条讨论</div></div>
+          <div>
+            <div className="tm-bk">{thread.book || "讨论"}{thread.chap ? ` · ${thread.chap}` : ""}</div>
+            <div className="tm-liners">{replies.length + 1} 条讨论</div>
+          </div>
           <span className="x" onClick={onClose}>{I.x}</span>
         </div>
-        <div className="tm-quote">「{thread.quote}」</div>
+        {thread.quote && <div className="tm-quote">「{thread.quote}」</div>}
         <div className="tm-body">
           <div className="tm-note root">
-            <div className={"ava"+(canProfile(thread.root)?" ava-link":"")} style={{ background:thread.root.color }} onClick={canProfile(thread.root)?()=>openProfile(thread.root):undefined}>{thread.root.u[0]}</div>
+            <div className={"ava"+(canProfile(root)?" ava-link":"")} style={{ background:root.color }} onClick={canProfile(root)?()=>openProfile(root):undefined}>{(root.u||"读")[0]}</div>
             <div className="nb2">
-              <div className="nm"><span className={canProfile(thread.root)?"name-link":""} onClick={canProfile(thread.root)?()=>openProfile(thread.root):undefined}>{thread.root.u}</span> <span className="when">{thread.root.when}</span></div>
-              <div className="tx">{thread.root.t}</div>
-              <div className="mt"><span>{I.up} 赞同 {thread.root.up}</span><span>回复</span></div>
+              <div className="nm"><span className={canProfile(root)?"name-link":""} onClick={canProfile(root)?()=>openProfile(root):undefined}>{root.u}</span> <span className="when">{root.when}</span></div>
+              <div className="tx">{root.t}</div>
+              <div className="mt"><span>{I.up} 赞同 {root.up||0}</span></div>
             </div>
           </div>
           <div className="tm-replies">
+            {loading && <div className="pf-empty" style={{padding:16}}>加载讨论中…</div>}
+            {!loading && replies.length === 0 && <div className="pf-empty" style={{padding:16}}>还没有人讨论。来说第一句。</div>}
             {replies.map((r,i) => (
               <div className="tm-note" key={i}>
-                <div className={"ava"+(canProfile(r)?" ava-link":"")} style={{ background:r.color }} onClick={canProfile(r)?()=>openProfile(r):undefined}>{r.ai?"AI":r.u[0]}</div>
+                <div className={"ava"+(canProfile(r)?" ava-link":"")} style={{ background:r.color }} onClick={canProfile(r)?()=>openProfile(r):undefined}>{r.ai?"AI":(r.u||"读")[0]}</div>
                 <div className="nb2">
                   <div className="nm"><span className={canProfile(r)?"name-link":""} onClick={canProfile(r)?()=>openProfile(r):undefined}>{r.u}</span>{r.mine&&" · 你"} <span className="when">{r.when}</span></div>
                   <div className="tx">{r.t}</div>
-                  <div className="mt"><span>{I.up} 赞同 {r.up}</span><span>回复</span></div>
+                  <div className="mt"><span>{I.up} 赞同 {r.up||0}</span></div>
                 </div>
               </div>
             ))}
