@@ -208,9 +208,19 @@ async function buildLiveGroup(env: Env, b: any, userId?: string | null) {
 async function liveGroups(env: Env, userId?: string | null) {
   const books = await listBooks(env);
   const liveBooks = books.filter((b: any) => b.dynamic);
-  const groups: any[] = [];
-  for (const b of liveBooks) groups.push(await buildLiveGroup(env, b, userId));
-  return groups;
+  // Building a full group payload (≈7 D1 queries) for EVERY book times out once
+  // the catalogue has hundreds of books. Prioritise groups that actually have
+  // members/posts, fill up to a cap with top books, and build them in parallel.
+  const active = new Set<string>();
+  try {
+    for (const r of await all<any>(env.DB, `SELECT DISTINCT group_id FROM group_members`)) active.add(r.group_id);
+    for (const r of await all<any>(env.DB, `SELECT DISTINCT group_id FROM group_posts`)) active.add(r.group_id);
+  } catch { /* tables may be empty on a fresh db */ }
+  const ranked = [
+    ...liveBooks.filter((b: any) => active.has(`live-${b.id}`)),
+    ...liveBooks.filter((b: any) => !active.has(`live-${b.id}`)),
+  ].slice(0, 24);
+  return Promise.all(ranked.map((b: any) => buildLiveGroup(env, b, userId)));
 }
 
 async function liveFeed(env: Env) {
