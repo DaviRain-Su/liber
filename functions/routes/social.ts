@@ -146,15 +146,18 @@ async function buildLiveGroupsBatch(env: Env, books: any[], userId?: string | nu
   const bookIds = books.map((b) => b.id);
   const gp = gids.map(() => "?").join(",");
   const bp = bookIds.map(() => "?").join(",");
-  const [members, memberCounts, postCounts, progress, noteCounts, hlCounts, chapters] = await Promise.all([
-    all<any>(env.DB, `SELECT gm.group_id, u.name, u.color, u.seal, gm.user_id FROM group_members gm JOIN users u ON u.id = gm.user_id WHERE gm.group_id IN (${gp}) ORDER BY gm.joined_at ASC`, ...gids),
-    all<any>(env.DB, `SELECT group_id, COUNT(*) AS n FROM group_members WHERE group_id IN (${gp}) GROUP BY group_id`, ...gids),
-    all<any>(env.DB, `SELECT group_id, COUNT(*) AS n FROM group_posts WHERE group_id IN (${gp}) GROUP BY group_id`, ...gids),
-    all<any>(env.DB, `SELECT gm.group_id, p.percent FROM group_members gm JOIN progress p ON p.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND p.book_id = substr(gm.group_id, 6)`, ...gids),
-    all<any>(env.DB, `SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN notes nt ON nt.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND nt.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`, ...gids),
-    all<any>(env.DB, `SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND h.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`, ...gids),
-    all<any>(env.DB, `SELECT book_id, n, title FROM library_chapters WHERE book_id IN (${bp}) ORDER BY book_id, n`, ...bookIds),
+  // One D1 batch = ONE round-trip for all aggregates (Promise.all over separate
+  // .all() calls serialises on D1's single connection).
+  const res = await env.DB.batch([
+    env.DB.prepare(`SELECT gm.group_id, u.name, u.color, u.seal, gm.user_id FROM group_members gm JOIN users u ON u.id = gm.user_id WHERE gm.group_id IN (${gp}) ORDER BY gm.joined_at ASC`).bind(...gids),
+    env.DB.prepare(`SELECT group_id, COUNT(*) AS n FROM group_members WHERE group_id IN (${gp}) GROUP BY group_id`).bind(...gids),
+    env.DB.prepare(`SELECT group_id, COUNT(*) AS n FROM group_posts WHERE group_id IN (${gp}) GROUP BY group_id`).bind(...gids),
+    env.DB.prepare(`SELECT gm.group_id, p.percent FROM group_members gm JOIN progress p ON p.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND p.book_id = substr(gm.group_id, 6)`).bind(...gids),
+    env.DB.prepare(`SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN notes nt ON nt.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND nt.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`).bind(...gids),
+    env.DB.prepare(`SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND h.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`).bind(...gids),
+    env.DB.prepare(`SELECT book_id, n, title FROM library_chapters WHERE book_id IN (${bp}) ORDER BY book_id, n`).bind(...bookIds),
   ]);
+  const [members, memberCounts, postCounts, progress, noteCounts, hlCounts, chapters] = res.map((r: any) => (r.results || []) as any[]);
   const listBy = (rows: any[], key: string) => { const m: Record<string, any[]> = {}; for (const r of rows) (m[r[key]] ||= []).push(r); return m; };
   const numBy = (rows: any[], key: string) => { const m: Record<string, number> = {}; for (const r of rows) m[r[key]] = Number(r.n || 0); return m; };
   const membersByG = listBy(members, "group_id");
@@ -211,11 +214,14 @@ async function liveGroups(env: Env, userId?: string | null) {
   // Only id/title/seal are needed here — NOT the reads/liners aggregates that
   // listBooks computes. Run the book list and the two "which groups are active"
   // scans in parallel (one round-trip) instead of sequentially.
-  const [books, memberGroups, postGroups] = await Promise.all([
-    all<any>(env.DB, `SELECT id, title, seal FROM library_books ORDER BY created_at DESC LIMIT 300`),
-    all<any>(env.DB, `SELECT DISTINCT group_id FROM group_members`).catch(() => []),
-    all<any>(env.DB, `SELECT DISTINCT group_id FROM group_posts`).catch(() => []),
+  const [bRes, mRes, pRes] = await env.DB.batch([
+    env.DB.prepare(`SELECT id, title, seal FROM library_books ORDER BY created_at DESC LIMIT 300`),
+    env.DB.prepare(`SELECT DISTINCT group_id FROM group_members`),
+    env.DB.prepare(`SELECT DISTINCT group_id FROM group_posts`),
   ]);
+  const books = ((bRes as any).results || []) as any[];
+  const memberGroups = ((mRes as any).results || []) as any[];
+  const postGroups = ((pRes as any).results || []) as any[];
   if (!books.length) return [];
   const liveBooks = books.map((r) => ({ id: r.id, t: r.title, seal: r.seal }));
   const active = new Set<string>([...memberGroups, ...postGroups].map((r: any) => r.group_id));
