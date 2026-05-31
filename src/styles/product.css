@@ -382,9 +382,10 @@ button{ font-family: inherit; }
 .rd-text{ font-family: var(--read-font); font-size: var(--read-size); line-height: var(--read-leading); color: var(--ink); text-wrap: pretty; }
 .reader[data-rtheme="night"] .rd-text{ color: #d9cfba; }
 .reader[data-rtheme="night"] .rd-chap-title{ color: #ece2cf; }
-/* Match the design's airy, margin-separated paragraphs (1.5em gap, no first-line
-   indent) — the reader had drifted to tight .95em + a 1.25em CJK indent. */
-.rd-text p{ margin: 0 0 1.5em; text-indent: 0; overflow-wrap: break-word; }
+/* Chinese prose uses a first-line indent (首行缩进两格); the first paragraph of a
+   chapter is flush. Airy 1.5em paragraph spacing keeps it from feeling cramped. */
+.rd-text p{ margin: 0 0 1.5em; text-indent: 2em; overflow-wrap: break-word; }
+.rd-text p:first-child{ text-indent: 0; }
 .rd-sentence{ cursor: text; transition: background .16s; border-radius: 2px; padding: 0 1px; }
 /* user highlight */
 .rd-sentence.hl-user{ background: var(--accent-soft); box-shadow: 0 1px 0 var(--accent-line); }

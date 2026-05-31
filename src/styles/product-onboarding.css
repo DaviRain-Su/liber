@@ -53,58 +53,43 @@
 .val-t{ font-family: var(--display); font-size: 21px; font-weight: 600; align-self: end; }
 .val-d{ font-size: 14.5px; line-height: 1.5; color: var(--ink-2); align-self: start; margin-top: 3px; }
 
-/* sign in */
-.w-spin{ width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent-line); border-top-color: var(--accent); animation: spin .7s linear infinite; flex-shrink: 0; }
+/* sign in — design's unified auth-row system (快捷登录 / Web3 钱包) */
+.onb-signin .onb-h{ margin-bottom: 22px; }
+.onb-signin .onb-h h2{ font-size: 38px; line-height: 1.05; }
+.onb-signin .onb-sub{ font-size: 15px; margin-top: 12px; max-width: 42ch; }
+
+.signin-group{ margin-bottom: 16px; }
+.signin-group:last-of-type{ margin-bottom: 0; }
+.sg-head{ display: flex; align-items: center; gap: 13px; margin-bottom: 11px; font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
+.sg-head::after{ content: ""; flex: 1; height: 1px; background: var(--hair); }
+
+.auth-list{ display: flex; flex-direction: column; gap: 9px; }
+.auth-row{ display: flex; align-items: center; gap: 14px; padding: 12px 15px; border: 1px solid var(--hair); border-radius: 12px; background: var(--paper-2); cursor: pointer; transition: border-color .16s, transform .12s, background .16s; text-align: left; font-family: inherit; width: 100%; }
+.auth-row:hover:not(:disabled){ border-color: var(--accent); transform: translateX(2px); }
+.auth-row:disabled{ opacity: .5; cursor: default; }
+.auth-row.connecting{ border-color: var(--accent); opacity: 1; }
+.ar-glyph{ width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; background: #fff; box-shadow: inset 0 0 0 1px var(--hair-2); overflow: hidden; }
+.ar-mid{ flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ar-n{ font-family: var(--display); font-size: 18px; font-weight: 600; line-height: 1.15; }
+.ar-d{ font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.ar-tag{ font-family: var(--mono); font-size: 10px; letter-spacing: .06em; color: var(--accent); border: 1px solid var(--accent-line); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
+.ar-arr{ color: var(--ink-3); flex-shrink: 0; display: grid; place-items: center; }
+.ar-spin{ width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent-line); border-top-color: var(--accent); animation: spin .7s linear infinite; flex-shrink: 0; }
 @keyframes spin{ to{ transform: rotate(360deg);} }
 
-/* lead with brand voice, not "连接你的钱包" */
-.onb-signin .onb-h{ margin-bottom: 22px; }
-.onb-signin .onb-h h2{ font-size: 42px; line-height: 1.04; letter-spacing: -.01em; }
-.onb-signin .onb-sub{ font-size: 16px; margin-top: 12px; max-width: 42ch; }
-
-/* two labelled groups give the page rhythm (便捷登录 / 连接钱包) */
-.signin-group{ margin-top: 22px; }
-.signin-easy{ display: flex; flex-direction: column; gap: 11px; }
-.sg-label{ display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
-.sg-label > span:first-child{ font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
-.sg-rule{ flex: 1; height: 1px; background: var(--hair); }
-.sg-hint{ font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; color: var(--ink-3); font-style: normal; white-space: nowrap; }
-
-/* Google GIS button: frame only by centering — its interior is the iframe */
+/* Google's GIS button sits in 快捷登录, centered (its interior is the iframe) */
 .google-frame{ display: flex; justify-content: center; min-height: 44px; }
 .google-frame .google-host{ display: flex; justify-content: center; }
 
-/* passkey sign-in = the recommended one-tap path: soft cinnabar wash, full width */
-.signin-passkey{ display: flex; align-items: center; gap: 12px; width: 100%; padding: 15px 18px; text-align: left; font-family: var(--display); font-size: 18px; color: var(--ink); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 12px; cursor: pointer; transition: border-color .16s, background .16s, transform .12s; }
-.signin-passkey:hover:not(:disabled){ border-color: var(--accent); transform: translateY(-1px); }
-.signin-passkey:disabled{ opacity: .55; cursor: default; }
-.signin-passkey.connecting{ border-color: var(--accent); opacity: 1; }
-.signin-passkey .sp-ic{ color: var(--accent); display: grid; place-items: center; }
-.signin-passkey .sp-t{ flex: 1; }
-.signin-passkey .sp-arr{ color: var(--accent); }
-
-/* "首次使用？创建" demoted to an inline link, not a third button */
-.passkey-create{ align-self: center; margin-top: 1px; background: none; border: 0; cursor: pointer; padding: 4px; font-family: var(--mono); font-size: 12px; letter-spacing: .02em; color: var(--ink-3); }
+/* "首次使用？创建" — inline link under the passkey row */
+.passkey-create{ display: inline-block; margin-top: 9px; background: none; border: 0; cursor: pointer; padding: 2px; font-family: var(--mono); font-size: 12px; letter-spacing: .02em; color: var(--ink-3); }
 .passkey-create u{ color: var(--ink-2); text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .passkey-create:hover:not(:disabled) u{ color: var(--accent); }
 .passkey-create:disabled{ opacity: .5; cursor: default; }
 
-/* wallets demoted to a compact 2×2 seal grid (no verbose desc lines) */
-.wallet-grid{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.wallet-seal{ position: relative; display: flex; align-items: center; gap: 12px; padding: 13px 15px; border: 1px solid var(--hair); border-radius: 12px; background: var(--paper-2); cursor: pointer; text-align: left; font-family: inherit; transition: border-color .16s, transform .12s; }
-.wallet-seal:hover:not(:disabled){ border-color: var(--accent); transform: translateY(-1px); }
-.wallet-seal:disabled{ opacity: .55; cursor: default; }
-.wallet-seal.connecting{ border-color: var(--accent); opacity: 1; }
-.ws-glyph{ width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 19px; color: #fff; flex-shrink: 0; }
-.ws-n{ font-family: var(--display); font-size: 17px; font-weight: 600; line-height: 1.1; }
-.ws-tag{ position: absolute; top: 8px; right: 10px; font-family: var(--mono); font-size: 9px; letter-spacing: .08em; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 999px; padding: 1px 6px; }
-.wallet-seal .w-spin{ margin-left: auto; }
-
-/* skip + fine print share one quiet hairline baseline */
-.signin-foot{ display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 22px; padding-top: 15px; border-top: 1px solid var(--hair); }
-.signin-foot .btn-quiet{ font-size: 13px; padding: 4px 0; white-space: nowrap; }
-.signin-foot .btn-quiet .arr{ display: inline-block; transition: transform .16s; }
-.signin-foot .btn-quiet:hover:not(:disabled) .arr{ transform: translateX(3px); }
+/* footer: fine print + guest line */
+.onb-signin .onb-fine{ margin-top: 18px; }
+.signin-guest{ display: block; margin: 12px auto 0; font-size: 13px; }
 .signin-foot .onb-fine{ margin: 0; text-align: right; flex: 1; }
 .btn-quiet{ background: transparent; border: 0; color: var(--ink-3); font-family: var(--mono); font-size: 13px; cursor: pointer; padding: 8px; }
 .btn-quiet:hover{ color: var(--accent); }
@@ -141,7 +126,5 @@
   .int-grid{ grid-template-columns: 1fr; }
   .val-item{ grid-template-columns: 46px 1fr; }
   .ow-stats{ gap: 12px; flex-wrap: wrap; }
-  .onb-signin .onb-h h2{ font-size: 32px; }
-  .signin-foot{ flex-direction: column; align-items: stretch; gap: 10px; text-align: center; }
-  .signin-foot .onb-fine{ text-align: center; }
+  .onb-signin .onb-h h2{ font-size: 30px; }
 }

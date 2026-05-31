@@ -9,6 +9,14 @@ import { getCatalogTotal } from "../lib/catalog.js";
 /* product-onboarding.jsx — welcome + value props + decentralized sign-in + interests. */
 const { useState: useOnb, useEffect: useEonb } = React;
 
+/* brand glyph for the passkey auth-row (Google's button is GIS-rendered) */
+const PasskeyGlyph = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="8.5" cy="8.5" r="4.6"/>
+    <path d="m11.8 11.8 7 7M16.4 16.4l2-2M14.2 14.2l1.8-1.8"/>
+  </svg>
+);
+
 const WALLETS = [
   { k:"sui",      kind:"sui",    name:"Sui 钱包",  glyph:"◇", color:"#4da2ff", desc:"Sui 网络 · 推荐" },
   { k:"suiet",    kind:"sui",    name:"Suiet",     glyph:"❂", color:"#5168bf", desc:"Sui 轻量扩展" },
@@ -183,46 +191,45 @@ function Onboarding({ onFinish }){
           {/* 2 — sign in */}
           {step===2 && (
             <div className="onb-card onb-signin">
-              <div className="onb-h"><div className="kicker">登录 / 创建账户</div><h2>开启你的<br/>私人图书馆</h2>
-                <p className="onb-sub">身份属于你自己，书架与笔记跟着账户走，不绑定任何平台。</p></div>
+              <div className="onb-h"><div className="kicker">登录 / 创建账户</div><h2>翻开你的第一页</h2>
+                <p className="onb-sub">选一种方式登录。无论用哪种，Liber 都会在底层为你生成一个只属于你的身份——钥匙始终在你手里。</p></div>
 
-              {/* 便捷登录 — Google + 通行密钥 (the one-tap paths, up top) */}
-              <section className="signin-group signin-easy">
-                <div className="sg-label"><span>便捷登录</span><span className="sg-rule"/></div>
-                <div className="google-frame" style={{ display: googleOn ? "flex" : "none" }}>
+              {/* 快捷登录 — Google (GIS) + 通行密钥 */}
+              <div className="signin-group">
+                <div className="sg-head">快捷登录</div>
+                <div className="google-frame" style={{ display: googleOn ? "flex" : "none", marginBottom: googleOn ? 9 : 0 }}>
                   <div className="google-host" ref={googleRef} />
                 </div>
-                <button className={`signin-passkey ${connecting==="passkey"?"connecting":""}`} disabled={!!connecting} onClick={()=>passkey("signin")}>
-                  <span className="sp-ic">{I.lock}</span>
-                  <span className="sp-t">用通行密钥登录</span>
-                  {connecting==="passkey" ? <span className="w-spin"/> : <span className="sp-arr">{I.right}</span>}
-                </button>
+                <div className="auth-list">
+                  <button className={`auth-row ${connecting==="passkey"?"connecting":""}`} disabled={!!connecting} onClick={()=>passkey("signin")}>
+                    <span className="ar-glyph" style={{ background:"var(--accent)", color:"#fff", boxShadow:"none" }}>{PasskeyGlyph}</span>
+                    <span className="ar-mid"><span className="ar-n">通行密钥登录</span><span className="ar-d">指纹 / 面容 · 免密登录</span></span>
+                    {connecting==="passkey" ? <span className="ar-spin"/> : <span className="ar-arr">{I.right}</span>}
+                  </button>
+                </div>
                 <button className={`passkey-create ${connecting==="passkey-create"?"connecting":""}`} disabled={!!connecting} onClick={()=>passkey("create")}>
                   首次使用？<u>创建通行密钥</u>
                 </button>
-              </section>
+              </div>
 
-              {/* 连接钱包 — compact 2×2 seal grid */}
-              <section className="signin-group">
-                <div className="sg-label"><span>连接钱包</span><span className="sg-rule"/><em className="sg-hint">Sui · EVM · Solana</em></div>
-                <div className="wallet-grid">
+              {/* Web3 钱包 — the app's real multi-chain wallets, as auth-rows */}
+              <div className="signin-group">
+                <div className="sg-head">Web3 钱包</div>
+                <div className="auth-list">
                   {WALLETS.map(w=>(
-                    <button className={`wallet-seal ${connecting===w.k?"connecting":""}`} key={w.k} disabled={!!connecting} title={w.desc} onClick={()=>connect(w)}>
-                      <span className="ws-glyph" style={{background:w.color}}>{w.glyph}</span>
-                      <span className="ws-n">{w.name}</span>
-                      {w.k==="sui" && <span className="ws-tag">推荐</span>}
-                      {connecting===w.k && <span className="w-spin"/>}
+                    <button className={`auth-row ${connecting===w.k?"connecting":""}`} key={w.k} disabled={!!connecting} onClick={()=>connect(w)}>
+                      <span className="ar-glyph" style={{ background:w.color, color:"#fff", boxShadow:"none", fontSize:21 }}>{w.glyph}</span>
+                      <span className="ar-mid"><span className="ar-n">{w.name}</span><span className="ar-d">{w.desc}</span></span>
+                      {w.k==="sui" && connecting!==w.k && <span className="ar-tag">推荐</span>}
+                      {connecting===w.k ? <span className="ar-spin"/> : <span className="ar-arr">{I.right}</span>}
                     </button>
                   ))}
                 </div>
-              </section>
+              </div>
 
               {authError && <div className="onb-auth-error" role="alert">{authError}</div>}
-
-              <div className="signin-foot">
-                <button className="btn-quiet" disabled={!!connecting} onClick={()=>finish()}>先逛逛 <span className="arr">→</span></button>
-                <span className="onb-fine">私钥永不离开你的钱包 · CC0 共享公开批注</span>
-              </div>
+              <div className="onb-fine">私钥永不离开你的钱包 · 登录即同意以 CC0 协议共享你的公开批注。</div>
+              <button className="btn-quiet signin-guest" disabled={!!connecting} onClick={()=>finish()}>以访客身份先逛逛 →</button>
             </div>
           )}
 
