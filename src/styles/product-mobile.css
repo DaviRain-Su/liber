@@ -83,16 +83,18 @@
   .language-section-head{ align-items: flex-start; flex-direction: column; gap: 8px; }
   .language-section h3{ font-size: 26px; }
   .text-link{ padding: 0; }
-  .direction-strip{ overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
-  .direction-mini{ flex: 0 0 auto; max-width: 210px; }
+  .direction-strip,.subject-strip{ overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .direction-mini,.subject-mini{ flex: 0 0 auto; max-width: 210px; }
   .section-book-row{ display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
   .bk-card.compact{ flex: 0 0 138px; }
   .bk-card.compact .meta .t{ font-size: 16px; }
-  .direction-panel{ padding-bottom: 20px; }
-  .direction-panel-head{ flex-direction: column; gap: 4px; }
-  .direction-grid{ display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
-  .direction-card{ flex: 0 0 188px; min-height: 104px; }
-  .dc-name{ font-size: 20px; }
+  .direction-panel,.subject-panel{ padding-bottom: 20px; }
+  .direction-panel-head,.subject-panel-head{ flex-direction: column; gap: 4px; }
+  .direction-grid,.subject-grid{ display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .direction-card,.subject-card{ flex: 0 0 188px; min-height: 104px; }
+  .dc-name,.sc-name{ font-size: 20px; }
+  .fine-strip{ overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .fine-chip{ flex: 0 0 auto; max-width: 220px; }
   .lib-grid{ grid-template-columns: repeat(2, 1fr); gap: 24px 16px; }
   .bk-card .meta .t{ font-size: 18px; }
 
