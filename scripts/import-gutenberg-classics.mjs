@@ -205,6 +205,10 @@ const BOOKS = [
   { id: "gevoel-en-verstand-gutenberg-nl", pg: 25946, lang: "nl", title: "Gevoel en verstand", category: "Nederlands · Roman", expect: "verstand" },
   { id: "noli-me-tangere-gutenberg-nl", pg: 21848, lang: "nl", title: "Noli me tangere", category: "Nederlands · Roman", expect: "Noli" },
   { id: "andersens-sproken-gutenberg-nl", pg: 25580, lang: "nl", title: "Andersens Sproken en vertellingen", category: "Nederlands · Sprookjes", expect: "Andersens" },
+  { id: "egyptische-koningsdochter-gutenberg-nl", pg: 28120, lang: "nl", title: "Eene Egyptische Koningsdochter", category: "Nederlands · Historische roman", expect: "Koningsdochter" },
+  { id: "dokter-helmond-gutenberg-nl", pg: 25138, lang: "nl", title: "Dokter Helmond en zijn vrouw", category: "Nederlands · Roman", expect: "Helmond" },
+  { id: "ivanhoe-gutenberg-nl", pg: 26564, lang: "nl", title: "Ivanhoe", category: "Nederlands · Historische roman", expect: "Ivanhoe" },
+  { id: "betuwsche-novellen-gutenberg-nl", pg: 26483, lang: "nl", title: "Betuwsche novellen", category: "Nederlands · Novellen", expect: "Betuwsche" },
   { id: "kalevala-gutenberg-fi", pg: 7000, lang: "fi", title: "Kalevala", category: "Suomi · Eepos", expect: "Kalevala" },
   { id: "agamemnon-gutenberg-fi", pg: 53137, lang: "fi", title: "Agamemnon", category: "Suomi · Draama", expect: "Agamemnon" },
   { id: "aisopoksen-satuja-gutenberg-fi", pg: 74326, lang: "fi", title: "Aisopoksen satuja", category: "Suomi · Sadut", expect: "Aisopoksen" },
@@ -214,6 +218,10 @@ const BOOKS = [
   { id: "huligaani-gutenberg-fi", pg: 78081, lang: "fi", title: "Huligaani", category: "Suomi · Novellit", expect: "Huligaani" },
   { id: "sointula-gutenberg-fi", pg: 78049, lang: "fi", title: "Sointula", category: "Suomi · Draama", expect: "Sointula" },
   { id: "karavaani-gutenberg-fi", pg: 78018, lang: "fi", title: "Karavaani ja muita juttuja", category: "Suomi · Novellit", expect: "Karavaani" },
+  { id: "terveeks-buddha-gutenberg-fi", pg: 76730, lang: "fi", title: "Terveeks' — Buddha!", category: "Suomi · Matkakertomus", expect: "Buddha" },
+  { id: "hauska-tutustua-gutenberg-fi", pg: 78008, lang: "fi", title: "Hauska tutustua!", category: "Suomi · Kertomukset", expect: "Hauska" },
+  { id: "velisurmaaja-gutenberg-fi", pg: 78070, lang: "fi", title: "Velisurmaaja", category: "Suomi · Draama", expect: "Velisurmaaja" },
+  { id: "lintukoto-gutenberg-fi", pg: 78058, lang: "fi", title: "Lintukoto", category: "Suomi · Kertomukset", expect: "Lintukoto" },
   { id: "roda-rummet-gutenberg-sv", pg: 57052, lang: "sv", title: "Röda rummet", category: "Svenska · Roman", expect: "Röda" },
   { id: "hemsoborna-gutenberg-sv", pg: 30078, lang: "sv", title: "Hemsöborna", category: "Svenska · Roman", expect: "Hemsöborna" },
   { id: "det-gar-an-gutenberg-sv", pg: 14670, lang: "sv", title: "Det går an", category: "Svenska · Roman", expect: "Det går an" },
@@ -223,6 +231,11 @@ const BOOKS = [
   { id: "carl-svenske-gutenberg-sv", pg: 65580, lang: "sv", title: "Carl Svenske", category: "Svenska · Historisk roman", expect: "Carl Svenske" },
   { id: "katornas-folk-gutenberg-sv", pg: 62806, lang: "sv", title: "Kåtornas folk", category: "Svenska · Resa", expect: "Kåtornas" },
   { id: "i-marginalen-gutenberg-sv", pg: 26347, lang: "sv", title: "I marginalen", category: "Svenska · Essäer", expect: "marginalen" },
+  { id: "moloks-leende-gutenberg-sv", pg: 62635, lang: "sv", title: "Moloks leende", category: "Svenska · Roman", expect: "Moloks" },
+  { id: "den-ljusa-skalpen-gutenberg-sv", pg: 63403, lang: "sv", title: "Den ljusa skalpen", category: "Svenska · Noveller", expect: "skalpen" },
+  { id: "drottning-moi-meme-gutenberg-sv", pg: 59921, lang: "sv", title: "Drottning Moi-Même", category: "Svenska · Historisk roman", expect: "Moi" },
+  { id: "adelt-vildt-gutenberg-sv", pg: 59341, lang: "sv", title: "Ädelt vildt", category: "Svenska · Roman", expect: "vildt" },
+  { id: "en-piga-bland-pigor-gutenberg-sv", pg: 48961, lang: "sv", title: "En piga bland pigor", category: "Svenska · Reportage", expect: "piga" },
   { id: "vildanden-gutenberg-no", pg: 13041, lang: "no", title: "Vildanden", category: "Norsk · Drama", expect: "Vildanden" },
   { id: "sult-gutenberg-no", pg: 30027, lang: "no", title: "Sult", category: "Norsk · Roman", expect: "Sult" },
   { id: "markens-grode-1-gutenberg-no", pg: 43724, lang: "no", title: "Markens grøde, Første del", category: "Norsk · Roman", expect: "Markens" },
@@ -241,8 +254,10 @@ const BOOKS = [
   { id: "tine-gutenberg-da", pg: 10686, lang: "da", title: "Tine", category: "Dansk · Roman", expect: "Tine" },
   { id: "ved-vejen-gutenberg-da", pg: 13175, lang: "da", title: "Ved Vejen", category: "Dansk · Roman", expect: "Ved Vejen" },
   { id: "kongens-fald-gutenberg-da", pg: 36942, lang: "da", title: "Kongens Fald", category: "Dansk · Roman", expect: "Kongens Fald" },
+  { id: "bjorneaet-gutenberg-da", pg: 43781, lang: "da", title: "Bjørneæt", category: "Dansk · Historisk roman", expect: "Bjørneæt" },
 
   { id: "rashomon-gutenberg-ja", pg: 1982, lang: "ja", title: "羅生門", category: "日本語 · 小説", expect: "羅生門" },
+  { id: "kesshoki-gutenberg-ja", pg: 34013, lang: "ja", title: "血笑記", category: "日本語 · 翻訳小説", expect: "血笑記" },
   { id: "kumogata-monsho-gutenberg-ja", pg: 35018, lang: "ja", title: "雲形紋章", category: "日本語 · 小説", expect: "雲形紋章" },
   { id: "irekawatta-otoko-gutenberg-ja", pg: 34158, lang: "ja", title: "入れかわった男", category: "日本語 · 小説", expect: "入れかわった男" },
   { id: "shisei-gutenberg-ja", pg: 31617, lang: "ja", title: "刺青", category: "日本語 · 小説", expect: "刺" },
@@ -272,6 +287,9 @@ const BOOKS = [
   { id: "odkrycia-wynalazki-gutenberg-pl", pg: 30407, lang: "pl", title: "O odkryciach i wynalazkach", category: "Polski · Nauka", expect: "odkrycia" },
   { id: "sklepy-cynamonowe-gutenberg-pl", pg: 8119, lang: "pl", title: "Sklepy cynamonowe", category: "Polski · Proza", expect: "Sklepy" },
   { id: "laka-lesmian-gutenberg-pl", pg: 35301, lang: "pl", title: "Łąka", category: "Polski · Poezja", expect: "Łąka" },
+  { id: "menazerya-ludzka-gutenberg-pl", pg: 34635, lang: "pl", title: "Menazerya ludzka", category: "Polski · Proza", expect: "Menazerya" },
+  { id: "jeden-miesiac-zycia-gutenberg-pl", pg: 28014, lang: "pl", title: "Jeden miesiąc życia", category: "Polski · Proza", expect: "miesiąc" },
+  { id: "zywila-gutenberg-pl", pg: 28168, lang: "pl", title: "Żywila", category: "Polski · Proza historyczna", expect: "Żywila" },
   { id: "rur-gutenberg-cs", pg: 13083, lang: "cs", title: "R.U.R.", category: "Čeština · Drama", expect: "R.U.R." },
   { id: "zapisky-mrtveho-domu-gutenberg-cs", pg: 34225, lang: "cs", title: "Zápisky z mrtvého domu", category: "Čeština · Román", expect: "Zápisky" },
   { id: "dvojnik-gutenberg-cs", pg: 37525, lang: "cs", title: "Dvojník", category: "Čeština · Novela", expect: "Dvojník" },
@@ -284,6 +302,10 @@ const BOOKS = [
   { id: "don-quijote-gutenberg-hu", pg: 66263, lang: "hu", title: "Don Quijote de la Mancha", category: "Magyar · Regény", expect: "Quijote" },
   { id: "magyar-nepkoltesi-gyujtemeny-1-gutenberg-hu", pg: 47073, lang: "hu", title: "Magyar népköltési gyüjtemény 1. kötet", category: "Magyar · Folklór", expect: "népköltési" },
   { id: "ipolyi-nepmesegyujtemenye-gutenberg-hu", pg: 56996, lang: "hu", title: "Ipolyi Arnold népmesegyüjteménye", category: "Magyar · Népmesék", expect: "Ipolyi" },
+  { id: "karolyi-gabor-feljegyzesek-1-gutenberg-hu", pg: 63002, lang: "hu", title: "Gróf Károlyi Gábor följegyzései (1. kötet)", category: "Magyar · Emlékirat", expect: "Károlyi", skipTitles: ["VII"] },
+  { id: "mimozak-krizantemok-gutenberg-hu", pg: 78387, lang: "hu", title: "Mimózák és krizántémok", category: "Magyar · Mesék", expect: "Mimózák" },
+  { id: "legy-jo-mindhalalig-gutenberg-hu", pg: 67140, lang: "hu", title: "Légy jó mindhalálig", category: "Magyar · Regény", expect: "mindhalálig" },
+  { id: "szent-peter-esernyoje-gutenberg-hu", pg: 68911, lang: "hu", title: "Szent Péter esernyője", category: "Magyar · Regény", expect: "esernyője" },
   { id: "complete-grammar-esperanto-gutenberg-eo", pg: 7787, lang: "eo", title: "A Complete Grammar of Esperanto", category: "Esperanto · Gramatiko", expect: "Esperanto" },
   { id: "fundamenta-krestomatio-gutenberg-eo", pg: 8224, lang: "eo", title: "Fundamenta Krestomatio", category: "Esperanto · Legolibro", expect: "Krestomatio" },
   { id: "doktoro-jekyll-gutenberg-eo", pg: 24145, lang: "eo", title: "Doktoro Jekyll kaj Sinjoro Hyde", category: "Esperanto · Fikcio", expect: "Jekyll" },
@@ -303,6 +325,9 @@ const BOOKS = [
   { id: "orfaneta-menargues-gutenberg-ca", pg: 75136, lang: "ca", title: "La orfaneta de Menargues", category: "Català · Novel·la històrica", expect: "Menargues" },
   { id: "reina-del-cor-gutenberg-ca", pg: 76248, lang: "ca", title: "La reina del cor", category: "Català · Teatre", expect: "reina" },
   { id: "marxant-venecia-gutenberg-ca", pg: 27536, lang: "ca", title: "El Marxant de Venecia", category: "Català · Teatre", expect: "Venecia" },
+  { id: "els-idols-gutenberg-ca", pg: 78453, lang: "ca", title: "Els idols", category: "Català · Teatre", expect: "idols" },
+  { id: "tres-anglesos-gutenberg-ca", pg: 26502, lang: "ca", title: "Tres Anglesos S'esbargeixen", category: "Català · Humor", expect: "Anglesos" },
+  { id: "pinya-rosa-vol2-gutenberg-ca", pg: 15347, lang: "ca", title: "Pinya de Rosa. Volume 2, Book 4", category: "Català · Narrativa", expect: "Pinya" },
   { id: "poezii-eminescu-gutenberg-ro", pg: 35323, lang: "ro", title: "Poezii", category: "Română · Poezie", expect: "Poezii" },
   { id: "nuvele-caragiale-gutenberg-ro", pg: 64597, lang: "ro", title: "Nuvele", category: "Română · Proză", expect: "Nuvele" },
   { id: "povesti-slavici-gutenberg-ro", pg: 62916, lang: "ro", title: "Povești", category: "Română · Basme", expect: "Povești" },
@@ -318,8 +343,11 @@ const BOOKS = [
   { id: "pagibig-layas-gutenberg-tl", pg: 46639, lang: "tl", title: "Ang Pag-ibig ng Layas", category: "Tagalog · Nobela", expect: "Pag-ibig" },
   { id: "dating-pilipinas-gutenberg-tl", pg: 17787, lang: "tl", title: "Dating Pilipinas", category: "Tagalog · Kasaysayan", expect: "Pilipinas" },
   { id: "panukala-republika-gutenberg-tl", pg: 14982, lang: "tl", title: "Panukala sa Pagkakana nang República nang Pilipinas", category: "Tagalog · Pulitika", expect: "República" },
+  { id: "dakilang-pilipino-gutenberg-tl", pg: 17786, lang: "tl", title: "Mga Dakilang Pilipino", category: "Tagalog · Talambuhay", expect: "Pilipino" },
+  { id: "dakilang-asal-gutenberg-tl", pg: 13687, lang: "tl", title: "Dakilang Asal", category: "Tagalog · Tula", expect: "Dakilang" },
   { id: "hunger-book-one-gutenberg-he", pg: 18291, lang: "he", title: "Hunger: Book One", category: "עברית · רומן", expect: "Hunger" },
   { id: "hatzofe-beit-yisrael-gutenberg-he", pg: 45252, lang: "he", title: "הצופה לבית ישראל: תשליך", category: "עברית · סאטירה", expect: "הצופה" },
+  { id: "beit-nekhot-halakhot-gutenberg-he", pg: 43740, lang: "he", title: "בית נכות ההלכות", category: "עברית · הלכה", expect: "בית נכות" },
   { id: "iliad-gutenberg-el", pg: 36248, lang: "el", title: "Ιλιάδα", category: "Ελληνικά · Έπος", expect: "Ιλιάδα" },
   { id: "peri-psyches-gutenberg-el", pg: 27816, lang: "el", title: "Περί Ψυχής", category: "Ελληνικά · Φιλοσοφία", expect: "Ψυχής" },
   { id: "odysseia-tomos-g-gutenberg-el", pg: 30615, lang: "el", title: "Ομήρου Οδύσσεια Τόμος Γ", category: "Ελληνικά · Έπος", expect: "Οδύσσεια" },
@@ -341,6 +369,10 @@ const BOOKS = [
   { id: "horace-works-gutenberg-la", pg: 46938, lang: "la", title: "The Works of Horace", category: "Latina · Poetry", expect: "Horace" },
   { id: "cato-maior-senectute-gutenberg-la", pg: 14945, lang: "la", title: "Cato Maior de Senectute", category: "Latina · Philosophy", expect: "Senectute" },
   { id: "de-bello-gallico-gutenberg-la", pg: 218, lang: "la", title: "C. Iuli Caesaris De Bello Gallico, I-IV", category: "Latina · History", expect: "Gallico" },
+  { id: "fasti-gutenberg-la", pg: 8738, lang: "la", title: "Fasti", category: "Latina · Poetry", expect: "Fasti" },
+  { id: "robinson-crusoe-latin-gutenberg-la", pg: 74851, lang: "la", title: "Robinson Crusoe in Latin", category: "Latina · Fiction", expect: "Robinson" },
+  { id: "georgicon-gutenberg-la", pg: 231, lang: "la", title: "Georgicon", category: "Latina · Poetry", expect: "Georgicon" },
+  { id: "cicero-orations-gutenberg-la", pg: 226, lang: "la", title: "Cicero's Orations", category: "Latina · Oratory", expect: "Cicero" },
 ];
 
 function parseArgs(argv) {
@@ -447,6 +479,67 @@ function assertImportQuality(book, chapters) {
   return warnings;
 }
 
+function normalizedTitle(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isSameNormalizedTitle(a, b) {
+  const left = normalizedTitle(a);
+  const right = normalizedTitle(b);
+  return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)));
+}
+
+function isGutenbergMatterTitle(title) {
+  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const folded = normalizedTitle(value);
+  return /^(?:contents?|table of contents|inhoudsopgave|inhoud\.?|tartalom\.?|inneh[åa]ll\.?:?|index\b.*|notes?:|noten\b.*|footnotes?|fodnoter|colophon|colofon|transcriber(?:'|’)?s notes?|javit[aá]sok\.?|afskriverens rettelser|corrigenda|errata|fi)$/iu.test(value)
+    || /^I N D E X$/iu.test(value)
+    || /^T A R T A L O M$/iu.test(value)
+    || /^[*＊\s]+$/u.test(value)
+    || folded === "javitasok";
+}
+
+function isShortTitlePage(book, chapter, index, total) {
+  if (total <= 1 || index !== 0) return false;
+  const text = String(chapter.text || "").replace(/\s+/g, " ").trim();
+  return text.length < 2200 && isSameNormalizedTitle(chapter.title, book.title);
+}
+
+function isShortGeneratedCredit(chapter) {
+  const title = String(chapter.title || "").replace(/\s+/g, " ").trim();
+  const text = String(chapter.text || "").replace(/\s+/g, " ").trim();
+  return text.length < 1800 && /,\s+by\s+/i.test(title);
+}
+
+function isShortLeadingRomanPage(chapter, index, total) {
+  if (total <= 1 || index !== 0) return false;
+  const title = String(chapter.title || "").replace(/\s+/g, " ").trim();
+  const text = String(chapter.text || "").replace(/\s+/g, " ").trim();
+  return text.length < 1200 && /^(?:[IVXLCDM]+\.?)$/i.test(title);
+}
+
+function cleanGutenbergPayload(book, payload) {
+  const chapters = payload.chapters || [];
+  const skipTitles = new Set((book.skipTitles || []).map(normalizedTitle));
+  const filtered = chapters.filter((chapter, index) => {
+    if (skipTitles.has(normalizedTitle(chapter.title))) return false;
+    if (isShortTitlePage(book, chapter, index, chapters.length)) return false;
+    if (isGutenbergMatterTitle(chapter.title)) return false;
+    if (isShortGeneratedCredit(chapter)) return false;
+    if (isShortLeadingRomanPage(chapter, index, chapters.length)) return false;
+    return true;
+  });
+  if (!filtered.length) return payload;
+  payload.chapters = filtered.map((chapter, index) => ({ ...chapter, n: index + 1 }));
+  payload.blurb = payload.chapters[0]?.text?.slice(0, 120) || payload.blurb || "";
+  return payload;
+}
+
 async function download(url, filePath) {
   const res = await fetch(url, { headers: { "user-agent": "liber-gutenberg-import/0.1" } });
   if (!res.ok) throw new Error(`Failed to download ${url}: HTTP ${res.status}`);
@@ -493,7 +586,10 @@ async function importOne(book, options) {
   const info = await inspectEpub(filePath);
   const license = await verifyPublishLicense(info, { source: sourceUrl(book), license: metadataLicense.license, evidence: metadata.rights.join("; ") });
   const manifest = await createBookManifest(filePath, { source: sourceUrl(book), license: metadataLicense.license, evidence: metadata.rights.join("; ") });
-  const payload = await createIngestPayload(manifest, { id: book.id, category: book.category, lang: book.lang, includeSource: false });
+  const payload = cleanGutenbergPayload(
+    book,
+    await createIngestPayload(manifest, { id: book.id, category: book.category, lang: book.lang, includeSource: false }),
+  );
   const qualityWarnings = assertImportQuality(book, payload.chapters);
   for (const warning of qualityWarnings) {
     process.stderr.write(`[gutenberg] ${book.id} quality warning: ${warning}\n`);
