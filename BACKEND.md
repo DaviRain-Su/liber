@@ -29,7 +29,9 @@ Browser ── /            → static SPA (dist/)
   The active chain is selected with `CHAIN`.
 - **Auth.** Guest sessions work today (`/api/auth/guest`). Wallet-signature
   login (`/api/auth/verify`) delegates verification to the active chain adapter
-  (`sui` today; `evm` scaffolded).
+  (`sui` today; `evm` scaffolded). Passkey login (`/api/auth/passkey/*`) runs a
+  real WebAuthn ceremony via `@simplewebauthn/server`; both mint the same KV
+  session as a wallet login, so a passkey user is a full (wallet-less) account.
 
 ## Layout
 
@@ -49,7 +51,7 @@ src/lib/api.js             frontend API client (window.liberApi)
 | Group | Routes |
 | --- | --- |
 | Health | `GET /api/health` |
-| Auth | `POST /api/auth/{nonce,verify,guest,logout}` · `GET /api/auth/me` |
+| Auth | `POST /api/auth/{nonce,verify,guest,logout}` · `POST /api/auth/passkey/{register,login}/{options,verify}` · `GET /api/auth/me` |
 | Books | `GET /api/books` · `/books/:id` · `/books/:id/chapters` · `/books/:id/content/:n` · `/books/:id/proof` · `/search?q=` |
 | Reading (auth) | `GET /api/reading/:book` · `PUT …/highlight` · `POST …/note` · `PUT …/progress` |
 | Social | `GET /api/annotations/:book/:sid` · `/feed` · `/shares` · `/groups[/:id]` · `/threads/:key` · `/works` (+ POST writes, auth) |
@@ -174,6 +176,14 @@ probe `/api/books/:id`, `/content/1`, search, and proof.
 Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
 (real Sui personal-message signature check via `@mysten/sui`). Frontend flow in
 `src/lib/wallet.js` (Wallet Standard); guest auth remains available.
+
+Passkey sign-in (通行密钥 / WebAuthn): `POST /api/auth/passkey/register/options`
+→ browser creates a credential → `…/register/verify` stores the public key and
+mints a session; returning readers use `…/login/options` → `…/login/verify`.
+The per-attempt challenge lives in KV (single-use, 5-min TTL) and `rpID`/origin
+come from the request (or `APP_URL`). Server logic in `functions/lib/passkey.ts`,
+browser flow in `src/lib/passkey.js`. Note: WebAuthn requires HTTPS (or
+`localhost`); passkey credentials are stored in the `passkeys` table.
 
 CLI browser auth: `POST /api/auth/cli/start` creates a device authorization,
 the browser approves it through wallet login at `/?cli_auth=...`, and

@@ -1,6 +1,7 @@
 import React from "react";
 import { I, Mark } from "./product-shared.jsx";
 import { walletLogin } from "../lib/wallet.js";
+import { passkeyLogin } from "../lib/passkey.js";
 import { getToken } from "../lib/api.js";
 import { getCatalogTotal } from "../lib/catalog.js";
 
@@ -30,12 +31,14 @@ function Onboarding({ onFinish }){
   const [step, setStep] = useOnb(0);
   const [connecting, setConnecting] = useOnb(null); // wallet key
   const [account, setAccount] = useOnb(null);       // {wallet, addr}
+  const [authError, setAuthError] = useOnb("");     // sign-in error message
   const [picks, setPicks] = useOnb(["philo"]);
   const total = 5;
   const catalogTotal = getCatalogTotal();
 
   const connect = async (w) => {
     setConnecting(w.k);
+    setAuthError("");
     try {
       const acct = await walletLogin(w.name);   // real Sui wallet: connect → sign nonce → verify
       setConnecting(null);
@@ -48,9 +51,21 @@ function Onboarding({ onFinish }){
       setStep(3);
     }
   };
-  const passkey = () => {
+  // Real WebAuthn: register-or-sign-in, mint a session, then advance. No demo
+  // fallback — a passkey that didn't actually log in must surface an error, not
+  // pretend, so we don't land back on the "未登录" state the reader hit before.
+  const passkey = async () => {
     setConnecting("passkey");
-    setTimeout(() => { setConnecting(null); setAccount({ wallet:"通行密钥", addr:"passkey" }); setStep(3); }, 1200);
+    setAuthError("");
+    try {
+      const res = await passkeyLogin();
+      setConnecting(null);
+      setAccount({ wallet:"通行密钥", addr: res?.user?.handle || "passkey" });
+      setStep(3);
+    } catch (e) {
+      setConnecting(null);
+      setAuthError(e?.name === "NotAllowedError" ? "通行密钥操作已取消，请重试" : (e?.message || "通行密钥登录失败，请重试"));
+    }
   };
   const togglePick = (k) => setPicks(p => p.includes(k) ? p.filter(x=>x!==k) : [...p, k]);
 
@@ -145,6 +160,7 @@ function Onboarding({ onFinish }){
                 </button>
                 <button className="btn btn-quiet" disabled={!!connecting} onClick={()=>finish()}>先逛逛</button>
               </div>
+              {authError && <div className="onb-auth-error" role="alert">{authError}</div>}
               <div className="onb-fine">连接即表示同意以 CC0 协议共享你的公开批注。私钥永不离开你的钱包。</div>
             </div>
           )}

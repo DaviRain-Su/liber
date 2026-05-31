@@ -6,6 +6,9 @@ import {
   upsertWalletUser, createGuestUser, getUser, createCliDevice, approveCliDevice,
   pollCliDevice, requireUser, createCliPublishToken,
 } from "../lib/auth";
+import {
+  passkeyRegisterOptions, passkeyRegisterVerify, passkeyLoginOptions, passkeyLoginVerify,
+} from "../lib/passkey";
 import { readingStats } from "../lib/reading-summary";
 import { run } from "../lib/db";
 
@@ -37,6 +40,26 @@ auth.post("/verify", async (c) => {
 auth.post("/guest", async (c) => {
   const user = await createGuestUser(c.env);
   const token = await createSession(c.env, user.id);
+  setCookie(c, "liber_session", token, cookieOpts);
+  return c.json({ token, user });
+});
+
+// passkey (通行密钥 / WebAuthn) — register a new credential+account, or log in
+// with an existing one. Both verify paths mint a session like /verify above.
+auth.post("/passkey/register/options", async (c) => c.json(await passkeyRegisterOptions(c)));
+
+auth.post("/passkey/register/verify", async (c) => {
+  const { response } = await c.req.json();
+  const { token, user } = await passkeyRegisterVerify(c, response);
+  setCookie(c, "liber_session", token, cookieOpts);
+  return c.json({ token, user });
+});
+
+auth.post("/passkey/login/options", async (c) => c.json(await passkeyLoginOptions(c)));
+
+auth.post("/passkey/login/verify", async (c) => {
+  const { response } = await c.req.json();
+  const { token, user } = await passkeyLoginVerify(c, response);
   setCookie(c, "liber_session", token, cookieOpts);
   return c.json({ token, user });
 });
@@ -88,7 +111,7 @@ auth.get("/me", async (c) => {
   if (!user) return c.json({ user: null });
   if (user.is_guest) return c.json({ user: null });
   const stats = await readingStats(c.env, uid);
-  return c.json({ user: { ...user, wallet: user.sui_address, stats } });
+  return c.json({ user: { ...user, wallet: user.sui_address || "通行密钥", stats } });
 });
 
 auth.put("/me", async (c) => {
@@ -111,7 +134,7 @@ auth.put("/me", async (c) => {
   );
   const next = await getUser(c.env, uid);
   const stats = await readingStats(c.env, uid);
-  return c.json({ user: { ...next, wallet: next?.sui_address, stats } });
+  return c.json({ user: { ...next, wallet: next?.sui_address || "通行密钥", stats } });
 });
 
 export default auth;
