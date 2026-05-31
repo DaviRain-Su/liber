@@ -60,6 +60,9 @@ binding = "BROWSER"
 #   WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
 [vars]
 CHAIN = "sui"
+# Google "Sign in with Google" client id (public; the ID-token aud is checked
+# against it). Add your site to the OAuth client's Authorized JavaScript origins.
+GOOGLE_CLIENT_ID = "1021328086145-18jc2gqb4rdflor24ein4ub5pgkhi4qn.apps.googleusercontent.com"
 WALRUS_PUBLISHER = "https://publisher.walrus-testnet.walrus.space"
 WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
 WALRUS_PUBLISH_TIMEOUT_MS = "800"

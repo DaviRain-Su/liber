@@ -42,6 +42,9 @@ export interface Env {
   EVM_REGISTRY?: string;     // deployed registry contract address
   // Bearer secret enabling the admin-only book-text ingest endpoint (optional).
   ADMIN_TOKEN?: string;
+  // Google OAuth client id for "Sign in with Google" (public; the ID-token `aud`
+  // is checked against it). Unset = Google login disabled.
+  GOOGLE_CLIENT_ID?: string;
   // Comma-separated Sui addresses whose CLI publish token also counts as a
   // platform/graph admin (in addition to ADMIN_TOKEN). A self-minted CLI token
   // from a non-listed wallet is NOT admin. Unset = only ADMIN_TOKEN is admin.

@@ -35,6 +35,8 @@ function Onboarding({ onFinish }){
   const [account, setAccount] = useOnb(null);       // {wallet, addr}
   const [authError, setAuthError] = useOnb("");     // sign-in error message
   const [picks, setPicks] = useOnb(["philo"]);
+  const [googleOn, setGoogleOn] = useOnb(false);    // Google login configured + button mounted
+  const googleRef = React.useRef(null);
   const total = 5;
   const catalogTotal = getCatalogTotal();
 
@@ -87,6 +89,25 @@ function Onboarding({ onFinish }){
       }
     }
   };
+  // Mount Google's "Sign in with Google" button when the sign-in step is shown,
+  // but only if the backend has GOOGLE_CLIENT_ID set (otherwise it stays hidden).
+  useEonb(() => {
+    if (step !== 2) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { mountGoogleButton } = await import("../lib/google.js");
+        if (cancelled || !googleRef.current) return;
+        const ok = await mountGoogleButton(googleRef.current, {
+          onSuccess: ({ user }) => { setConnecting(null); setAuthError(""); setAccount({ wallet:"Google", addr: user?.name || user?.handle || "google" }); setStep(3); },
+          onError: (e) => { if (!cancelled) setAuthError(e?.message || "Google 登录失败，请重试"); },
+        });
+        if (!cancelled) setGoogleOn(ok);
+      } catch { if (!cancelled) setGoogleOn(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [step]);
+
   const togglePick = (k) => setPicks(p => p.includes(k) ? p.filter(x=>x!==k) : [...p, k]);
 
   const finish = async () => {
@@ -173,6 +194,7 @@ function Onboarding({ onFinish }){
                   </button>
                 ))}
               </div>
+              <div className="google-host" ref={googleRef} style={{ display: googleOn ? "flex" : "none", justifyContent:"center", margin:"4px 0 2px" }} />
               <div className="onb-or"><span>或</span></div>
               <div className="signin-alt">
                 <button className={`btn btn-ghost ${connecting==="passkey"?"connecting":""}`} disabled={!!connecting} onClick={()=>passkey("signin")}>

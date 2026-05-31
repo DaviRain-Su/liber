@@ -11,8 +11,9 @@ import {
 } from "../lib/passkey";
 import { readingStats } from "../lib/reading-summary";
 import { chainById } from "../lib/chains";
+import { verifyGoogleIdToken } from "../lib/google-auth.mjs";
 import { loginMessage, sameSuiAddress } from "../lib/verify.mjs";
-import { run } from "../lib/db";
+import { run, first, id, now } from "../lib/db";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -54,6 +55,41 @@ auth.post("/verify", async (c) => {
     }
   }
   const user = await upsertWalletUser(c.env, signer);
+  const token = await createSession(c.env, user.id);
+  setCookie(c, "liber_session", token, cookieOpts);
+  return c.json({ token, user });
+});
+
+// Public config for the browser's Google Identity Services init. Null when Google
+// login isn't configured (GOOGLE_CLIENT_ID unset) so the UI hides the button.
+auth.get("/google/config", (c) => c.json({ clientId: c.env.GOOGLE_CLIENT_ID || null }));
+
+// "Sign in with Google": the browser sends the ID token (a JWT) it got from GIS;
+// we verify it against Google's keys (RS256) and our client id, then upsert a
+// user keyed by the Google subject id and mint a session — same shape as /verify.
+auth.post("/google", async (c) => {
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  if (!clientId) return c.json({ error: "Google 登录未配置" }, 501);
+  const { credential } = await c.req.json();
+  const profile = await verifyGoogleIdToken(credential, clientId);
+  if (!profile || !profile.sub) return c.json({ error: "Google 身份验证失败" }, 401);
+  // The subject id is the stable identity; store it in the identity column (the
+  // legacy `sui_address`, which already holds evm:/solana:/wallet ids — formats
+  // can't collide). Profile fields are set only on first login, never overwritten.
+  const key = `google:${profile.sub}`;
+  let user = await first<any>(c.env.DB, `SELECT * FROM users WHERE sui_address = ?`, key);
+  if (!user) {
+    const uid = id("u_");
+    const name = profile.name || (profile.email ? profile.email.split("@")[0] : "读者");
+    const handle = (profile.email ? `@${profile.email.split("@")[0]}` : `@g_${profile.sub.slice(-8)}`).slice(0, 24);
+    await run(
+      c.env.DB,
+      `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
+      uid, key, handle, name, "#c0392b", [...name][0] || "G", "", now(),
+    );
+    user = await getUser(c.env, uid);
+  }
+  if (!user) return c.json({ error: "账户创建失败" }, 500);
   const token = await createSession(c.env, user.id);
   setCookie(c, "liber_session", token, cookieOpts);
   return c.json({ token, user });

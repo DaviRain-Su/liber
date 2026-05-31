@@ -53,6 +53,8 @@ export const api = {
     logout: async () => { try { await post("/auth/logout"); } finally { setToken(null); } },
     nonce: () => post("/auth/nonce"),
     verify: (payload) => post("/auth/verify", payload),
+    googleConfig: () => get("/auth/google/config"),
+    google: (credential) => post("/auth/google", { credential }),
     passkey: {
       registerOptions: () => post("/auth/passkey/register/options"),
       registerVerify: (response) => post("/auth/passkey/register/verify", { response }),
