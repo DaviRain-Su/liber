@@ -65,6 +65,9 @@ through `window`. The port keeps the **component bodies byte-for-byte identical*
 - **Catalogue data** is hydrated from `/api/books` into `src/lib/catalog.js`.
   When D1 has real imported books, the frontend replaces `window.BOOKS` with
   that live catalogue; the seed module is only a local/offline fallback.
+- **Library browsing** is language-first. The public book grid groups the live
+  catalogue by ISO language code, then exposes the language-prefixed category
+  suffix as that language's internal direction filter.
 - **Styles** are imported in `main.jsx` in the original `<link>` order to
   preserve the cascade.
 
@@ -188,7 +191,9 @@ npm run import:gutenberg-classics -- --publish --json --ids <comma-separated ids
 ```
 
 The importer records ISO language codes and language-prefixed categories from
-Project Gutenberg EPUBs that pass the same `PUBLIC-DOMAIN` license checks.
+Project Gutenberg EPUBs that pass the same `PUBLIC-DOMAIN` license checks. It
+also reports TOC quality warnings and rejects extreme splits such as dictionary
+or index EPUBs that produce hundreds of pseudo-chapters.
 
 The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
 can be published to npm and installed by curators or agents. It requires

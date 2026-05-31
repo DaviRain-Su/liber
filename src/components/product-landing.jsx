@@ -71,7 +71,7 @@ function MiniCover({ b }) {
   );
 }
 
-function Landing({ onEnter, onSignIn }) {
+function Landing({ onEnter, onSignIn, onOpenNews }) {
   const rootRef = useRef(null);
   const navRef = useRef(null);
   const [mode, setMode] = useState("companion");
@@ -135,6 +135,7 @@ function Landing({ onEnter, onSignIn }) {
           <a href="#ai">AI 书友</a>
           <a href="#social">共读</a>
           <a href="#open">开放协议</a>
+          <a href="#news" onClick={(e) => { e.preventDefault(); onOpenNews && onOpenNews(); }}>动态</a>
         </div>
         <div className="nav-right">
           <button className="theme-btn" onClick={toggleTheme} aria-label="切换主题">
@@ -230,6 +231,26 @@ function Landing({ onEnter, onSignIn }) {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ PUBLIC DOMAIN ============ */}
+      <section className="sec" id="public-domain">
+        <div className="wrap">
+          <div className="sec-head reveal">
+            <span className="kicker">公共领域 · 为什么免费</span>
+            <h2 className="display-l">这些书为什么能<br />自由地读、<span className="serif-it">自由地传</span>？</h2>
+            <p className="sub">因为它们属于<b>公共领域（Public Domain）</b>——人类共同的知识遗产。版权终会到期，思想终将回到所有人手中。Liber 做的，是把这份遗产收好、存住、讲清楚。</p>
+          </div>
+          <div className="role-grid reveal d1">
+            <div className="role-card"><div className="rc-no">01 / 版权会到期</div><h3>保护，但不是永远</h3><p>著作权保护有期限。作者离世若干年后（多数国家是 50–70 年），作品自动进入公共领域，任何人都能自由使用——这是法律本来的设计。</p></div>
+            <div className="role-card"><div className="rc-no">02 / 属于所有人</div><h3>进入公共领域 = 属于你我</h3><p>《道德经》《国富论》《沉思录》……这些塑造了文明的书，早已不属于任何个人或公司。复制、翻译、改编、再创作，都无需付费、无需许可。</p></div>
+            <div className="role-card"><div className="rc-no">03 / CC0 再确认</div><h3>我们以 CC0 重新交付</h3><p>对自己整理、转写、生成的部分，Liber 一律用 CC0 公共领域贡献声明放弃权利。拿来即用，永不反悔——和我们收藏的经典一样自由。</p></div>
+          </div>
+          <div className="reveal d1" style={{ marginTop: 30, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+            <button className="btn btn-primary" onClick={() => onOpenNews && onOpenNews("what-is-public-domain")}>读全文：什么是公共领域知识 <span className="arr">→</span></button>
+            <span className="badge-perm">◇ 收录于 · 动态 / News</span>
           </div>
         </div>
       </section>
@@ -455,7 +476,7 @@ function Landing({ onEnter, onSignIn }) {
               </a>
               <p className="muted" style={{ fontSize: 15, maxWidth: "30ch" }}>人类的公共知识，永久、开放、对 AI 友好。一座不会丢失的图书馆。</p>
             </div>
-            <div className="foot-col"><h4>探索</h4><a href="#discover">书库</a><a href="#ai">AI 书友</a><a href="#social">共读</a><a href="#collection">馆藏</a></div>
+            <div className="foot-col"><h4>探索</h4><a href="#discover">书库</a><a href="#ai">AI 书友</a><a href="#social">共读</a><a href="#collection">馆藏</a><a href="#news" onClick={(e) => { e.preventDefault(); onOpenNews && onOpenNews(); }}>动态</a></div>
             <div className="foot-col"><h4>协议</h4><a href="#permanence">Walrus 存储</a><a href="#permanence">Arweave 备份</a><a href="#permanence">Sui 索引</a><a href="#open">MCP 接口</a></div>
             <div className="foot-col"><h4>社区</h4><a href="#open">GitHub</a><a href="#open">开发文档</a><a href="#join">加入共建</a><a href="#join">Discord</a></div>
           </div>

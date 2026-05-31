@@ -58,7 +58,7 @@ function Cover({ book, className = "", style }){
 
 /* ---- Top app bar ---- */
 function AppBar({ active, onNav, onHome, onToggleTheme, isDark, onSearch, onProfile, onAgentView, agentOn, user, onLogout }){
-  const links = [["library","书库"],["charts","榜单"],["shelf","我的书架"],["notes","笔记"],["social","共读"]];
+  const links = [["library","书库"],["charts","榜单"],["shelf","我的书架"],["notes","笔记"],["social","共读"],["news","动态"]];
   const ava = user?.seal || user?.name?.slice(0, 1) || "读";
   return (
     <div className="appbar">
@@ -97,6 +97,8 @@ function MobileTabBar({ active, onNav }){
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M5 4h12l2 2v14H5z"/><path d="M9 9h7M9 13h7M9 17h4"/></svg>],
     ["social","共读",
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 20c0-3 2.5-5 5-5s5 2 5 5M14 20c0-2.2 1.2-3.6 3-3.8"/></svg>],
+    ["news","动态",
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 5h12v14H6a2 2 0 0 1-2-2z"/><path d="M16 8h3a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2"/><path d="M7 9h6M7 13h6M7 17h4"/></svg>],
     ["profile","我的",
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>],
   ];

@@ -418,17 +418,40 @@ export async function hasLibraryBooks(env: Env) {
   return Number(row?.n || 0) > 0;
 }
 
-export async function listBooks(env: Env, opts: { cat?: string; sort?: string } = {}) {
+function scopedCategory(cat?: string) {
+  const value = compact(cat);
+  return value && !value.startsWith("全部") ? value : "";
+}
+
+export async function countBooks(env: Env, opts: { cat?: string } = {}) {
+  const cat = scopedCategory(opts.cat);
+  const row = cat
+    ? await first<{ n: number }>(env.DB, `SELECT COUNT(*) AS n FROM library_books WHERE category = ?`, cat)
+    : await first<{ n: number }>(env.DB, `SELECT COUNT(*) AS n FROM library_books`);
+  const total = Number(row?.n || 0);
+  if (total > 0) return total;
+  const seed = S.BOOKS.map((b) => ({ ...b, dynamic: false }));
+  return cat ? seed.filter((b) => b.cat === cat).length : seed.length;
+}
+
+export async function listBooks(env: Env, opts: { cat?: string; sort?: string; limit?: number } = {}) {
+  const cat = scopedCategory(opts.cat);
+  const limit = Math.max(1, Math.min(Number(opts.limit) || 1000, 2000));
+  const sql = `SELECT id, title, subtitle, author, category, lang, year, pages, words AS words_count,
+                      cover_class, seal, blurb, description, featured, walrus, arweave, sui_index,
+                      license, source_url, created_at
+               FROM library_books
+               ${cat ? "WHERE category = ?" : ""}
+               ORDER BY created_at DESC
+               LIMIT ?`;
   const rows = await all<any>(
     env.DB,
-    `SELECT id, title, subtitle, author, category, lang, year, pages, words AS words_count,
-            cover_class, seal, blurb, description, featured, walrus, arweave, sui_index,
-            license, source_url, created_at
-     FROM library_books ORDER BY created_at DESC LIMIT 200`,
+    sql,
+    ...(cat ? [cat, limit] : [limit]),
   );
   const dynamic = rows.map(normalizeBook);
   let list = dynamic.length ? dynamic : S.BOOKS.map((b) => ({ ...b, dynamic: false }));
-  if (opts.cat && !opts.cat.startsWith("全部")) list = list.filter((b) => b.cat === opts.cat);
+  if (cat && !dynamic.length) list = list.filter((b) => b.cat === cat);
   if (opts.sort === "lines") list = [...list].sort((a, b) => b.liners - a.liners);
   else list = [...list].sort((a, b) => b.readsN - a.readsN);
   return list;
