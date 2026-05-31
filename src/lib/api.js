@@ -53,6 +53,12 @@ export const api = {
     logout: async () => { try { await post("/auth/logout"); } finally { setToken(null); } },
     nonce: () => post("/auth/nonce"),
     verify: (payload) => post("/auth/verify", payload),
+    passkey: {
+      registerOptions: () => post("/auth/passkey/register/options"),
+      registerVerify: (response) => post("/auth/passkey/register/verify", { response }),
+      loginOptions: () => post("/auth/passkey/login/options"),
+      loginVerify: (response) => post("/auth/passkey/login/verify", { response }),
+    },
     updateMe: (payload) => put("/auth/me", payload),
     cliStart: () => post("/auth/cli/start"),
     cliPoll: (deviceCode) => get(`/auth/cli/poll/${encodeURIComponent(deviceCode)}`),
