@@ -88,7 +88,17 @@ function safeId(raw: string | undefined, title: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 64);
-  return slug || id("book_");
+  if (slug) return slug;
+  // Non-ASCII (e.g. Chinese-only) title with no usable ascii slug: derive a
+  // STABLE id from the title (FNV-1a) so re-ingesting the same book maps to the
+  // same row — idempotent re-publish — instead of a random UUID that would
+  // duplicate the book and all its chapter blobs every time.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < base.length; i++) { h ^= base.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  // Underscore prefix keeps this OUT of the slug namespace (the slug pass only
+  // emits [a-z0-9-], never "_"), so a crafted ascii title can never collide with
+  // a hashed CJK id.
+  return `book_${(h >>> 0).toString(36)}`;
 }
 
 function sealFor(title: string): string {
@@ -337,8 +347,9 @@ async function deleteStaleChapters(env: Env, bookId: string, keepNumbers: number
   const requestedNumbers = [...new Set(keepNumbers.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0))];
   if (!requestedNumbers.length) return;
   const keep = new Set(requestedNumbers);
-  const existing = await all<any>(env.DB, `SELECT n FROM library_chapters WHERE book_id = ?`, bookId);
-  const stale = existing.map((r) => Number(r.n)).filter((n) => !keep.has(n));
+  const existing = await all<any>(env.DB, `SELECT n, blob_key FROM library_chapters WHERE book_id = ?`, bookId);
+  const staleRows = existing.filter((r) => !keep.has(Number(r.n)));
+  const stale = staleRows.map((r) => Number(r.n));
   for (let i = 0; i < stale.length; i += 80) {
     const batch = stale.slice(i, i + 80);
     await run(
@@ -346,6 +357,14 @@ async function deleteStaleChapters(env: Env, bookId: string, keepNumbers: number
       `DELETE FROM library_chapters WHERE book_id = ? AND n IN (${batch.map(() => "?").join(",")})`,
       bookId, ...batch,
     );
+  }
+  // Also drop the orphaned chapter blobs (R2 object + blobs registry row) for
+  // every removed chapter — otherwise re-ingesting/renumbering leaks storage and
+  // leaves blobs rows advertising addresses no book references anymore.
+  for (const r of staleRows) {
+    if (!r.blob_key) continue;
+    await env.R2.delete(r.blob_key).catch(() => {});
+    await run(env.DB, `DELETE FROM blobs WHERE key = ?`, r.blob_key).catch(() => {});
   }
   if (stale.length) await env.R2.delete(`book/${bookId}/reader.epub`).catch(() => {});
 }

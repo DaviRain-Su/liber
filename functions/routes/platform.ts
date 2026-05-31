@@ -45,7 +45,13 @@ platform.get("/jobs", async (c) => {
      ORDER BY created_at DESC LIMIT 80`,
     ...(status ? [status] : []),
   );
-  return c.json({ jobs: rows.map((row) => ({ ...row, payload: JSON.parse(row.payload || "{}"), result: row.result ? JSON.parse(row.result) : null })) });
+  return c.json({ jobs: rows.map((row) => {
+    let payload: any = {};
+    let result: any = null;
+    try { payload = JSON.parse(row.payload || "{}"); } catch { /* corrupt row — don't 500 the whole list */ }
+    try { result = row.result ? JSON.parse(row.result) : null; } catch { /* corrupt row */ }
+    return { ...row, payload, result };
+  }) });
 });
 
 platform.post("/jobs", async (c) => {

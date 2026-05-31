@@ -58,6 +58,9 @@ app.route("/platform", platform);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
+  // A malformed/empty JSON request body makes c.req.json() throw SyntaxError —
+  // report that as a 400 client error, not a 500 (keeps real 500s meaningful).
+  if (err instanceof SyntaxError) return c.json({ error: "请求体格式错误" }, 400);
   console.error("API error:", err);
   return c.json({ error: "服务器内部错误" }, 500);
 });

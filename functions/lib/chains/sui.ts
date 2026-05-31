@@ -1,6 +1,8 @@
 // Sui chain adapter. Reads (chainInfo / getObject) need no keys — just a public
-// fullnode RPC. Wallet login verifies an ed25519/secp256k1/multisig/zkLogin
-// personal-message signature. Registration (write) is gated on SUI_SIGNER_KEY +
+// fullnode RPC. Wallet login verifies an ed25519/secp256k1/multisig
+// personal-message signature. (zkLogin/Enoki would additionally need a SuiClient
+// passed to verifyPersonalMessageSignature — not yet wired.) Registration
+// (write) is gated on SUI_SIGNER_KEY +
 // SUI_PACKAGE and needs a deployed Move package (see move/ — not required to run).
 import type { Env } from "../types";
 import type { ChainAdapter, ChainRef, ChainInfo } from "./types";

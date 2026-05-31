@@ -18,9 +18,3 @@ const ADAPTERS: Record<string, ChainAdapter> = {
 export function chain(env: Env): ChainAdapter {
   return ADAPTERS[(env.CHAIN || "sui").toLowerCase()] || suiAdapter;
 }
-
-// Look up a specific adapter by id (e.g. to verify a signature for the chain a
-// given wallet belongs to, independent of the default).
-export function chainById(id: string): ChainAdapter | null {
-  return ADAPTERS[(id || "").toLowerCase()] || null;
-}

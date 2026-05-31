@@ -6,7 +6,7 @@
 import type { Env } from "../types";
 import * as S from "../seed";
 import { getCharts } from "../charts";
-import { getBook, getChapters, hasLibraryBooks, searchDynamic } from "../catalog";
+import { getBook, getChapterText, getToc, hasLibraryBooks, searchDynamic } from "../catalog";
 import { echoesForSid } from "../graph/echoes";
 import { graphMap } from "../graph/maintenance";
 
@@ -27,7 +27,7 @@ export const TOOLS: LiberTool[] = [
       required: ["query"],
     },
     execute: async (env, args) => {
-      const t = String(args?.query || "").trim();
+      const t = String(args?.query || "").trim().slice(0, 128); // clamp model/client-supplied term
       if (await hasLibraryBooks(env)) {
         const dynamic = await searchDynamic(env, t);
         return dynamic.books.map((b: any) => ({ id: b.id, title: b.t, author: b.a, addr: `liber://${b.id}` }));
@@ -50,10 +50,14 @@ export const TOOLS: LiberTool[] = [
     execute: async (env, args) => {
       const b = await getBook(env, args?.book);
       if (!b) return { error: "未找到该书" };
-      const chapters = await getChapters(env, b.id);
-      const ch = chapters.find((x: any) => x.n === Number(args?.chapter)) || chapters[0];
-      const text = ch ? ch.paras.flat().map((s: any) => s.t).join("") : "";
-      return { book: b.t, chapter: ch?.n, title: ch?.title, text };
+      // Read only the requested chapter, not every chapter blob of the book. When
+      // no chapter is given, fall back to the book's first chapter (some books
+      // aren't 1-indexed) rather than assuming n=1.
+      let n = Number(args?.chapter) || 0;
+      if (!n) { const toc = await getToc(env, b.id); n = toc[0]?.n || 1; }
+      const ch = await getChapterText(env, b.id, n);
+      if (!ch) return { error: "未找到该章" };
+      return { book: b.t, chapter: ch.n, title: ch.title, text: ch.text };
     },
   },
   {

@@ -18,7 +18,7 @@ import {
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
 import type { Env, Variables } from "./types";
-import { first, run, id, now } from "./db";
+import { batch, first, run, id, now } from "./db";
 import { createSession, getUser, type UserRow } from "./auth";
 
 type Ctx = Context<{ Bindings: Env; Variables: Variables }>;
@@ -86,17 +86,6 @@ async function getCredential(env: Env, credId: string): Promise<PasskeyRow | nul
 
 // A passkey reader is a real account with no wallet (sui_address stays NULL —
 // SQLite allows many NULLs in a UNIQUE column).
-async function createPasskeyUser(env: Env, userId: string): Promise<UserRow> {
-  const short = userId.slice(2, 6).toUpperCase();
-  await run(
-    env.DB,
-    `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at)
-     VALUES (?,?,?,?,?,?,?,0,?)`,
-    userId, null, `@${userId.slice(0, 8)}`, `读者 ${short}`, "#3a4fb0", "钥", "", now(),
-  );
-  return (await getUser(env, userId))!;
-}
-
 // 1a) registration options — reserve a fresh user id for this attempt.
 export async function passkeyRegisterOptions(c: Ctx) {
   const userId = id("u_");
@@ -140,14 +129,17 @@ export async function passkeyRegisterVerify(c: Ctx, response: any): Promise<{ to
     throw new HTTPException(400, { message: "通行密钥验证失败" });
   }
 
-  const user = await createPasskeyUser(c.env, userId);
   const cred = verification.registrationInfo.credential;
-  await run(
-    c.env.DB,
-    `INSERT INTO passkeys (id, user_id, public_key, counter, transports, created_at) VALUES (?,?,?,?,?,?)`,
-    cred.id, user.id, bufToB64url(cred.publicKey), cred.counter ?? 0,
-    cred.transports ? JSON.stringify(cred.transports) : null, now(),
-  );
+  // Insert the user and its credential ATOMICALLY — a duplicate credential id
+  // (re-registration) or a D1 error must not leave a committed orphan user row.
+  await batch(c.env.DB, [
+    [`INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
+      userId, null, `@${userId.slice(0, 8)}`, `读者 ${userId.slice(2, 6).toUpperCase()}`, "#3a4fb0", "钥", "", now()],
+    [`INSERT INTO passkeys (id, user_id, public_key, counter, transports, created_at) VALUES (?,?,?,?,?,?)`,
+      cred.id, userId, bufToB64url(cred.publicKey), cred.counter ?? 0,
+      cred.transports ? JSON.stringify(cred.transports) : null, now()],
+  ]);
+  const user = (await getUser(c.env, userId))!;
   const token = await createSession(c.env, user.id);
   return { token, user };
 }

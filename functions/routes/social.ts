@@ -4,7 +4,7 @@ import { all, first, run, id, now } from "../lib/db";
 import { getUser, requireUser, type UserRow } from "../lib/auth";
 import { putBlob } from "../lib/storage";
 import { chain } from "../lib/chains";
-import { getChapterText, getToc, hasLibraryBooks, listBooks, textToChapter } from "../lib/catalog";
+import { getBook, getChapterText, getToc, hasLibraryBooks, listBooks, textToChapter } from "../lib/catalog";
 import { readingStats } from "../lib/reading-summary";
 import * as S from "../lib/seed";
 
@@ -124,78 +124,92 @@ async function publicReaderProfile(env: Env, user: UserRow) {
   };
 }
 
+// Count agree-votes for ONLY the target ids on the page, so the hot list
+// endpoints don't GROUP BY the entire votes table on every load.
+async function voteCountsFor(env: Env, type: string, ids: string[]): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  if (!ids.length) return out;
+  const q = ids.map(() => "?").join(",");
+  try {
+    for (const v of await all<any>(env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type = ? AND target_id IN (${q}) GROUP BY target_id`, type, ...ids)) out[v.target_id] = v.n;
+  } catch { /* votes table may predate migration 0002 */ }
+  return out;
+}
+
+async function buildLiveGroup(env: Env, b: any, userId?: string | null) {
+  const gid = `live-${b.id}`;
+  const [memberRows, memberCountRows, postCount, progressRows, annoRows, toc] = await Promise.all([
+    all<any>(
+      env.DB,
+      `SELECT u.name, u.color, u.seal, gm.user_id
+       FROM group_members gm JOIN users u ON u.id = gm.user_id
+       WHERE gm.group_id = ? ORDER BY gm.joined_at ASC LIMIT 8`,
+      gid,
+    ),
+    all<any>(env.DB, `SELECT COUNT(*) AS n FROM group_members WHERE group_id = ?`, gid),
+    all<any>(env.DB, `SELECT COUNT(*) AS n FROM group_posts WHERE group_id = ?`, gid),
+    all<any>(
+      env.DB,
+      `SELECT p.percent
+       FROM group_members gm JOIN progress p ON p.user_id = gm.user_id
+       WHERE gm.group_id = ? AND p.book_id = ?`,
+      gid, b.id,
+    ),
+    all<any>(
+      env.DB,
+      `SELECT COUNT(*) AS n
+       FROM group_members gm JOIN notes n ON n.user_id = gm.user_id
+       WHERE gm.group_id = ? AND n.book_id = ?
+       UNION ALL
+       SELECT COUNT(*) AS n
+       FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id
+       WHERE gm.group_id = ? AND h.book_id = ?`,
+      gid, b.id, gid, b.id,
+    ),
+    getToc(env, b.id),
+  ]);
+  const progressPct = progressRows.length
+    ? Math.round(progressRows.reduce((sum, r) => sum + Number(r.percent || 0), 0) / progressRows.length)
+    : 0;
+  const annos = annoRows.reduce((sum, r) => sum + Number(r.n || 0), 0);
+  const first = toc[0];
+  const next = toc[Math.min(2, Math.max(0, toc.length - 1))];
+  return {
+    id: gid,
+    name: `《${b.t}》共读`,
+    color: "#1f8a5b",
+    seal: b.seal || "读",
+    book: b.id,
+    bookT: b.t,
+    desc: "围绕真实入库文本的共读小组。成员、讨论、批注和进度都来自线上数据。",
+    members: Number(memberCountRows[0]?.n || memberRows.length),
+    joined: !!userId && memberRows.some((m) => m.user_id === userId),
+    lead: memberRows[0]?.name || "",
+    weekRange: first && next ? `${first.title} — ${next.title}` : first?.title || "从第一章开始",
+    progressPct,
+    annos,
+    posts: Number(postCount[0]?.n || 0),
+    memberAvatars: memberRows.map((m) => ({
+      userId: m.user_id,
+      name: m.name || "读者",
+      n: m.seal || String(m.name || "读")[0],
+      c: m.color || "#3a4fb0",
+    })),
+    schedule: toc.slice(0, 5).map((t, i) => ({
+      wk: i === 0 ? "开始" : `第 ${i + 1} 节`,
+      chap: t.title,
+      state: i === 0 ? "current" : "upcoming",
+    })),
+    discussion: [],
+    topAnno: null,
+  };
+}
+
 async function liveGroups(env: Env, userId?: string | null) {
   const books = await listBooks(env);
   const liveBooks = books.filter((b: any) => b.dynamic);
   const groups: any[] = [];
-  for (const b of liveBooks) {
-    const gid = `live-${b.id}`;
-    const [memberRows, memberCountRows, postCount, progressRows, annoRows, toc] = await Promise.all([
-      all<any>(
-        env.DB,
-        `SELECT u.name, u.color, u.seal, gm.user_id
-         FROM group_members gm JOIN users u ON u.id = gm.user_id
-         WHERE gm.group_id = ? ORDER BY gm.joined_at ASC LIMIT 8`,
-        gid,
-      ),
-      all<any>(env.DB, `SELECT COUNT(*) AS n FROM group_members WHERE group_id = ?`, gid),
-      all<any>(env.DB, `SELECT COUNT(*) AS n FROM group_posts WHERE group_id = ?`, gid),
-      all<any>(
-        env.DB,
-        `SELECT p.percent
-         FROM group_members gm JOIN progress p ON p.user_id = gm.user_id
-         WHERE gm.group_id = ? AND p.book_id = ?`,
-        gid, b.id,
-      ),
-      all<any>(
-        env.DB,
-        `SELECT COUNT(*) AS n
-         FROM group_members gm JOIN notes n ON n.user_id = gm.user_id
-         WHERE gm.group_id = ? AND n.book_id = ?
-         UNION ALL
-         SELECT COUNT(*) AS n
-         FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id
-         WHERE gm.group_id = ? AND h.book_id = ?`,
-        gid, b.id, gid, b.id,
-      ),
-      getToc(env, b.id),
-    ]);
-    const progressPct = progressRows.length
-      ? Math.round(progressRows.reduce((sum, r) => sum + Number(r.percent || 0), 0) / progressRows.length)
-      : 0;
-    const annos = annoRows.reduce((sum, r) => sum + Number(r.n || 0), 0);
-    const first = toc[0];
-    const next = toc[Math.min(2, Math.max(0, toc.length - 1))];
-    groups.push({
-      id: gid,
-      name: `《${b.t}》共读`,
-      color: "#1f8a5b",
-      seal: b.seal || "读",
-      book: b.id,
-      bookT: b.t,
-      desc: "围绕真实入库文本的共读小组。成员、讨论、批注和进度都来自线上数据。",
-      members: Number(memberCountRows[0]?.n || memberRows.length),
-      joined: !!userId && memberRows.some((m) => m.user_id === userId),
-      lead: memberRows[0]?.name || "",
-      weekRange: first && next ? `${first.title} — ${next.title}` : first?.title || "从第一章开始",
-      progressPct,
-      annos,
-      posts: Number(postCount[0]?.n || 0),
-      memberAvatars: memberRows.map((m) => ({
-        userId: m.user_id,
-        name: m.name || "读者",
-        n: m.seal || String(m.name || "读")[0],
-        c: m.color || "#3a4fb0",
-      })),
-      schedule: toc.slice(0, 5).map((t, i) => ({
-        wk: i === 0 ? "开始" : `第 ${i + 1} 节`,
-        chap: t.title,
-        state: i === 0 ? "current" : "upcoming",
-      })),
-      discussion: [],
-      topAnno: null,
-    });
-  }
+  for (const b of liveBooks) groups.push(await buildLiveGroup(env, b, userId));
   return groups;
 }
 
@@ -225,10 +239,7 @@ async function liveFeed(env: Env) {
   // Live agree counts — the votes table is the source of truth (the denormalized
   // s.agree column is never incremented), so the feed must merge it the same way
   // /shares does, or shared conversations always render 0 upvotes.
-  const shareVotes: Record<string, number> = {};
-  try {
-    for (const v of await all<any>(env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type='share' GROUP BY target_id`)) shareVotes[v.target_id] = v.n;
-  } catch { /* votes table may predate migration 0002 */ }
+  const shareVotes = await voteCountsFor(env, "share", shares.map((s) => s.id));
   return [
     ...notes.map((n) => ({
       kind: "anno", userId: n.user_id, u: n.name || "读者", color: n.color || "#3a4fb0", book: n.book_title || n.book_id,
@@ -336,17 +347,13 @@ social.get("/shares", async (c) => {
   }
   const saveCounts: Record<string, number> = {};
   for (const r2 of await all(c.env.DB, `SELECT share_id, COUNT(*) AS n FROM convo_saves GROUP BY share_id`)) saveCounts[r2.share_id] = r2.n;
-  const voteCounts: Record<string, number> = {};
-  try {
-    for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type='share' GROUP BY target_id`)) voteCounts[r2.target_id] = r2.n;
-  } catch {
-    // Same migration window as comments.
-  }
+  const voteCounts = await voteCountsFor(c.env, "share", rows.map((r: any) => r.id));
 
   const byId: Record<string, any> = {};
   const children: Record<string, any[]> = {};
   for (const r of rows) {
-    const data = JSON.parse(r.data || "{}");
+    let data: any = {};
+    try { data = JSON.parse(r.data || "{}"); } catch { /* corrupt row — skip its data */ }
     byId[r.id] = {
       id: r.id, parent: r.parent_id || null, form: r.form, book: r.book_id, bookT: r.book_title || S.bookById(r.book_id)?.t || "",
       seal: data.seal || r.author_seal || "道", chap: data.chap || "", quote: r.quote, sid: r.sid, title: r.title, insight: r.insight,
@@ -411,9 +418,14 @@ social.get("/groups", async (c) => {
 
 social.get("/groups/:id", async (c) => {
   const dynamicOnly = await hasLibraryBooks(c.env);
-  const g = dynamicOnly
-    ? (await liveGroups(c.env, c.get("userId"))).find((x) => x.id === c.req.param("id"))
-    : S.GROUPS.find((x) => x.id === c.req.param("id")) || S.GROUPS[0];
+  let g: any;
+  if (dynamicOnly) {
+    // Load ONLY the requested group's book, not every group's full payload.
+    const b = await getBook(c.env, c.req.param("id").replace(/^live-/, ""));
+    g = b?.dynamic ? await buildLiveGroup(c.env, b, c.get("userId")) : undefined;
+  } else {
+    g = S.GROUPS.find((x) => x.id === c.req.param("id")) || S.GROUPS[0];
+  }
   if (!g) return c.json({ error: "未找到共读小组" }, 404);
   const posts = await all(
     c.env.DB,
@@ -516,10 +528,7 @@ social.get("/comments/:type/:id", async (c) => {
   // Merge live vote counts: comment upvotes are cast via /vote/comment/:id into
   // the votes table; the comments.up column is never incremented, so without
   // this every comment renders 0 regardless of real votes.
-  const voteCounts: Record<string, number> = {};
-  try {
-    for (const v of await all<any>(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type='comment' GROUP BY target_id`)) voteCounts[v.target_id] = v.n;
-  } catch { /* votes table may predate migration 0002 */ }
+  const voteCounts = await voteCountsFor(c.env, "comment", rows.map((r) => r.id));
   return c.json({
     comments: rows.map((r) => ({
       id: r.id, u: r.name || "读者", color: r.color || "#3a4fb0", seal: r.seal || "读",
@@ -528,11 +537,16 @@ social.get("/comments/:type/:id", async (c) => {
   });
 });
 
+// Allowed comment/vote target types — reject fabricated types so junk rows
+// can't accumulate against arbitrary ids.
+const SOCIAL_TARGET_TYPES = new Set(["share", "comment", "work", "book", "note", "group", "reply"]);
+
 social.post("/comments/:type/:id", async (c) => {
   const uid = requireUser(c);
   const { type, id: tid } = c.req.param();
+  if (!SOCIAL_TARGET_TYPES.has(type)) return c.json({ error: "无效的评论目标类型" }, 400);
   const { text } = await c.req.json();
-  const body = (text || "").trim();
+  const body = (text || "").trim().slice(0, 4000);
   if (!body) return c.json({ error: "评论内容为空" }, 400);
   const cid = id("cm_");
   // step 2: persist the comment to decentralized storage (Walrus when configured,
@@ -555,6 +569,7 @@ social.post("/comments/:type/:id", async (c) => {
 social.post("/vote/:type/:id", async (c) => {
   const uid = requireUser(c);
   const { type, id: tid } = c.req.param();
+  if (!SOCIAL_TARGET_TYPES.has(type)) return c.json({ error: "无效的投票目标类型" }, 400);
   const ex = await first(c.env.DB, `SELECT 1 AS x FROM votes WHERE user_id=? AND target_type=? AND target_id=?`, uid, type, tid);
   if (ex) {
     await run(c.env.DB, `DELETE FROM votes WHERE user_id=? AND target_type=? AND target_id=?`, uid, type, tid);

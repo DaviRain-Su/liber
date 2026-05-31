@@ -40,6 +40,8 @@ reading.put("/:bookId/highlight", async (c) => {
     await run(c.env.DB, `DELETE FROM highlights WHERE user_id = ? AND book_id = ? AND sid = ?`, uid, bid, sid);
     return c.json({ ok: true, removed: true });
   }
+  // color becomes a CSS class on the sentence — only accept the known swatches.
+  if (!["hl-user", "hl-yellow", "hl-green"].includes(color)) return c.json({ error: "无效的划线颜色" }, 400);
   await run(
     c.env.DB,
     `INSERT INTO highlights (id, user_id, book_id, sid, color, created_at) VALUES (?,?,?,?,?,?)
