@@ -209,17 +209,18 @@ async function buildLiveGroupsBatch(env: Env, books: any[], userId?: string | nu
 
 async function liveGroups(env: Env, userId?: string | null) {
   // Only id/title/seal are needed here — NOT the reads/liners aggregates that
-  // listBooks computes (those whole-table GROUP-BY scans dominate at scale).
-  const books = await all<any>(env.DB, `SELECT id, title, seal FROM library_books ORDER BY created_at DESC LIMIT 300`);
+  // listBooks computes. Run the book list and the two "which groups are active"
+  // scans in parallel (one round-trip) instead of sequentially.
+  const [books, memberGroups, postGroups] = await Promise.all([
+    all<any>(env.DB, `SELECT id, title, seal FROM library_books ORDER BY created_at DESC LIMIT 300`),
+    all<any>(env.DB, `SELECT DISTINCT group_id FROM group_members`).catch(() => []),
+    all<any>(env.DB, `SELECT DISTINCT group_id FROM group_posts`).catch(() => []),
+  ]);
   if (!books.length) return [];
   const liveBooks = books.map((r) => ({ id: r.id, t: r.title, seal: r.seal }));
+  const active = new Set<string>([...memberGroups, ...postGroups].map((r: any) => r.group_id));
   // Prioritise groups that actually have members/posts, fill up to a cap with
   // recent books, and build them all in a few batched queries.
-  const active = new Set<string>();
-  try {
-    for (const r of await all<any>(env.DB, `SELECT DISTINCT group_id FROM group_members`)) active.add(r.group_id);
-    for (const r of await all<any>(env.DB, `SELECT DISTINCT group_id FROM group_posts`)) active.add(r.group_id);
-  } catch { /* tables may be empty on a fresh db */ }
   const ranked = [
     ...liveBooks.filter((b) => active.has(`live-${b.id}`)),
     ...liveBooks.filter((b) => !active.has(`live-${b.id}`)),
