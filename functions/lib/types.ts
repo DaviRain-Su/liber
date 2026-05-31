@@ -40,6 +40,20 @@ export interface Env {
   EVM_REGISTRY?: string;     // deployed registry contract address
   // Bearer secret enabling the admin-only book-text ingest endpoint (optional).
   ADMIN_TOKEN?: string;
+  // Comma-separated Sui addresses whose CLI publish token also counts as a
+  // platform/graph admin (in addition to ADMIN_TOKEN). A self-minted CLI token
+  // from a non-listed wallet is NOT admin. Unset = only ADMIN_TOKEN is admin.
+  ADMIN_WALLETS?: string;
+  // Comma-separated extra browser origins allowed to make credentialed CORS
+  // requests (the same-origin SPA never needs this). liber-99x.pages.dev +
+  // its preview subdomains + localhost are always allowed.
+  ALLOWED_ORIGINS?: string;
+  // Per-IP requests/minute cap for the public AI endpoints (default 20).
+  AI_RATE_PER_MIN?: string;
+  // Extra hostnames allowed as a /books/ingest server-fetched sourceUrl
+  // (comma-separated). Public-domain sources (gutenberg/archive/wikisource) are
+  // always allowed; everything else is rejected to prevent SSRF.
+  INGEST_HOSTS?: string;
   // AI provider gateway (functions/lib/aiProvider.ts):
   //   AI_PROVIDER: "workers-ai" (default) | "deepseek" | "openai-compat"
   //   AI_MODEL: provider-specific model id (optional; each provider has a default)

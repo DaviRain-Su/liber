@@ -5,6 +5,7 @@ import { companionReply } from "../lib/ai";
 import { activeProvider } from "../lib/aiProvider";
 import { correctCachedTranslation, getCachedTranslation, putCachedTranslation, translationCacheKey } from "../lib/aiCache";
 import { withinQuota, recordUsage, getUsage, estimateTokens } from "../lib/usage";
+import { rateLimit, clientIp } from "../lib/ratelimit";
 import { enqueueSids } from "../lib/graph/embed";
 import * as S from "../lib/seed";
 
@@ -22,6 +23,13 @@ ai.post("/chat", async (c) => {
   const b = await c.req.json();
   const question = (b.question || "").trim();
   if (!question) return c.json({ error: "问题为空" }, 400);
+  // Per-IP rate limit. The chat endpoint runs Workers AI inference and is
+  // reachable without a session (guests are unmetered by quota), so this caps
+  // unmetered cost/abuse from anonymous request loops.
+  const perMin = Number(c.env.AI_RATE_PER_MIN || 20) || 20;
+  if (!(await rateLimit(c.env, `ai-chat:${clientIp(c)}`, perMin, 60)).ok) {
+    return c.json({ error: "请求过于频繁，请稍后再试。" }, 429);
+  }
   const lens = b.lens || "companion";
   const book = b.bookId ? S.bookById(b.bookId) : null;
   const isTranslation = lens === "translate";

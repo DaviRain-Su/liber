@@ -76,14 +76,18 @@ export async function companionReply(env: Env, opts: CompanionInput): Promise<Co
 
   try {
     // routed through the swappable provider gateway (Workers AI / DeepSeek / …)
-    const text = (await aiChat(env, messages as any, {
+    const raw = await aiChat(env, messages as any, {
       maxTokens: translate ? 700 : 512,
       temperature: translate ? 0.2 : 0.7,
       model: translate ? env.AI_TRANSLATION_MODEL : undefined,
       gatewayCache: translate,
-    }))
-      || "（一时没有头绪，换个问法试试？）";
-    return { text, ref: LENS_REF[opts.lens] || LENS_REF.companion };
+    });
+    // An empty (but non-throwing) model response — rate limit, truncation, or a
+    // reasoning-only result — must NOT be cached as if it were a real answer, or
+    // the canned fallback string poisons the translation cache forever. Flag it
+    // as error so the route skips the cache write.
+    const text = raw || "（一时没有头绪，换个问法试试？）";
+    return { text, ref: LENS_REF[opts.lens] || LENS_REF.companion, error: !raw };
   } catch (err) {
     return {
       text: "AI 书友暂时不可用（Workers AI 未绑定或超出额度）。本地仍可继续阅读、划线与批注。",

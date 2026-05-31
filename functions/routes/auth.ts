@@ -25,6 +25,13 @@ auth.post("/nonce", async (c) => {
 // 2) verify a wallet signature via the active chain adapter, then mint a session.
 auth.post("/verify", async (c) => {
   const { address, message, signature, nonce } = await c.req.json();
+  // Bind the signed message to the nonce: the signature must cover the exact
+  // server-issued message template (see /nonce). Without this, message/nonce are
+  // independent fields and a captured (message, signature) pair could be replayed
+  // with a freshly requested nonce. The nonce itself is single-use (consumed).
+  if (typeof message !== "string" || message !== `Liber 登录\nnonce: ${nonce}`) {
+    return c.json({ error: "签名消息与 nonce 不匹配" }, 400);
+  }
   if (!(await consumeNonce(c.env, nonce))) return c.json({ error: "nonce 无效或已过期" }, 400);
   const signer = await verifyWalletSignature(c.env, message, signature, address);
   if (!signer || (address && signer !== address)) {

@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { all, first } from "../lib/db";
-import { getCliPublishToken } from "../lib/auth";
+import { bearerToken, isPlatformAdmin } from "../lib/auth";
+import { rateLimit, clientIp } from "../lib/ratelimit";
 import {
   enqueuePlatformJob,
   platformStatus,
@@ -13,17 +14,20 @@ import {
 
 const platform = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+// Infra/cost admin: ADMIN_TOKEN or a CLI token from an ADMIN_WALLETS-listed
+// wallet. A random user's self-minted CLI token is NOT accepted here.
 async function platformAuth(c: any): Promise<boolean> {
-  const admin = c.env.ADMIN_TOKEN;
-  const auth = c.req.header("Authorization");
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (admin && token === admin) return true;
-  return !!(await getCliPublishToken(c.env, token));
+  return isPlatformAdmin(c.env, bearerToken(c));
 }
 
 platform.get("/status", async (c) => c.json(await platformStatus(c.env)));
 
 platform.get("/search", async (c) => {
+  // Public + runs Workers AI embeddings per query → per-IP rate limit.
+  const perMin = Number(c.env.AI_RATE_PER_MIN || 20) || 20;
+  if (!(await rateLimit(c.env, `sem-search:${clientIp(c)}`, perMin, 60)).ok) {
+    return c.json({ error: "请求过于频繁，请稍后再试。" }, 429);
+  }
   const q = (c.req.query("q") || "").trim();
   const limit = Number(c.req.query("limit") || 8);
   return c.json(await semanticSearch(c.env, q, limit));

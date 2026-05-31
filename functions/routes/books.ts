@@ -19,18 +19,38 @@ import {
   searchDynamic,
   textToChapter,
 } from "../lib/catalog";
-import { getCliPublishToken } from "../lib/auth";
+import { bearerToken, getCliPublishToken, hasAdminToken } from "../lib/auth";
 
 const books = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+// Book publishing: ADMIN_TOKEN (constant-time) or any valid CLI publish token.
 async function ingestAuth(c: any): Promise<{ ok: boolean; userId?: string | null }> {
-  const admin = c.env.ADMIN_TOKEN;
-  const auth = c.req.header("Authorization");
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (admin && token === admin) return { ok: true, userId: c.get("userId") };
+  const token = bearerToken(c);
+  if (hasAdminToken(c.env, token)) return { ok: true, userId: c.get("userId") };
   const cli = await getCliPublishToken(c.env, token);
   if (cli) return { ok: true, userId: cli.userId };
   return { ok: false };
+}
+
+// SSRF guard for the optional server-side fetch of `sourceUrl` in /books/ingest:
+// https only, a small public-domain host allowlist (extend via INGEST_HOSTS),
+// and explicit rejection of loopback/private hosts and IP literals.
+const INGEST_HOST_ALLOW = [/(^|\.)gutenberg\.org$/i, /(^|\.)gutenberg\.net$/i, /(^|\.)archive\.org$/i, /(^|\.)wikisource\.org$/i];
+function isAllowedIngestUrl(raw: string | undefined, env: Env): boolean {
+  if (!raw) return false;
+  let u: URL;
+  try { u = new URL(raw); } catch { return false; }
+  if (u.protocol !== "https:") return false;
+  const host = u.hostname.toLowerCase();
+  if (
+    host === "localhost" || host.endsWith(".local") || host.endsWith(".internal") ||
+    host.includes(":") || host.startsWith("[") ||
+    /^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  ) return false;
+  const extra = (env.INGEST_HOSTS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (extra.includes(host)) return true;
+  return INGEST_HOST_ALLOW.some((re) => re.test(host));
 }
 
 books.get("/books", async (c) => {
@@ -210,6 +230,9 @@ books.post("/books/ingest", async (c) => {
   if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   const body = await c.req.json();
   if (!body.text && !body.epubBase64 && !body.chapters?.length && body.sourceUrl) {
+    if (!isAllowedIngestUrl(body.sourceUrl, c.env)) {
+      return c.json({ error: "sourceUrl 不在允许的来源白名单内（仅限 https 公有领域来源）" }, 400);
+    }
     const res = await fetch(body.sourceUrl);
     if (!res.ok) return c.json({ error: `源文本下载失败：${res.status}` }, 400);
     body.text = await res.text();

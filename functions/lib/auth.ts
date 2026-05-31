@@ -80,6 +80,40 @@ export async function createCliPublishToken(env: Env, user: UserRow): Promise<{ 
   return { token, expiresIn: CLI_TOKEN_TTL };
 }
 
+// Constant-time string compare — avoids leaking ADMIN_TOKEN via response timing.
+export function constantTimeEqual(a?: string | null, b?: string | null): boolean {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Extract a Bearer token from the Authorization header, or null.
+export function bearerToken(c: Ctx): string | null {
+  const auth = c.req.header("Authorization");
+  return auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+}
+
+// True when the token is the platform ADMIN_TOKEN (constant-time).
+export function hasAdminToken(env: Env, token?: string | null): boolean {
+  return !!env.ADMIN_TOKEN && constantTimeEqual(token, env.ADMIN_TOKEN);
+}
+
+// Authorization for infra/cost endpoints (platform jobs, graph backfill/maintenance):
+// the ADMIN_TOKEN, or a CLI publish token whose wallet is allow-listed in
+// ADMIN_WALLETS. A self-minted CLI token from an arbitrary wallet user is NOT
+// admin — that was the privilege-escalation hole. CLI *book publishing* is gated
+// separately (see books.ingestAuth) and still accepts any CLI token.
+export async function isPlatformAdmin(env: Env, token?: string | null): Promise<boolean> {
+  if (hasAdminToken(env, token)) return true;
+  const allow = new Set(
+    (env.ADMIN_WALLETS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+  );
+  if (!allow.size) return false;
+  const cli = await getCliPublishToken(env, token);
+  return !!(cli && cli.wallet && allow.has(cli.wallet.toLowerCase()));
+}
+
 export async function approveCliDevice(env: Env, deviceCode: string, user: UserRow): Promise<{ token: string; expiresIn: number }> {
   const raw = await env.KV.get(`cli-device:${deviceCode}`);
   if (!raw) throw new Error("CLI 授权请求不存在或已过期");

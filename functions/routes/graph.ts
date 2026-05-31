@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
-import { getCliPublishToken } from "../lib/auth";
+import { bearerToken, isPlatformAdmin } from "../lib/auth";
 import { graphStats, graphMap, backfillAll, runMaintenance } from "../lib/graph/maintenance";
 
 // Knowledge-graph admin + status (KNOWLEDGE_GRAPH_SPEC). Backfill/maintenance are
@@ -8,13 +8,10 @@ import { graphStats, graphMap, backfillAll, runMaintenance } from "../lib/graph/
 // stats are read-only and open (handy for the Agent View / debugging).
 const graph = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+// Infra/cost admin (catalogue-wide embedding backfill + maintenance): ADMIN_TOKEN
+// or a CLI token from an ADMIN_WALLETS-listed wallet — not any CLI token.
 async function adminAuth(c: any): Promise<boolean> {
-  const admin = c.env.ADMIN_TOKEN;
-  const auth = c.req.header("Authorization");
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (admin && token === admin) return true;
-  const cli = await getCliPublishToken(c.env, token);
-  return !!cli;
+  return isPlatformAdmin(c.env, bearerToken(c));
 }
 
 // Graph state snapshot: how much is embedded / linked / themed.
