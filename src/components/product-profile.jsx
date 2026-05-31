@@ -132,11 +132,13 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
     return () => { offCatalog(); offShelf(); };
   }, []);
   useEpf(() => {
-    if (!isMe || !window.liberApi?.reading?.summary) return;
+    if (!isMe) { setSummary(null); return; }
+    setSummary(null);   // drop the previous account's summary while we refetch
+    if (!window.liberApi?.reading?.summary) return;
     let live = true;
     window.liberApi.reading.summary().then((r) => { if (live) setSummary(r); }).catch(() => {});
     return () => { live = false; };
-  }, [isMe]);
+  }, [isMe, authUser?.id]);
 
   const seedPerson = !isMe ? (window.PEOPLE || {})[userId] : null;
   const [remotePerson, setRemotePerson] = useSp(null);
@@ -219,7 +221,12 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
 
   const serverReading = (summary?.reading || []).map((r) => ({ id: r.id, at: r.at }));
   const reading = isMe
-    ? shelfReadingEntries(serverReading.length ? serverReading : person.reading || [], catalog)
+    ? (hasAccount
+        // signed in: 在读 is exactly what the server returns (empty == empty), so a
+        // fresh account shows 0 and no other account's local shelf leaks in.
+        ? serverReading.map((r) => ({ ...byId(r.id), at: r.at })).filter((b) => b && b.id)
+        // guest: optimistic local shelf + live-library demo
+        : shelfReadingEntries(person.reading || [], catalog))
     : (person.reading || []).map(r => ({ ...byId(r.id), at:r.at })).filter(b => b && b.id);
   const finished = (person.finished || []).map(byId).filter(Boolean);
   const realStats = isMe && summary?.stats

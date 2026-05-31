@@ -25,6 +25,14 @@ export function addShelfBook(bookId) {
   writeIds(READING_KEY, [bookId, ...getShelfReadingIds()]);
 }
 
+// Drop the local 在读 shelf. Called on logout/account switch so the next
+// account does not inherit the previous one's locally-tracked books.
+export function clearShelf() {
+  if (typeof localStorage === "undefined") return;
+  try { localStorage.removeItem(READING_KEY); } catch { /* ignore */ }
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SHELF_EVENT));
+}
+
 export function subscribeShelf(listener) {
   if (typeof window === "undefined") return () => {};
   window.addEventListener(SHELF_EVENT, listener);

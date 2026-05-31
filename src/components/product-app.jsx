@@ -22,6 +22,7 @@ import { GraphView } from "./product-graph.jsx";
 import { CliAuth } from "./cli-auth.jsx";
 import { setToken } from "../lib/api.js";
 import { findCatalogBook, getCatalogBooks, loadCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
+import { clearShelf } from "../lib/shelf.js";
 
 /* product-app.jsx — router, theme, mount. */
 const { useState: useSt, useEffect: useEf, useCallback: useCb } = React;
@@ -84,6 +85,7 @@ function App(){
 
   const clearLoginState = useCb(() => {
     setToken(null);
+    clearShelf();   // drop the local 在读 shelf so the next account starts clean
     localStorage.removeItem("liber.account");
     localStorage.removeItem("liber.guest");
     localStorage.removeItem("liber.onboarded");
