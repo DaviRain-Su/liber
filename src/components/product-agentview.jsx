@@ -12,6 +12,7 @@ const MCP_TOOLS = [
   { name:"liber.get_highlights", sig:"(book) → Highlight[]", desc:"热门划线与计数" },
   { name:"liber.get_conversations", sig:"(book, sid?) → Convo[]", desc:"读者×AI 的公开对话与 fork 树" },
   { name:"liber.get_echoes", sig:"(sid) → Echo[]", desc:"跨书呼应（连接层）" },
+  { name:"liber.get_graph", sig:"(limit?) → {nodes,edges}", desc:"全馆思维链接图谱（书↔书呼应网络）" },
   { name:"liber.post_annotation", sig:"(sid, text, sig) → id", desc:"以签名身份写入批注" },
 ];
 

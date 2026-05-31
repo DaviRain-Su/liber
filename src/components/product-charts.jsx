@@ -7,7 +7,7 @@ import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 const { useState: useCh, useEffect: useEffC } = React;
 
 const CH_WINDOWS = [["today","今日"],["week","近 7 天"],["month","近 30 天"]];
-const CH_METRICS = [["reads","在读"],["lines","划线"],["convos","对话"],["surge","飙升"]];
+const CH_METRICS = [["reads","在读"],["lines","划线"],["convos","对话"],["echoes","呼应"],["surge","飙升"]];
 
 function Delta({ d }){
   if (d === 0) return <span className="ch-delta flat">—</span>;
@@ -36,7 +36,7 @@ function Charts({ onOpenBook, onBack, onAgentCharts }){
   const useLive = live && live.window === win;
   const seedChartsAllowed = !getCatalogBooks().some((b) => b.dynamic);
   const surgeMap = (useLive ? live.surge : (window.SURGE || {})[win]) || {};
-  const data = ((useLive ? live.rows : seedChartsAllowed ? (window.CHARTS || {})[win] : []) || []).map(r => ({ ...r, surge: surgeMap[r.id] ?? 0 }));
+  const data = ((useLive ? live.rows : seedChartsAllowed ? (window.CHARTS || {})[win] : []) || []).map(r => ({ ...r, surge: surgeMap[r.id] ?? 0, echoes: r.echoes ?? 0 }));
   const ranked = rankBy(data, metric);
   const readTop3 = rankBy(data, "reads").slice(0,3).map(r=>r.id);
   const max = Math.max(...ranked.map(r => r[metric]), 1);
