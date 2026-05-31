@@ -84,6 +84,51 @@ Verifier **refuted** one finding: the knowledge-graph pipeline is not
 "misconfigured/inert" — it is a deliberate, consistently flag-gated
 (`GRAPH_ENABLED`) pre-launch feature.
 
+## Second pass — fixed (commit cf76e41, deployed + live-verified)
+
+A deeper second audit (re-review of recent changes + under-covered subsystems:
+chains/Sui-verify, WebAuthn, the agent/MCP trust boundary, the import pipeline,
+reader/frontend, cross-cutting validation). New findings fixed:
+
+- **HIGH** — `/api/mcp/call` was unauthenticated AND unrate-limited while reaching
+  billable Workers AI (`get_echoes`) + D1 writes; the first-pass AI cost fix missed
+  it. Now per-IP rate-limited (verified: 25-burst → 24×429).
+- **HIGH** — cross-publisher book takeover: `ON CONFLICT(id)` let any CLI-token
+  holder overwrite another publisher's book. Added `assertBookWritable()` at every
+  ingest entry point, threading the actor (`functions/lib/catalog.ts`, `books.ts`).
+- **HIGH** — account-switch leaked the previous user's highlights/notes/shared-cards/
+  reading-place (`liber.hl.*`/`liber.nt.*`/`liber.shared`/`liber.place` never cleared);
+  the shelf-only fix missed them (`product-app.jsx`).
+- **HIGH** — global translation-cache poisoning via `PUT /ai/translations/:cacheKey`;
+  now admin-gated (verified: non-admin → 403).
+- **MED** (3 were regressions from my own recent batches) — SSRF redirect-follow
+  bypass in `/books/ingest` (now manual redirect + per-hop re-validation + 12MB cap);
+  `runPlatformJob` re-ran `'done'` jobs on queue redelivery (now excluded);
+  `/billing/admin/activate` non-constant-time token compare (now `hasAdminToken`);
+  passkey `userVerification` mismatch (now `requireUserVerification:false`).
+
+Confirmed SOUND by the verifier (no change needed): zh-convert placeholder, upvote
+no-double-count, platform stale-reclaim serialization, listBooks sort injection-safe,
+no XSS surface (zero `dangerouslySetInnerHTML`), path-traversal not possible (keys
+via `safeId`).
+
+## Second pass — remaining backlog
+
+- **MED** — passkey: non-atomic registration (orphan user on cred-insert failure);
+  no `excludeCredentials` + localStorage-only heuristic can fork a second account.
+- **MED** — import: `deleteStaleChapters` orphans R2 chapter blobs + `blobs` rows;
+  `safeId` strips CJK so Chinese-only titles without an id get a random id (breaks
+  idempotent re-publish); chapter text silently truncates to `text_preview` (5000
+  chars) on R2 miss.
+- **MED** — `/groups/:id` builds every group then keeps one (N×~6 queries); malformed
+  JSON body → 500 instead of 400 on most write routes (a few fixed: mcp/ai/billing).
+- **MED** — Sui adapter can't verify zkLogin signatures (doc claims it; fails closed).
+- **LOW** — read_passage/search N+1 + leading-wildcard LIKE; vote-count merges scan
+  the whole votes table (no `target_id IN (...)`); `searchDynamic` fabricates sentence
+  sids; highlight color stored unvalidated; unbounded social post body sizes;
+  `/vote` accepts arbitrary `target_type`; login address strict-compare vs
+  `sameSuiAddress`; dead `chainById`.
+
 ## Methodology
 
 8 parallel auditors read real code and reported findings with `file:line`; every
