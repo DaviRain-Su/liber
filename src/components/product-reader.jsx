@@ -275,13 +275,14 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     return () => { live = false; };
   }, [bookId, ch?.n, ch?.placeholder, ch?.status]);
 
-  /* layout (driven by tweaks) */
+  /* layout (driven by tweaks + the in-reader 版式 switcher) */
   const [layout, setLayout] = useS(localStorage.getItem("liber.reader.layout") || "classic");
   useE(() => {
     const h = e => setLayout(e.detail);
     window.addEventListener("liber-reader-layout", h);
     return () => window.removeEventListener("liber-reader-layout", h);
   }, []);
+  const chooseLayout = (k) => { setLayout(k); localStorage.setItem("liber.reader.layout", k); window.dispatchEvent(new CustomEvent("liber-reader-layout", { detail: k })); };
   const [readMode, setReadModeState] = useS(() => storedReaderMode(seedBook));
   const epubControl = useR(null);
   const [epubToc, setEpubToc] = useS([]);
@@ -313,13 +314,35 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   const [font, setFont]     = useS(() => load("font", "song"));
   const [size, setSize]     = useS(() => +load("size", 21));
   const [lead, setLead]     = useS(() => +load("lead", 1.95));
-  const [meas, setMeas]     = useS(() => +load("meas", 38));
+  const [meas, setMeas]     = useS(() => {
+    const raw = localStorage.getItem("liber.set.meas");
+    /* widen the default column (was 38rem → too much side whitespace); migrate the stale default once */
+    if (raw == null || localStorage.getItem("liber.set.ver") !== "2") return 46;
+    return +raw;
+  });
   const [rtheme, setRtheme] = useS(() => load("rtheme", "cream"));
   useE(() => { localStorage.setItem("liber.set.font", font); }, [font]);
   useE(() => { localStorage.setItem("liber.set.size", size); }, [size]);
   useE(() => { localStorage.setItem("liber.set.lead", lead); }, [lead]);
-  useE(() => { localStorage.setItem("liber.set.meas", meas); }, [meas]);
+  useE(() => { localStorage.setItem("liber.set.meas", meas); localStorage.setItem("liber.set.ver", "2"); }, [meas]);
   useE(() => { localStorage.setItem("liber.set.rtheme", rtheme); }, [rtheme]);
+
+  /* ---- page-turn mode: scroll | slide | book | curl | fade (applies to 互动/text reading) ---- */
+  const [pageMode, setPageMode] = useS(() => load("pagemode", "scroll"));
+  useE(() => { localStorage.setItem("liber.set.pagemode", pageMode); }, [pageMode]);
+  const paged = pageMode !== "scroll" && readMode === "text" && !noText;
+  const flowRef = useR(null);
+  const vpRef = useR(null);
+  const [page, setPage] = useS(0);
+  const [pageCount, setPageCount] = useS(1);
+  const [step, setStep] = useS(0);
+  const [colw, setColw] = useS(0);
+  const [gap, setGap] = useS(88);
+  const [fading, setFading] = useS(false);
+  const [flip, setFlip] = useS(null);   // page-curl overlay: { show, bg, dir }
+  const animatingRef = useR(false);
+  const pendingLast = useR(false);
+  const isCurl = pageMode === "curl";
 
   const fontFam = { song: "var(--body)", kai: "'Cormorant Garamond', 'KaiTi', serif", hei: "'IBM Plex Mono', sans-serif" }[font] || "var(--body)";
 
@@ -582,15 +605,81 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     setTocOpen(false);
   }, [setReadMode]);
 
+  /* ---- pagination: measure columns + page count when in a paged text mode ---- */
+  React.useLayoutEffect(() => {
+    if (!paged) return;
+    const flow = flowRef.current, vp = vpRef.current;
+    if (!flow || !vp) return;
+    const GAP = pageMode === "book" ? 54 : 88;
+    const measure = () => {
+      const cs = getComputedStyle(flow);
+      const padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
+      const contentW = Math.max(120, flow.clientWidth - padL - padR);
+      const cw = pageMode === "book" ? (contentW - GAP) / 2 : contentW;
+      flow.style.columnWidth = cw + "px";
+      flow.style.columnGap = GAP + "px";
+      const cols = Math.max(1, Math.round((flow.scrollWidth - padL - padR + GAP) / (cw + GAP)));
+      const pages = pageMode === "book" ? Math.ceil(cols / 2) : cols;
+      const pitch = pageMode === "book" ? (cw * 2 + GAP * 2) : (cw + GAP);
+      setColw(cw); setGap(GAP); setStep(pitch);
+      setPageCount(Math.max(1, pages));
+      if (pendingLast.current){ pendingLast.current = false; setPage(Math.max(0, pages - 1)); }
+      else setPage(p => Math.min(p, Math.max(0, pages - 1)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(vp);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, [paged, pageMode, size, lead, meas, font, cIdx, ch]);
+
+  /* reset to first page when chapter changes (unless we asked for the last page) */
+  useE(() => { if (!pendingLast.current) setPage(0); }, [cIdx]);
+
+  const turnPage = (dir) => {
+    const apply = () => {
+      if (dir > 0){
+        if (page < pageCount - 1) setPage(page + 1);
+        else if (cIdx < chapters.length - 1){ setPage(0); setCIdx(cIdx + 1); }
+      } else {
+        if (page > 0) setPage(page - 1);
+        else if (cIdx > 0){ pendingLast.current = true; setCIdx(cIdx - 1); }
+      }
+    };
+    if (pageMode === "fade"){ setFading(true); setTimeout(() => { apply(); setFading(false); }, 200); }
+    else apply();
+  };
+
+  /* ---- realistic paper page-curl (单页掀页) ---- */
+  const flipPage = (dir) => {
+    if (animatingRef.current) return;
+    /* chapter boundaries: hop without the curl animation */
+    if (dir > 0 && page >= pageCount - 1){ if (cIdx < chapters.length - 1){ setPage(0); setCIdx(cIdx + 1); } return; }
+    if (dir < 0 && page <= 0){ if (cIdx > 0){ pendingLast.current = true; setCIdx(cIdx - 1); } return; }
+    const from = page, to = page + dir;
+    const readerEl = document.querySelector(".reader");
+    const bg = readerEl ? getComputedStyle(readerEl).backgroundColor : "#f5efe2";
+    animatingRef.current = true;
+    if (dir > 0){
+      setPage(to);                                 // next page sits underneath
+      setFlip({ show: from, dir, bg });            // leaving page flips away (CSS curlFwd)
+    } else {
+      setFlip({ show: to, dir, bg });              // incoming page flips in (CSS curlBwd)
+    }
+    setTimeout(() => { if (dir < 0) setPage(to); setFlip(null); animatingRef.current = false; }, 740);
+  };
+
+  /* unified page advance: curl uses the flip engine, others slide/fade */
+  const advance = (dir) => { if (isCurl) flipPage(dir); else turnPage(dir); };
+
   useE(() => {
     const onKey = (e) => {
       if (e.key === "Escape"){ if (aiOpen) setAiOpen(false); else if (tocOpen) setTocOpen(false); else if (setOpen) setSetOpen(false); else if (notePop) setNotePop(null); else onClose(); }
-      if (e.key === "ArrowRight" && !aiOpen) go(1);
-      if (e.key === "ArrowLeft" && !aiOpen) go(-1);
+      if (e.key === "ArrowRight" && !aiOpen){ paged ? advance(1) : go(1); }
+      if (e.key === "ArrowLeft" && !aiOpen){ paged ? advance(-1) : go(-1); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [aiOpen, tocOpen, setOpen, notePop, readMode]);
+  }, [aiOpen, tocOpen, setOpen, notePop, readMode, paged, pageMode, page, pageCount, cIdx]);
 
   /* ---- render one sentence ---- */
   const renderSentence = (s) => {
@@ -629,7 +718,52 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
     </p>
   );
 
-  const pct = Math.round(((cIdx + prog) / chapterCount) * 100);
+  /* per-chapter reading-time estimate (~380 字/分钟) */
+  const chapChars = ch.paras.flat().reduce((s, seg) => s + (seg.t ? seg.t.length : 0), 0);
+  const chapMins = Math.max(1, Math.round(chapChars / 380));
+  const barProg = paged ? (pageCount > 1 ? page / (pageCount - 1) : 1) : prog;
+  const pct = Math.round(((cIdx + barProg) / chapterCount) * 100);
+
+  /* chapter body — shared by scroll + paged layouts */
+  const chapterBody = (
+    <>
+      <div className="rd-chap-no">第 {String(ch.n).padStart(2,"0")} 章{ch.paras.length ? ` · 约 ${chapMins} 分钟` : ""}</div>
+      <h1 className="rd-chap-title">{ch.title}</h1>
+      <div className="rd-chap-rule"/>
+      <div className="rd-text">
+        {ch.paras.map(renderParagraph)}
+      </div>
+      {(() => {
+        const echoSid = ch.paras.flat().find(s => window.ECHOES[s.id]);
+        const echo = echoSid ? window.ECHOES[echoSid.id] : null;
+        const crossRec = echo ? echo.items.find(it => it.inLib) : null;
+        const nextChap = chapters[cIdx+1];
+        if (!crossRec && !nextChap) return null;
+        return (
+          <div className="rd-chapter-end">
+            <div className="rce-rule"/>
+            <div className="rce-h">读完这一章 · 顺着线索读下去</div>
+            <div className="rce-cards">
+              {nextChap && (
+                <div className="rce-card" onClick={() => go(1)}>
+                  <span className="rce-seal" style={{ background:"#211b15", color:"#ece2cf" }}>{book.seal}</span>
+                  <div className="rce-mid"><div className="rce-lab">本书 · 接着读</div><div className="rce-t">第 {nextChap.n} 章 · {nextChap.title}</div></div>
+                  <span className="rce-go">{I.right}</span>
+                </div>
+              )}
+              {crossRec && (
+                <div className="rce-card" onClick={() => onOpenBook && onOpenBook(crossRec.bookId)}>
+                  <span className="rce-seal" style={{ background: crossRec.color }}>{crossRec.seal}</span>
+                  <div className="rce-mid"><div className="rce-lab">跨书 · {echo.theme}</div><div className="rce-t">{crossRec.bookT} · {crossRec.chap}</div><div className="rce-why">{crossRec.why}</div></div>
+                  <span className="rce-go">{I.right}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+    </>
+  );
   const activeEpubHref = epubLocation?.start?.href || "";
   const activeEpubItem = readMode === "epub" && activeEpubHref
     ? epubToc.find((item) => sameEpubHref(item.href, activeEpubHref))
@@ -698,44 +832,34 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
               )}
             </div>
           </div>
+        ) : paged ? (
+          <div className="rd-scroll rd-scroll-paged" data-style={pageMode}>
+            <div className="rd-paged-vp" ref={vpRef}>
+              <div className={"rd-col rd-paged-flow"+(fading?" fading":"")} ref={flowRef} onMouseUp={onMouseUp}
+                style={{ transform:`translateX(${-page*step}px)`, opacity: fading ? 0 : 1 }}>
+                {chapterBody}
+              </div>
+              {isCurl && flip && (
+                <div className={"rd-curl "+(flip.dir>0?"fwd":"bwd")} aria-hidden="true">
+                  <div className="rd-curl-face" style={{ background: flip.bg }}>
+                    <div className="rd-col rd-paged-flow" style={{ columnWidth: colw+"px", columnGap: gap+"px", transform:`translateX(${-flip.show*step}px)` }}>
+                      {chapterBody}
+                    </div>
+                    <div className="rd-curl-sheen"/>
+                  </div>
+                  <div className="rd-curl-back" style={{ background: flip.bg }}/>
+                </div>
+              )}
+            </div>
+            <div className="rd-spine" aria-hidden="true"/>
+            <button className="rd-pg-arrow left" onClick={() => advance(-1)} disabled={page===0 && cIdx===0} aria-label="上一页">{I.left}</button>
+            <button className="rd-pg-arrow right" onClick={() => advance(1)} disabled={page>=pageCount-1 && cIdx===chapters.length-1} aria-label="下一页">{I.right}</button>
+            <div className="rd-page-ind">{page+1} / {pageCount}</div>
+          </div>
         ) : (
           <div className="rd-scroll" ref={scrollRef}>
             <div className="rd-col" key={`${book.id}-${ch.n}`} onMouseUp={onMouseUp}>
-              <div className="rd-chap-no">第 {String(ch.n).padStart(2,"0")} 章</div>
-              <h1 className="rd-chap-title">{ch.title}</h1>
-              <div className="rd-chap-rule"/>
-              <div className="rd-text">
-                {ch.paras.map(renderParagraph)}
-              </div>
-              {(() => {
-                const echoSid = ch.paras.flat().find(s => window.ECHOES[s.id]);
-                const echo = echoSid ? window.ECHOES[echoSid.id] : null;
-                const crossRec = echo ? echo.items.find(it => it.inLib) : null;
-                const nextChap = chapters[cIdx+1];
-                if (!crossRec && !nextChap) return null;
-                return (
-                  <div className="rd-chapter-end">
-                    <div className="rce-rule"/>
-                    <div className="rce-h">读完这一章 · 顺着线索读下去</div>
-                    <div className="rce-cards">
-                      {nextChap && (
-                        <div className="rce-card" onClick={() => go(1)}>
-                          <span className="rce-seal" style={{ background:"#211b15", color:"#ece2cf" }}>{book.seal}</span>
-                          <div className="rce-mid"><div className="rce-lab">本书 · 接着读</div><div className="rce-t">第 {nextChap.n} 章 · {nextChap.title}</div></div>
-                          <span className="rce-go">{I.right}</span>
-                        </div>
-                      )}
-                      {crossRec && (
-                        <div className="rce-card" onClick={() => onOpenBook && onOpenBook(crossRec.bookId)}>
-                          <span className="rce-seal" style={{ background: crossRec.color }}>{crossRec.seal}</span>
-                          <div className="rce-mid"><div className="rce-lab">跨书 · {echo.theme}</div><div className="rce-t">{crossRec.bookT} · {crossRec.chap}</div><div className="rce-why">{crossRec.why}</div></div>
-                          <span className="rce-go">{I.right}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
+              {chapterBody}
             </div>
           </div>
         )}
@@ -764,9 +888,9 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <button onClick={() => go(-1)} disabled={readMode === "text" && cIdx===0}>{I.left}</button>
           <button onClick={() => go(1)} disabled={readMode === "text" && cIdx===chapterCount-1}>{I.right}</button>
         </div>
-        <div className="pg-track" onClick={(e)=>{ const r=e.currentTarget.getBoundingClientRect(); const f=(e.clientX-r.left)/r.width; const el=scrollRef.current; if(el) el.scrollTop=(el.scrollHeight-el.clientHeight)*f; }}>
-          <div className="pg-fill" style={{ width: readMode === "epub" ? "0%" : (prog*100)+"%" }}/>
-          <div className="pg-dot" style={{ left: readMode === "epub" ? "0%" : (prog*100)+"%" }}/>
+        <div className="pg-track" onClick={(e)=>{ const r=e.currentTarget.getBoundingClientRect(); const f=(e.clientX-r.left)/r.width; if(paged){ setPage(Math.max(0, Math.min(pageCount-1, Math.round(f*(pageCount-1))))); } else { const el=scrollRef.current; if(el) el.scrollTop=(el.scrollHeight-el.clientHeight)*f; } }}>
+          <div className="pg-fill" style={{ width: readMode === "epub" ? "0%" : (barProg*100)+"%" }}/>
+          <div className="pg-dot" style={{ left: readMode === "epub" ? "0%" : (barProg*100)+"%" }}/>
         </div>
         <div className="pg-label">{readMode === "epub" ? "EPUB 阅读" : `第 ${ch.n} 章 · 全书 ${pct}%`}</div>
       </div>
@@ -831,6 +955,22 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <div className="drawer-scrim" style={{ background:"transparent" }} onClick={() => setSetOpen(false)}/>
           <div className="set-pop" style={{ right: 22, top: 64 }}>
             <div className="set-row">
+              <div className="lab">版式</div>
+              <div className="seg layout-seg">
+                {[["classic","经典"],["archive","批注栏"],["immersive","沉浸"]].map(([k,l]) => (
+                  <button key={k} className={layout===k?"on":""} onClick={() => chooseLayout(k)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="set-row">
+              <div className="lab">翻页方式 <span className="set-hint">{readMode==="epub"?"EPUB 自带翻页":pageMode==="scroll"?"上下卷动":"左右翻页"}</span></div>
+              <div className="seg page-seg">
+                {[["scroll","卷轴"],["slide","滑动"],["book","书页"],["curl","卷页"],["fade","淡出"]].map(([k,l]) => (
+                  <button key={k} className={pageMode===k?"on":""} onClick={() => setPageMode(k)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="set-row">
               <div className="lab">主题底色</div>
               <div className="seg theme-seg">
                 {[["cream","米纸"],["paper","素白"],["sepia","羊皮"],["night","夜读"]].map(([k,l]) => (
@@ -858,7 +998,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
             </div>
             <div className="set-row">
               <div className="lab">栏宽 <b>{meas} rem</b></div>
-              <input className="range" type="range" min="28" max="50" step="1" value={meas} onChange={e=>setMeas(+e.target.value)}/>
+              <input className="range" type="range" min="32" max="62" step="1" value={meas} onChange={e=>setMeas(+e.target.value)}/>
             </div>
           </div>
         </>
