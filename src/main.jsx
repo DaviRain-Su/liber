@@ -15,6 +15,7 @@ import "./styles/product-charts.css";
 import "./styles/product-booklist.css";
 import "./styles/product-reader-empty.css";
 import "./styles/product-news.css";
+import "./styles/product-messaging.css";
 
 /* Data is a bootstrapped singleton: importing it populates window.* (BOOKS,
    CHAPTERS, …) which the screen components read. Must run before App renders. */

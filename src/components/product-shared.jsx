@@ -6,6 +6,8 @@ const { useState, useEffect, useRef, useCallback } = React;
 /* ---- Icon set (1.7 stroke, inherits currentColor) ---- */
 const I = {
   search:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>,
+  mail:     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>,
+  bell:     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>,
   sun:      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="4.4"/><path d="M12 2v2.6M12 19.4V22M4.2 4.2l1.9 1.9M17.9 17.9l1.9 1.9M2 12h2.6M19.4 12H22M4.2 19.8l1.9-1.9M17.9 6.1l1.9-1.9"/></svg>,
   moon:     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>,
   list:     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 6h16M4 12h16M4 18h10"/></svg>,
@@ -57,7 +59,7 @@ function Cover({ book, className = "", style }){
 }
 
 /* ---- Top app bar ---- */
-function AppBar({ active, onNav, onHome, onToggleTheme, isDark, onSearch, onProfile, onAgentView, agentOn, user, onLogout }){
+function AppBar({ active, onNav, onHome, onToggleTheme, isDark, onSearch, onProfile, onAgentView, agentOn, user, onLogout, onMail, mailDot }){
   const links = [["library","书库"],["charts","榜单"],["shelf","我的书架"],["notes","笔记"],["social","共读"],["news","动态"]];
   const ava = user?.seal || user?.name?.slice(0, 1) || "读";
   return (
@@ -79,6 +81,7 @@ function AppBar({ active, onNav, onHome, onToggleTheme, isDark, onSearch, onProf
       </div>
       <button className="icon-btn appbar-msearch" onClick={onSearch} aria-label="搜索">{I.search}</button>
       <button className={"av-toggle"+(agentOn?" on":"")} onClick={onAgentView} title="Agent 视角：这一页 AI Agent 看到的样子">{I.agent}<span>Agent 视角</span></button>
+      {user && onMail && <button className="icon-btn appbar-badge" onClick={onMail} aria-label="私信" title="私信">{I.mail}{mailDot && <span className="appbar-dot"/>}</button>}
       <button className="icon-btn" onClick={onToggleTheme} aria-label="切换主题">{isDark ? I.sun : I.moon}</button>
       {user && <button className="appbar-logout" onClick={onLogout}>退出</button>}
       <div className={"avatar"+(active==="profile"?" on":"")} title={user ? `${user.name} · 我的` : "我的"} onClick={onProfile}>{ava}</div>

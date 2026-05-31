@@ -299,7 +299,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
                   <button className={following ? "btn btn-ghost pf-follow on" : "btn btn-primary pf-follow"} onClick={onToggleFollow}>
                     {following ? <><span className="pf-check">✓</span>已关注</> : "+ 关注"}
                   </button>
-                  <button className="btn btn-ghost">私信</button>
+                  <button className="btn btn-ghost" onClick={() => window.dispatchEvent(new CustomEvent("liber-open-dm", { detail: { userId: person.userId || person.id || userId, name: person.name, color: person.color, seal: person.seal, handle: person.handle } }))}>私信</button>
                 </>
               )}
             </div>

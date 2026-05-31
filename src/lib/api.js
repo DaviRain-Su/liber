@@ -130,6 +130,13 @@ export const api = {
     get: (key) => get(`/threads/${encodeURIComponent(key)}`),
     reply: (key, text) => post(`/threads/${encodeURIComponent(key)}`, { text }),
   },
+  // 私信 (direct messages between readers)
+  messages: {
+    threads: () => get("/messages/threads"),
+    unread: () => get("/messages/unread"),
+    with: (userId) => get(`/messages/with/${encodeURIComponent(userId)}`),
+    send: (userId, text, quote) => post(`/messages/with/${encodeURIComponent(userId)}`, { text, quote }),
+  },
   works: {
     list: () => get("/works"),
     publish: (title, body) => post("/works", { title, body }),

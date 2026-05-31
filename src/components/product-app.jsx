@@ -27,6 +27,7 @@ const NewsPost = lz(() => import("./product-news.jsx"), "NewsPost");
 const Reader = lz(() => import("./product-reader.jsx"), "Reader");
 const AgentView = lz(() => import("./product-agentview.jsx"), "AgentView");
 const GraphView = lz(() => import("./product-graph.jsx"), "GraphView");
+const Messenger = lz(() => import("./product-messaging.jsx"), "Messenger");
 
 const SUSPENSE_FALLBACK = <div style={{ minHeight: "50vh" }} aria-busy="true" />;
 import { setToken } from "../lib/api.js";
@@ -63,7 +64,10 @@ function App(){
       const d = typeof e.detail === "object" && e.detail ? e.detail : { userId: e.detail };
       setRoute(r => ({ screen:"profile", userId: d.userId || d.name, from: r.screen === "profile" ? r.from : r.screen })); };
     window.addEventListener("liber-open-profile", p);
-    return () => { window.removeEventListener("liber-device", h); window.removeEventListener("liber-show-onboarding", o); window.removeEventListener("liber-open-profile", p); };
+    /* open the 私信 overlay on a specific reader (from a profile's 私信 button) */
+    const dm = (e) => { setReader(null); setSearch(false); setAgentView(null); setMessenger(e.detail || true); };
+    window.addEventListener("liber-open-dm", dm);
+    return () => { window.removeEventListener("liber-device", h); window.removeEventListener("liber-show-onboarding", o); window.removeEventListener("liber-open-profile", p); window.removeEventListener("liber-open-dm", dm); };
   }, []);
 
   /* route: {screen:'library'|'detail', bookId} ; reader is an overlay */
@@ -79,6 +83,8 @@ function App(){
   const [search, setSearch] = useSt(false); // search overlay open
   const [agentView, setAgentView] = useSt(null); // Agent View context | null
   const [graphView, setGraphView] = useSt(false); // knowledge-graph overlay open
+  const [messenger, setMessenger] = useSt(null);  // 私信 overlay: {userId,name,...} | true | null
+  const [mailDot, setMailDot] = useSt(false);      // unread DM indicator
   const [dark, setDark] = useSt(() => document.documentElement.getAttribute("data-theme") === "dark");
   const [authUser, setAuthUser] = useSt(null);
   const [, setCatalogBooks] = useSt(() => getCatalogBooks());
@@ -152,6 +158,16 @@ function App(){
   }, [reader, search]);
 
   useEf(refreshAuth, [refreshAuth, entered, onboarded]);
+
+  /* poll unread 私信 count for the AppBar mail dot */
+  useEf(() => {
+    if (!authUser || !window.liberApi?.messages) { setMailDot(false); return; }
+    let live = true;
+    const poll = () => window.liberApi.messages.unread().then(r => { if (live) setMailDot((r?.unread || 0) > 0); }).catch(() => {});
+    poll();
+    const t = setInterval(poll, 45000);
+    return () => { live = false; clearInterval(t); };
+  }, [authUser]);
   useEf(() => { localStorage.setItem("liber.route", JSON.stringify(route)); }, [route]);
   useEf(() => {
     const off = subscribeCatalog((books) => setCatalogBooks(books));
@@ -239,7 +255,8 @@ function App(){
             onToggleTheme={toggleTheme} isDark={dark}
             onSearch={() => setSearch(true)} onProfile={() => setRoute(r => ({ screen:"profile", from: r.screen === "profile" ? r.from : r.screen }))}
             onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? findCatalogBook(route.bookId) : null })} agentOn={!!agentView}
-            user={authUser} onLogout={logout} />
+            user={authUser} onLogout={logout}
+            onMail={() => setMessenger(true)} mailDot={mailDot} />
           <React.Suspense fallback={SUSPENSE_FALLBACK}>
           {route.screen === "library" && <Library onOpenBook={openBook} onOpenCharts={() => setRoute({ screen:"charts" })} />}
           {route.screen === "detail" && <Detail bookId={route.bookId} onOpenReader={openReader} onOpenCert={(id) => setRoute({ screen:"cert", bookId:id })} onBack={() => setRoute({ screen:"library" })} onOpenAgents={() => setRoute({ screen:"agents" })} />}
@@ -267,6 +284,11 @@ function App(){
       )}
       {search && (
         <SearchOverlay onClose={() => setSearch(false)} onOpenBook={openBookFromOverlay} />
+      )}
+      {messenger && (
+        <React.Suspense fallback={SUSPENSE_FALLBACK}>
+          <Messenger startWith={messenger === true ? null : messenger} onClose={() => { setMessenger(null); setMailDot(false); }} />
+        </React.Suspense>
       )}
       {agentView && (
         <React.Suspense fallback={SUSPENSE_FALLBACK}>
