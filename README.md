@@ -40,12 +40,20 @@ the library. The full surface:
 Highlights, annotations, reading position, published works, and onboarding state
 persist in `localStorage`. The top nav's sun/moon button toggles light/dark.
 
+There is also a **focused reader entry** at `/reader.html` — the design bundle's
+primary `Liber Reader.html` ported as a reader-first surface. It skips the
+library chrome and boots straight into the full-screen Reader on the first
+catalogue title (or `/reader.html?book=<id>`), sharing the same components, data,
+and design system as the full app.
+
 ## Architecture
 
 ```
-index.html                 # Vite entry → /src/main.jsx
+index.html                 # Vite entry → /src/main.jsx (full app)
+reader.html                # focused entry → /src/reader.jsx (boots straight into the Reader)
 src/
   main.jsx                 # mounts <App> and the <LiberTweaks> island; imports the stylesheets
+  reader.jsx               # mounts the standalone full-screen Reader on the first (or ?book=) title
   data/product-data.js     # seed catalogue/content data for local empty databases
   lib/catalog.js           # frontend catalogue store: /api/books first, seed fallback only
   styles/*.css             # design system + per-screen styles (imported in cascade order)
