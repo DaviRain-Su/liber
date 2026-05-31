@@ -4,7 +4,7 @@ import { all, first, run, id, now } from "../lib/db";
 import { getUser, requireUser, type UserRow } from "../lib/auth";
 import { putBlob } from "../lib/storage";
 import { chain } from "../lib/chains";
-import { getBook, getChapterText, getToc, hasLibraryBooks, listBooks, textToChapter } from "../lib/catalog";
+import { getBook, getChapterText, hasLibraryBooks, listBooks, textToChapter } from "../lib/catalog";
 import { readingStats } from "../lib/reading-summary";
 import * as S from "../lib/seed";
 
@@ -136,81 +136,82 @@ async function voteCountsFor(env: Env, type: string, ids: string[]): Promise<Rec
   return out;
 }
 
-async function buildLiveGroup(env: Env, b: any, userId?: string | null) {
-  const gid = `live-${b.id}`;
-  const [memberRows, memberCountRows, postCount, progressRows, annoRows, toc] = await Promise.all([
-    all<any>(
-      env.DB,
-      `SELECT u.name, u.color, u.seal, gm.user_id
-       FROM group_members gm JOIN users u ON u.id = gm.user_id
-       WHERE gm.group_id = ? ORDER BY gm.joined_at ASC LIMIT 8`,
-      gid,
-    ),
-    all<any>(env.DB, `SELECT COUNT(*) AS n FROM group_members WHERE group_id = ?`, gid),
-    all<any>(env.DB, `SELECT COUNT(*) AS n FROM group_posts WHERE group_id = ?`, gid),
-    all<any>(
-      env.DB,
-      `SELECT p.percent
-       FROM group_members gm JOIN progress p ON p.user_id = gm.user_id
-       WHERE gm.group_id = ? AND p.book_id = ?`,
-      gid, b.id,
-    ),
-    all<any>(
-      env.DB,
-      `SELECT COUNT(*) AS n
-       FROM group_members gm JOIN notes n ON n.user_id = gm.user_id
-       WHERE gm.group_id = ? AND n.book_id = ?
-       UNION ALL
-       SELECT COUNT(*) AS n
-       FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id
-       WHERE gm.group_id = ? AND h.book_id = ?`,
-      gid, b.id, gid, b.id,
-    ),
-    getToc(env, b.id),
+// Build the full payload for MANY groups in a fixed number of grouped queries
+// (not ~6 per group), so /api/groups stays sub-second as the catalogue grows.
+// substr(group_id, 6) strips the "live-" prefix → the group's book_id, letting
+// the per-(group, book) joins run once across every group.
+async function buildLiveGroupsBatch(env: Env, books: any[], userId?: string | null) {
+  if (!books.length) return [];
+  const gids = books.map((b) => `live-${b.id}`);
+  const bookIds = books.map((b) => b.id);
+  const gp = gids.map(() => "?").join(",");
+  const bp = bookIds.map(() => "?").join(",");
+  const [members, memberCounts, postCounts, progress, noteCounts, hlCounts, chapters] = await Promise.all([
+    all<any>(env.DB, `SELECT gm.group_id, u.name, u.color, u.seal, gm.user_id FROM group_members gm JOIN users u ON u.id = gm.user_id WHERE gm.group_id IN (${gp}) ORDER BY gm.joined_at ASC`, ...gids),
+    all<any>(env.DB, `SELECT group_id, COUNT(*) AS n FROM group_members WHERE group_id IN (${gp}) GROUP BY group_id`, ...gids),
+    all<any>(env.DB, `SELECT group_id, COUNT(*) AS n FROM group_posts WHERE group_id IN (${gp}) GROUP BY group_id`, ...gids),
+    all<any>(env.DB, `SELECT gm.group_id, p.percent FROM group_members gm JOIN progress p ON p.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND p.book_id = substr(gm.group_id, 6)`, ...gids),
+    all<any>(env.DB, `SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN notes nt ON nt.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND nt.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`, ...gids),
+    all<any>(env.DB, `SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND h.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`, ...gids),
+    all<any>(env.DB, `SELECT book_id, n, title FROM library_chapters WHERE book_id IN (${bp}) ORDER BY book_id, n`, ...bookIds),
   ]);
-  const progressPct = progressRows.length
-    ? Math.round(progressRows.reduce((sum, r) => sum + Number(r.percent || 0), 0) / progressRows.length)
-    : 0;
-  const annos = annoRows.reduce((sum, r) => sum + Number(r.n || 0), 0);
-  const first = toc[0];
-  const next = toc[Math.min(2, Math.max(0, toc.length - 1))];
-  return {
-    id: gid,
-    name: `《${b.t}》共读`,
-    color: "#1f8a5b",
-    seal: b.seal || "读",
-    book: b.id,
-    bookT: b.t,
-    desc: "围绕真实入库文本的共读小组。成员、讨论、批注和进度都来自线上数据。",
-    members: Number(memberCountRows[0]?.n || memberRows.length),
-    joined: !!userId && memberRows.some((m) => m.user_id === userId),
-    lead: memberRows[0]?.name || "",
-    weekRange: first && next ? `${first.title} — ${next.title}` : first?.title || "从第一章开始",
-    progressPct,
-    annos,
-    posts: Number(postCount[0]?.n || 0),
-    memberAvatars: memberRows.map((m) => ({
-      userId: m.user_id,
-      name: m.name || "读者",
-      n: m.seal || String(m.name || "读")[0],
-      c: m.color || "#3a4fb0",
-    })),
-    schedule: toc.slice(0, 5).map((t, i) => ({
-      wk: i === 0 ? "开始" : `第 ${i + 1} 节`,
-      chap: t.title,
-      state: i === 0 ? "current" : "upcoming",
-    })),
-    discussion: [],
-    topAnno: null,
-  };
+  const listBy = (rows: any[], key: string) => { const m: Record<string, any[]> = {}; for (const r of rows) (m[r[key]] ||= []).push(r); return m; };
+  const numBy = (rows: any[], key: string) => { const m: Record<string, number> = {}; for (const r of rows) m[r[key]] = Number(r.n || 0); return m; };
+  const membersByG = listBy(members, "group_id");
+  const memberCountByG = numBy(memberCounts, "group_id");
+  const postCountByG = numBy(postCounts, "group_id");
+  const progressByG = listBy(progress, "group_id");
+  const noteByG = numBy(noteCounts, "group_id");
+  const hlByG = numBy(hlCounts, "group_id");
+  const tocByBook = listBy(chapters, "book_id");
+  return books.map((b) => {
+    const gid = `live-${b.id}`;
+    const memberRows = (membersByG[gid] || []).slice(0, 8);
+    const progressRows = progressByG[gid] || [];
+    const toc = (tocByBook[b.id] || []).map((r) => ({ n: r.n, title: r.title }));
+    const progressPct = progressRows.length
+      ? Math.round(progressRows.reduce((sum, r) => sum + Number(r.percent || 0), 0) / progressRows.length)
+      : 0;
+    const annos = (noteByG[gid] || 0) + (hlByG[gid] || 0);
+    const first = toc[0];
+    const next = toc[Math.min(2, Math.max(0, toc.length - 1))];
+    return {
+      id: gid,
+      name: `《${b.t}》共读`,
+      color: "#1f8a5b",
+      seal: b.seal || "读",
+      book: b.id,
+      bookT: b.t,
+      desc: "围绕真实入库文本的共读小组。成员、讨论、批注和进度都来自线上数据。",
+      members: Number(memberCountByG[gid] || memberRows.length),
+      joined: !!userId && memberRows.some((m) => m.user_id === userId),
+      lead: memberRows[0]?.name || "",
+      weekRange: first && next ? `${first.title} — ${next.title}` : first?.title || "从第一章开始",
+      progressPct,
+      annos,
+      posts: postCountByG[gid] || 0,
+      memberAvatars: memberRows.map((m) => ({
+        userId: m.user_id,
+        name: m.name || "读者",
+        n: m.seal || String(m.name || "读")[0],
+        c: m.color || "#3a4fb0",
+      })),
+      schedule: toc.slice(0, 5).map((t, i) => ({
+        wk: i === 0 ? "开始" : `第 ${i + 1} 节`,
+        chap: t.title,
+        state: i === 0 ? "current" : "upcoming",
+      })),
+      discussion: [],
+      topAnno: null,
+    };
+  });
 }
 
 async function liveGroups(env: Env, userId?: string | null) {
   const books = await listBooks(env);
   const liveBooks = books.filter((b: any) => b.dynamic);
-  // Building a full group payload (≈7 D1 queries) for EVERY book times out once
-  // the catalogue has hundreds of books. Prioritise groups that actually have
-  // members/posts, fill up to a cap with top books, and build them in parallel.
+  // Prioritise groups that actually have members/posts, fill up to a cap with
+  // top books, and build them all in a few batched queries.
   const active = new Set<string>();
   try {
     for (const r of await all<any>(env.DB, `SELECT DISTINCT group_id FROM group_members`)) active.add(r.group_id);
@@ -220,7 +221,7 @@ async function liveGroups(env: Env, userId?: string | null) {
     ...liveBooks.filter((b: any) => active.has(`live-${b.id}`)),
     ...liveBooks.filter((b: any) => !active.has(`live-${b.id}`)),
   ].slice(0, 24);
-  return Promise.all(ranked.map((b: any) => buildLiveGroup(env, b, userId)));
+  return buildLiveGroupsBatch(env, ranked, userId);
 }
 
 async function liveFeed(env: Env) {
@@ -432,7 +433,7 @@ social.get("/groups/:id", async (c) => {
   if (dynamicOnly) {
     // Load ONLY the requested group's book, not every group's full payload.
     const b = await getBook(c.env, c.req.param("id").replace(/^live-/, ""));
-    g = b?.dynamic ? await buildLiveGroup(c.env, b, c.get("userId")) : undefined;
+    g = b?.dynamic ? (await buildLiveGroupsBatch(c.env, [b], c.get("userId")))[0] : undefined;
   } else {
     g = S.GROUPS.find((x) => x.id === c.req.param("id")) || S.GROUPS[0];
   }
