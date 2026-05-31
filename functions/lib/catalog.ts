@@ -4,6 +4,7 @@ import { putBlob, getBlob } from "./storage";
 import { chain } from "./chains";
 import * as S from "./seed";
 import { assertPublishableLicense } from "./license";
+import { enqueueSids } from "./graph/embed";
 
 const COVER_CLASSES = ["ink", "cinnabar", "cream", "indigo", "jade", "slate"];
 
@@ -284,6 +285,13 @@ async function storeChapter(env: Env, bookId: string, ch: { n: number; title: st
     bookId, ch.n, ch.title, ref.key, ref.walrus, ref.arweave, ref.sui_index,
     ch.text.slice(0, 5000), ch.text.length, now(),
   );
+  // feed the knowledge graph: enqueue this chapter's sentences (inline text, so
+  // the consumer needn't re-load). No-op unless GRAPH_ENABLED + queue bound.
+  const parsed = textToChapter(bookId, ch.n, ch.title, ch.text);
+  const texts: Record<string, string> = {};
+  for (const para of parsed.paras) for (const s of para) texts[s.id] = s.t;
+  const sids = Object.keys(texts);
+  if (sids.length) await enqueueSids(env, sids, texts);
   return { ...ch, ref };
 }
 

@@ -7,6 +7,7 @@ import type { Env } from "../types";
 import * as S from "../seed";
 import { getCharts } from "../charts";
 import { getBook, getChapters, hasLibraryBooks, searchDynamic } from "../catalog";
+import { echoesForSid } from "../graph/echoes";
 
 export interface LiberTool {
   name: string;
@@ -62,7 +63,8 @@ export const TOOLS: LiberTool[] = [
       properties: { sid: { type: "string", description: "句子 id，如 c8-s1" } },
       required: ["sid"],
     },
-    execute: async (_env, args) => S.ECHOES[args?.sid] || null,
+    // live echo_edges first (KNOWLEDGE_GRAPH_SPEC), seed ECHOES fallback.
+    execute: async (env, args) => echoesForSid(env, String(args?.sid || "")),
   },
   {
     name: "get_highlights",

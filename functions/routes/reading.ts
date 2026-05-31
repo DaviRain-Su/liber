@@ -3,6 +3,7 @@ import type { Env, Variables } from "../lib/types";
 import { all, first, run, id, now } from "../lib/db";
 import { requireUser } from "../lib/auth";
 import { readingSummary } from "../lib/reading-summary";
+import { enqueueSids } from "../lib/graph/embed";
 
 // Per-user reading data (highlights / notes / progress) — replaces the
 // frontend's localStorage keys with server-side, cross-device storage.
@@ -46,6 +47,8 @@ reading.put("/:bookId/highlight", async (c) => {
     id("hl_"), uid, bid, sid, color, now(),
   );
   await run(c.env.DB, `INSERT INTO events (id, type, book_id, sid, user_id, created_at) VALUES (?,?,?,?,?,?)`, id("e_"), "line", bid, sid, uid, now());
+  // strong signal: a highlighted sentence is worth embedding + linking. Best-effort, off the response path.
+  c.executionCtx.waitUntil(enqueueSids(c.env, [sid]));
   return c.json({ ok: true });
 });
 
@@ -61,6 +64,7 @@ reading.post("/:bookId/note", async (c) => {
     `INSERT INTO notes (id, user_id, book_id, sid, text, public, color, up, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
     nid, uid, bid, body.sid, text, body.public === false ? 0 : 1, body.color || "#3a4fb0", now(),
   );
+  c.executionCtx.waitUntil(enqueueSids(c.env, [body.sid]));
   return c.json({ ok: true, id: nid });
 });
 
