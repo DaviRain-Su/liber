@@ -3,7 +3,6 @@ import { I } from "./product-shared.jsx";
 import { ProvBadge } from "./product-provenance.jsx";
 import { ConvoArtifact } from "./product-convocard.jsx";
 import { EchoOverlay } from "./product-echo.jsx";
-import { stablecoinSubscribe } from "../lib/wallet.js";
 import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 import { convertChineseText, isChineseScriptMode } from "../lib/zh-convert.js";
 
@@ -1381,40 +1380,12 @@ function LensPicker({ active, summoned, onClose, onSummon }){
 /* ---- shared AI panel (drawer + archive rail) ---- */
 function AIPanel({ aiMode, setAiMode, aiCtx, setAiCtx, feed, typing, draft, setDraft, sendAI, onShare, summoned, onSummon, inline }){
   const feedRef = useR(null);
-  const [billing, setBilling] = useS(null);
-  const [paying, setPaying] = useS(false);
-  const [payMsg, setPayMsg] = useS("");
   useE(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [feed, typing]);
-  useE(() => {
-    if (typeof window === "undefined" || !window.liberApi?.billing?.plan) return;
-    let live = true;
-    window.liberApi.billing.plan().then(r => { if (live) setBilling(r); }).catch(() => {});
-    return () => { live = false; };
-  }, []);
   const suggests = aiMode === "translate"
     ? ["翻译成现代白话", "逐字解释关键词", "这句话有哪些常见误读？"]
     : ["这一句到底在说什么？", "和后文有什么关系？", "帮我总结这一章"];
   const hasExchange = feed.some(m => m.who === "user");
   const active = (window.LENSES||[]).filter(l => l.tag === "official" || (summoned||[]).includes(l.id));
-  const usage = billing?.usage;
-  const payment = billing?.billing?.crypto;
-  const isPro = usage?.plan === "pro" && usage?.limit === null;
-  const payLabel = payment?.amountLabel || "稳定币";
-  const quota = usage && usage.limit !== null ? `剩余 ${usage.remaining} / ${usage.limit}` : "本月不限量";
-  const payStable = async () => {
-    if (paying) return;
-    setPaying(true);
-    setPayMsg("请在钱包中确认交易");
-    try {
-      const res = await stablecoinSubscribe();
-      setBilling(prev => ({ ...(prev || {}), usage: res?.usage || prev?.usage }));
-      setPayMsg("Pro 已开通");
-    } catch (err) {
-      setPayMsg(err?.message || "支付确认失败");
-    } finally {
-      setPaying(false);
-    }
-  };
   return (
     <>
       <div className="ai-modes">
@@ -1430,19 +1401,6 @@ function AIPanel({ aiMode, setAiMode, aiCtx, setAiCtx, feed, typing, draft, setD
             <div className="q">「{aiCtx.length>30?aiCtx.slice(0,30)+"…":aiCtx}」</div>
           </div>
           <span className="x" onClick={() => setAiCtx(null)}>{I.x}</span>
-        </div>
-      )}
-      {billing && (
-        <div className={`ai-billing ${isPro ? "pro" : ""}`}>
-          <div className="ab-copy">
-            <b>{isPro ? "Pro 已开通" : "AI 包月"}</b>
-            <span>{isPro ? quota : (payment?.configured ? `${payLabel} · 链上确认后开通` : "链上订阅待配置收款地址与币种")}</span>
-            {!isPro && usage && <i>{quota}</i>}
-            {payMsg && <em>{payMsg}</em>}
-          </div>
-          {!isPro && payment?.configured && (
-            <button type="button" disabled={paying} onClick={payStable}>{I.lock} {paying ? "确认中" : "稳定币订阅"}</button>
-          )}
         </div>
       )}
       <div className="ai-feed" ref={feedRef}>

@@ -38,6 +38,20 @@ function gatewayOptions(env: Env, opts: ChatOpts = {}): Record<string, unknown> 
   return { gateway };
 }
 
+// Workers AI returns one of two response shapes depending on the model:
+//   - classic:                  { response: "..." }
+//   - OpenAI chat.completion (qwen3 / reasoning models):
+//                               { choices: [{ message: { content, reasoning_content } }] }
+// Pull the assistant text from whichever is present (reasoning is ignored).
+function workersAiText(res: any): string {
+  if (res == null) return "";
+  if (typeof res.response === "string" && res.response.trim()) return res.response.trim();
+  const content = res?.choices?.[0]?.message?.content;
+  if (typeof content === "string" && content.trim()) return content.trim();
+  if (res.result) return workersAiText(res.result);
+  return typeof res.response === "string" ? res.response.trim() : "";
+}
+
 // Returns the assistant's text. Throws on failure — callers keep their own
 // try/catch + offline fallback (so an outage never blocks reading).
 export async function aiChat(env: Env, messages: ChatMsg[], opts: ChatOpts = {}): Promise<string> {
@@ -64,7 +78,7 @@ export async function aiChat(env: Env, messages: ChatMsg[], opts: ChatOpts = {})
 
   // default: Cloudflare Workers AI
   const res: any = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature }, gatewayOptions(env, opts));
-  return String(res?.response ?? "").trim();
+  return workersAiText(res);
 }
 
 // Whether the active provider supports function/tool calling (drives the agent
@@ -112,7 +126,7 @@ export async function aiChatRaw(env: Env, messages: any[], opts: ChatOpts & { to
 
   // Workers AI: text only
   const res: any = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature }, gatewayOptions(env, opts));
-  return { content: String(res?.response ?? "").trim(), toolCalls: [] };
+  return { content: workersAiText(res), toolCalls: [] };
 }
 
 // Which provider/model is active — handy for the Agent View / debugging.
