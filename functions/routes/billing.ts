@@ -174,7 +174,10 @@ billing.post("/webhook", async (c) => {
   const body = await c.req.text();
   const ok = await validStripeSignature(secret, c.req.header("stripe-signature"), body);
   if (!ok) return c.json({ error: "Stripe 签名无效" }, 401);
-  const evt = JSON.parse(body);
+  // Signature proves origin, not that the body is valid JSON — guard the parse so
+  // a malformed payload returns 400 instead of throwing an unhandled 500.
+  let evt: any;
+  try { evt = JSON.parse(body); } catch { return c.json({ error: "Stripe webhook 内容无效" }, 400); }
   const obj = evt.data?.object || {};
   const uid = obj.client_reference_id || obj.metadata?.user_id;
   await run(c.env.DB, `INSERT OR IGNORE INTO billing_events (id, provider, type, user_id, payload, created_at) VALUES (?, 'stripe', ?, ?, ?, ?)`, evt.id, evt.type, uid || null, body, now());

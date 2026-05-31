@@ -20,7 +20,7 @@ reading.get("/:bookId", async (c) => {
     all(c.env.DB, `SELECT sid, color FROM highlights WHERE user_id = ? AND book_id = ?`, uid, bid),
     all(c.env.DB, `SELECT sid, text, color, up FROM notes WHERE user_id = ? AND book_id = ?`, uid, bid),
     first(c.env.DB, `SELECT chapter_n, percent FROM progress WHERE user_id = ? AND book_id = ?`, uid, bid),
-    all(c.env.DB, `SELECT sid, COUNT(DISTINCT user_id) AS n FROM highlights WHERE book_id = ? GROUP BY sid`, bid),
+    all(c.env.DB, `SELECT sid, COUNT(DISTINCT user_id) AS n FROM highlights WHERE book_id = ? GROUP BY sid ORDER BY n DESC LIMIT 5000`, bid),
   ]);
   const hlMap: Record<string, string> = {};
   for (const h of hls) hlMap[h.sid] = h.color;

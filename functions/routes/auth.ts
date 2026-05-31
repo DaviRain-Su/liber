@@ -10,6 +10,7 @@ import {
   passkeyRegisterOptions, passkeyRegisterVerify, passkeyLoginOptions, passkeyLoginVerify,
 } from "../lib/passkey";
 import { readingStats } from "../lib/reading-summary";
+import { chainById } from "../lib/chains";
 import { loginMessage, sameSuiAddress } from "../lib/verify.mjs";
 import { run } from "../lib/db";
 
@@ -23,9 +24,12 @@ auth.post("/nonce", async (c) => {
   return c.json({ nonce, message: loginMessage(nonce) });
 });
 
-// 2) verify a wallet signature via the active chain adapter, then mint a session.
+// 2) verify a wallet signature, then mint a session. `chain` selects which chain
+// the wallet signed with (sui | evm | solana), defaulting to sui — so a Sui,
+// Ethereum/EVM, or Solana wallet can all log in over the same endpoint. The same
+// signed-message ⇄ nonce binding + single-use nonce guards apply to every chain.
 auth.post("/verify", async (c) => {
-  const { address, message, signature, nonce } = await c.req.json();
+  const { address, message, signature, nonce, chain } = await c.req.json();
   // Bind the signed message to the nonce: the signature must cover the exact
   // server-issued message template (see /nonce). Without this, message/nonce are
   // independent fields and a captured (message, signature) pair could be replayed
@@ -34,9 +38,20 @@ auth.post("/verify", async (c) => {
     return c.json({ error: "签名消息与 nonce 不匹配" }, 400);
   }
   if (!(await consumeNonce(c.env, nonce))) return c.json({ error: "nonce 无效或已过期" }, 400);
-  const signer = await verifyWalletSignature(c.env, message, signature, address);
-  if (!signer || (address && !sameSuiAddress(signer, address))) {
-    return c.json({ error: "签名验证失败：地址与签名不匹配" }, 401);
+  const chainId = String(chain || "sui").toLowerCase();
+  let signer: string | null;
+  if (chainId === "evm" || chainId === "solana") {
+    // The EVM/Solana adapters bind the recovered/verified signer to the claimed
+    // address internally (ecrecover match / ed25519 verify), so a non-null return
+    // already means "this address signed this message".
+    signer = await chainById(chainId).verifySignature(message, signature, address);
+    if (!signer) return c.json({ error: "签名验证失败：地址与签名不匹配" }, 401);
+  } else {
+    // Sui (default) — unchanged: verify via the active adapter, then normalize.
+    signer = await verifyWalletSignature(c.env, message, signature, address);
+    if (!signer || (address && !sameSuiAddress(signer, address))) {
+      return c.json({ error: "签名验证失败：地址与签名不匹配" }, 401);
+    }
   }
   const user = await upsertWalletUser(c.env, signer);
   const token = await createSession(c.env, user.id);

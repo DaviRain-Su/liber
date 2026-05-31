@@ -11,8 +11,6 @@ const COVER_CLASSES = ["ink", "cinnabar", "cream", "indigo", "jade", "slate"];
 const QUARANTINED_LIBRARY_BOOK_IDS = [
   "ernv-yingxiong-gutenberg-zh",
   "guanchang-xianxingji-gutenberg-zh",
-  "haigong-an-gutenberg-zh",
-  "hongloumeng-gutenberg-zh",
   "lengyanguan-gutenberg-zh",
   "lv-mudan-gutenberg-zh",
   "penggong-an-gutenberg-zh",
@@ -564,29 +562,37 @@ export async function getToc(env: Env, bookId: string) {
 
 export async function getChapters(env: Env, bookId: string) {
   if (isQuarantinedLibraryBook(bookId)) return [];
-  const rows = await all<any>(env.DB, `SELECT n, title, blob_key, text_preview FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
+  const rows = await all<any>(env.DB, `SELECT n, title, blob_key, text_preview, text_size FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
   if (!rows.length) return !(await hasLibraryBooks(env)) ? (S.BOOK_CONTENT[bookId]?.chapters || []) : [];
-  const chapters: Array<{ n: number; title: string; paras: Array<Array<{ id: string; t: string }>> }> = [];
-  for (const r of rows) {
+  // Fetch every chapter blob in PARALLEL — this was a serial N+1 that made the
+  // reader wait on (slowest R2 read × N chapters). Promise.all preserves order.
+  return Promise.all(rows.map(async (r) => {
     const buf = await getBlob(env, r.blob_key);
-    const text = buf ? new TextDecoder().decode(buf) : r.text_preview;
-    chapters.push(textToChapter(bookId, r.n, r.title, text));
-  }
-  return chapters;
+    const text = buf ? new TextDecoder().decode(buf) : (r.text_preview || "");
+    // R2 miss → only the stored preview is available; flag it so the reader can
+    // tell the user this chapter is partial instead of silently showing 5000 chars.
+    const truncated = !buf && !!text && Number(r.text_size || 0) > text.length;
+    return { ...textToChapter(bookId, r.n, r.title, text), truncated };
+  }));
 }
 
 export async function getChapterText(env: Env, bookId: string, n: number) {
   if (isQuarantinedLibraryBook(bookId)) return null;
-  const row = await first<any>(env.DB, `SELECT title, blob_key, text_preview FROM library_chapters WHERE book_id = ? AND n = ?`, bookId, n);
+  const row = await first<any>(env.DB, `SELECT title, blob_key, text_preview, text_size FROM library_chapters WHERE book_id = ? AND n = ?`, bookId, n);
   if (row) {
     const buf = await getBlob(env, row.blob_key);
-    return { source: "library", n, title: row.title, text: buf ? new TextDecoder().decode(buf) : row.text_preview };
+    const text = buf ? new TextDecoder().decode(buf) : (row.text_preview || "");
+    // R2 miss → we only have the stored preview; flag the partial read so callers
+    // don't present a truncated chapter as the whole text. `!!text` guards the
+    // (can't-happen-via-ingest) empty-preview row so we never warn over nothing.
+    const truncated = !buf && !!text && Number(row.text_size || 0) > text.length;
+    return { source: "library", n, title: row.title, text, truncated };
   }
   if (await hasLibraryBooks(env)) return null;
   const seedChapters = S.BOOK_CONTENT[bookId]?.chapters;
   if (seedChapters) {
     const ch = seedChapters.find((x: any) => x.n === n);
-    if (ch) return { source: "seed", n, title: ch.title, text: ch.paras.flat().map((s: any) => s.t).join("\n") };
+    if (ch) return { source: "seed", n, title: ch.title, text: ch.paras.flat().map((s: any) => s.t).join("\n"), truncated: false };
   }
   return null;
 }
@@ -836,14 +842,18 @@ export async function getReaderEpub(env: Env, bookId: string): Promise<Uint8Arra
   if (!book) return null;
   const rows = await all<any>(
     env.DB,
-    `SELECT n, title, blob_key, text_preview FROM library_chapters WHERE book_id = ? ORDER BY n ASC`,
+    `SELECT n, title, blob_key, text_preview, text_size FROM library_chapters WHERE book_id = ? ORDER BY n ASC`,
     bookId,
   );
   if (!rows.length) return null;
   const chapters = (await Promise.all(rows.map(async (row) => {
     const buf = await getBlob(env, row.blob_key);
     const text = (buf ? new TextDecoder().decode(buf) : row.text_preview || "").trim();
-    return text ? { n: Number(row.n), title: row.title || `第 ${row.n} 章`, text } : null;
+    if (!text) return null;
+    // Don't bake a truncated chapter (R2 miss → preview only) into a downloadable
+    // EPUB: a permanent artifact must not silently drop the bulk of the chapter.
+    if (!buf && Number(row.text_size || 0) > text.length) return null;
+    return { n: Number(row.n), title: row.title || `第 ${row.n} 章`, text };
   }))).filter(Boolean) as Array<{ n: number; title: string; text: string }>;
   if (!chapters.length) return null;
   const epub = zipStore(readerEpubFiles({
@@ -880,8 +890,13 @@ export async function searchDynamic(env: Env, term: string) {
     like, like,
   );
   const sentences = hitRows.flatMap((r) => {
-    const pieces = splitSentences(r.text_preview).filter((s) => s.includes(term)).slice(0, 2);
-    return pieces.map((t, i) => ({ sid: `${r.book_id}-c${r.n}-s${i + 1}`, t, book: r.book_title, bookId: r.book_id, chap: `第${r.n}章` }));
+    // Run the SAME chapter pipeline the reader uses (textToChapter) so each sid is
+    // the real sentence anchor (matching the running per-chapter counter), not a
+    // per-match index like `s1`/`s2` that wouldn't resolve in the reader. Only the
+    // preview is stored, so anchors exist for matches within the preview window.
+    const flat = textToChapter(r.book_id, r.n, r.title, r.text_preview || "").paras.flat();
+    return flat.filter((s) => s.t && s.t.includes(term)).slice(0, 2)
+      .map((s) => ({ sid: s.id, t: s.t, book: r.book_title, bookId: r.book_id, chap: `第${r.n}章` }));
   });
   return { books: rows.map(normalizeBook), sentences };
 }

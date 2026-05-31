@@ -30,6 +30,8 @@ export interface Env {
   CHAIN?: string;
   // Sui fullnode JSON-RPC (read-only chain verification; optional).
   SUI_RPC?: string;
+  // Solana JSON-RPC (read-only liveness for the Solana login adapter; optional).
+  SOLANA_RPC?: string;
   // Sui on-chain registration (write). All required together; secret key.
   SUI_SIGNER_KEY?: string;   // suiprivkey1… bech32 secret (Pages secret)
   SUI_PACKAGE?: string;      // published Move package id

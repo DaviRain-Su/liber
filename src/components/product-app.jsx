@@ -69,8 +69,11 @@ function App(){
   /* route: {screen:'library'|'detail', bookId} ; reader is an overlay */
   const [route, setRoute] = useSt(() => {
     if (SHARED_BOOKLIST) return { screen:"booklist", listId: SHARED_BOOKLIST };
-    try { return JSON.parse(localStorage.getItem("liber.route")) || { screen:"library" }; }
-    catch { return { screen:"library" }; }
+    try {
+      const r = JSON.parse(localStorage.getItem("liber.route"));
+      // require a sane shape — a corrupt-but-valid-JSON value shouldn't strand the app
+      return r && typeof r.screen === "string" ? r : { screen:"library" };
+    } catch { return { screen:"library" }; }
   });
   const [reader, setReader] = useSt(null); // {bookId, startChapter} | null
   const [search, setSearch] = useSt(false); // search overlay open

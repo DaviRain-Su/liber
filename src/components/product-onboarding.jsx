@@ -10,9 +10,10 @@ import { getCatalogTotal } from "../lib/catalog.js";
 const { useState: useOnb, useEffect: useEonb } = React;
 
 const WALLETS = [
-  { k:"sui",      name:"Sui 钱包",  glyph:"◇", color:"#4da2ff", desc:"官方钱包 · 推荐" },
-  { k:"suiet",    name:"Suiet",     glyph:"❂", color:"#5168bf", desc:"轻量浏览器扩展" },
-  { k:"backpack", name:"Backpack",  glyph:"▣", color:"#e33e3f", desc:"多链钱包" },
+  { k:"sui",      kind:"sui",    name:"Sui 钱包",  glyph:"◇", color:"#4da2ff", desc:"Sui 网络 · 推荐" },
+  { k:"suiet",    kind:"sui",    name:"Suiet",     glyph:"❂", color:"#5168bf", desc:"Sui 轻量扩展" },
+  { k:"metamask", kind:"evm",    name:"MetaMask",  glyph:"Ξ", color:"#627eea", desc:"以太坊 / EVM 网络" },
+  { k:"phantom",  kind:"solana", name:"Phantom",   glyph:"◎", color:"#9945ff", desc:"Solana 网络" },
 ];
 const INTERESTS = [
   { k:"philo", label:"哲学 · 思想", seal:"道" },
@@ -41,33 +42,49 @@ function Onboarding({ onFinish }){
     setConnecting(w.k);
     setAuthError("");
     try {
-      const { walletLogin } = await import("../lib/wallet.js");
-      const acct = await walletLogin(w.name);   // real Sui wallet: connect → sign nonce → verify
+      const mod = await import("../lib/wallet.js");
+      // Route by chain: each does connect → sign the login nonce → backend verify.
+      const acct = w.kind === "evm" ? await mod.evmLogin()
+                 : w.kind === "solana" ? await mod.solanaLogin()
+                 : await mod.walletLogin(w.name);
       setConnecting(null);
       setAccount({ wallet:w.name, addr:acct.address });
       setStep(3);
     } catch (e) {
-      // no compatible wallet installed / user cancelled → demo fallback so onboarding still flows
       setConnecting(null);
-      setAccount({ wallet:w.name, addr:"sui:0x7c"+Math.random().toString(16).slice(2,6)+"…a4f1" });
-      setStep(3);
+      if (w.kind === "sui") {
+        // Preserve the Sui demo fallback so first-run onboarding still flows when no
+        // wallet is installed. For real EVM/Solana logins, surface the error instead
+        // of faking a connection the user didn't actually make.
+        setAccount({ wallet:w.name, addr:"sui:0x7c"+Math.random().toString(16).slice(2,6)+"…a4f1" });
+        setStep(3);
+      } else {
+        setAuthError(e?.message || "登录失败，请重试");
+      }
     }
   };
   // Real WebAuthn: register-or-sign-in, mint a session, then advance. No demo
   // fallback — a passkey that didn't actually log in must surface an error, not
   // pretend, so we don't land back on the "未登录" state the reader hit before.
-  const passkey = async () => {
-    setConnecting("passkey");
+  // Two explicit intents so a returning reader never forks a new account: "登录"
+  // uses discoverable credentials (finds an iCloud/Google-synced passkey even on a
+  // fresh device); "创建" is the only path that mints a new account.
+  const passkey = async (mode = "signin") => {
+    setConnecting(mode === "create" ? "passkey-create" : "passkey");
     setAuthError("");
     try {
-      const { passkeyLogin } = await import("../lib/passkey.js");
-      const res = await passkeyLogin();
+      const mod = await import("../lib/passkey.js");
+      const res = mode === "create" ? await mod.passkeyCreate() : await mod.passkeySignIn();
       setConnecting(null);
       setAccount({ wallet:"通行密钥", addr: res?.user?.handle || "passkey" });
       setStep(3);
     } catch (e) {
       setConnecting(null);
-      setAuthError(e?.name === "NotAllowedError" ? "通行密钥操作已取消，请重试" : (e?.message || "通行密钥登录失败，请重试"));
+      if (mode === "signin" && (e?.name === "NotAllowedError" || e?.status === 404)) {
+        setAuthError("没有找到可用的通行密钥。首次使用请点“创建通行密钥”。");
+      } else {
+        setAuthError(e?.name === "NotAllowedError" ? "通行密钥操作已取消，请重试" : (e?.message || "通行密钥登录失败，请重试"));
+      }
     }
   };
   const togglePick = (k) => setPicks(p => p.includes(k) ? p.filter(x=>x!==k) : [...p, k]);
@@ -158,8 +175,11 @@ function Onboarding({ onFinish }){
               </div>
               <div className="onb-or"><span>或</span></div>
               <div className="signin-alt">
-                <button className={`btn btn-ghost ${connecting==="passkey"?"connecting":""}`} disabled={!!connecting} onClick={passkey}>
+                <button className={`btn btn-ghost ${connecting==="passkey"?"connecting":""}`} disabled={!!connecting} onClick={()=>passkey("signin")}>
                   {I.lock} 用通行密钥登录
+                </button>
+                <button className={`btn btn-quiet ${connecting==="passkey-create"?"connecting":""}`} disabled={!!connecting} onClick={()=>passkey("create")}>
+                  首次使用 · 创建通行密钥
                 </button>
                 <button className="btn btn-quiet" disabled={!!connecting} onClick={()=>finish()}>先逛逛</button>
               </div>

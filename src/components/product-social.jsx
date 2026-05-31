@@ -37,7 +37,9 @@ function Social({ onOpenBook, onOpenGroup, onContinue }){
   const hot = allowSeedFallback ? window.HIGHLIGHTS || [] : [];
   const groups = apiGroups || (allowSeedFallback ? window.GROUPS || [] : []);
   /* shared conversations: backend (/api/shares) with localStorage+seed fallback */
-  let published = []; try { published = JSON.parse(localStorage.getItem("liber.shared")) || []; } catch {}
+  // Must stay an ARRAY — it's spread into `convos` below, so a corrupt non-array
+  // value in localStorage would throw "not iterable" and blank the whole page.
+  let published = []; try { const p = JSON.parse(localStorage.getItem("liber.shared")); if (Array.isArray(p)) published = p; } catch {}
   const [apiConvos, setApiConvos] = useSs(null);
   useEffS(() => {
     if (!window.liberApi) return;

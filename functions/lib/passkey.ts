@@ -130,6 +130,21 @@ export async function passkeyRegisterVerify(c: Ctx, response: any): Promise<{ to
   }
 
   const cred = verification.registrationInfo.credential;
+  // Reconcile, don't fork: if this exact credential already belongs to an account
+  // (a re-submitted ceremony, or a known passkey re-presented), sign that account
+  // in instead of attempting a duplicate-key insert that mints a second user. This
+  // is not an account-takeover vector: cred.id is derived from the authenticator's
+  // signed attestation, bound to THIS ceremony's single-use challenge (verified
+  // just above), so only the authenticator that actually holds the credential can
+  // produce a matching id. The UNIQUE(passkeys.id) constraint is the final backstop.
+  // (A freshly-minted credential on a new device whose synced passkey isn't yet
+  // enrolled still creates a new account — that's a client "login-first" concern,
+  // see docs/AUDIT.md.)
+  const existing = await getCredential(c.env, cred.id);
+  if (existing) {
+    const account = await getUser(c.env, existing.user_id);
+    if (account) return { token: await createSession(c.env, account.id), user: account };
+  }
   // Insert the user and its credential ATOMICALLY — a duplicate credential id
   // (re-registration) or a D1 error must not leave a committed orphan user row.
   await batch(c.env.DB, [

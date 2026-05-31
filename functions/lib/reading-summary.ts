@@ -54,38 +54,41 @@ export async function readingStats(env: Env, userId?: string | null) {
   const nowMs = Date.now();
   const weekStart = startOfUtcWeek(nowMs);
   const yearStart = startOfUtcYear(nowMs);
-  const [progress, highlights, notes, votes] = await Promise.all([
-    all<any>(
-      env.DB,
-      liveOnly
-        ? `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
-           FROM progress p JOIN library_books lb ON lb.id = p.book_id
-           WHERE p.user_id = ?`
-        : `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
-           FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id
-           WHERE p.user_id = ?`,
-      userId,
-    ),
-    all<any>(
-      env.DB,
-      liveOnly
-        ? `SELECT h.created_at FROM highlights h JOIN library_books lb ON lb.id = h.book_id WHERE h.user_id = ?`
-        : `SELECT created_at FROM highlights WHERE user_id = ?`,
-      userId,
-    ),
-    all<any>(
-      env.DB,
-      liveOnly
-        ? `SELECT n.created_at FROM notes n JOIN library_books lb ON lb.id = n.book_id WHERE n.user_id = ?`
-        : `SELECT created_at FROM notes WHERE user_id = ?`,
-      userId,
-    ),
-    all<any>(env.DB, `SELECT created_at FROM votes WHERE user_id = ?`, userId),
+  // streak/weekRead only walk recent consecutive days, so bound the activity
+  // timestamps to a generous recent window and take exact totals via COUNT(*).
+  // All six run in ONE D1 batch so a power user's full highlight/note/vote history
+  // is never pulled into memory — this also runs per-reader on /readers.
+  const recentSince = nowMs - 400 * DAY;
+  const res = await env.DB.batch([
+    env.DB.prepare(liveOnly
+      ? `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
+         FROM progress p JOIN library_books lb ON lb.id = p.book_id WHERE p.user_id = ?`
+      : `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
+         FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id WHERE p.user_id = ?`).bind(userId),
+    env.DB.prepare(liveOnly
+      ? `SELECT COUNT(*) AS n FROM highlights h JOIN library_books lb ON lb.id = h.book_id WHERE h.user_id = ?`
+      : `SELECT COUNT(*) AS n FROM highlights WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(liveOnly
+      ? `SELECT h.created_at FROM highlights h JOIN library_books lb ON lb.id = h.book_id WHERE h.user_id = ? AND h.created_at >= ?`
+      : `SELECT created_at FROM highlights WHERE user_id = ? AND created_at >= ?`).bind(userId, recentSince),
+    env.DB.prepare(liveOnly
+      ? `SELECT COUNT(*) AS n FROM notes n JOIN library_books lb ON lb.id = n.book_id WHERE n.user_id = ?`
+      : `SELECT COUNT(*) AS n FROM notes WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(liveOnly
+      ? `SELECT n.created_at FROM notes n JOIN library_books lb ON lb.id = n.book_id WHERE n.user_id = ? AND n.created_at >= ?`
+      : `SELECT created_at FROM notes WHERE user_id = ? AND created_at >= ?`).bind(userId, recentSince),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM votes WHERE user_id = ?`).bind(userId),
   ]);
+  const progress = (((res[0] as any).results || []) as any[]);
+  const lines = Number((((res[1] as any).results || [])[0])?.n || 0);
+  const hlTimes = (((res[2] as any).results || []) as any[]);
+  const noteCount = Number((((res[3] as any).results || [])[0])?.n || 0);
+  const noteTimes = (((res[4] as any).results || []) as any[]);
+  const agreed = Number((((res[5] as any).results || [])[0])?.n || 0);
   const activityTimes = [
     ...progress.map((r) => Number(r.updated_at || 0)),
-    ...highlights.map((r) => Number(r.created_at || 0)),
-    ...notes.map((r) => Number(r.created_at || 0)),
+    ...hlTimes.map((r) => Number(r.created_at || 0)),
+    ...noteTimes.map((r) => Number(r.created_at || 0)),
   ].filter(Boolean);
   const weekDays = new Set(activityTimes.filter((t) => t >= weekStart).map(dayKey));
   const finished = progress.filter((p) => {
@@ -97,9 +100,9 @@ export async function readingStats(env: Env, userId?: string | null) {
   return {
     read: progress.length,
     finished,
-    lines: highlights.length,
-    notes: notes.length,
-    agreed: votes.length,
+    lines,
+    notes: noteCount,
+    agreed,
     streak: streakDays(activityTimes, nowMs),
     weekRead: weekDays.size,
     yearFinished: finished,

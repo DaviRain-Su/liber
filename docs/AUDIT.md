@@ -141,6 +141,87 @@ via `safeId`).
   sentence sids; unbounded `/works`/`/shares`/`/threads` body sizes; leading-wildcard
   LIKE in search; corrupt-DB JSON in a few more spots.
 
+## Third pass — backlog FIXED
+
+8 parallel investigators re-read the cited code, then a 4-dimension adversarial
+review verified the diff before a local deploy.
+
+- **`/api/groups` → sub-second.** User-independent group "cards" are cached per
+  book in KV (`gcard:<bookId>`, 60s — KV's TTL floor) via `liveGroupsCards()`;
+  cold-cache misses still batch-build in one `buildLiveGroupsBatch` call. The
+  per-user `joined` flag is never cached — it's stamped fresh from one bounded,
+  indexed `group_members WHERE user_id=? AND group_id IN (…)` query, so a hit
+  serves the heavy aggregates instantly while `joined` stays correct right after
+  a join/leave.
+- **`/shares` aggregates bounded.** Comment and save counts now use
+  `… target_id IN (…) GROUP BY …` over the visible share ids (the `voteCountsFor`
+  pattern) instead of a full-table `GROUP BY`.
+- **Body caps.** `cap()` trims+length-limits every create endpoint: `/shares`
+  (msg count ≤100, per-field caps, 200 KB hard guard), `/works` (50 KB), `/threads`
+  and `/groups/:id/posts` (4 KB) — matching the existing comment cap.
+- **`searchDynamic` real sids.** Sentence anchors now come from the same
+  `textToChapter()` pipeline the reader uses (real running sid), not a fabricated
+  `s1`/`s2` index. The field was unused by the UI (it navigates by `bookId`), so
+  this is a truthfulness/forward-compat fix with zero UI risk.
+- **Chapter R2-miss no longer silent.** `getChapterText`/`getChapters` return a
+  `truncated` flag (blob missing **and** `text_size > preview length`); the reader
+  shows a "仅显示节选预览" notice, and `getReaderEpub` skips truncated chapters so a
+  downloadable artifact never bakes in partial content. Short chapters (≤5000,
+  `preview == full`) are correctly never flagged.
+- **Stripe webhook JSON.parse** guarded → 400 instead of an unhandled 500.
+- **Passkey reconciliation.** `passkeyRegisterVerify` maps an already-enrolled
+  credential id back to its existing account (idempotent re-registration / no
+  duplicate-key crash) instead of forking. Safe: a matching `cred.id` can only
+  come from the authenticator that holds it, cryptographically bound to this
+  ceremony's challenge.
+
+## Third pass — deliberately deferred (with reasons)
+
+- **zkLogin verification** stays **fails-closed** (safe). Enabling it needs a salt
+  service (Enoki) **and** a frontend zkLogin/OAuth flow that doesn't exist; the
+  wallet path uses Wallet-Standard personal-message sigs only. Half-enabling a new
+  auth path adds attack surface with zero current consumer — not a bug, a decision.
+- **Passkey client "login-first"** (the actual fix for the synced-passkey /
+  cleared-localStorage fork) is a **client UX tradeoff**: forcing a discoverable
+  sign-in attempt before registration adds an empty-sheet prompt for every genuine
+  first-time signup (the common case) to close a narrow edge. Deferred to a product
+  call rather than changing live signup UX silently. Server reconciliation (above)
+  is the safe half.
+- **FTS5 search** for the leading-wildcard `LIKE '%term%'`: SQLite FTS5's default
+  tokenizer breaks CJK substring matching, so it would **regress** Chinese search;
+  the `trigram` tokenizer is the real path but is a larger change. At ~750 books the
+  `LIKE` scan is acceptable; revisit with the trigram tokenizer at scale.
+- **`auth.ts` JSON.parse** hardening (CLI token / device poll) is left untouched to
+  avoid colliding with concurrent edits in that file; `billing.ts` was the
+  in-scope spot and is fixed.
+
+## Fourth pass — multi-chain login + perf/robustness batch
+
+- **EVM + Solana wallet login** added beside Sui. `/auth/verify` takes a `chain`
+  field; pure tested verifiers in `functions/lib/chains/sigverify.mjs`
+  (EIP-191 ecrecover / ed25519). Sui path unchanged. E2E-verified live (valid →
+  session, forged → 401). 8 tests anchored to the canonical priv=1 vector.
+- **Passkey fork fixed** the right way: onboarding now has explicit
+  "用通行密钥登录" (discoverable sign-in → finds synced passkeys, no fork) and
+  "创建通行密钥" (the only account-minting path). No first-timer prompt regression.
+- **`getChapters` N+1 → parallel R2 reads** (Promise.all). Reader chapter load
+  ~10s → ~2.6s.
+- **`readingStats` no longer pulls full history into memory** — `COUNT(*)` for the
+  totals + a 400-day-bounded timestamp fetch for streak, all in one `db.batch`.
+  Matters most on `/readers` (runs per-reader). Counts stay exact.
+- **Bounds/headers**: `/platform/search` limit capped (≤50); `/reading/:bookId`
+  heat `GROUP BY` gets `ORDER BY n DESC LIMIT 5000`; `/charts` gets
+  `Cache-Control: public, max-age=60`.
+- **Frontend crash-guards**: `product-social.jsx` `liber.shared` parse now
+  array-checked (a non-array value was spread → "not iterable" → blank page);
+  `product-app.jsx` route init requires a sane `{screen}` shape.
+- **Verified non-issues** (checked against real code, not fixed): `product-search`
+  already discards stale responses via a term guard; `product-reader` `sendAI` is
+  re-created each render so its async continuation uses question-time context.
+- **Still open (concurrent-editor files — coordinate first):** `auth.ts`
+  `getCliPublishToken`/`pollCliDevice` unguarded `JSON.parse` (HIGH); `books.ts`
+  `/books`+`/search` Cache-Control + limit cap.
+
 ## Methodology
 
 8 parallel auditors read real code and reported findings with `file:line`; every

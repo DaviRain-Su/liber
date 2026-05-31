@@ -23,6 +23,10 @@ function formatJoined(ms?: number | null): string {
   return `${new Date(ms).toISOString().slice(0, 7)} 加入`;
 }
 
+// Trim + length-cap user-supplied text. Mirrors the comment-body cap (slice 4000)
+// so create endpoints can't push unbounded bytes into D1/R2/Walrus.
+const cap = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
+
 function chapterNumberFromSid(sid?: string | null): number | null {
   const m = String(sid || "").match(/-c(\d+)-s\d+$/);
   return m ? Number(m[1]) : null;
@@ -210,7 +214,13 @@ async function buildLiveGroupsBatch(env: Env, books: any[], userId?: string | nu
   });
 }
 
-async function liveGroups(env: Env, userId?: string | null) {
+const GROUPS_CARDS_KEY = "groups:cards:v1";
+
+// Build the full ranked set of user-INDEPENDENT group cards (joined=null baked
+// to false). This is the expensive path: a books/active-groups batch + the 7-query
+// buildLiveGroupsBatch. Cached whole-list under one KV key so the hot path avoids
+// re-running ANY of it on a warm hit.
+async function buildGroupsCards(env: Env) {
   // Only id/title/seal are needed here — NOT the reads/liners aggregates that
   // listBooks computes. Run the book list and the two "which groups are active"
   // scans in parallel (one round-trip) instead of sequentially.
@@ -231,7 +241,36 @@ async function liveGroups(env: Env, userId?: string | null) {
     ...liveBooks.filter((b) => active.has(`live-${b.id}`)),
     ...liveBooks.filter((b) => !active.has(`live-${b.id}`)),
   ].slice(0, 24);
-  return buildLiveGroupsBatch(env, ranked, userId);
+  return buildLiveGroupsBatch(env, ranked, null);
+}
+
+async function liveGroups(env: Env, userId?: string | null) {
+  // Warm path = ONE KV.get (whole-list, 60s — KV's TTL floor): no book scan, no
+  // 7-query build. Only the per-user `joined` is resolved live (below) so the cache
+  // can stay user-independent. Cold/corrupt → rebuild + cache (awaited; an
+  // un-awaited KV.put is cancelled when the response returns).
+  let cards: any[] | null = null;
+  try {
+    const raw = await env.KV.get(GROUPS_CARDS_KEY);
+    if (raw) cards = JSON.parse(raw);
+  } catch { cards = null; }
+  if (!Array.isArray(cards)) {
+    cards = await buildGroupsCards(env);
+    await env.KV.put(GROUPS_CARDS_KEY, JSON.stringify(cards), { expirationTtl: 60 }).catch(() => {});
+  }
+  if (!cards.length) return [];
+  // `joined` must stay accurate even on a cache hit, so resolve the viewer's
+  // memberships fresh in one bounded, indexed query (cheap) rather than caching
+  // per-user. Without a viewer, every card is simply not-joined.
+  let joined = new Set<string>();
+  if (userId) {
+    const gids = cards.map((c) => c.id);
+    try {
+      const rows = await all<any>(env.DB, `SELECT group_id FROM group_members WHERE user_id = ? AND group_id IN (${gids.map(() => "?").join(",")})`, userId, ...gids);
+      joined = new Set(rows.map((r) => r.group_id));
+    } catch { /* leave empty on a transient error → conservative not-joined */ }
+  }
+  return cards.map((c) => ({ ...c, joined: joined.has(c.id) }));
 }
 
 async function liveFeed(env: Env) {
@@ -359,16 +398,25 @@ social.get("/shares", async (c) => {
      LEFT JOIN library_books lb ON lb.id = s.book_id
      WHERE s.visibility = 'public' ORDER BY s.created_at DESC LIMIT 50`,
   );
-  // real aggregate counts for share cards: comments, saves, agree (votes)
+  // real aggregate counts for share cards: comments, saves, agree (votes).
+  // Bound every aggregate to ONLY the visible share ids (IN (...)) instead of a
+  // GROUP BY over the whole comments/convo_saves tables — same pattern as
+  // voteCountsFor — so this stays cheap as those tables grow.
+  const shareIds = rows.map((r: any) => r.id);
+  const inQ = shareIds.map(() => "?").join(",");
   const cmtCounts: Record<string, number> = {};
-  try {
-    for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM comments WHERE target_type='share' GROUP BY target_id`)) cmtCounts[r2.target_id] = r2.n;
-  } catch {
-    // Older D1 databases may not have 0002 yet; don't take down /shares.
-  }
   const saveCounts: Record<string, number> = {};
-  for (const r2 of await all(c.env.DB, `SELECT share_id, COUNT(*) AS n FROM convo_saves GROUP BY share_id`)) saveCounts[r2.share_id] = r2.n;
-  const voteCounts = await voteCountsFor(c.env, "share", rows.map((r: any) => r.id));
+  if (shareIds.length) {
+    try {
+      for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM comments WHERE target_type='share' AND target_id IN (${inQ}) GROUP BY target_id`, ...shareIds)) cmtCounts[r2.target_id] = r2.n;
+    } catch {
+      // Older D1 databases may not have 0002 yet; don't take down /shares.
+    }
+    try {
+      for (const r2 of await all(c.env.DB, `SELECT share_id, COUNT(*) AS n FROM convo_saves WHERE share_id IN (${inQ}) GROUP BY share_id`, ...shareIds)) saveCounts[r2.share_id] = r2.n;
+    } catch { /* convo_saves may predate its migration; counts default to 0 */ }
+  }
+  const voteCounts = await voteCountsFor(c.env, "share", shareIds);
 
   const byId: Record<string, any> = {};
   const children: Record<string, any[]> = {};
@@ -404,13 +452,17 @@ social.post("/shares", async (c) => {
   const uid = requireUser(c);
   const b = await c.req.json();
   const sid = id("sh_");
-  const data = JSON.stringify({ msgs: b.msgs || [], chap: b.chap, seal: b.seal });
+  // Bound the conversation payload: cap message count and per-field text, then a
+  // hard total-size guard, so one share can't push unbounded bytes downstream.
+  const msgs = (Array.isArray(b.msgs) ? b.msgs : []).slice(0, 100).map((m: any) => ({ ...m, r: cap(m?.r, 16), t: cap(m?.t, 4000) }));
+  const data = JSON.stringify({ msgs, chap: cap(b.chap, 200), seal: cap(b.seal, 16) });
+  if (data.length > 200000) return c.json({ error: "内容过长" }, 413);
   await run(
     c.env.DB,
     `INSERT INTO shares (id, user_id, book_id, sid, form, title, insight, quote, visibility, parent_id, data, agree, created_at)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)`,
-    sid, uid, b.bookId || null, b.sid || null, b.form || "card", b.title || null, b.insight || null,
-    b.quote || null, b.visibility || "public", b.parentId || null, data, now(),
+    sid, uid, b.bookId || null, b.sid || null, cap(b.form, 32) || "card", cap(b.title, 500) || null, cap(b.insight, 4000) || null,
+    cap(b.quote, 2000) || null, b.visibility === "private" ? "private" : "public", b.parentId || null, data, now(),
   );
   // persist the shared conversation as a content-addressed blob (Walrus when configured, R2 always)
   const ref = await putBlob(c.env, `share/${sid}`, data, "application/json");
@@ -473,9 +525,10 @@ social.post("/groups/:id/posts", async (c) => {
   const uid = requireUser(c);
   const gid = c.req.param("id");
   const { text, chap } = await c.req.json();
-  if (!text?.trim()) return c.json({ error: "内容为空" }, 400);
+  const body = cap(text, 4000);
+  if (!body) return c.json({ error: "内容为空" }, 400);
   const pid = id("gp_");
-  await run(c.env.DB, `INSERT INTO group_posts (id, group_id, user_id, text, chap, up, created_at) VALUES (?,?,?,?,?,0,?)`, pid, gid, uid, text.trim(), chap || null, now());
+  await run(c.env.DB, `INSERT INTO group_posts (id, group_id, user_id, text, chap, up, created_at) VALUES (?,?,?,?,?,0,?)`, pid, gid, uid, body, cap(chap, 200) || null, now());
   return c.json({ ok: true, id: pid });
 });
 
@@ -505,8 +558,9 @@ social.get("/threads/:key", async (c) => {
 social.post("/threads/:key", async (c) => {
   const uid = requireUser(c);
   const { text } = await c.req.json();
-  if (!text?.trim()) return c.json({ error: "内容为空" }, 400);
-  await run(c.env.DB, `INSERT INTO thread_replies (id, thread_key, user_id, text, up, created_at) VALUES (?,?,?,?,0,?)`, id("tr_"), c.req.param("key"), uid, text.trim(), now());
+  const body = cap(text, 4000);
+  if (!body) return c.json({ error: "内容为空" }, 400);
+  await run(c.env.DB, `INSERT INTO thread_replies (id, thread_key, user_id, text, up, created_at) VALUES (?,?,?,?,0,?)`, id("tr_"), c.req.param("key"), uid, body, now());
   return c.json({ ok: true });
 });
 
@@ -518,14 +572,16 @@ social.get("/works", async (c) => {
 social.post("/works", async (c) => {
   const uid = requireUser(c);
   const { title, body } = await c.req.json();
-  if (!body?.trim()) return c.json({ error: "内容为空" }, 400);
+  const text = cap(body, 50000); // essays can be long, but not unbounded (~50KB)
+  if (!text) return c.json({ error: "内容为空" }, 400);
+  const heading = cap(title, 200) || "未命名导读";
   const wid = id("w_");
   // store the essay as a content-addressed blob (Walrus when configured, R2 always)
-  const ref = await putBlob(c.env, `work/${wid}`, body, "text/markdown");
+  const ref = await putBlob(c.env, `work/${wid}`, text, "text/markdown");
   await run(
     c.env.DB,
     `INSERT INTO works (id, user_id, title, body, addr, license, cited, created_at) VALUES (?,?,?,?,?,?,0,?)`,
-    wid, uid, (title || "未命名导读").trim(), body.trim(), `liber://work/${wid}`, "CC0-1.0", now(),
+    wid, uid, heading, text, `liber://work/${wid}`, "CC0-1.0", now(),
   );
   // register the CC0 work on Sui when configured (no-op otherwise)
   const chainRef = await chain(c.env).registerObject(c.env, { contentId: ref.walrus, kind: "work", license: "CC0-1.0" });

@@ -33,6 +33,9 @@
   "dependencies": {
     "@mysten/sui": "^2.17.0",
     "@mysten/wallet-standard": "^0.20.3",
+    "@noble/curves": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
+    "@scure/base": "^2.2.0",
     "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^13.3.1",
     "epubjs": "0.3.93",

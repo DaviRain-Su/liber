@@ -5,6 +5,7 @@
 // Callers should catch failures and fall back (e.g. guest / demo).
 import { getWallets, signAndExecuteTransaction } from "@mysten/wallet-standard";
 import { Transaction } from "@mysten/sui/transactions";
+import { base58 } from "@scure/base";
 import { api, setToken } from "./api.js";
 
 const SUI_TYPE = "0x2::sui::SUI";
@@ -61,6 +62,74 @@ async function loginWithConnection(wallet, account) {
 export async function walletLogin(name) {
   const { wallet, account } = await connectWallet(name);
   return loginWithConnection(wallet, account);
+}
+
+// ---- Ethereum / EVM login (MetaMask & any EIP-1193 wallet) ----
+// Same nonce → sign → verify flow as Sui, but the wallet signs an EIP-191
+// personal_sign and the backend recovers the address (chain:"evm").
+export function hasEvmWallet() {
+  return typeof window !== "undefined" && !!window.ethereum;
+}
+
+export async function evmLogin() {
+  const eth = typeof window !== "undefined" ? window.ethereum : null;
+  if (!eth) throw new Error("未检测到以太坊钱包（如 MetaMask）");
+  const accounts = await eth.request({ method: "eth_requestAccounts" });
+  const address = accounts && accounts[0];
+  if (!address) throw new Error("钱包未返回账户");
+  const { nonce, message } = await api.auth.nonce();
+  // personal_sign(data, account): hex-encode the message so every wallet signs the
+  // same bytes; the wallet adds the EIP-191 prefix, which the backend re-derives.
+  const hexMsg = "0x" + [...new TextEncoder().encode(message)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const signature = await eth.request({ method: "personal_sign", params: [hexMsg, address] });
+  const res = await api.auth.verify({ address, message, signature, nonce, chain: "evm" });
+  if (res?.token) setToken(res.token);
+  return { address, token: res?.token, user: res?.user };
+}
+
+// ---- Solana login (Phantom & any Wallet-Standard solana wallet) ----
+function solanaWallets() {
+  try {
+    return getWallets().get().filter(
+      (w) => w.features?.["standard:connect"] && w.features?.["solana:signMessage"],
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function hasSolanaWallet() {
+  return solanaWallets().length > 0 || (typeof window !== "undefined" && !!window.solana);
+}
+
+export async function solanaLogin() {
+  const { nonce, message } = await api.auth.nonce();
+  const msgBytes = new TextEncoder().encode(message);
+  let address;
+  let sigBytes;
+  const w = solanaWallets()[0];
+  if (w) {
+    const connectRes = await w.features["standard:connect"].connect();
+    const account = (connectRes?.accounts || w.accounts || [])[0];
+    if (!account) throw new Error("钱包未返回账户");
+    address = account.address; // base58 public key
+    const out = await w.features["solana:signMessage"].signMessage({ account, message: msgBytes });
+    sigBytes = (Array.isArray(out) ? out[0] : out)?.signature;
+  } else if (typeof window !== "undefined" && window.solana) {
+    const sol = window.solana;
+    const conn = await sol.connect();
+    address = (conn?.publicKey || sol.publicKey)?.toString();
+    const signed = await sol.signMessage(msgBytes, "utf8");
+    sigBytes = signed?.signature;
+  } else {
+    throw new Error("未检测到 Solana 钱包（如 Phantom）");
+  }
+  if (!address || !sigBytes) throw new Error("Solana 钱包签名失败");
+  // ed25519 signature over the raw message; send base58 (Solana convention).
+  const signature = base58.encode(sigBytes instanceof Uint8Array ? sigBytes : new Uint8Array(sigBytes));
+  const res = await api.auth.verify({ address, message, signature, nonce, chain: "solana" });
+  if (res?.token) setToken(res.token);
+  return { address, token: res?.token, user: res?.user };
 }
 
 async function suiRpc(rpc, method, params) {

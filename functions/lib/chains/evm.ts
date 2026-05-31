@@ -8,6 +8,7 @@
 // method is a safe no-op, so this file ships without affecting anything.
 import type { Env } from "../types";
 import type { ChainAdapter, ChainRef, ChainInfo } from "./types";
+import { recoverEvmAddress } from "./sigverify.mjs";
 
 function rpcUrl(env: Env): string | null {
   return env.EVM_RPC || null;
@@ -30,10 +31,14 @@ async function rpc(env: Env, method: string, params: unknown[]): Promise<any> {
 export const evmAdapter: ChainAdapter = {
   id: "evm",
 
-  async verifySignature(_message, _signature, _address) {
-    // TODO(EVM): recover the signer from an EIP-191 personal_sign / SIWE message
-    // (secp256k1 ecrecover) and compare to `address`. Needs a tiny crypto dep.
-    return null;
+  // EIP-191 personal_sign: recover the signer (secp256k1 ecrecover) from the
+  // message + 65-byte signature and confirm it matches the claimed address
+  // (case-insensitive). Returns the recovered 0x address or null (fails closed).
+  async verifySignature(message, signature, address) {
+    const signer = recoverEvmAddress(message, signature);
+    if (!signer) return null;
+    if (address && signer.toLowerCase() !== String(address).toLowerCase()) return null;
+    return signer;
   },
 
   async chainInfo(env): Promise<ChainInfo | null> {

@@ -849,6 +849,11 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
       <div className="rd-chap-no">第 {String(ch.n).padStart(2,"0")} 章{ch.paras.length ? ` · 约 ${chapMins} 分钟` : ""}</div>
       <h1 className="rd-chap-title">{tx(ch.title)}</h1>
       <div className="rd-chap-rule"/>
+      {ch.truncated && (
+        <div className="rd-chap-partial" role="status" style={{ margin: "0 0 14px", padding: "10px 14px", borderRadius: 8, background: "rgba(176,90,32,0.10)", border: "1px solid rgba(176,90,32,0.30)", color: "#8a4a1f", fontSize: 13, lineHeight: 1.6 }}>
+          本章完整正文暂时无法读取，当前仅显示节选预览。完整内容正在恢复，请稍后重试。
+        </div>
+      )}
       <div className="rd-text">
         {ch.paras.map(renderParagraph)}
       </div>

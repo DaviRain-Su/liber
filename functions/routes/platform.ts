@@ -29,7 +29,9 @@ platform.get("/search", async (c) => {
     return c.json({ error: "请求过于频繁，请稍后再试。" }, 429);
   }
   const q = (c.req.query("q") || "").trim();
-  const limit = Number(c.req.query("limit") || 8);
+  // Cap the client-supplied limit so the non-vectorized fallback (which slices an
+  // in-memory sentence list) can't be asked to return an arbitrarily large set.
+  const limit = Math.max(1, Math.min(Number(c.req.query("limit") || 8) || 8, 50));
   return c.json(await semanticSearch(c.env, q, limit));
 });
 
