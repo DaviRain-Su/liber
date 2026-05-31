@@ -8,6 +8,29 @@ import { enqueueSids } from "./graph/embed";
 
 const COVER_CLASSES = ["ink", "cinnabar", "cream", "indigo", "jade", "slate"];
 
+const QUARANTINED_LIBRARY_BOOK_IDS = [
+  "ernv-yingxiong-gutenberg-zh",
+  "guanchang-xianxingji-gutenberg-zh",
+  "haigong-an-gutenberg-zh",
+  "hongloumeng-gutenberg-zh",
+  "lengyanguan-gutenberg-zh",
+  "lv-mudan-gutenberg-zh",
+  "penggong-an-gutenberg-zh",
+  "rulin-waishi-gutenberg-zh",
+  "wenming-xiaoshi-gutenberg-zh",
+] as const;
+
+const QUARANTINED_LIBRARY_BOOK_SET = new Set<string>(QUARANTINED_LIBRARY_BOOK_IDS);
+const QUARANTINED_LIBRARY_BOOK_SQL = QUARANTINED_LIBRARY_BOOK_IDS.map((value) => `'${value}'`).join(",");
+
+function isQuarantinedLibraryBook(bookId: string): boolean {
+  return QUARANTINED_LIBRARY_BOOK_SET.has(bookId);
+}
+
+function visibleLibraryBookWhere(alias = "library_books"): string {
+  return `${alias}.id NOT IN (${QUARANTINED_LIBRARY_BOOK_SQL})`;
+}
+
 export interface IngestChapterInput {
   n?: number;
   title?: string;
@@ -252,6 +275,21 @@ function normalizeIngestMeta(input: IngestBookInput) {
   return { title, license, bookId: safeId(input.id, title) };
 }
 
+// Reject a publisher trying to overwrite a book id already owned by someone
+// else. A publisher (actorId set) may only (re)publish a NEW book or one they
+// created; admin/system writes (actorId null — ADMIN_TOKEN, no session) may
+// overwrite anything. Without this, ON CONFLICT(id) lets any CLI-token holder
+// clobber another publisher's title/author/license/chapters.
+async function assertBookWritable(env: Env, bookId: string, actorId?: string | null) {
+  if (!actorId) return;
+  const existing = await first<{ created_by: string | null }>(
+    env.DB, `SELECT created_by FROM library_books WHERE id = ?`, bookId,
+  );
+  if (existing && existing.created_by && existing.created_by !== actorId) {
+    throw new Error("该书 id 已由其他发布者占用，无法覆盖");
+  }
+}
+
 async function storeEpubSource(env: Env, bookId: string, input: IngestBookInput) {
   if (!input.epubBase64) return null;
   const epubBytes = base64ToBytes(input.epubBase64);
@@ -434,9 +472,13 @@ function scopedCategory(cat?: string) {
 
 export async function countBooks(env: Env, opts: { cat?: string } = {}) {
   const cat = scopedCategory(opts.cat);
-  const row = cat
-    ? await first<{ n: number }>(env.DB, `SELECT COUNT(*) AS n FROM library_books WHERE category = ?`, cat)
-    : await first<{ n: number }>(env.DB, `SELECT COUNT(*) AS n FROM library_books`);
+  const where = [visibleLibraryBookWhere("library_books")];
+  if (cat) where.push("category = ?");
+  const row = await first<{ n: number }>(
+    env.DB,
+    `SELECT COUNT(*) AS n FROM library_books WHERE ${where.join(" AND ")}`,
+    ...(cat ? [cat] : []),
+  );
   const total = Number(row?.n || 0);
   if (total > 0) return total;
   const seed = S.BOOKS.map((b) => ({ ...b, dynamic: false }));
@@ -462,7 +504,8 @@ export async function listBooks(env: Env, opts: { cat?: string; sort?: string; l
                FROM library_books lb
                LEFT JOIN (SELECT book_id, COUNT(DISTINCT user_id) AS readers FROM progress GROUP BY book_id) p ON p.book_id = lb.id
                LEFT JOIN (SELECT book_id, COUNT(*) AS lines_n FROM highlights GROUP BY book_id) h ON h.book_id = lb.id
-               ${cat ? "WHERE lb.category = ?" : ""}
+               WHERE ${visibleLibraryBookWhere("lb")}
+               ${cat ? "AND lb.category = ?" : ""}
                ORDER BY ${order}
                LIMIT ?`;
   const rows = await all<any>(env.DB, sql, ...(cat ? [cat, limit] : [limit]));
@@ -477,6 +520,7 @@ export async function listBooks(env: Env, opts: { cat?: string; sort?: string; l
 }
 
 export async function getBook(env: Env, bookId: string) {
+  if (isQuarantinedLibraryBook(bookId)) return null;
   const row = await first<any>(
     env.DB,
     `SELECT id, title, subtitle, author, category, lang, year, pages, words AS words_count,
@@ -492,6 +536,7 @@ export async function getBook(env: Env, bookId: string) {
 }
 
 export async function getToc(env: Env, bookId: string) {
+  if (isQuarantinedLibraryBook(bookId)) return [];
   const rows = await all<any>(env.DB, `SELECT n, title FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
   if (rows.length) return rows.map((r) => ({ n: r.n, title: r.title, has: true }));
   if (await hasLibraryBooks(env)) return [];
@@ -499,6 +544,7 @@ export async function getToc(env: Env, bookId: string) {
 }
 
 export async function getChapters(env: Env, bookId: string) {
+  if (isQuarantinedLibraryBook(bookId)) return [];
   const rows = await all<any>(env.DB, `SELECT n, title, blob_key, text_preview FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
   if (!rows.length) return !(await hasLibraryBooks(env)) ? (S.BOOK_CONTENT[bookId]?.chapters || []) : [];
   const chapters: Array<{ n: number; title: string; paras: Array<Array<{ id: string; t: string }>> }> = [];
@@ -511,6 +557,7 @@ export async function getChapters(env: Env, bookId: string) {
 }
 
 export async function getChapterText(env: Env, bookId: string, n: number) {
+  if (isQuarantinedLibraryBook(bookId)) return null;
   const row = await first<any>(env.DB, `SELECT title, blob_key, text_preview FROM library_chapters WHERE book_id = ? AND n = ?`, bookId, n);
   if (row) {
     const buf = await getBlob(env, row.blob_key);
@@ -799,7 +846,8 @@ export async function searchDynamic(env: Env, term: string) {
             cover_class, seal, blurb, description, featured, walrus, arweave, sui_index,
             license, source_url, created_at
      FROM library_books
-     WHERE title LIKE ? OR subtitle LIKE ? OR author LIKE ? OR category LIKE ? OR blurb LIKE ?
+     WHERE ${visibleLibraryBookWhere("library_books")}
+       AND (title LIKE ? OR subtitle LIKE ? OR author LIKE ? OR category LIKE ? OR blurb LIKE ?)
      ORDER BY created_at DESC LIMIT 20`,
     like, like, like, like, like,
   );
@@ -807,7 +855,9 @@ export async function searchDynamic(env: Env, term: string) {
     env.DB,
     `SELECT lc.book_id, lb.title AS book_title, lc.n, lc.title, lc.text_preview
      FROM library_chapters lc JOIN library_books lb ON lb.id = lc.book_id
-     WHERE lc.title LIKE ? OR lc.text_preview LIKE ? ORDER BY lc.book_id, lc.n LIMIT 20`,
+     WHERE ${visibleLibraryBookWhere("lb")}
+       AND (lc.title LIKE ? OR lc.text_preview LIKE ?)
+     ORDER BY lc.book_id, lc.n LIMIT 20`,
     like, like,
   );
   const sentences = hitRows.flatMap((r) => {
@@ -819,6 +869,7 @@ export async function searchDynamic(env: Env, term: string) {
 
 export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: string | null) {
   const meta = normalizeIngestMeta(input);
+  await assertBookWritable(env, meta.bookId, createdBy);
   const chapters = (input.chapters?.length ? input.chapters : parseTextChapters(input.text || ""))
     .map(normalizeIngestChapter)
     .filter((ch) => ch.text);
@@ -884,19 +935,22 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
   return { book: await getBook(env, meta.bookId), manifest: manifestRef, epub: epubRef, chapters: refs.length, sui: chainRef };
 }
 
-export async function beginChunkedBookIngest(env: Env, input: IngestBookInput) {
+export async function beginChunkedBookIngest(env: Env, input: IngestBookInput, createdBy?: string | null) {
   const meta = normalizeIngestMeta(input);
+  await assertBookWritable(env, meta.bookId, createdBy);
   const epub = await storeEpubSource(env, meta.bookId, input);
   return { id: meta.bookId, title: meta.title, license: meta.license, epub };
 }
 
-export async function ingestBookChapter(env: Env, input: IngestBookInput, chapter: IngestChapterInput, idx = 0) {
+export async function ingestBookChapter(env: Env, input: IngestBookInput, chapter: IngestChapterInput, idx = 0, createdBy?: string | null) {
   const meta = normalizeIngestMeta(input);
+  await assertBookWritable(env, meta.bookId, createdBy);
   const normalized = normalizeIngestChapter(chapter, idx);
   return storeChapter(env, meta.bookId, normalized);
 }
 
 export async function finalizeChunkedBookIngest(env: Env, input: ChunkedIngestFinalizeInput, createdBy?: string | null) {
   const meta = normalizeIngestMeta(input);
+  await assertBookWritable(env, meta.bookId, createdBy);
   return finalizeStoredBook(env, input, meta, createdBy);
 }

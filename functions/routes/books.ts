@@ -228,13 +228,26 @@ books.get("/search", async (c) => {
 books.post("/books/ingest", async (c) => {
   const auth = await ingestAuth(c);
   if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
+  if (Number(c.req.header("content-length") || 0) > 12_000_000) {
+    return c.json({ error: "请求体过大，超大书籍请使用分块上传接口" }, 413);
+  }
   const body = await c.req.json();
   if (!body.text && !body.epubBase64 && !body.chapters?.length && body.sourceUrl) {
-    if (!isAllowedIngestUrl(body.sourceUrl, c.env)) {
-      return c.json({ error: "sourceUrl 不在允许的来源白名单内（仅限 https 公有领域来源）" }, 400);
+    // Follow redirects MANUALLY, re-validating every hop against the allowlist —
+    // otherwise an allowlisted host could 30x-redirect us to an internal address
+    // (SSRF) since the literal sourceUrl check alone does not cover redirects.
+    let url: string = body.sourceUrl;
+    let res: Response | undefined;
+    for (let hop = 0; hop < 4; hop++) {
+      if (!isAllowedIngestUrl(url, c.env)) {
+        return c.json({ error: "sourceUrl 不在允许的来源白名单内（仅限 https 公有领域来源）" }, 400);
+      }
+      res = await fetch(url, { redirect: "manual" });
+      const loc = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+      if (!loc) break;
+      url = new URL(loc, url).toString();
     }
-    const res = await fetch(body.sourceUrl);
-    if (!res.ok) return c.json({ error: `源文本下载失败：${res.status}` }, 400);
+    if (!res || !res.ok) return c.json({ error: `源文本下载失败：${res?.status ?? "重定向过多"}` }, 400);
     body.text = await res.text();
   }
   try {
@@ -249,7 +262,7 @@ books.post("/books/ingest/begin", async (c) => {
   const auth = await ingestAuth(c);
   if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   try {
-    const result = await beginChunkedBookIngest(c.env, await c.req.json());
+    const result = await beginChunkedBookIngest(c.env, await c.req.json(), auth.userId);
     return c.json({ ok: true, ...result });
   } catch (e) {
     return c.json({ error: String(e instanceof Error ? e.message : e) }, 400);
@@ -261,7 +274,7 @@ books.post("/books/ingest/chapter", async (c) => {
   if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   try {
     const body = await c.req.json();
-    const result = await ingestBookChapter(c.env, body, body.chapter, Number(body.index || 0));
+    const result = await ingestBookChapter(c.env, body, body.chapter, Number(body.index || 0), auth.userId);
     return c.json({ ok: true, chapter: result.n, title: result.title, ref: result.ref });
   } catch (e) {
     return c.json({ error: String(e instanceof Error ? e.message : e) }, 400);

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
-import { requireUser } from "../lib/auth";
+import { bearerToken, hasAdminToken, requireUser } from "../lib/auth";
 import { first, run, now } from "../lib/db";
 import { getUsage } from "../lib/usage";
 import { paymentReceived, sameSuiAddress, validStripeSignature } from "../lib/verify.mjs";
@@ -189,9 +189,8 @@ billing.post("/webhook", async (c) => {
 
 // Admin backstop for off-chain/manual promotions.
 billing.post("/admin/activate", async (c) => {
-  const admin = c.env.ADMIN_TOKEN;
-  if (!admin || c.req.header("Authorization") !== `Bearer ${admin}`) return c.json({ error: "需要管理员令牌" }, 401);
-  const b = await c.req.json();
+  if (!hasAdminToken(c.env, bearerToken(c))) return c.json({ error: "需要管理员令牌" }, 401);
+  const b = await c.req.json().catch(() => ({}));
   if (!b.userId) return c.json({ error: "userId 不能为空" }, 400);
   await activatePro(c.env, b.userId);
   return c.json({ ok: true });

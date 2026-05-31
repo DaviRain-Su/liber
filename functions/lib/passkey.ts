@@ -128,6 +128,10 @@ export async function passkeyRegisterVerify(c: Ctx, response: any): Promise<{ to
       expectedChallenge: challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
+      // Options request UV as "preferred", so don't hard-reject an authenticator
+      // that completed without user verification (the library defaults to
+      // requiring UV, which contradicts the options).
+      requireUserVerification: false,
     });
   } catch {
     throw new HTTPException(400, { message: "通行密钥验证失败" });
@@ -175,6 +179,7 @@ export async function passkeyLoginVerify(c: Ctx, response: any): Promise<{ token
       expectedChallenge: challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
+      requireUserVerification: false, // match the "preferred" login options
       credential: {
         id: credential.id,
         publicKey: b64urlToBuf(credential.public_key),

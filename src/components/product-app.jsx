@@ -91,6 +91,16 @@ function App(){
     localStorage.removeItem("liber.onboarded");
     localStorage.removeItem("liber.reader.entered");
     localStorage.removeItem("liber.route");
+    // Per-user reading data is keyed by bookId only (liber.hl.<id> highlights,
+    // liber.nt.<id> notes) plus the global liber.shared cards and liber.place
+    // last-position. Drop all of them so one account's private annotations don't
+    // bleed into the next signed-in account on a shared/multi-account device.
+    localStorage.removeItem("liber.shared");
+    localStorage.removeItem("liber.place");
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("liber.hl.") || k.startsWith("liber.nt."))) localStorage.removeItem(k);
+    }
   }, []);
 
   const logout = useCb(async () => {

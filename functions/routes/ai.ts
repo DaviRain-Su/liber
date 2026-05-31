@@ -6,6 +6,7 @@ import { activeProvider } from "../lib/aiProvider";
 import { correctCachedTranslation, getCachedTranslation, putCachedTranslation, translationCacheKey } from "../lib/aiCache";
 import { withinQuota, recordUsage, getUsage, estimateTokens } from "../lib/usage";
 import { rateLimit, clientIp } from "../lib/ratelimit";
+import { bearerToken, hasAdminToken } from "../lib/auth";
 import { enqueueSids } from "../lib/graph/embed";
 import * as S from "../lib/seed";
 
@@ -94,12 +95,16 @@ ai.get("/usage", async (c) => {
 });
 
 ai.put("/translations/:cacheKey", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "未登录" }, 401);
-  const body = await c.req.json();
-  const translatedText = String(body.translatedText || "").trim();
+  // The translation cache is GLOBAL — one row per (book, chapter, model, text)
+  // served to every reader — and the key is a hash of public inputs, so any
+  // logged-in user could overwrite the shared translation for any passage with
+  // arbitrary text. Restrict live corrections to an admin token; user-suggested
+  // corrections should go through a moderation queue, not a direct shared write.
+  if (!hasAdminToken(c.env, bearerToken(c))) return c.json({ error: "纠错需要管理员授权" }, 403);
+  const body = await c.req.json().catch(() => null);
+  const translatedText = String(body?.translatedText || "").trim();
   if (!translatedText) return c.json({ error: "纠错内容为空" }, 400);
-  await correctCachedTranslation(c.env, { cacheKey: c.req.param("cacheKey"), translatedText, userId: uid });
+  await correctCachedTranslation(c.env, { cacheKey: c.req.param("cacheKey"), translatedText, userId: "admin" });
   return c.json({ ok: true });
 });
 

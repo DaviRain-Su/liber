@@ -390,15 +390,16 @@ export async function runPlatformJob(env: Env, input: string | PlatformQueueMess
   const payload = parsePayload(row.payload);
   // Atomically claim the job so concurrent callers (queue consumer vs /jobs/drain
   // vs /jobs/:id/run) cannot both execute it (double share-card render / double
-  // Vectorize upsert). The claim also reclaims a job stuck 'running' past
-  // PLATFORM_JOB_STALE_MS — a crashed prior run — which would otherwise never
-  // complete (the queue silently acks the skipped retry; there is no DLQ).
+  // Vectorize upsert). 'done' jobs are NEVER re-claimed — Cloudflare Queues are
+  // at-least-once, so a completed message can be redelivered, and re-running a
+  // done job would duplicate its side effects. A job stuck 'running' past
+  // PLATFORM_JOB_STALE_MS (a crashed prior run) IS reclaimed so it can complete.
   const claim = await run(
     env.DB,
-    `UPDATE platform_jobs SET status = 'running', attempts = attempts + 1, started_at = ?, updated_at = ? WHERE id = ? AND (status != 'running' OR started_at < ?)`,
+    `UPDATE platform_jobs SET status = 'running', attempts = attempts + 1, started_at = ?, updated_at = ? WHERE id = ? AND status != 'done' AND (status != 'running' OR started_at < ?)`,
     now(), now(), jobId, now() - PLATFORM_JOB_STALE_MS,
   );
-  if (!claim.meta?.changes) return { id: jobId, status: "running", skipped: true, reason: "任务已在执行中" };
+  if (!claim.meta?.changes) return { id: jobId, status: row.status, skipped: true, reason: "任务已完成或正在执行" };
   try {
     const result = row.type === "index-book"
       ? await indexBookSemantics(env, String(row.target_id || payload.bookId || ""))
