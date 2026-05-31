@@ -137,6 +137,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
         </a>
         <div className="nav-links">
           <a href="#discover">书库</a>
+          <a href="#yijing">易学</a>
           <a href="#permanence">永久保存</a>
           <a href="#ai">AI 书友</a>
           <a href="#social">共读</a>
@@ -487,6 +488,31 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
         </div>
       </section>
 
+      {/* ============ 易学 / 姊妹站 ============ */}
+      <section className="sec" id="yijing">
+        <div className="wrap">
+          <div className="perm-grid">
+            <div className="reveal">
+              <span className="kicker">姊妹站 · 易学</span>
+              <h2 className="display-m" style={{ marginTop: 18 }}>想从头<br />读懂《易经》？<br /><span className="serif-it" style={{ color: "var(--accent)" }}>这里有一座专馆。</span></h2>
+              <p className="sub" style={{ maxWidth: "42ch" }}>《周易》难入门，古注又散落各处。<b>易学馆</b> 把《易经》与相关中国传统典籍，整理成一条可循的路径——从卦象、爻辞到历代注疏，边读边查，循序学《易》。</p>
+              <div className="reveal d1" style={{ marginTop: 32, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+                <a className="btn btn-primary" href="https://yijing.davirain.xyz/" target="_blank" rel="noopener noreferrer">前往易学馆 <span className="arr">↗</span></a>
+                <span className="badge-perm">◇ 外部站点 · 新标签页打开</span>
+              </div>
+            </div>
+            <div className="reveal d1">
+              <div className="stack">
+                <div className="layer"><div className="lnum">01</div><div className="ltxt"><div className="lt">卦象 · 六十四卦</div><div className="ld">从乾坤到既济、未济，逐卦认形</div></div><div className="ltag">易经</div></div>
+                <div className="layer"><div className="lnum">02</div><div className="ltxt"><div className="lt">爻辞 · 逐爻释义</div><div className="ld">卦辞爻辞对照古今，读懂每一爻</div></div><div className="ltag">周易</div></div>
+                <div className="layer"><div className="lnum">03</div><div className="ltxt"><div className="lt">传统典籍 · 十翼与注疏</div><div className="ld">系辞、说卦与历代名家注解</div></div><div className="ltag">经部</div></div>
+              </div>
+              <div style={{ marginTop: 18 }}><span className="badge-perm">◇ 中国传统书籍 · 循序学《易》</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ============ CTA ============ */}
       <section className="cta" id="join">
         <div className="wrap">
@@ -512,7 +538,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
               </a>
               <p className="muted" style={{ fontSize: 15, maxWidth: "30ch" }}>人类的公共知识，永久、开放、对 AI 友好。一座不会丢失的图书馆。</p>
             </div>
-            <div className="foot-col"><h4>探索</h4><a href="#discover">书库</a><a href="#ai">AI 书友</a><a href="#social">共读</a><a href="#collection">馆藏</a><a href="#news">动态</a></div>
+            <div className="foot-col"><h4>探索</h4><a href="#discover">书库</a><a href="#yijing">易学</a><a href="#ai">AI 书友</a><a href="#social">共读</a><a href="#collection">馆藏</a><a href="#news">动态</a></div>
             <div className="foot-col"><h4>协议</h4><a href="#permanence">Walrus 存储</a><a href="#permanence">Arweave 备份</a><a href="#permanence">Sui 索引</a><a href="#open">MCP 接口</a></div>
             <div className="foot-col"><h4>社区</h4><a href="#open">GitHub</a><a href="#open">开发文档</a><a href="#join">加入共建</a><a href="#join">Discord</a></div>
           </div>
