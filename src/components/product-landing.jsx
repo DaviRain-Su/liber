@@ -1,5 +1,6 @@
 import React from "react";
 import { Mark, I } from "./product-shared.jsx";
+import { getNews } from "../data/news-data.js";
 import { getCatalogBooks, getCatalogTotal, licenseLabel } from "../lib/catalog.js";
 
 /* product-landing.jsx — the public marketing landing page.
@@ -58,6 +59,10 @@ const HERO_COVERS = [
   { cls: "cinnabar", top: "CC0 · AURELIUS", title: "沉思錄", size: 38, author: "马可·奥勒留", seal: "册", pos: "cv-3" },
 ];
 
+function fmtDate(d) {
+  return String(d || "").replace(/-/g, " · ");
+}
+
 function MiniCover({ b }) {
   return (
     <div className={`cover ${b.cls}`}>
@@ -80,6 +85,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
   );
 
   const BOOKS = getCatalogBooks();
+  const NEWS = getNews().slice(0, 3);
   const catalogTotal = getCatalogTotal();
   const agentBook = BOOKS[0] || { t:"", reads:"0", blob:"", license:"" };
 
@@ -135,7 +141,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
           <a href="#ai">AI 书友</a>
           <a href="#social">共读</a>
           <a href="#open">开放协议</a>
-          <a href="#news" onClick={(e) => { e.preventDefault(); onOpenNews && onOpenNews(); }}>动态</a>
+          <a href="#news">动态</a>
         </div>
         <div className="nav-right">
           <button className="theme-btn" onClick={toggleTheme} aria-label="切换主题">
@@ -251,6 +257,36 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
           <div className="reveal d1" style={{ marginTop: 30, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
             <button className="btn btn-primary" onClick={() => onOpenNews && onOpenNews("what-is-public-domain")}>读全文：什么是公共领域知识 <span className="arr">→</span></button>
             <span className="badge-perm">◇ 收录于 · 动态 / News</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ NEWS ============ */}
+      <section className="sec" id="news" style={{ background: "var(--paper-2)" }}>
+        <hr className="rule" style={{ position: "absolute", top: 0, left: 0, right: 0 }} />
+        <div className="wrap">
+          <div className="landing-news-head reveal">
+            <div className="sec-head">
+              <span className="kicker">动态 / News</span>
+              <h2 className="display-l">关于这座图书馆，<br />我们正在写下的事。</h2>
+              <p className="sub">公共领域、上架公告、协议设计与产品进展都会在这里公开。原创内容同样以 CC0 发布，可自由转载、翻译、改编。</p>
+            </div>
+            <button className="btn btn-ghost" onClick={() => onOpenNews && onOpenNews()}>全部动态 <span className="arr">→</span></button>
+          </div>
+          <div className="landing-news-grid reveal d1">
+            {NEWS.map((post) => (
+              <article className="landing-news-card" key={post.id}>
+                <div className="landing-news-meta">
+                  <span className="news-tag">{post.tag}</span>
+                  <span>{fmtDate(post.date)}</span>
+                </div>
+                <h3>{post.title}</h3>
+                <p>{post.excerpt}</p>
+                <button className="landing-news-link" onClick={() => onOpenNews && onOpenNews(post.id)}>
+                  阅读全文 <span className="arr">→</span>
+                </button>
+              </article>
+            ))}
           </div>
         </div>
       </section>
@@ -476,7 +512,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
               </a>
               <p className="muted" style={{ fontSize: 15, maxWidth: "30ch" }}>人类的公共知识，永久、开放、对 AI 友好。一座不会丢失的图书馆。</p>
             </div>
-            <div className="foot-col"><h4>探索</h4><a href="#discover">书库</a><a href="#ai">AI 书友</a><a href="#social">共读</a><a href="#collection">馆藏</a><a href="#news" onClick={(e) => { e.preventDefault(); onOpenNews && onOpenNews(); }}>动态</a></div>
+            <div className="foot-col"><h4>探索</h4><a href="#discover">书库</a><a href="#ai">AI 书友</a><a href="#social">共读</a><a href="#collection">馆藏</a><a href="#news">动态</a></div>
             <div className="foot-col"><h4>协议</h4><a href="#permanence">Walrus 存储</a><a href="#permanence">Arweave 备份</a><a href="#permanence">Sui 索引</a><a href="#open">MCP 接口</a></div>
             <div className="foot-col"><h4>社区</h4><a href="#open">GitHub</a><a href="#open">开发文档</a><a href="#join">加入共建</a><a href="#join">Discord</a></div>
           </div>
