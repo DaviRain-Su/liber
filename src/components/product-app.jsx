@@ -5,21 +5,30 @@ import { Onboarding } from "./product-onboarding.jsx";
 import { Landing } from "./product-landing.jsx";
 import { Library } from "./product-library.jsx";
 import { Detail } from "./product-detail.jsx";
-import { Notebook } from "./product-notebook.jsx";
-import { Social } from "./product-social.jsx";
-import { Profile } from "./product-profile.jsx";
-import { Certificate } from "./product-certificate.jsx";
-import { Shelf } from "./product-shelf.jsx";
-import { Booklist } from "./product-booklist.jsx";
-import { Group, GroupsList } from "./product-group.jsx";
-import { AgentSquare } from "./product-agents.jsx";
-import { Charts } from "./product-charts.jsx";
-import { News, NewsPost } from "./product-news.jsx";
-import { Reader } from "./product-reader.jsx";
 import { SearchOverlay } from "./product-search.jsx";
-import { AgentView } from "./product-agentview.jsx";
-import { GraphView } from "./product-graph.jsx";
 import { CliAuth } from "./cli-auth.jsx";
+
+// Route-split: heavy / rarely-first screens load on demand so the landing +
+// library first-paint path ships a smaller entry chunk. Landing, Library,
+// Detail, Search, Onboarding stay eager (the first-paint path).
+const lz = (loader, name) => React.lazy(() => loader().then((m) => ({ default: m[name] })));
+const Notebook = lz(() => import("./product-notebook.jsx"), "Notebook");
+const Social = lz(() => import("./product-social.jsx"), "Social");
+const Profile = lz(() => import("./product-profile.jsx"), "Profile");
+const Certificate = lz(() => import("./product-certificate.jsx"), "Certificate");
+const Shelf = lz(() => import("./product-shelf.jsx"), "Shelf");
+const Booklist = lz(() => import("./product-booklist.jsx"), "Booklist");
+const Group = lz(() => import("./product-group.jsx"), "Group");
+const GroupsList = lz(() => import("./product-group.jsx"), "GroupsList");
+const AgentSquare = lz(() => import("./product-agents.jsx"), "AgentSquare");
+const Charts = lz(() => import("./product-charts.jsx"), "Charts");
+const News = lz(() => import("./product-news.jsx"), "News");
+const NewsPost = lz(() => import("./product-news.jsx"), "NewsPost");
+const Reader = lz(() => import("./product-reader.jsx"), "Reader");
+const AgentView = lz(() => import("./product-agentview.jsx"), "AgentView");
+const GraphView = lz(() => import("./product-graph.jsx"), "GraphView");
+
+const SUSPENSE_FALLBACK = <div style={{ minHeight: "50vh" }} aria-busy="true" />;
 import { setToken } from "../lib/api.js";
 import { findCatalogBook, getCatalogBooks, loadCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 import { clearShelf } from "../lib/shelf.js";
@@ -228,6 +237,7 @@ function App(){
             onSearch={() => setSearch(true)} onProfile={() => setRoute(r => ({ screen:"profile", from: r.screen === "profile" ? r.from : r.screen }))}
             onAgentView={() => setAgentView(v => v ? null : { book: (route.screen==="detail"||route.screen==="cert") ? findCatalogBook(route.bookId) : null })} agentOn={!!agentView}
             user={authUser} onLogout={logout} />
+          <React.Suspense fallback={SUSPENSE_FALLBACK}>
           {route.screen === "library" && <Library onOpenBook={openBook} onOpenCharts={() => setRoute({ screen:"charts" })} />}
           {route.screen === "detail" && <Detail bookId={route.bookId} onOpenReader={openReader} onOpenCert={(id) => setRoute({ screen:"cert", bookId:id })} onBack={() => setRoute({ screen:"library" })} onOpenAgents={() => setRoute({ screen:"agents" })} />}
           {route.screen === "notes" && <Notebook onOpenBook={openBook} />}
@@ -242,28 +252,35 @@ function App(){
           {route.screen === "charts" && <Charts onOpenBook={openBook} onBack={() => setRoute({ screen:"library" })} onAgentCharts={(ctx) => setAgentView({ charts: ctx })} />}
           {route.screen === "news" && <News onOpenPost={(id) => setRoute({ screen:"newsPost", postId:id })} onBack={() => setRoute({ screen:"library" })} />}
           {route.screen === "newsPost" && <NewsPost postId={route.postId} onOpenPost={(id) => setRoute({ screen:"newsPost", postId:id })} onBack={() => setRoute({ screen:"news" })} />}
+          </React.Suspense>
           <MobileTabBar active={({detail:"library", group:"social", groups:"social", cert:"library", notes:"notes", booklist:"shelf", newsPost:"news"})[route.screen] || route.screen}
             onNav={(k) => setRoute({ screen: k })} />
         </>
       )}
       {reader && (
-        <Reader bookId={reader.bookId} startChapter={reader.startChapter} continueConvo={reader.continueConvo} onClose={() => setReader(null)} onOpenBook={(bid) => { setReader(null); setRoute({ screen:"detail", bookId:bid }); }} />
+        <React.Suspense fallback={SUSPENSE_FALLBACK}>
+          <Reader bookId={reader.bookId} startChapter={reader.startChapter} continueConvo={reader.continueConvo} onClose={() => setReader(null)} onOpenBook={(bid) => { setReader(null); setRoute({ screen:"detail", bookId:bid }); }} />
+        </React.Suspense>
       )}
       {search && (
         <SearchOverlay onClose={() => setSearch(false)} onOpenBook={openBookFromOverlay} />
       )}
       {agentView && (
-        <AgentView
-          context={agentView}
-          onCopy={(t)=>{ navigator.clipboard && navigator.clipboard.writeText(t); }}
-          onSquare={() => { setAgentView(null); setRoute({ screen:"agents" }); }}
-          onGraph={() => { setAgentView(null); setGraphView(true); }}
-          onClose={() => setAgentView(null)} />
+        <React.Suspense fallback={SUSPENSE_FALLBACK}>
+          <AgentView
+            context={agentView}
+            onCopy={(t)=>{ navigator.clipboard && navigator.clipboard.writeText(t); }}
+            onSquare={() => { setAgentView(null); setRoute({ screen:"agents" }); }}
+            onGraph={() => { setAgentView(null); setGraphView(true); }}
+            onClose={() => setAgentView(null)} />
+        </React.Suspense>
       )}
       {graphView && (
-        <GraphView
-          onOpenBook={(bid) => { setGraphView(false); setRoute({ screen:"detail", bookId:bid }); }}
-          onClose={() => setGraphView(false)} />
+        <React.Suspense fallback={SUSPENSE_FALLBACK}>
+          <GraphView
+            onOpenBook={(bid) => { setGraphView(false); setRoute({ screen:"detail", bookId:bid }); }}
+            onClose={() => setGraphView(false)} />
+        </React.Suspense>
       )}
       {phonePreview && (
         <div className="phone-preview-scrim" onClick={() => { setPhonePreview(false); window.dispatchEvent(new CustomEvent("liber-device-reset")); }}>
