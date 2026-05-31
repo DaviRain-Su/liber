@@ -30,6 +30,10 @@ max_batch_timeout = 30
 max_retries = 3
 dead_letter_queue = "liber-embed-dlq"
 
+# Nightly graph maintenance: theme labelling + cold-link decay (18:00 UTC).
+[triggers]
+crons = ["0 18 * * *"]
+
 [vars]
 GRAPH_ENABLED = "true"
 GRAPH_EMBED_MODEL = "@cf/baai/bge-m3"

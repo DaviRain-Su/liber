@@ -96,10 +96,25 @@ export async function liveEchoes(env: Env, sid: string, limit = 5): Promise<{ th
   return { theme, items };
 }
 
-// Used by the get_echoes tool: live first, seed fallback (today's behaviour).
+// Used by the get_echoes tool. Merges the hand-written seed echoes (kept FIRST,
+// as the taste baseline) with auto-discovered live edges (de-duped, appended).
+// Falls back to pure seed when the graph is off or has nothing — i.e. today's
+// behaviour is preserved, and a sentence never LOSES its curated echoes just
+// because the machine also found some (KNOWLEDGE_GRAPH_SPEC §7).
 export async function echoesForSid(env: Env, sid: string): Promise<any> {
-  const live = await liveEchoes(env, sid).catch(() => null);
-  if (live) return live;
   const seedKey = toSeedKey(sid) || sid;
-  return S.ECHOES[seedKey] || S.ECHOES[sid] || null;
+  const seed = S.ECHOES[seedKey] || S.ECHOES[sid] || null;
+  const live = await liveEchoes(env, sid).catch(() => null);
+
+  if (!live) return seed;
+  if (!seed) return live;
+
+  // merge: seed items first, then live items not already present (by book+quote)
+  const seen = new Set<string>(
+    (seed.items || []).map((it: any) => `${it.bookId || it.bookT}|${(it.quote || "").trim()}`),
+  );
+  const extra = (live.items || []).filter(
+    (it: any) => !seen.has(`${it.bookId || it.bookT}|${(it.quote || "").trim()}`),
+  );
+  return { theme: seed.theme, items: [...(seed.items || []), ...extra] };
 }

@@ -60,6 +60,7 @@ src/lib/api.js             frontend API client (window.liberApi)
 | Billing | `GET /api/billing/plan` · `GET /api/billing/crypto/config` · `POST /api/billing/crypto/confirm` · optional Stripe `POST /api/billing/checkout` / `webhook` |
 | Charts | `GET /api/charts?window=today|week|month` |
 | MCP (open) | `GET /api/mcp` · `POST /api/mcp/call` `{tool,args}` |
+| Graph | `GET /api/graph/stats` · `POST /api/graph/{backfill,maintenance}` (publish-gated) |
 
 ## Local development
 
@@ -121,6 +122,10 @@ external calls. Set public endpoints in `wrangler.toml` `[vars]`; set
 | `SUI_MODULE` | Move module name (default `registry`). |
 | `ADMIN_TOKEN` | **Secret.** Bearer token enabling the book-text ingest endpoint and manual pro activation endpoint. |
 | `AI_MODEL` | Override the AI book-companion model (any Workers AI text model id). Default: `@cf/qwen/qwen1.5-14b-chat-awq` (stronger Chinese than the prior Llama 3.1 8B). |
+| `GRAPH_ENABLED` | Living cross-book echoes (knowledge graph). `true` to enqueue embeddings + read live `echo_edges`; unset = inert, `get_echoes` returns the seed dictionary as today. Needs the `VECTORIZE` + `EMBED_QUEUE` bindings and the standalone `workers/embed-consumer` Worker. See `docs/KNOWLEDGE_GRAPH_SPEC.md`. |
+| `GRAPH_EMBED_MODEL` | Embedding model for the graph. Default `@cf/baai/bge-m3` (1024-d, multilingual). Changing it re-embeds. |
+| `GRAPH_MIN_SCORE` | Cosine threshold for writing an echo edge. Default `0.78`; set from the `npm run graph:spike` results. |
+| `GRAPH_TOPK` | Nearest neighbours queried per sentence. Default `8`. |
 | `CHAIN` | Active chain adapter: `sui` (default) / `evm` / `solana`. |
 | `PAYMENT_CHAIN` | Wallet Standard chain id for subscription transactions. Default `sui:testnet`. |
 | `PAYMENT_TREASURY` | Receiving Sui address for stablecoin subscriptions. |
@@ -200,9 +205,37 @@ the transaction digest to `POST /api/billing/crypto/confirm`. The backend reads
 the transaction from `SUI_RPC`, verifies sender, success status, coin type,
 recipient, and amount before promoting the user to `pro`. Stripe can stay unset.
 
+## Living knowledge graph (cross-book echoes)
+
+The hand-written `ECHOES` dictionary can be upgraded into a graph that **grows
+with use**: reading, highlighting, and AI chat feed an embedding pipeline that
+auto-discovers cross-book echoes. It is **off by default** (`GRAPH_ENABLED`
+unset) — the app then behaves exactly as today and `get_echoes` returns the seed
+dictionary. Full design + acceptance: `docs/KNOWLEDGE_GRAPH_SPEC.md`.
+
+- **Pipeline.** Sentence write → enqueue (`EMBED_QUEUE`, via `c.executionCtx.waitUntil`,
+  never blocking) → consumer embeds (`@cf/baai/bge-m3`) → upserts to `VECTORIZE`
+  → cross-book nearest-neighbour → writes `echo_edges` (D1, migration `0009`).
+  An `embeddings` ledger makes embedding idempotent (no repeat spend).
+- **Reader.** `get_echoes` (shared by the agent loop and `/api/mcp`) calls
+  `echoesForSid`, which **merges** the curated seed echoes (kept first) with
+  auto-discovered ones (de-duped, appended); `why` is generated lazily on first
+  surface. So a sentence never loses its hand-written echoes.
+- **Consumer is a separate Worker.** Pages Functions can't host a queue
+  consumer, so `workers/embed-consumer/` is deployed on its own (shares the same
+  D1/Vectorize/AI). It also runs nightly maintenance (theme labelling +
+  cold-link decay) via Cron. Deploy steps: `workers/embed-consumer/README.md`.
+- **Endpoints.** `GET /api/graph/stats` (open, read state) ·
+  `POST /api/graph/backfill` (publish-gated; enqueue the whole catalogue) ·
+  `POST /api/graph/maintenance` (publish-gated; run maintenance on demand).
+- **Spike first.** `npm run graph:spike` embeds the seed books and prints
+  auto-discovered echoes next to the hand-written ones, so the auto-link quality
+  (and the right `GRAPH_MIN_SCORE`) is validated **before** shipping.
+
 ## Roadmap
 
 - **P2** — richer AI companion (streaming, lens personas already wired), share → fork lineage.
+- **P2.5** — living knowledge graph (cross-book echoes): pipeline + reader merge + backfill/Cron landed behind `GRAPH_ENABLED`; pending live quality spike + provisioning. See above and `docs/KNOWLEDGE_GRAPH_SPEC.md`.
 - **P3** — provenance signing (human vs agent) + a fuller MCP surface.
 - **P4** — real Web3: Walrus/Arweave blobs + Sui registry/proof + wallet login (`@mysten/dapp-kit` + on-chain signature verify).
 - **P5** — frontend rewire: offline-first + background sync, migrating `window`/localStorage reads to `src/lib/api.js`.

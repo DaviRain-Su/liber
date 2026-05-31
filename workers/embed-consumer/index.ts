@@ -6,6 +6,7 @@
 // enqueues; this Worker embeds → upserts Vectorize → writes echo_edges.
 import type { Env } from "../../functions/lib/types";
 import { processEmbedBatch, type EmbedMsg } from "../../functions/lib/graph/embed";
+import { runMaintenance } from "../../functions/lib/graph/maintenance";
 
 export default {
   // No HTTP surface; a plain 200 so health checks don't 500.
@@ -23,5 +24,11 @@ export default {
       console.error("embed-consumer batch failed:", err);
       for (const m of batch.messages) m.retry();
     }
+  },
+
+  // Nightly maintenance (KNOWLEDGE_GRAPH_SPEC §6.6): theme labelling + cold-link
+  // decay. Scheduled via [triggers] crons in wrangler.toml.
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runMaintenance(env).then((r) => console.log("graph maintenance:", JSON.stringify(r))));
   },
 };
