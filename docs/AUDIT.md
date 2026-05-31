@@ -112,22 +112,34 @@ no-double-count, platform stale-reclaim serialization, listBooks sort injection-
 no XSS surface (zero `dangerouslySetInnerHTML`), path-traversal not possible (keys
 via `safeId`).
 
+## Second pass — backlog FIXED (commits 3d68590, 384c427)
+
+- Validation: malformed JSON body → 400 (global `onError`); highlight color
+  whitelist; `/vote`+`/comments` target_type allowlist; comment body cap; login
+  via `sameSuiAddress`; safe-parse of two DB JSON columns.
+- Import: `deleteStaleChapters` deletes the R2 chapter blob + `blobs` row;
+  `safeId` derives a stable `book_<fnv1a>` for CJK-only titles (idempotent
+  re-publish, underscore prefix avoids slug collision).
+- Perf: `read_passage` reads one chapter (was loading all); `search` term clamp;
+  `/groups/:id` loads one group; vote-count merges bounded to visible ids.
+- **`/api/groups` was timing out** (N×7 queries per book; catalogue grew to
+  hundreds) — now prioritises active groups, caps at 24, builds in parallel
+  (25s timeout → ~3s).
+- Passkey: atomic user+credential insert (`db.batch`); remove dead `chainById`;
+  correct the Sui zkLogin doc claim.
+
 ## Second pass — remaining backlog
 
-- **MED** — passkey: non-atomic registration (orphan user on cred-insert failure);
-  no `excludeCredentials` + localStorage-only heuristic can fork a second account.
-- **MED** — import: `deleteStaleChapters` orphans R2 chapter blobs + `blobs` rows;
-  `safeId` strips CJK so Chinese-only titles without an id get a random id (breaks
-  idempotent re-publish); chapter text silently truncates to `text_preview` (5000
-  chars) on R2 miss.
-- **MED** — `/groups/:id` builds every group then keeps one (N×~6 queries); malformed
-  JSON body → 500 instead of 400 on most write routes (a few fixed: mcp/ai/billing).
-- **MED** — Sui adapter can't verify zkLogin signatures (doc claims it; fails closed).
-- **LOW** — read_passage/search N+1 + leading-wildcard LIKE; vote-count merges scan
-  the whole votes table (no `target_id IN (...)`); `searchDynamic` fabricates sentence
-  sids; highlight color stored unvalidated; unbounded social post body sizes;
-  `/vote` accepts arbitrary `target_type`; login address strict-compare vs
-  `sameSuiAddress`; dead `chainById`.
+- **MED** — `/api/groups` still ~3s (24 books × ~6 queries). Proper fix: batch the
+  per-group aggregates into a handful of grouped queries (sub-second).
+- **MED** — passkey: no `excludeCredentials` + localStorage-only heuristic can fork
+  a second account on a device whose synced passkey isn't in localStorage.
+- **MED** — chapter text silently truncates to `text_preview` (5000 chars) on an R2
+  miss (low-probability data-loss edge); Sui adapter can't verify zkLogin (needs a
+  SuiClient threaded into `verifyPersonalMessageSignature`; fails closed today).
+- **LOW** — `/shares` comment/save counts still full-scan; `searchDynamic` fabricates
+  sentence sids; unbounded `/works`/`/shares`/`/threads` body sizes; leading-wildcard
+  LIKE in search; corrupt-DB JSON in a few more spots.
 
 ## Methodology
 
