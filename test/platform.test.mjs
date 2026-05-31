@@ -4,7 +4,7 @@ import test from "node:test";
 
 const wrangler = await readFile(new URL("../wrangler.toml", import.meta.url), "utf8");
 const platformWrangler = await readFile(new URL("../wrangler.platform.toml", import.meta.url), "utf8");
-const migration = await readFile(new URL("../migrations/0008_platform_ops.sql", import.meta.url), "utf8");
+const migration = await readFile(new URL("../migrations/0010_platform_ops.sql", import.meta.url), "utf8");
 const types = await readFile(new URL("../functions/lib/types.ts", import.meta.url), "utf8");
 const apiRoute = await readFile(new URL("../functions/api/[[route]].ts", import.meta.url), "utf8");
 const platformLib = await readFile(new URL("../functions/lib/platform.ts", import.meta.url), "utf8");
