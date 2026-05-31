@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   createBookManifest,
   createIngestPayload,
+  garbledTextWarnings,
   inspectEpub,
   publishBookManifestChunked,
   verifyPublishLicense,
@@ -12,6 +13,8 @@ import {
 
 const API_URL = "https://liber.davirain.xyz";
 const MAX_CHAPTERS_FOR_AUTO_PUBLISH = 300;
+const FETCH_RETRIES = 3;
+const FETCH_RETRY_BASE_MS = 750;
 
 const BOOKS = [
   { id: "daodejing-gutenberg-zh", pg: 7337, lang: "zh", title: "道德經", category: "中文 · 道家", expect: "道德經" },
@@ -63,6 +66,48 @@ const BOOKS = [
   { id: "chibei-outan-gutenberg-zh", pg: 25162, lang: "zh", title: "池北偶談", category: "中文 · 笔记", expect: "池北偶談" },
   { id: "chuke-paian-jingqi-gutenberg-zh", pg: 57248, lang: "zh", title: "初刻拍案驚奇", category: "中文 · 古典小说", expect: "初刻拍案" },
   { id: "yushi-mingyan-gutenberg-zh", pg: 27582, lang: "zh", title: "喻世明言", category: "中文 · 古典小说", expect: "喻世明言" },
+  { id: "doupeng-xianhua-gutenberg-zh", pg: 25328, lang: "zh", title: "豆棚閒話", category: "中文 · 古典小说", expect: "豆棚閒話" },
+  { id: "bimuyu-gutenberg-zh", pg: 24185, lang: "zh", title: "比目魚", category: "中文 · 古典小说", expect: "比目魚" },
+  { id: "shanhaijing-gutenberg-zh", pg: 25288, lang: "zh", title: "山海經", category: "中文 · 神话地理", expect: "山海經" },
+  { id: "mulan-qinv-zhuan-gutenberg-zh", pg: 23938, lang: "zh", title: "木蘭奇女傳", category: "中文 · 古典小说", expect: "木蘭奇女傳" },
+  { id: "haigong-an-gutenberg-zh", pg: 54494, lang: "zh", title: "海公案", category: "中文 · 公案小说", expect: "海公案" },
+  { id: "yandan-zi-gutenberg-zh", pg: 24068, lang: "zh", title: "燕丹子", category: "中文 · 史传", expect: "燕丹子" },
+  { id: "digong-an-gutenberg-zh", pg: 27686, lang: "zh", title: "狄公案", category: "中文 · 公案小说", expect: "狄公案" },
+  { id: "lv-mudan-gutenberg-zh", pg: 27330, lang: "zh", title: "綠牡丹", category: "中文 · 古典小说", expect: "綠牡丹" },
+  { id: "tianbao-tu-gutenberg-zh", pg: 26904, lang: "zh", title: "天豹圖", category: "中文 · 古典小说", expect: "天豹圖" },
+  { id: "lianggong-jiujian-gutenberg-zh", pg: 26886, lang: "zh", title: "梁公九諫", category: "中文 · 史传", expect: "梁公九諫" },
+  { id: "changhen-ge-gutenberg-zh", pg: 25352, lang: "zh", title: "長恨歌", category: "中文 · 诗歌", expect: "長恨歌" },
+  { id: "liwa-zhuan-gutenberg-zh", pg: 24051, lang: "zh", title: "李娃傳", category: "中文 · 唐传奇", expect: "李娃傳" },
+  { id: "yulou-chun-gutenberg-zh", pg: 25422, lang: "zh", title: "玉樓春", category: "中文 · 古典小说", expect: "玉樓春" },
+  { id: "hanshu-gutenberg-zh", pg: 23841, lang: "zh", title: "漢書", category: "中文 · 史书", expect: "漢書" },
+  { id: "hou-xiyouji-gutenberg-zh", pg: 27332, lang: "zh", title: "後西游記", category: "中文 · 神魔小说", expect: "後西游記" },
+  { id: "luoshen-fu-gutenberg-zh", pg: 24041, lang: "zh", title: "洛神賦", category: "中文 · 辞赋", expect: "洛神賦" },
+  { id: "youxue-qionglin-gutenberg-zh", pg: 52269, lang: "zh", title: "幼學瓊林", category: "中文 · 蒙学", expect: "幼學瓊林" },
+  { id: "pipa-ji-gutenberg-zh", pg: 25246, lang: "zh", title: "琵琶記", category: "中文 · 戏曲", expect: "琵琶記" },
+  { id: "sanguo-zhi-gutenberg-zh", pg: 25606, lang: "zh", title: "三國志", category: "中文 · 史书", expect: "三國志" },
+  { id: "baigui-zhi-gutenberg-zh", pg: 27023, lang: "zh", title: "白圭志", category: "中文 · 古典小说", expect: "白圭志" },
+  { id: "mengzi-ziyi-shuzheng-gutenberg-zh", pg: 25360, lang: "zh", title: "孟子字義疏證", category: "中文 · 儒家", expect: "孟子字義疏證" },
+  { id: "anle-ji-gutenberg-zh", pg: 24106, lang: "zh", title: "安樂集", category: "中文 · 佛典", expect: "安樂集" },
+  { id: "dengxizi-gutenberg-zh", pg: 7215, lang: "zh", title: "鄧析子", category: "中文 · 名家", expect: "鄧析子" },
+  { id: "qiuranke-zhuan-gutenberg-zh", pg: 23915, lang: "zh", title: "虬髯客傳", category: "中文 · 唐传奇", expect: "虬髯客傳" },
+  { id: "wuchuan-lu-gutenberg-zh", pg: 27581, lang: "zh", title: "吳船錄", category: "中文 · 地理游记", expect: "吳船錄" },
+  { id: "xingcha-shenglan-gutenberg-zh", pg: 24143, lang: "zh", title: "星槎勝覽", category: "中文 · 地理游记", expect: "星槎勝覽" },
+  { id: "dongzhou-lieguo-zhi-gutenberg-zh", pg: 25349, lang: "zh", title: "東周列國志", category: "中文 · 历史小说", expect: "東周列國志" },
+  { id: "xingshi-hengyan-gutenberg-zh", pg: 24239, lang: "zh", title: "醒世恆言", category: "中文 · 话本小说", expect: "醒世恆言" },
+  { id: "soushen-ji-gutenberg-zh", pg: 25362, lang: "zh", title: "搜神記", category: "中文 · 志怪", expect: "搜神記" },
+  { id: "baopuzi-gutenberg-zh", pg: 25696, lang: "zh", title: "抱朴子", category: "中文 · 道家", expect: "抱朴子" },
+  { id: "xijing-zaji-gutenberg-zh", pg: 25368, lang: "zh", title: "西京雜記", category: "中文 · 笔记", expect: "西京雜記" },
+  { id: "youming-lu-gutenberg-zh", pg: 52278, lang: "zh", title: "幽明錄", category: "中文 · 志怪", expect: "幽明錄" },
+  { id: "mingjing-gongan-gutenberg-zh", pg: 52280, lang: "zh", title: "明鏡公案", category: "中文 · 公案小说", expect: "明鏡公案" },
+  { id: "dou-e-yuan-gutenberg-zh", pg: 52276, lang: "zh", title: "竇娥冤", category: "中文 · 戏曲", expect: "竇娥冤" },
+  { id: "guanzi-gutenberg-zh", pg: 7367, lang: "zh", title: "管子", category: "中文 · 诸子", expect: "管子" },
+  { id: "guiguzi-gutenberg-zh", pg: 25168, lang: "zh", title: "鬼谷子", category: "中文 · 纵横家", expect: "鬼谷子" },
+  { id: "mutianzi-zhuan-gutenberg-zh", pg: 24058, lang: "zh", title: "穆天子传", category: "中文 · 史传", expect: "穆天子" },
+  { id: "haishanghua-liezhuan-gutenberg-zh", pg: 26872, lang: "zh", title: "海上花列傳", category: "中文 · 近代小说", expect: "海上花列傳" },
+  { id: "fengyue-meng-gutenberg-zh", pg: 26931, lang: "zh", title: "風月夢", category: "中文 · 近代小说", expect: "風月夢" },
+  { id: "hanshi-waizhuan-gutenberg-zh", pg: 7290, lang: "zh", title: "韓詩外傳", category: "中文 · 儒家", expect: "韓詩外傳" },
+  // Gutenberg #24040 metadata is public-domain, but its text/EPUB body is
+  // mojibake. Keep it out until we find a clean public-domain/CC0 source.
 
   { id: "alice-wonderland-gutenberg-en", pg: 11, lang: "en", title: "Alice's Adventures in Wonderland", category: "English · Fiction", expect: "Alice" },
   { id: "pride-prejudice-gutenberg-en", pg: 1342, lang: "en", title: "Pride and Prejudice", category: "English · Fiction", expect: "Pride" },
@@ -379,7 +424,7 @@ function parseArgs(argv) {
   const out = { publish: false, json: false, apiUrl: API_URL, ids: BOOKS.map((b) => b.id) };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--publish" || arg === "--json") {
+    if (arg === "--publish" || arg === "--json" || arg === "--summary") {
       out[arg.slice(2)] = true;
       continue;
     }
@@ -431,8 +476,41 @@ function rdfValues(xml, tagName) {
     .filter(Boolean);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function transientFetchFailure(error) {
+  const text = String(error?.message || error || "");
+  const code = error?.cause?.code || error?.code || "";
+  return /fetch failed|socket|timeout|terminated|network/i.test(text)
+    || ["UND_ERR_SOCKET", "ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "ENOTFOUND"].includes(code);
+}
+
+async function fetchWithRetry(url, options = {}) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= FETCH_RETRIES; attempt += 1) {
+    try {
+      const res = await fetch(url, options);
+      if ((res.status === 429 || res.status >= 500) && attempt < FETCH_RETRIES) {
+        await res.arrayBuffer().catch(() => {});
+        process.stderr.write(`[gutenberg] retry ${attempt + 1}/${FETCH_RETRIES} ${url}: HTTP ${res.status}\n`);
+        await sleep(FETCH_RETRY_BASE_MS * attempt);
+        continue;
+      }
+      return res;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= FETCH_RETRIES || !transientFetchFailure(error)) throw error;
+      process.stderr.write(`[gutenberg] retry ${attempt + 1}/${FETCH_RETRIES} ${url}: ${error.message}\n`);
+      await sleep(FETCH_RETRY_BASE_MS * attempt);
+    }
+  }
+  throw lastError;
+}
+
 async function fetchGutenbergMetadata(book) {
-  const res = await fetch(rdfUrl(book), { headers: { "user-agent": "liber-gutenberg-import/0.1" } });
+  const res = await fetchWithRetry(rdfUrl(book), { headers: { "user-agent": "liber-gutenberg-import/0.1" } });
   if (!res.ok) throw new Error(`Failed to verify Project Gutenberg metadata for ${book.id}: HTTP ${res.status}`);
   const rdf = await res.text();
   return {
@@ -452,16 +530,22 @@ function verifyGutenbergPublicDomain(book, metadata) {
   return license;
 }
 
+function isLikelyValidOrdinalHeading(title) {
+  const value = String(title || "").replace(/\s+/g, " ").trim();
+  return /^(?:[IVXLCDM]+\.?|第[一二三四五六七八九十百千0-9]+[章幕場节節]|[一二三四五六七八九十百千]+|(?:CAPITOLO|HOOFDSTUK|KAPITEL|KAPITLET|CHAPITRE|ROZDZIAŁ)\b)/iu.test(value);
+}
+
 function chapterQualityWarnings(chapters) {
   const titles = chapters.map((chapter) => String(chapter.title || "").trim()).filter(Boolean);
+  const text = chapters.map((chapter) => chapter.text || "").join("\n\n");
   const warnings = [];
+  warnings.push(...garbledTextWarnings(text));
   if (chapters.length > MAX_CHAPTERS_FOR_AUTO_PUBLISH) {
     warnings.push(`EPUB produced ${chapters.length} chapters, likely an index/dictionary split`);
   }
   if (titles.length >= 12) {
     const terse = titles.filter((title) => (
-      title.length <= 4
-      || /^(?:[IVXLCDM]+|[A-Z])\.?$/i.test(title)
+      (!isLikelyValidOrdinalHeading(title) && (title.length <= 4 || /^(?:\d+|[A-Z])\.?$/i.test(title)))
       || /^(?:V|M|F)\.\s*(?:i|p|t|pl|ant|gram|fig|fam)\.?/i.test(title)
     ));
     if (terse.length / titles.length > 0.65) {
@@ -473,7 +557,7 @@ function chapterQualityWarnings(chapters) {
 
 function assertImportQuality(book, chapters) {
   const warnings = chapterQualityWarnings(chapters);
-  if (chapters.length > MAX_CHAPTERS_FOR_AUTO_PUBLISH) {
+  if (chapters.length > MAX_CHAPTERS_FOR_AUTO_PUBLISH || warnings.some((warning) => /garbled|mojibake|replacement/i.test(warning))) {
     throw new Error(`Rejected ${book.id} #${book.pg}: ${warnings[0]}`);
   }
   return warnings;
@@ -497,11 +581,26 @@ function isSameNormalizedTitle(a, b) {
 function isGutenbergMatterTitle(title) {
   const value = String(title || "").replace(/\s+/g, " ").trim();
   const folded = normalizedTitle(value);
-  return /^(?:contents?|table of contents|inhoudsopgave|inhoud\.?|tartalom\.?|inneh[åa]ll\.?:?|index\b.*|notes?:|noten\b.*|footnotes?|fodnoter|colophon|colofon|transcriber(?:'|’)?s notes?|javit[aá]sok\.?|afskriverens rettelser|corrigenda|errata|fi)$/iu.test(value)
+  const matterTitles = new Set([
+    "register",
+    "notoj",
+    "notatki",
+    "nota",
+    "noter",
+    "le fonti",
+    "viiteselitykset",
+    "labjegyzetek",
+    "innehallsforteckning",
+    "verkaro de d ro l l zamenhof",
+  ]);
+  return /^(?:contents?|table of contents|inhoudsopgave|inhoud\.?|tartalom\.?|inneh[åa]ll(?:sförteckning)?\.?:?|index\b.*|notes?:|noten\b.*|footnotes?|fodnoter|colophon|colofon|transcriber(?:'|’)?s notes?|javit[aá]sok\.?|afskriverens rettelser|corrigenda|errata|fi)$/iu.test(value)
     || /^I N D E X$/iu.test(value)
     || /^T A R T A L O M$/iu.test(value)
     || /^[*＊\s]+$/u.test(value)
-    || folded === "javitasok";
+    || /^הערת עורך/u.test(value)
+    || /^(?:後記|あとがき)$/u.test(value)
+    || folded === "javitasok"
+    || matterTitles.has(folded);
 }
 
 function isShortTitlePage(book, chapter, index, total) {
@@ -512,8 +611,7 @@ function isShortTitlePage(book, chapter, index, total) {
 
 function isShortGeneratedCredit(chapter) {
   const title = String(chapter.title || "").replace(/\s+/g, " ").trim();
-  const text = String(chapter.text || "").replace(/\s+/g, " ").trim();
-  return text.length < 1800 && /,\s+by\s+/i.test(title);
+  return title.length < 120 && /,\s+by\s+/i.test(title);
 }
 
 function isShortLeadingRomanPage(chapter, index, total) {
@@ -541,7 +639,7 @@ function cleanGutenbergPayload(book, payload) {
 }
 
 async function download(url, filePath) {
-  const res = await fetch(url, { headers: { "user-agent": "liber-gutenberg-import/0.1" } });
+  const res = await fetchWithRetry(url, { headers: { "user-agent": "liber-gutenberg-import/0.1" } });
   if (!res.ok) throw new Error(`Failed to download ${url}: HTTP ${res.status}`);
   await writeFile(filePath, new Uint8Array(await res.arrayBuffer()));
 }
@@ -561,9 +659,9 @@ async function downloadEpub(book, filePath) {
 
 async function probe(apiUrl, book) {
   const [bookRes, contentRes, searchRes] = await Promise.all([
-    fetch(`${apiUrl}/api/books/${encodeURIComponent(book.id)}`),
-    fetch(`${apiUrl}/api/books/${encodeURIComponent(book.id)}/content/1`),
-    fetch(`${apiUrl}/api/search?q=${encodeURIComponent(book.expect)}`),
+    fetchWithRetry(`${apiUrl}/api/books/${encodeURIComponent(book.id)}`),
+    fetchWithRetry(`${apiUrl}/api/books/${encodeURIComponent(book.id)}/content/1`),
+    fetchWithRetry(`${apiUrl}/api/search?q=${encodeURIComponent(book.expect)}`),
   ]);
   return {
     bookFound: bookRes.ok && Boolean((await bookRes.json()).book),
@@ -639,8 +737,61 @@ async function importOne(book, options) {
   };
 }
 
+function summarizeOutput(output) {
+  const byLang = {};
+  const failures = [];
+  const warnings = [];
+  const results = output.results.map((result) => {
+    byLang[result.lang || "unknown"] = (byLang[result.lang || "unknown"] || 0) + 1;
+    if (result.error || !result.accepted) {
+      failures.push({
+        id: result.id,
+        pg: result.pg,
+        lang: result.lang,
+        error: result.error || "not accepted",
+      });
+    }
+    if (result.qualityWarnings?.length) {
+      warnings.push({
+        id: result.id,
+        pg: result.pg,
+        lang: result.lang,
+        warnings: result.qualityWarnings,
+      });
+    }
+    return {
+      id: result.id,
+      pg: result.pg,
+      title: result.title,
+      lang: result.lang,
+      category: result.category,
+      accepted: Boolean(result.accepted),
+      license: result.license || null,
+      chapters: result.chapters || 0,
+      published: Boolean(result.published),
+      live: result.live || null,
+      error: result.error || null,
+    };
+  });
+  return {
+    mode: output.mode,
+    apiUrl: output.apiUrl,
+    total: output.results.length,
+    accepted: output.results.filter((result) => result.accepted).length,
+    failed: failures.length,
+    published: output.results.filter((result) => result.published).length,
+    byLang,
+    failures,
+    warnings,
+    results,
+  };
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  const knownIds = new Set(BOOKS.map((book) => book.id));
+  const missingIds = options.ids.filter((id) => !knownIds.has(id));
+  if (missingIds.length) throw new Error(`Unknown book ids: ${missingIds.join(",")}`);
   const selected = BOOKS.filter((book) => options.ids.includes(book.id));
   if (!selected.length) throw new Error(`No matching books for --ids ${options.ids.join(",")}`);
   const results = [];
@@ -663,7 +814,8 @@ async function main() {
     }
   }
   const output = { mode: options.publish ? "publish" : "dry-run", apiUrl: options.apiUrl, results };
-  process.stdout.write(options.json ? `${JSON.stringify(output, null, 2)}\n` : `${results.map((r) => `${r.id}: ${r.title}`).join("\n")}\n`);
+  const body = options.summary ? summarizeOutput(output) : output;
+  process.stdout.write(options.json ? `${JSON.stringify(body, null, 2)}\n` : `${results.map((r) => `${r.id}: ${r.title}`).join("\n")}\n`);
 }
 
 main().catch((error) => {

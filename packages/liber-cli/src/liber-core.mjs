@@ -416,6 +416,42 @@ function normalizeTextBlocks(text) {
     .trim();
 }
 
+export function garbledTextWarnings(text) {
+  const sample = String(text || "").replace(/\s+/g, " ").trim().slice(0, 6000);
+  if (!sample) return [];
+
+  const chars = [...sample];
+  const total = chars.length || 1;
+  const replacement = chars.filter((ch) => ch === "\uFFFD").length;
+  const mojibake = chars.filter((ch) => /[ÃÂâ€šœžŸ¢¤¥¦§¨©ª«¬®¯±²³´µ¶·¸¹º»¼½¾¿]/u.test(ch)).length;
+  const han = chars.filter((ch) => /\p{Script=Han}/u.test(ch)).length;
+  const hanPunctuation = chars.filter((ch) => /[，。、；：？！「」『』《》（）]/u.test(ch)).length;
+  const oddSymbols = chars.filter((ch) => /[⊿∪∟∠⊥∩╡╰﹝ＸＹＺＴＵＷ０-９ａ-ｚ]/u.test(ch)).length;
+  const warnings = [];
+
+  if (replacement / total > 0.002) warnings.push("contains replacement characters");
+  if (mojibake / total > 0.015) warnings.push("contains Latin-1/UTF-8 mojibake markers");
+  if (han > 120 && oddSymbols >= 6 && hanPunctuation <= Math.max(2, han / 500)) {
+    warnings.push("Chinese text has high garbled-symbol density");
+  }
+  return warnings;
+}
+
+export function looksLikeGarbledText(text) {
+  return garbledTextWarnings(text).length > 0;
+}
+
+function assertReadableChapters(chapters) {
+  const text = chapters.map((chapter) => chapter.text || "").join("\n\n");
+  const warnings = garbledTextWarnings(text);
+  if (warnings.length) {
+    throw new LiberCliError(
+      "EPUB_GARBLED_TEXT",
+      `EPUB extracted text looks garbled: ${warnings.join("; ")}.`,
+    );
+  }
+}
+
 function htmlToText(raw) {
   const BR = "\uE001";
   const SEP = "\uE002";
@@ -1039,10 +1075,16 @@ export async function extractEpubChapters(filePath) {
       || navigationChapters.length >= 20;
     const notOversegmented = !chapters.length
       || navigationChapters.length <= Math.max(chapters.length * 1.8, chapters.length + 8);
-    if (enoughCoverage && notOversegmented) return finalizeExtractedChapters(navigationChapters);
+    if (enoughCoverage && notOversegmented) {
+      const finalized = finalizeExtractedChapters(navigationChapters);
+      assertReadableChapters(finalized);
+      return finalized;
+    }
   }
   if (!chapters.length) throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
-  return finalizeExtractedChapters(chapters);
+  const finalized = finalizeExtractedChapters(chapters);
+  assertReadableChapters(finalized);
+  return finalized;
 }
 
 export function normalizePublishLicense(raw) {

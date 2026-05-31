@@ -201,7 +201,9 @@ npm run import:gutenberg-classics -- --publish --json --ids <comma-separated ids
 The importer records ISO language codes and language-prefixed categories from
 Project Gutenberg EPUBs that pass the same `PUBLIC-DOMAIN` license checks. It
 also reports TOC quality warnings and rejects extreme splits such as dictionary
-or index EPUBs that produce hundreds of pseudo-chapters.
+or index EPUBs that produce hundreds of pseudo-chapters. It also rejects
+mojibake/garbled text, because some Gutenberg records have valid metadata but
+corrupted generated EPUB/text bodies.
 
 The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
 can be published to npm and installed by curators or agents. It requires

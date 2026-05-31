@@ -14,7 +14,9 @@ import {
   createIngestPayload,
   dryRunPublishPlan,
   extractEpubChapters,
+  garbledTextWarnings,
   inspectEpub,
+  looksLikeGarbledText,
   loadCliConfig,
   publishBookManifest,
   publishBookManifestChunked,
@@ -259,6 +261,63 @@ A real second paragraph remains separate.`,
   assert.match(chapters[0].text, /sciences, the arts, and usages/);
   assert.doesNotMatch(chapters[0].text, /sciences, the\n\narts/);
   assert.match(chapters[0].text, /War\.\n\nA real second paragraph/);
+});
+
+test("extractEpubChapters rejects garbled Chinese text", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "Chapter 1",
+      body: `頦菜鈭亦剝剖亙蝎寧 銋拙嗆
+
+寡詨粹剔瞍脣寡璆詨粹剔瞍脣 格閰冽頦砌剛急唳剛
+
+嗆嗆Ｘ祆桃蝞鞊ｇ撕剔剜祆寞臬音桅剛
+
+⊿冽鈭血迎銋抵芷脣輸鈭亙孵 Ｚａ怨祆踵啁
+
+株砍蝘餉∪輯憌舀賣豢頦嫖芰啣鞎瞉 詨詨圈
+
+剔剜唾砍拇寥獢芰踵祈 嚚怠頦寞
+
+賊賣砍賢寡其鼎Ｗ頛舫砌祉曇怠 曉頦嫖單
+
+剔踹賊啣喃⊥喳輻∠菟剜曇文寡
+
+獢鞈芸鞈芾瞏砍寞蔬瞏璇 桃抽芾菔瞏剖兩芾菔瞉鈭銋
+
+頦菜鈭亦剝剖亙蝎寧 銋拙嗆
+
+寡詨粹剔瞍脣寡璆詨粹剔瞍脣 格閰冽頦砌剛急唳剛
+
+嗆嗆Ｘ祆桃蝞鞊ｇ撕剔剜祆寞臬音桅剛
+
+⊿冽鈭血迎銋抵芷脣輸鈭亙孵 Ｚａ怨祆踵啁
+
+株砍蝘餉∪輯憌舀賣豢頦嫖芰啣鞎瞉 詨詨圈
+
+剔剜唾砍拇寥獢芰踵祈 嚚怠頦寞
+
+賊賣砍賢寡其鼎Ｗ頛舫砌祉曇怠 曉頦嫖單
+
+剔踹賊啣喃⊥喳輻∠菟剜曇文寡
+
+獢鞈芸鞈芾瞏砍寞蔬瞏璇 桃抽芾菔瞏剖兩芾菔瞉鈭銋`,
+    },
+  ], { title: "Bad Chinese Source" });
+
+  await assert.rejects(
+    () => extractEpubChapters(epubPath),
+    /EPUB extracted text looks garbled/,
+  );
+});
+
+test("garbledTextWarnings allows readable classical Chinese", () => {
+  const text = `棲守道德者，寂寞一時；依阿權勢者，淒涼萬古。
+
+達人觀物外之物，思身後之身，寧受一時之寂寞，毋取萬古之淒涼。`;
+
+  assert.equal(looksLikeGarbledText(text), false);
+  assert.deepEqual(garbledTextWarnings(text), []);
 });
 
 test("extractEpubChapters removes Project Gutenberg license wrappers", async () => {
