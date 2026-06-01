@@ -89,7 +89,7 @@ turnkey.post("/ensure", async (c) => {
   if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
   try {
     const res = await ensureTurnkeyWallet(c.env, user);
-    return c.json({ ok: true, provisioned: !!res, suiAddress: res?.suiAddress ?? (user as any).turnkey_sui_address ?? null });
+    return c.json({ ok: true, provisioned: !!res, wallets: res?.addresses ?? null });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
@@ -111,8 +111,8 @@ turnkey.post("/ensure-test", async (c) => {
   try {
     const user = await getUser(env, uid);
     const res = await ensureTurnkeyWallet(env, user!);
-    const after = await first<any>(env.DB, `SELECT turnkey_sub_org_id, turnkey_sui_address FROM users WHERE id = ?`, uid);
-    return c.json({ ok: true, identityKey, provisioned: !!res, suiAddress: res?.suiAddress ?? null, linked: after });
+    const after = await first<any>(env.DB, `SELECT turnkey_sub_org_id, turnkey_wallet_id, turnkey_addresses FROM users WHERE id = ?`, uid);
+    return c.json({ ok: true, identityKey, provisioned: !!res, wallets: res?.addresses ?? null, linked: after });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }

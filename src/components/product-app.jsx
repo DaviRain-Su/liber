@@ -103,16 +103,19 @@ function App(){
         if (!live) return;
         const u = r?.user || null;
         setAuthUser(u);
-        // Bolt-on: give a wallet-less signed-in reader a Turnkey embedded Sui wallet
-        // (best-effort, once per device). Wallet-connect users + guests are no-ops.
-        if (u && !u.is_guest && !u.turnkey_sui_address && window.liberApi.auth.ensureWallet) {
-          const flag = `liber.tk.ensured.${u.id}`;
+        // Bolt-on: give a wallet-less signed-in reader a Turnkey embedded multi-chain
+        // wallet (Sui + Ethereum + Solana), best-effort, once per device. Wallet-connect
+        // users + guests are no-ops. Re-runs once for users who only had the old Sui-only set.
+        const tw = u && u.turnkeyWallets;
+        const incomplete = !tw || !tw.sui || !tw.ethereum || !tw.solana;
+        if (u && !u.is_guest && incomplete && window.liberApi.auth.ensureWallet) {
+          const flag = `liber.tk.ensured2.${u.id}`;
           if (!localStorage.getItem(flag)) {
             window.liberApi.auth.ensureWallet()
               .then(res => {
                 localStorage.setItem(flag, "1");
-                if (live && res?.suiAddress) {
-                  setAuthUser(prev => (prev && prev.id === u.id) ? { ...prev, turnkey_sui_address: res.suiAddress } : prev);
+                if (live && res?.wallets) {
+                  setAuthUser(prev => (prev && prev.id === u.id) ? { ...prev, turnkeyWallets: res.wallets } : prev);
                 }
               })
               .catch(() => {});

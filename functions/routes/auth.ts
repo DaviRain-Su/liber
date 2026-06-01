@@ -223,7 +223,10 @@ auth.get("/me", async (c) => {
   if (!user) return c.json({ user: null });
   if (user.is_guest) return c.json({ user: null });
   const stats = await readingStats(c.env, uid);
-  return c.json({ user: { ...user, wallet: user.sui_address || "通行密钥", stats } });
+  // Parse the Turnkey embedded multi-chain addresses (Sui/Ethereum/Solana) for the UI.
+  let turnkeyWallets: any = null;
+  try { turnkeyWallets = (user as any).turnkey_addresses ? JSON.parse((user as any).turnkey_addresses) : null; } catch { /* ignore */ }
+  return c.json({ user: { ...user, wallet: user.sui_address || "通行密钥", turnkeyWallets, stats } });
 });
 
 auth.put("/me", async (c) => {

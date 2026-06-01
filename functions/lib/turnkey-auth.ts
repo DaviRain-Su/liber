@@ -6,7 +6,10 @@
 import type { Env } from "./types";
 import { first, run, id, now } from "./db";
 import { getUser, type UserRow } from "./auth";
-import { createSubOrgWithSuiWallet, turnkeyConfigured } from "./turnkey";
+import { provisionWallets, turnkeyConfigured } from "./turnkey";
+
+export interface TurnkeyWallets { sui: string | null; ethereum: string | null; solana: string | null; }
+const safeParse = (s: string | null | undefined): any => { try { return s ? JSON.parse(s) : null; } catch { return null; } };
 
 export interface TurnkeyUserInput {
   // The Liber identity key stored in users.sui_address — UNCHANGED for existing users
@@ -61,21 +64,26 @@ export async function upsertTurnkeyUser(env: Env, input: TurnkeyUserInput): Prom
 // brought their own address, and guests are skipped. The server (parent API key) is
 // a root user of the sub-org, so it can sign Sui actions for the user (custodial,
 // see plan): exactly what work-registration needs.
-export async function ensureTurnkeyWallet(env: Env, user: UserRow): Promise<{ subOrgId: string; suiAddress: string } | null> {
+export async function ensureTurnkeyWallet(env: Env, user: UserRow): Promise<{ subOrgId: string; addresses: TurnkeyWallets } | null> {
   const u = user as any;
-  if (u.turnkey_sub_org_id && u.turnkey_sui_address) {
-    return { subOrgId: u.turnkey_sub_org_id, suiAddress: u.turnkey_sui_address };
+  const existing: TurnkeyWallets | null = safeParse(u.turnkey_addresses);
+  // Already has the full multi-chain set → done.
+  if (u.turnkey_sub_org_id && existing?.sui && existing?.ethereum && existing?.solana) {
+    return { subOrgId: u.turnkey_sub_org_id, addresses: existing };
   }
   if (!turnkeyConfigured(env) || user.is_guest) return null;
   const key = user.sui_address || "";
   const ownWallet = !!key && !key.startsWith("email:") && !key.startsWith("google:") && !key.startsWith("guest:");
   if (ownWallet) return null; // wallet-connect users already control their own wallet
 
-  const created = await createSubOrgWithSuiWallet(env, `liber-${user.id}`);
-  const r = created.result?.createSubOrganizationResultV7 || created.result?.createSubOrganizationResult || created.result || {};
-  const subOrgId = r.subOrganizationId;
-  const suiAddress = (r.wallet?.addresses || [])[0];
-  if (!subOrgId || !suiAddress) return null;
-  await run(env.DB, `UPDATE users SET turnkey_sub_org_id = ?, turnkey_sui_address = ? WHERE id = ?`, subOrgId, suiAddress, user.id);
-  return { subOrgId, suiAddress };
+  // Provision (or re-provision an incomplete Sui-only wallet — the old address is
+  // unused, so replacing it with a full Sui+ETH+SOL wallet is safe).
+  const p = await provisionWallets(env, `liber-${user.id}`);
+  if (!p.subOrgId || !p.addresses.sui) return null;
+  await run(
+    env.DB,
+    `UPDATE users SET turnkey_sub_org_id = ?, turnkey_wallet_id = ?, turnkey_sui_address = ?, turnkey_addresses = ? WHERE id = ?`,
+    p.subOrgId, p.walletId, p.addresses.sui, JSON.stringify(p.addresses), user.id,
+  );
+  return { subOrgId: p.subOrgId, addresses: p.addresses };
 }

@@ -283,6 +283,19 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               <div className="handle">{person.handle} · {person.joined}</div>
               <p className="bio">{person.bio}</p>
               <div className="pf-wallet">{I.lock} {person.wallet}</div>
+              {isMe && person.turnkeyWallets && (person.turnkeyWallets.sui || person.turnkeyWallets.ethereum || person.turnkeyWallets.solana) && (
+                <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
+                  {[["Sui", person.turnkeyWallets.sui], ["ETH", person.turnkeyWallets.ethereum], ["SOL", person.turnkeyWallets.solana]]
+                    .filter(([, a]) => a)
+                    .map(([chain, a]) => (
+                      <div key={chain} title={`${a}（点击复制）`} onClick={() => navigator.clipboard && navigator.clipboard.writeText(a)}
+                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#8a8576", cursor: "pointer" }}>
+                        <span style={{ minWidth: 30, fontWeight: 600, color: "#2e7d57" }}>{chain}</span>
+                        <code>{a.slice(0, 6)}…{a.slice(-4)}</code>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
             <div className="pf-actions">
               {isMe ? (
