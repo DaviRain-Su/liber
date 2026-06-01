@@ -10,10 +10,12 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { bearerToken, hasAdminToken, createSession, getUser } from "../lib/auth";
 import { id, now, run, first } from "../lib/db";
-import { turnkeyConfigured, createSubOrgWithSuiWallet, getWalletAccount, signRawPayload } from "../lib/turnkey";
-import { suiAddressFromEd25519Pubkey, suiPersonalMessageDigestHex, assembleSuiSignature } from "../lib/turnkey-sui";
+import { turnkeyConfigured, createSubOrgWithSuiWallet, provisionWallets, getWalletAccount, signRawPayload } from "../lib/turnkey";
+import { suiAddressFromEd25519Pubkey, suiPersonalMessageDigestHex, suiTransactionDigestHex, assembleSuiSignature } from "../lib/turnkey-sui";
 import { upsertTurnkeyUser, ensureTurnkeyWallet } from "../lib/turnkey-auth";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
+import { Transaction } from "@mysten/sui/transactions";
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -115,6 +117,63 @@ turnkey.post("/ensure-test", async (c) => {
     return c.json({ ok: true, identityKey, provisioned: !!res, wallets: res?.addresses ?? null, linked: after });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+// Admin: provision a fresh embedded wallet and return its ids + addresses (so a
+// testnet address can be funded out-of-band before the transfer test).
+turnkey.post("/provision", async (c) => {
+  const env = c.env;
+  if (!hasAdminToken(env, bearerToken(c))) return c.json({ error: "unauthorized" }, 401);
+  if (!turnkeyConfigured(env)) return c.json({ error: "turnkey_not_configured" }, 501);
+  try {
+    const p = await provisionWallets(env, `liber-prov-${Date.now()}`);
+    return c.json({ ok: true, subOrgId: p.subOrgId, walletId: p.walletId, addresses: p.addresses });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+// Admin demo: prove an embedded wallet can SIGN + EXECUTE a real transfer on Sui
+// TESTNET. Pass a {subOrgId, walletId, suiAddress} (from /provision) whose Sui
+// testnet address has already been funded; this builds a tiny self-transfer, signs
+// it via Turnkey (server/custodial), and executes. Fast (no faucet/poll) so the
+// request doesn't get retried.
+turnkey.post("/sui-transfer-test", async (c) => {
+  const env = c.env;
+  if (!hasAdminToken(env, bearerToken(c))) return c.json({ error: "unauthorized" }, 401);
+  if (!turnkeyConfigured(env)) return c.json({ error: "turnkey_not_configured" }, 501);
+  const body: any = await c.req.json().catch(() => ({}));
+  const subOrgId = String(body?.subOrgId || ""), walletId = String(body?.walletId || ""), suiAddress = String(body?.suiAddress || "");
+  if (!subOrgId || !walletId || !suiAddress) return c.json({ ok: false, error: "need subOrgId, walletId, suiAddress (from /provision; fund the suiAddress on testnet first)" }, 400);
+  try {
+    const url = (body?.rpc && String(body.rpc)) || env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
+    const network = /devnet/.test(url) ? "devnet" : /mainnet/.test(url) ? "mainnet" : /localnet|127\.0\.0\.1|localhost/.test(url) ? "localnet" : "testnet";
+    const client = new SuiJsonRpcClient({ url, network: network as any });
+    const coins = await client.getCoins({ owner: suiAddress });
+    if (!coins.data?.length) return c.json({ ok: false, step: "gas", error: "address has no SUI on testnet — fund it first", suiAddress }, 400);
+
+    const recipient = (body?.to && String(body.to)) || suiAddress;
+    const tx = new Transaction();
+    tx.setSender(suiAddress);
+    tx.setGasBudget(5_000_000);
+    const [coin] = tx.splitCoins(tx.gas, [1_000_000]);
+    tx.transferObjects([coin], recipient);
+    const bytes = await tx.build({ client });
+
+    const acct = await getWalletAccount(env, subOrgId, walletId, suiAddress);
+    const pubkeyHex = acct?.account?.publicKey;
+    if (!pubkeyHex) return c.json({ ok: false, step: "pubkey", debug: { acct } }, 502);
+    const digestHex = suiTransactionDigestHex(bytes);
+    const signed = await signRawPayload(env, subOrgId, suiAddress, digestHex);
+    const sr = signed.result?.signRawPayloadResult || signed.result || {};
+    if (!sr.r || !sr.s) return c.json({ ok: false, step: "sign", debug: { sign: signed.result } }, 502);
+    const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
+
+    const res = await client.executeTransactionBlock({ transactionBlock: bytes, signature, options: { showEffects: true } });
+    return c.json({ ok: true, network, suiAddress, recipient, digest: res.digest, status: res.effects?.status?.status, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
 });
 

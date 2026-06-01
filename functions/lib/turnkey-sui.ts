@@ -32,6 +32,13 @@ export function suiPersonalMessageDigestHex(message: string): string {
   return bytesToHex(blake2b(intent, { dkLen: 32 }));
 }
 
+// The 32-byte digest Turnkey must sign for a Sui TRANSACTION (intent scope
+// "TransactionData", vs "PersonalMessage" above). Pass the built transaction bytes.
+export function suiTransactionDigestHex(txBytes: Uint8Array): string {
+  const intent = messageWithIntent("TransactionData", txBytes);
+  return bytesToHex(blake2b(intent, { dkLen: 32 }));
+}
+
 // Assemble Sui's serialized signature (base64) from Turnkey's raw ed25519 signature.
 // Turnkey returns r and s hex; concatenated they ARE the 64-byte ed25519 signature.
 export function assembleSuiSignature(rHex: string, sHex: string, pubkeyHex: string): string {
