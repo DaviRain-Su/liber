@@ -18,6 +18,7 @@ import graph from "../routes/graph";
 import platform from "../routes/platform";
 import messages from "../routes/messages";
 import notifications from "../routes/notifications";
+import turnkey from "../routes/turnkey";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>().basePath("/api");
 
@@ -59,6 +60,7 @@ app.route("/graph", graph);
 app.route("/platform", platform);
 app.route("/messages", messages);
 app.route("/notifications", notifications);
+app.route("/turnkey", turnkey);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);

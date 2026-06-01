@@ -82,6 +82,11 @@ CHAIN = "sui"
 CF_ACCOUNT_ID = "fb5d95d6e0ff4055cbf5321f8dfc30e9"
 # Sender for login emails — an address on a domain verified in Cloudflare Email Sending.
 EMAIL_FROM = "Liber <login@davirain.xyz>"
+# Turnkey embedded-wallet prototype (functions/lib/turnkey.ts). Org id + API public
+# key are not secret; the API private key goes in as a Pages secret:
+#   npx wrangler pages secret put TURNKEY_API_PRIVATE_KEY
+TURNKEY_ORG_ID = "f42d5685-5e5e-4139-98ad-4208cfb31295"
+# TURNKEY_API_PUBLIC_KEY = "<P-256 compressed pubkey hex from the Turnkey dashboard>"
 # Google "Sign in with Google" client id (public; the ID-token aud is checked
 # against it). Add your site to the OAuth client's Authorized JavaScript origins.
 GOOGLE_CLIENT_ID = "1021328086145-18jc2gqb4rdflor24ein4ub5pgkhi4qn.apps.googleusercontent.com"

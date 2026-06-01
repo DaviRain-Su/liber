@@ -59,6 +59,13 @@ export interface Env {
   // Sender for login emails, e.g. "Liber <login@yourdomain.com>" (a domain
   // verified in Cloudflare Email Sending).
   EMAIL_FROM?: string;
+  // Turnkey embedded-wallet infra (evaluation/prototype; see spike/turnkey-sui.mjs +
+  // functions/lib/turnkey.ts). ORG_ID + API public key are identifiers (vars); the
+  // API private key is a secret (P-256, used to "stamp"/sign every Turnkey request).
+  // Unset = the Turnkey prototype route is inert.
+  TURNKEY_ORG_ID?: string;
+  TURNKEY_API_PUBLIC_KEY?: string;   // P-256 compressed pubkey hex (~66 chars)
+  TURNKEY_API_PRIVATE_KEY?: string;  // P-256 private scalar hex (Pages secret)
   // Comma-separated Sui addresses whose CLI publish token also counts as a
   // platform/graph admin (in addition to ADMIN_TOKEN). A self-minted CLI token
   // from a non-listed wallet is NOT admin. Unset = only ADMIN_TOKEN is admin.
