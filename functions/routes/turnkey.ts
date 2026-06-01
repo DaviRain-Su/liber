@@ -8,9 +8,10 @@
 // ADMIN_TOKEN so it can't be triggered by the public.
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
-import { bearerToken, hasAdminToken } from "../lib/auth";
+import { bearerToken, hasAdminToken, createSession } from "../lib/auth";
 import { turnkeyConfigured, createSubOrgWithSuiWallet, getWalletAccount, signRawPayload } from "../lib/turnkey";
 import { suiAddressFromEd25519Pubkey, suiPersonalMessageDigestHex, assembleSuiSignature } from "../lib/turnkey-sui";
+import { upsertTurnkeyUser } from "../lib/turnkey-auth";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -53,6 +54,11 @@ turnkey.post("/spike", async (c) => {
     const recovered = await verifyPersonalMessageSignature(new TextEncoder().encode(challenge), signature);
     const recoveredAddr = recovered.toSuiAddress();
 
+    // 5. Bridge to a Liber account: find/create the user, link the sub-org, mint a
+    // Liber session (proves the Phase 0 foundation: Turnkey sub-org → Liber session).
+    const { user, isNew } = await upsertTurnkeyUser(env, { identityKey: suiAddress, subOrgId, suiAddress });
+    const liberToken = await createSession(env, user.id);
+
     return c.json({
       ok: true,
       verified: recoveredAddr === suiAddress && derivedAddr === suiAddress,
@@ -63,6 +69,9 @@ turnkey.post("/spike", async (c) => {
       pubkeyHex,
       challenge,
       signature,
+      liberToken,
+      liberUserId: user.id,
+      isNewUser: isNew,
     });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e), debug }, 500);
