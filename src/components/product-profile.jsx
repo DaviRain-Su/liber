@@ -283,9 +283,9 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               <div className="handle">{person.handle} · {person.joined}</div>
               <p className="bio">{person.bio}</p>
               <div className="pf-wallet">{I.lock} {person.wallet}</div>
-              {isMe && person.turnkeyWallets && (person.turnkeyWallets.sui || person.turnkeyWallets.ethereum || person.turnkeyWallets.solana) && (
+              {isMe && person.turnkeyWallets && (person.turnkeyWallets.sui || person.turnkeyWallets.ethereum || person.turnkeyWallets.solana || person.turnkeyWallets.bitcoin) && (
                 <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
-                  {[["Sui", person.turnkeyWallets.sui], ["ETH", person.turnkeyWallets.ethereum], ["SOL", person.turnkeyWallets.solana]]
+                  {[["Sui", person.turnkeyWallets.sui], ["ETH", person.turnkeyWallets.ethereum], ["SOL", person.turnkeyWallets.solana], ["BTC", person.turnkeyWallets.bitcoin]]
                     .filter(([, a]) => a)
                     .map(([chain, a]) => (
                       <div key={chain} title={`${a}（点击复制）`} onClick={() => navigator.clipboard && navigator.clipboard.writeText(a)}

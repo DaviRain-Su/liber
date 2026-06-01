@@ -101,6 +101,7 @@ export async function createSubOrgWithSuiWallet(env: Env, label: string): Promis
           { curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/784'/0'/0'/0'", addressFormat: "ADDRESS_FORMAT_SUI" },
           { curve: "CURVE_SECP256K1", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/60'/0'/0/0", addressFormat: "ADDRESS_FORMAT_ETHEREUM" },
           { curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/501'/0'/0'", addressFormat: "ADDRESS_FORMAT_SOLANA" },
+          { curve: "CURVE_SECP256K1", pathFormat: "PATH_FORMAT_BIP32", path: "m/84'/0'/0'/0/0", addressFormat: "ADDRESS_FORMAT_BITCOIN_MAINNET_P2WPKH" },
         ],
       },
     },
@@ -111,7 +112,7 @@ export async function createSubOrgWithSuiWallet(env: Env, label: string): Promis
 // Create a sub-org with a multi-chain HD wallet (Sui + Ethereum + Solana) and return
 // the parsed ids + addresses. addresses[] order matches the accounts order above.
 export async function provisionWallets(env: Env, label: string): Promise<{
-  subOrgId: string; walletId: string; addresses: { sui: string | null; ethereum: string | null; solana: string | null }; raw: any;
+  subOrgId: string; walletId: string; addresses: { sui: string | null; ethereum: string | null; solana: string | null; bitcoin: string | null }; raw: any;
 }> {
   const { result } = await createSubOrgWithSuiWallet(env, label);
   const r = result?.createSubOrganizationResultV7 || result?.createSubOrganizationResult || result || {};
@@ -119,7 +120,7 @@ export async function provisionWallets(env: Env, label: string): Promise<{
   return {
     subOrgId: r.subOrganizationId,
     walletId: r.wallet?.walletId,
-    addresses: { sui: a[0] ?? null, ethereum: a[1] ?? null, solana: a[2] ?? null },
+    addresses: { sui: a[0] ?? null, ethereum: a[1] ?? null, solana: a[2] ?? null, bitcoin: a[3] ?? null },
     raw: r,
   };
 }

@@ -8,7 +8,7 @@ import { first, run, id, now } from "./db";
 import { getUser, type UserRow } from "./auth";
 import { provisionWallets, turnkeyConfigured } from "./turnkey";
 
-export interface TurnkeyWallets { sui: string | null; ethereum: string | null; solana: string | null; }
+export interface TurnkeyWallets { sui: string | null; ethereum: string | null; solana: string | null; bitcoin: string | null; }
 const safeParse = (s: string | null | undefined): any => { try { return s ? JSON.parse(s) : null; } catch { return null; } };
 
 export interface TurnkeyUserInput {
@@ -68,7 +68,7 @@ export async function ensureTurnkeyWallet(env: Env, user: UserRow): Promise<{ su
   const u = user as any;
   const existing: TurnkeyWallets | null = safeParse(u.turnkey_addresses);
   // Already has the full multi-chain set → done.
-  if (u.turnkey_sub_org_id && existing?.sui && existing?.ethereum && existing?.solana) {
+  if (u.turnkey_sub_org_id && existing?.sui && existing?.ethereum && existing?.solana && existing?.bitcoin) {
     return { subOrgId: u.turnkey_sub_org_id, addresses: existing };
   }
   if (!turnkeyConfigured(env) || user.is_guest) return null;

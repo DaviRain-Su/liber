@@ -107,9 +107,9 @@ function App(){
         // wallet (Sui + Ethereum + Solana), best-effort, once per device. Wallet-connect
         // users + guests are no-ops. Re-runs once for users who only had the old Sui-only set.
         const tw = u && u.turnkeyWallets;
-        const incomplete = !tw || !tw.sui || !tw.ethereum || !tw.solana;
+        const incomplete = !tw || !tw.sui || !tw.ethereum || !tw.solana || !tw.bitcoin;
         if (u && !u.is_guest && incomplete && window.liberApi.auth.ensureWallet) {
-          const flag = `liber.tk.ensured2.${u.id}`;
+          const flag = `liber.tk.ensured3.${u.id}`;
           if (!localStorage.getItem(flag)) {
             window.liberApi.auth.ensureWallet()
               .then(res => {
