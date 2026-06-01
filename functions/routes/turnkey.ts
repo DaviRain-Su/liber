@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { bearerToken, hasAdminToken, createSession, getUser } from "../lib/auth";
 import { id, now, run, first } from "../lib/db";
-import { turnkeyConfigured, createSubOrgWithSuiWallet, provisionWallets, getWalletAccount, signRawPayload, getSubOrgRootUserId, createPasskeyAuthenticator } from "../lib/turnkey";
+import { turnkeyConfigured, createSubOrgWithSuiWallet, provisionWallets, getWalletAccount, signRawPayload, getSubOrgRootUserId, createPasskeyAuthenticator, getSignRawPayloadResult } from "../lib/turnkey";
 import { suiAddressFromEd25519Pubkey, suiPersonalMessageDigestHex, suiTransactionDigestHex, assembleSuiSignature } from "../lib/turnkey-sui";
 import { upsertTurnkeyUser, ensureTurnkeyWallet } from "../lib/turnkey-auth";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
@@ -296,6 +296,94 @@ turnkey.post("/passkey/enroll", async (c) => {
     return c.json({ ok: true });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+// --- Real passkey-signed Sui transfer (non-custodial) ---------------------------
+// The split is deliberate: the SIGNING step happens in the browser, stamped by the
+// user's own passkey (Face ID), talking straight to Turnkey — our server never holds
+// the signing key. The server only (1) builds the unsigned transaction and (2) reads
+// the user-signed result and broadcasts it. Sui rejects any tx whose bytes don't
+// match the signed digest, so a tampered broadcast can't succeed.
+function suiNetworkOf(url: string): string {
+  return /devnet/.test(url) ? "devnet" : /testnet/.test(url) ? "testnet" : /localnet|127\.0\.0\.1|localhost/.test(url) ? "localnet" : "mainnet";
+}
+function b64encode(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+// 1) Build the unsigned transfer + the digest the user's passkey must sign.
+turnkey.post("/sui/prepare", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null;
+  try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const subOrgId = user.turnkey_sub_org_id;
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  if (!subOrgId || !suiAddress) return c.json({ ok: false, error: "no_wallet" }, 400);
+
+  const body: any = await c.req.json().catch(() => ({}));
+  const to = String(body?.to || "").trim();
+  const amount = Number(body?.amount);
+  if (!/^0x[0-9a-fA-F]{1,64}$/.test(to)) return c.json({ ok: false, error: "bad_recipient", message: "请填写有效的 Sui 地址（0x…）" }, 400);
+  if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
+  try {
+    const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("mainnet");
+    const network = suiNetworkOf(url);
+    const client = new SuiJsonRpcClient({ url, network: network as any });
+    const coins = await client.getCoins({ owner: suiAddress });
+    if (!coins.data?.length) return c.json({ ok: false, error: "no_gas", message: "该 Sui 地址暂无余额，无法支付转账与矿工费" }, 400);
+
+    const mist = BigInt(Math.round(amount * 1e9));
+    const tx = new Transaction();
+    tx.setSender(suiAddress);
+    tx.setGasBudget(5_000_000);
+    const [coin] = tx.splitCoins(tx.gas, [mist]);
+    tx.transferObjects([coin], to);
+    const bytes = await tx.build({ client });
+    const digestHex = suiTransactionDigestHex(bytes);
+    return c.json({ ok: true, txBytesB64: b64encode(bytes), digestHex, signWith: suiAddress, organizationId: subOrgId, network });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+// 2) Read the user's passkey-signed activity and broadcast the transfer on Sui.
+turnkey.post("/sui/broadcast", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null;
+  try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const subOrgId = user.turnkey_sub_org_id;
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  const walletId = user.turnkey_wallet_id;
+  if (!subOrgId || !suiAddress || !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+
+  const body: any = await c.req.json().catch(() => ({}));
+  const txBytesB64 = String(body?.txBytesB64 || "");
+  const activityId = String(body?.activityId || "");
+  if (!txBytesB64 || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  try {
+    const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
+    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account?.publicKey;
+    if (!pubkeyHex) return c.json({ ok: false, error: "no_pubkey" }, 502);
+    const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
+    const bytes = Uint8Array.from(atob(txBytesB64), (ch) => ch.charCodeAt(0));
+
+    const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("mainnet");
+    const network = suiNetworkOf(url);
+    const client = new SuiJsonRpcClient({ url, network: network as any });
+    const res = await client.executeTransactionBlock({ transactionBlock: bytes, signature, options: { showEffects: true } });
+    return c.json({ ok: true, digest: res.digest, status: res.effects?.status?.status, network, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
 });
 

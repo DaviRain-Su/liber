@@ -44,3 +44,54 @@ export async function createWalletPasskey({ userId, userName }) {
     },
   };
 }
+
+/* ---- passkey signing (non-custodial) -----------------------------------------
+   Build a Turnkey WebAuthn "stamp" over a request body and POST it STRAIGHT to
+   Turnkey from the browser. The user authorizes with Face ID / fingerprint; the
+   passkey private key never leaves the device and our server never sees it. The
+   server later reads the signed result by activityId and broadcasts.
+
+   Turnkey's challenge convention (must match exactly or Turnkey rejects the stamp):
+   the WebAuthn challenge is the UTF-8 bytes of the lowercase hex string of
+   SHA-256(requestBody) — NOT the raw 32-byte hash. The X-Stamp-Webauthn header
+   value is the stamp JSON itself (not base64url-wrapped, unlike the API-key stamp). */
+async function turnkeyWebauthnStamp(payloadStr, rpId) {
+  const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payloadStr));
+  const hex = Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const challenge = new TextEncoder().encode(hex);
+  const assertion = await navigator.credentials.get({
+    publicKey: { challenge, rpId, userVerification: "preferred", timeout: 60000, allowCredentials: [] },
+  });
+  if (!assertion) throw new Error("通行密钥签名被取消");
+  const r = assertion.response;
+  return JSON.stringify({
+    authenticatorData: b64url(r.authenticatorData),
+    clientDataJson: b64url(r.clientDataJSON),
+    credentialId: b64url(assertion.rawId),
+    signature: b64url(r.signature),
+  });
+}
+
+// Sign a precomputed digest (hex) with the user's wallet passkey, directly via
+// Turnkey. Returns the Turnkey activityId for the server to read + broadcast.
+export async function passkeySignDigest({ organizationId, signWith, digestHex }) {
+  const rpId = window.location.hostname;
+  const activity = {
+    type: "ACTIVITY_TYPE_SIGN_RAW_PAYLOAD_V2",
+    timestampMs: String(Date.now()),
+    organizationId,
+    parameters: { signWith, payload: digestHex, encoding: "PAYLOAD_ENCODING_HEXADECIMAL", hashFunction: "HASH_FUNCTION_NOT_APPLICABLE" },
+  };
+  const bodyStr = JSON.stringify(activity);
+  const stamp = await turnkeyWebauthnStamp(bodyStr, rpId);
+  const res = await fetch("https://api.turnkey.com/public/v1/submit/sign_raw_payload", {
+    method: "POST",
+    headers: { "content-type": "application/json", "X-Stamp-Webauthn": stamp },
+    body: bodyStr,
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error("Turnkey 签名失败：" + (j?.message || res.status));
+  const activityId = j?.activity?.id;
+  if (!activityId) throw new Error("Turnkey 未返回 activityId");
+  return { activityId };
+}

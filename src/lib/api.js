@@ -70,6 +70,10 @@ export const api = {
     // Enroll a WebAuthn passkey on the wallet sub-org (payload from createWalletPasskey).
     enrollWalletPasskey: (payload) => post("/turnkey/passkey/enroll", payload),
     walletBalances: () => get("/turnkey/balances"),
+    // Real passkey-signed Sui transfer: prepare (server builds the unsigned tx +
+    // digest) → sign in the browser with the passkey → broadcast (server executes).
+    suiPrepare: (payload) => post("/turnkey/sui/prepare", payload),
+    suiBroadcast: (payload) => post("/turnkey/sui/broadcast", payload),
     cliStart: () => post("/auth/cli/start"),
     cliPoll: (deviceCode) => get(`/auth/cli/poll/${encodeURIComponent(deviceCode)}`),
     cliApprove: (deviceCode) => post("/auth/cli/approve", { deviceCode }),

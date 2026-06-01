@@ -168,6 +168,29 @@ export async function provisionWalletsWithPasskey(
   };
 }
 
+// Read a SIGN_RAW_PAYLOAD activity's r/s by id, polling briefly if it is still
+// finalizing. Used for PASSKEY-signed transfers: the browser submits the signing
+// activity to Turnkey directly (stamped by the user's passkey — the private key
+// never reaches our server), then the server reads the completed result with its
+// own API key and broadcasts. A threshold-1 root signature is normally COMPLETED on
+// submit, so this usually returns on the first read.
+export async function getSignRawPayloadResult(
+  env: Env, organizationId: string, activityId: string,
+): Promise<{ r: string; s: string } | null> {
+  for (let i = 0; i < 8; i++) {
+    const q = await post(env, "/public/v1/query/get_activity", { organizationId, activityId });
+    const a = q?.activity;
+    const st = a?.status;
+    if (st === "ACTIVITY_STATUS_COMPLETED") {
+      const sr = a?.result?.signRawPayloadResult || {};
+      return sr.r && sr.s ? { r: sr.r, s: sr.s } : null;
+    }
+    if (st === "ACTIVITY_STATUS_FAILED" || st === "ACTIVITY_STATUS_REJECTED") return null;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return null;
+}
+
 // Find the root user id of a sub-org (for users provisioned before we stored it).
 export async function getSubOrgRootUserId(env: Env, subOrgId: string): Promise<string | null> {
   const j = await post(env, "/public/v1/query/get_organization", { organizationId: subOrgId });
