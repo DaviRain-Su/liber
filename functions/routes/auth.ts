@@ -12,6 +12,7 @@ import {
 import { readingStats } from "../lib/reading-summary";
 import { chainById } from "../lib/chains";
 import { verifyGoogleIdToken } from "../lib/google-auth.mjs";
+import { sendOtpEmail } from "../lib/email";
 import { loginMessage, sameSuiAddress } from "../lib/verify.mjs";
 import { run, first, id, now } from "../lib/db";
 
@@ -86,6 +87,58 @@ auth.post("/google", async (c) => {
       c.env.DB,
       `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
       uid, key, handle, name, "#c0392b", [...name][0] || "G", "", now(),
+    );
+    user = await getUser(c.env, uid);
+  }
+  if (!user) return c.json({ error: "账户创建失败" }, 500);
+  const token = await createSession(c.env, user.id);
+  setCookie(c, "liber_session", token, cookieOpts);
+  return c.json({ token, user });
+});
+
+// Email one-time-code login. /email/start sends a 6-digit code; /email/verify
+// checks it and mints a session. Codes live in KV (single-use, 10-min TTL, with a
+// per-email send throttle + attempt cap). When no email provider is configured
+// (RESEND_API_KEY unset) the code is returned in `devCode` so the flow is testable.
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+auth.post("/email/start", async (c) => {
+  const { email } = await c.req.json();
+  const addr = String(email || "").trim().toLowerCase();
+  if (!EMAIL_RE.test(addr) || addr.length > 200) return c.json({ error: "邮箱格式不正确" }, 400);
+  if (await c.env.KV.get(`email-otp-rl:${addr}`)) return c.json({ error: "请求过于频繁，请稍后再试" }, 429);
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, "0");
+  await c.env.KV.put(`email-otp:${addr}`, JSON.stringify({ code, attempts: 0 }), { expirationTtl: 600 });
+  await c.env.KV.put(`email-otp-rl:${addr}`, "1", { expirationTtl: 60 }); // 60s = KV's TTL floor
+  const { sent } = await sendOtpEmail(c.env, addr, code);
+  // Only ever expose the code when nothing was emailed (no provider configured).
+  return c.json({ ok: true, sent, devCode: c.env.RESEND_API_KEY ? undefined : code });
+});
+
+auth.post("/email/verify", async (c) => {
+  const { email, code } = await c.req.json();
+  const addr = String(email || "").trim().toLowerCase();
+  const raw = await c.env.KV.get(`email-otp:${addr}`);
+  if (!raw) return c.json({ error: "验证码已过期，请重新获取" }, 400);
+  let rec: any = null;
+  try { rec = JSON.parse(raw); } catch { rec = null; }
+  if (!rec) return c.json({ error: "验证码无效，请重新获取" }, 400);
+  if (rec.attempts >= 5) { await c.env.KV.delete(`email-otp:${addr}`); return c.json({ error: "尝试次数过多，请重新获取" }, 429); }
+  if (String(code || "").trim() !== rec.code) {
+    await c.env.KV.put(`email-otp:${addr}`, JSON.stringify({ ...rec, attempts: (rec.attempts || 0) + 1 }), { expirationTtl: 600 });
+    return c.json({ error: "验证码不正确" }, 401);
+  }
+  await c.env.KV.delete(`email-otp:${addr}`);
+  // Upsert a user keyed by the email (stored in the legacy identity column).
+  const key = `email:${addr}`;
+  let user = await first<any>(c.env.DB, `SELECT * FROM users WHERE sui_address = ?`, key);
+  if (!user) {
+    const uid = id("u_");
+    const name = addr.split("@")[0] || "读者";
+    await run(
+      c.env.DB,
+      `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
+      uid, key, `@${name}`.slice(0, 24), name, "#2e7d57", ([...name][0] || "M").toUpperCase(), "", now(),
     );
     user = await getUser(c.env, uid);
   }

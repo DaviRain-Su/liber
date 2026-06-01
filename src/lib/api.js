@@ -55,6 +55,8 @@ export const api = {
     verify: (payload) => post("/auth/verify", payload),
     googleConfig: () => get("/auth/google/config"),
     google: (credential) => post("/auth/google", { credential }),
+    emailStart: (email) => post("/auth/email/start", { email }),
+    emailVerify: (email, code) => post("/auth/email/verify", { email, code }),
     passkey: {
       registerOptions: () => post("/auth/passkey/register/options"),
       registerVerify: (response) => post("/auth/passkey/register/verify", { response }),

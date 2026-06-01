@@ -3,7 +3,7 @@ import { I, Mark } from "./product-shared.jsx";
 // wallet.js (@mysten/sui) and passkey.js (@simplewebauthn) are heavy and only
 // needed once the user actually signs in — dynamic-import them in the handlers
 // below so they split out of the first-paint bundle.
-import { getToken } from "../lib/api.js";
+import { api, getToken, setToken } from "../lib/api.js";
 import { getCatalogTotal } from "../lib/catalog.js";
 
 /* product-onboarding.jsx — welcome + value props + decentralized sign-in + interests. */
@@ -45,6 +45,11 @@ function Onboarding({ onFinish }){
   const [picks, setPicks] = useOnb(["philo"]);
   const [googleOn, setGoogleOn] = useOnb(false);    // Google login configured + button mounted
   const googleRef = React.useRef(null);
+  const [email, setEmail] = useOnb("");
+  const [emailStage, setEmailStage] = useOnb("input"); // input | code
+  const [emailCode, setEmailCode] = useOnb("");
+  const [emailHint, setEmailHint] = useOnb("");
+  const emailValid = /.+@.+\..+/.test(email);
   const total = 5;
   const catalogTotal = getCatalogTotal();
 
@@ -115,6 +120,26 @@ function Onboarding({ onFinish }){
     })();
     return () => { cancelled = true; };
   }, [step]);
+
+  // email one-time-code login
+  const emailStart = async () => {
+    if (!emailValid || connecting) return;
+    setConnecting("email"); setAuthError(""); setEmailHint("");
+    try {
+      const r = await api.auth.emailStart(email.trim());
+      setConnecting(null); setEmailStage("code"); setEmailCode("");
+      setEmailHint(r?.devCode ? `测试模式 · 你的验证码：${r.devCode}` : `验证码已发送至 ${email.trim()}，10 分钟内有效`);
+    } catch (e) { setConnecting(null); setAuthError(e?.message || "发送失败，请重试"); }
+  };
+  const emailVerify = async () => {
+    if (emailCode.length < 6 || connecting) return;
+    setConnecting("email"); setAuthError("");
+    try {
+      const r = await api.auth.emailVerify(email.trim(), emailCode);
+      if (r?.token) setToken(r.token);
+      setConnecting(null); setAccount({ wallet:"邮箱", addr: r?.user?.handle || email.trim() }); setStep(3);
+    } catch (e) { setConnecting(null); setAuthError(e?.message || "验证失败，请重试"); }
+  };
 
   const togglePick = (k) => setPicks(p => p.includes(k) ? p.filter(x=>x!==k) : [...p, k]);
 
@@ -210,6 +235,25 @@ function Onboarding({ onFinish }){
                 <button className={`passkey-create ${connecting==="passkey-create"?"connecting":""}`} disabled={!!connecting} onClick={()=>passkey("create")}>
                   首次使用？<u>创建通行密钥</u>
                 </button>
+              </div>
+
+              {/* 邮箱登录 — 验证码 */}
+              <div className="signin-group">
+                <div className="sg-head">邮箱登录</div>
+                {emailStage === "code" ? (
+                  <form className="auth-email" onSubmit={e=>{ e.preventDefault(); emailVerify(); }}>
+                    <span className="ae-ic">{I.lock}</span>
+                    <input inputMode="numeric" autoComplete="one-time-code" placeholder="输入 6 位验证码" value={emailCode} disabled={connecting==="email"} onChange={e=>setEmailCode(e.target.value.replace(/\D/g,"").slice(0,6))} autoFocus/>
+                    <button type="submit" className="ae-send" disabled={emailCode.length<6 || !!connecting}>登录 <span className="arr">→</span></button>
+                  </form>
+                ) : (
+                  <form className="auth-email" onSubmit={e=>{ e.preventDefault(); emailStart(); }}>
+                    <span className="ae-ic">{I.mail}</span>
+                    <input type="email" autoComplete="email" placeholder="you@email.com" value={email} disabled={!!connecting} onChange={e=>setEmail(e.target.value)}/>
+                    <button type="submit" className="ae-send" disabled={!emailValid || !!connecting}>发送验证码 <span className="arr">→</span></button>
+                  </form>
+                )}
+                {emailHint && <div className="email-hint">{emailHint}{emailStage==="code" && <button className="email-resend" type="button" disabled={!!connecting} onClick={()=>{ setEmailStage("input"); setEmailHint(""); setEmailCode(""); }}>换邮箱 / 重发</button>}</div>}
               </div>
 
               {/* Web3 钱包 — the app's real multi-chain wallets, as auth-rows */}
