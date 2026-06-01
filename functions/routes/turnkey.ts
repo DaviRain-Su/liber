@@ -20,6 +20,7 @@ import { evmAddressFromSignature, verifyEd25519, verifySecp256k1 } from "../lib/
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { relTime } from "../lib/time";
+import { evmSigningDigestHex, evmSignedRawTx, erc20TransferData, toBaseUnits, type EvmTx } from "../lib/turnkey-evm";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -240,23 +241,26 @@ turnkey.get("/balances", async (c) => {
   };
   const suiBal = async (a: string) => { try { const cl = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("mainnet"), network: "mainnet" as any }); const b: any = await cl.getBalance({ owner: a }); return Number(b.totalBalance) / 1e9; } catch { return null; } };
   const evmBal = async (a: string) => { try { const r = await jrpc("https://ethereum-rpc.publicnode.com", "eth_getBalance", [a, "latest"]); return r ? parseInt(r, 16) / 1e18 : null; } catch { return null; } };
+  // USDC (ERC-20) balanceOf on mainnet: 0x70a08231 + 32-byte address.
+  const usdcBal = async (a: string) => { try { const data = "0x70a08231" + a.replace(/^0x/, "").toLowerCase().padStart(64, "0"); const r = await jrpc("https://ethereum-rpc.publicnode.com", "eth_call", [{ to: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", data }, "latest"]); return r && r !== "0x" ? parseInt(r, 16) / 1e6 : null; } catch { return null; } };
   const solBal = async (a: string) => { try { const r: any = await jrpc("https://api.mainnet-beta.solana.com", "getBalance", [a]); return r ? Number(r.value) / 1e9 : null; } catch { return null; } };
   const btcBal = async (a: string) => { try { const r = await fetch(`https://blockstream.info/api/address/${a}`); const j: any = await r.json(); const s = j.chain_stats; return s ? (Number(s.funded_txo_sum) - Number(s.spent_txo_sum)) / 1e8 : null; } catch { return null; } };
 
-  const [btc, eth, sol, sui] = await Promise.all([btcBal(tk.bitcoin), evmBal(tk.ethereum), solBal(tk.solana), suiBal(tk.sui)]);
+  const [btc, eth, sol, sui, usdc] = await Promise.all([btcBal(tk.bitcoin), evmBal(tk.ethereum), solBal(tk.solana), suiBal(tk.sui), tk.ethereum ? usdcBal(tk.ethereum) : Promise.resolve(null)]);
   let prices: any = {};
-  try { const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,sui&vs_currencies=usd"); prices = await r.json(); } catch { prices = {}; }
+  try { const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,sui,usd-coin&vs_currencies=usd"); prices = await r.json(); } catch { prices = {}; }
 
   const META = [
-    { key: "bitcoin", sym: "BTC", chain: "Bitcoin", cls: "btc", cg: "bitcoin", amt: btc },
-    { key: "ethereum", sym: "ETH", chain: "Ethereum", cls: "eth", cg: "ethereum", amt: eth },
-    { key: "solana", sym: "SOL", chain: "Solana", cls: "sol", cg: "solana", amt: sol },
-    { key: "sui", sym: "SUI", chain: "Sui", cls: "sui", cg: "sui", amt: sui },
+    { key: "bitcoin", sym: "BTC", chain: "Bitcoin", cls: "btc", cg: "bitcoin", amt: btc, addr: tk.bitcoin },
+    { key: "ethereum", sym: "ETH", chain: "Ethereum", cls: "eth", cg: "ethereum", amt: eth, addr: tk.ethereum },
+    { key: "usdc", sym: "USDC", chain: "Ethereum", cls: "usdc", cg: "usd-coin", amt: usdc, addr: tk.ethereum },
+    { key: "solana", sym: "SOL", chain: "Solana", cls: "sol", cg: "solana", amt: sol, addr: tk.solana },
+    { key: "sui", sym: "SUI", chain: "Sui", cls: "sui", cg: "sui", amt: sui, addr: tk.sui },
   ];
   const tokens = META.map((m) => {
     const price = prices?.[m.cg]?.usd ?? null;
     const value = m.amt != null && price != null ? m.amt * price : m.amt != null ? 0 : null;
-    return { sym: m.sym, name: m.chain, chain: m.chain, cls: m.cls, glyph: { BTC: "₿", ETH: "Ξ", SOL: "◎", SUI: "S" }[m.sym], amt: m.amt, price, value, address: tk[m.key] };
+    return { sym: m.sym, name: m.sym === "USDC" ? "USD Coin" : m.chain, chain: m.chain, cls: m.cls, glyph: { BTC: "₿", ETH: "Ξ", SOL: "◎", SUI: "S", USDC: "$" }[m.sym], amt: m.amt, price, value, address: m.addr };
   });
   const total = tokens.reduce((s, t) => s + (t.value || 0), 0);
   return c.json({ ok: true, tokens, total });
@@ -383,6 +387,89 @@ turnkey.post("/sui/broadcast", async (c) => {
     const client = new SuiJsonRpcClient({ url, network: network as any });
     const res = await client.executeTransactionBlock({ transactionBlock: bytes, signature, options: { showEffects: true } });
     return c.json({ ok: true, digest: res.digest, status: res.effects?.status?.status, network, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
+  }
+});
+
+// --- Real passkey-signed Ethereum transfer (ETH + USDC, non-custodial) -----------
+// Same split as Sui: the browser passkey-signs the keccak digest directly with
+// Turnkey (secp256k1, NO_OP); the server builds the legacy tx and broadcasts the
+// signed raw tx. The signature binds to the exact tx fields, so a tampered broadcast
+// recovers a different signer and is rejected by the network.
+const USDC_MAINNET = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"; // 6 decimals
+function evmRpcUrl(env: Env): string { return (env as any).EVM_RPC || "https://ethereum-rpc.publicnode.com"; }
+async function ethCall(url: string, method: string, params: any[]): Promise<any> {
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  const j: any = await r.json();
+  if (j.error) throw new Error(j.error.message || "rpc error");
+  return j.result;
+}
+const hexBig = (h: string): bigint => BigInt(h && h !== "0x" ? h : "0x0");
+
+turnkey.post("/evm/prepare", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null;
+  try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const from = (user.turnkey_addresses && addrs?.ethereum) || null;
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!from || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+
+  const body: any = await c.req.json().catch(() => ({}));
+  const to = String(body?.to || "").trim();
+  const amount = Number(body?.amount);
+  const sym = String(body?.token || "ETH").toUpperCase();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(to)) return c.json({ ok: false, error: "bad_recipient", message: "请填写有效的以太坊地址（0x… 40 位）" }, 400);
+  if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
+  if (sym !== "ETH" && sym !== "USDC") return c.json({ ok: false, error: "bad_token" }, 400);
+  try {
+    const url = evmRpcUrl(c.env);
+    const chainId = Number(hexBig(await ethCall(url, "eth_chainId", []))) || 1;
+    const nonce = hexBig(await ethCall(url, "eth_getTransactionCount", [from, "pending"]));
+    const gasPrice = hexBig(await ethCall(url, "eth_gasPrice", []));
+
+    let txTo: string, value: bigint, data: string, gas: bigint;
+    if (sym === "USDC") {
+      const amt = toBaseUnits(amount, 6);
+      txTo = USDC_MAINNET; value = 0n; data = erc20TransferData(to, amt);
+      try { gas = (hexBig(await ethCall(url, "eth_estimateGas", [{ from, to: txTo, data }])) * 12n) / 10n; } catch { gas = 100000n; }
+    } else {
+      txTo = to; value = toBaseUnits(amount, 18); data = ""; gas = 21000n;
+    }
+    const ethBal = hexBig(await ethCall(url, "eth_getBalance", [from, "latest"]));
+    const maxCost = (sym === "USDC" ? 0n : value) + gasPrice * gas;
+    if (ethBal < maxCost) return c.json({ ok: false, error: "no_gas", message: "以太坊地址的 ETH 不足以支付" + (sym === "USDC" ? "矿工费" : "转账与矿工费") }, 400);
+
+    const tx: EvmTx = { nonce: nonce.toString(), gasPrice: gasPrice.toString(), gas: gas.toString(), to: txTo, value: value.toString(), data, chainId };
+    const digestHex = evmSigningDigestHex(tx);
+    return c.json({ ok: true, digestHex, signWith: from, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NO_OP", tx });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+turnkey.post("/evm/broadcast", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+
+  const body: any = await c.req.json().catch(() => ({}));
+  const tx = body?.tx as EvmTx | undefined;
+  const activityId = String(body?.activityId || "");
+  if (!tx || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  try {
+    const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
+    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    const raw = evmSignedRawTx(tx, sr.r, sr.s, Number(sr.v ?? 0));
+    const url = evmRpcUrl(c.env);
+    const hash = await ethCall(url, "eth_sendRawTransaction", [raw]);
+    return c.json({ ok: true, digest: hash, status: "success", network: "ethereum", explorer: `https://etherscan.io/tx/${hash}` });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }

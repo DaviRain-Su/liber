@@ -176,14 +176,14 @@ export async function provisionWalletsWithPasskey(
 // submit, so this usually returns on the first read.
 export async function getSignRawPayloadResult(
   env: Env, organizationId: string, activityId: string,
-): Promise<{ r: string; s: string } | null> {
+): Promise<{ r: string; s: string; v?: string } | null> {
   for (let i = 0; i < 8; i++) {
     const q = await post(env, "/public/v1/query/get_activity", { organizationId, activityId });
     const a = q?.activity;
     const st = a?.status;
     if (st === "ACTIVITY_STATUS_COMPLETED") {
       const sr = a?.result?.signRawPayloadResult || {};
-      return sr.r && sr.s ? { r: sr.r, s: sr.s } : null;
+      return sr.r && sr.s ? { r: sr.r, s: sr.s, v: sr.v } : null;
     }
     if (st === "ACTIVITY_STATUS_FAILED" || st === "ACTIVITY_STATUS_REJECTED") return null;
     await new Promise((r) => setTimeout(r, 250));

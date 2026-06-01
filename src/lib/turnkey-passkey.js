@@ -74,13 +74,15 @@ async function turnkeyWebauthnStamp(payloadStr, rpId) {
 
 // Sign a precomputed digest (hex) with the user's wallet passkey, directly via
 // Turnkey. Returns the Turnkey activityId for the server to read + broadcast.
-export async function passkeySignDigest({ organizationId, signWith, digestHex }) {
+// hashFunction: ed25519 chains (Sui/Solana) pass NOT_APPLICABLE over the raw digest;
+// secp256k1 chains (Ethereum) pass NO_OP over the keccak digest.
+export async function passkeySignDigest({ organizationId, signWith, digestHex, hashFunction = "HASH_FUNCTION_NOT_APPLICABLE" }) {
   const rpId = window.location.hostname;
   const activity = {
     type: "ACTIVITY_TYPE_SIGN_RAW_PAYLOAD_V2",
     timestampMs: String(Date.now()),
     organizationId,
-    parameters: { signWith, payload: digestHex, encoding: "PAYLOAD_ENCODING_HEXADECIMAL", hashFunction: "HASH_FUNCTION_NOT_APPLICABLE" },
+    parameters: { signWith, payload: digestHex, encoding: "PAYLOAD_ENCODING_HEXADECIMAL", hashFunction },
   };
   const bodyStr = JSON.stringify(activity);
   const stamp = await turnkeyWebauthnStamp(bodyStr, rpId);

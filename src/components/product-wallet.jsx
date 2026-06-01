@@ -176,16 +176,26 @@ function SendFlow({ tokens, presetToken, onClose }){
   const [phase,setPhase]=useS("asset");
   const [result,setResult]=useS(null); // real broadcast result { digest, explorer, network, status }
   const hash=useR("0x"+Math.random().toString(16).slice(2,6)+"…"+Math.random().toString(16).slice(2,6));
-  const isSui = token && token.sym === "SUI";
+  // Real, non-custodial sends are wired for Sui + Ethereum (ETH/USDC). Other chains
+  // keep a clearly-labeled signing demo until wired the same way.
+  const isReal = token && (token.chain === "Sui" || token.chain === "Ethereum");
   const order=["asset","recipient","amount","review","pk","done"], idx=order.indexOf(phase);
   const titles={ asset:"选择资产", recipient:"收款人", amount:"输入金额", review:"确认", pk:"签名", done:"完成" };
   const next=()=>setPhase(order[idx+1]); const back=idx>0&&phase!=="done"?()=>setPhase(order[idx-1]):null;
-  // Real, non-custodial Sui send: build → passkey-sign (in browser) → broadcast.
+  // Build → passkey-sign (in browser, straight to Turnkey) → broadcast (server).
   const signAndSend=async()=>{
-    const prep=await api.auth.suiPrepare({ to:recipient.addr, amount:Number(amount) });
-    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建交易失败");
-    const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex });
-    const out=await api.auth.suiBroadcast({ txBytesB64:prep.txBytesB64, activityId });
+    let out;
+    if (token.chain === "Sui") {
+      const prep=await api.auth.suiPrepare({ to:recipient.addr, amount:Number(amount) });
+      if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建交易失败");
+      const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex });
+      out=await api.auth.suiBroadcast({ txBytesB64:prep.txBytesB64, activityId });
+    } else { // Ethereum: ETH or USDC
+      const prep=await api.auth.evmPrepare({ to:recipient.addr, amount:Number(amount), token:token.sym });
+      if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建交易失败");
+      const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
+      out=await api.auth.evmBroadcast({ tx:prep.tx, activityId });
+    }
     if (!out||!out.ok) throw new Error((out&&(out.message||out.error))||"广播失败");
     setResult(out); setPhase("done");
   };
@@ -195,9 +205,9 @@ function SendFlow({ tokens, presetToken, onClose }){
     {phase==="recipient" && <RecipientPick token={token} value={recipient} onChange={setRecipient}/>}
     {phase==="amount" && <AmountEntry token={token} amount={amount} onChange={setAmount}/>}
     {phase==="review" && (<><ReviewRows token={token} recipient={recipient} amount={amount}/>
-      {!isSui && <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} {token.chain} 真实转账即将开放，当前为签名演示。Sui 已支持由你的通行密钥真实签名并上链。</div>}</>)}
-    {phase==="pk" && isSui && <RealSignGate label="用通行密钥确认转账" sub={`${amount} SUI → ${recipient&&recipient.name} · 真实上链`} onSign={signAndSend} onCancel={()=>setPhase("review")}/>}
-    {phase==="pk" && !isSui && <PasskeyGate label="用通行密钥确认转账（演示）" sub={`${token.chain} 真实转账即将开放`} onDone={()=>{ setResult(null); setPhase("done"); }} onCancel={()=>setPhase("review")}/>}
+      {!isReal && <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} {token.chain} 真实转账即将开放，当前为签名演示。Sui 与以太坊（ETH/USDC）已支持由你的通行密钥真实签名并上链。</div>}</>)}
+    {phase==="pk" && isReal && <RealSignGate label="用通行密钥确认转账" sub={`${amount} ${token.sym} → ${recipient&&recipient.name} · 真实上链`} onSign={signAndSend} onCancel={()=>setPhase("review")}/>}
+    {phase==="pk" && !isReal && <PasskeyGate label="用通行密钥确认转账（演示）" sub={`${token.chain} 真实转账即将开放`} onDone={()=>{ setResult(null); setPhase("done"); }} onCancel={()=>setPhase("review")}/>}
     {phase==="done" && (<div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{result?"转账已上链":"转账已提交"}</div>
       <div className="dsub">{amount} {token.sym} → {recipient&&recipient.name}<br/>{result?`已在 ${result.network} 广播 · ${result.status==="success"?"成功":(result.status||"已提交")}`:`已在 ${token.chain} 上广播，等待确认。`}</div>
       {result&&result.explorer ? <a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a> : <div className="done-hash">{WI.ext} {hash.current}</div>}</div>)}
