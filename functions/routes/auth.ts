@@ -110,9 +110,9 @@ auth.post("/email/start", async (c) => {
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, "0");
   await c.env.KV.put(`email-otp:${addr}`, JSON.stringify({ code, attempts: 0 }), { expirationTtl: 600 });
   await c.env.KV.put(`email-otp-rl:${addr}`, "1", { expirationTtl: 60 }); // 60s = KV's TTL floor
-  const { sent } = await sendOtpEmail(c.env, addr, code);
+  const mail = await sendOtpEmail(c.env, addr, code);
   // Only ever expose the code when nothing was actually emailed (binding absent).
-  return c.json({ ok: true, sent, devCode: sent ? undefined : code });
+  return c.json({ ok: true, sent: mail.sent, devCode: mail.sent ? undefined : code, mailError: mail.error });
 });
 
 auth.post("/email/verify", async (c) => {

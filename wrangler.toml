@@ -59,17 +59,21 @@ binding = "BROWSER"
 #   WALRUS_PUBLISHER  = "https://publisher.walrus-testnet.walrus.space"
 #   WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
 # Cloudflare Email Sending — transactional email (login OTP codes) to any
-# recipient. Private beta (join the waitlist: blog.cloudflare.com/email-service),
-# needs a paid Workers plan + a sender domain verified in Email Sending. Once
-# granted, uncomment this binding and set EMAIL_FROM in [vars]. Until then,
-# /auth/email returns the code in the response (dev mode) — login still works.
-# [[send_email]]
-# name = "SEND_EMAIL"
+# recipient (developers.cloudflare.com/email-service). NOTE: Pages projects do NOT
+# support the [[send_email]] binding (Workers-only), so functions/lib/email.ts
+# POSTs to the Email Sending REST API instead. It needs the account id (below) +
+# an API token with email-send permission, set as the secret CF_EMAIL_TOKEN:
+#   npx wrangler pages secret put CF_EMAIL_TOKEN
+# plus a sender on a domain verified in Email Sending (EMAIL_FROM). Until the
+# token is set, /auth/email returns the code in the response (dev mode) so login
+# still works.
 
 [vars]
 CHAIN = "sui"
-# Sender for login emails — a domain verified in Cloudflare Email Sending.
-# EMAIL_FROM = "Liber <login@your-verified-domain.com>"
+# Cloudflare account id (public; used to build the Email Sending REST URL).
+CF_ACCOUNT_ID = "fb5d95d6e0ff4055cbf5321f8dfc30e9"
+# Sender for login emails — an address on a domain verified in Cloudflare Email Sending.
+EMAIL_FROM = "Liber <login@davirain.xyz>"
 # Google "Sign in with Google" client id (public; the ID-token aud is checked
 # against it). Add your site to the OAuth client's Authorized JavaScript origins.
 GOOGLE_CLIENT_ID = "1021328086145-18jc2gqb4rdflor24ein4ub5pgkhi4qn.apps.googleusercontent.com"

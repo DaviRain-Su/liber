@@ -45,11 +45,14 @@ export interface Env {
   // Google OAuth client id for "Sign in with Google" (public; the ID-token `aud`
   // is checked against it). Unset = Google login disabled.
   GOOGLE_CLIENT_ID?: string;
-  // Email one-time-code login via Cloudflare Email Sending (the SEND_EMAIL
-  // binding — blog.cloudflare.com/email-service). Sends transactional mail to any
-  // recipient. Private beta + paid Workers + a verified sender domain. When the
-  // binding is absent, /auth/email returns the code in the response (dev mode).
-  SEND_EMAIL?: { send(msg: { to: { email: string; name?: string }[]; from: { email: string; name?: string }; subject: string; text?: string; html?: string }): Promise<unknown> };
+  // Email one-time-code login via the Cloudflare Email Sending REST API
+  // (developers.cloudflare.com/email-service). Pages Functions can't use the
+  // SEND_EMAIL binding (Workers-only), so functions/lib/email.ts POSTs to the
+  // REST endpoint. Needs a Cloudflare API token with email-send permission
+  // (CF_EMAIL_TOKEN, a secret) + the account id. When either is absent,
+  // /auth/email returns the code in the response (dev mode) so login still works.
+  CF_EMAIL_TOKEN?: string;
+  CF_ACCOUNT_ID?: string;
   // Sender for login emails, e.g. "Liber <login@yourdomain.com>" (a domain
   // verified in Cloudflare Email Sending).
   EMAIL_FROM?: string;
