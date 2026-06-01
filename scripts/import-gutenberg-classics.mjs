@@ -18,6 +18,9 @@ const DEFAULT_IMPORT_LANGS = ["zh"];
 const MAX_CHAPTERS_FOR_AUTO_PUBLISH = 300;
 const FETCH_RETRIES = 3;
 const FETCH_RETRY_BASE_MS = 750;
+const DEFAULT_DRY_RUN_CONCURRENCY = 4;
+const DEFAULT_PUBLISH_CONCURRENCY = 2;
+const DEFAULT_CHAPTER_PUBLISH_CONCURRENCY = 6;
 
 const PANGHUANG_TITLES = ["祝福", "傷逝【1】 ──涓生的手記", "在酒樓上", "孤獨者", "示眾", "高老夫子〔１〕", "離婚", "長明燈〔１〕"];
 const PANGHUANG_TITLE_MAP = {
@@ -54,8 +57,8 @@ const BOOKS = [
   { id: "sanzijing-gutenberg-zh", pg: 12479, lang: "zh", title: "三字經", category: "中文 · 蒙学", expect: "三字經" },
   { id: "baijiaxing-gutenberg-zh", pg: 25196, lang: "zh", title: "百家姓", category: "中文 · 蒙学", expect: "百家姓" },
   { id: "qianziwen-gutenberg-zh", pg: 24075, lang: "zh", title: "千字文", category: "中文 · 蒙学", expect: "千字文" },
-  { id: "daxue-zhangju-gutenberg-zh", pg: 7375, lang: "zh", title: "大學 章句", category: "中文 · 儒家", expect: "大學" },
-  { id: "zhongyong-zhangju-gutenberg-zh", pg: 7376, lang: "zh", title: "中庸 章句", category: "中文 · 儒家", expect: "中庸" },
+  { id: "daxue-zhangju-gutenberg-zh", pg: 7375, lang: "zh", title: "大學 章句", category: "中文 · 儒家", expect: "大學", minChapters: 12, maxChapters: 12, textSource: { kind: "right-marker", prefer: "plain", introTitle: "大學章句序", mainPattern: "\\n大學章句\\n", markerPattern: "右(?:經一章|傳之(?:首|[一二三四五六七八九十]+)章)" } },
+  { id: "zhongyong-zhangju-gutenberg-zh", pg: 7376, lang: "zh", title: "中庸 章句", category: "中文 · 儒家", expect: "中庸", minChapters: 34, maxChapters: 34, textSource: { kind: "right-marker", prefer: "plain", introTitle: "中庸章句序", mainPattern: "中庸章句中者", markerPattern: "右第\\s*[一二三四五六七八九十百]+\\s*章" } },
   { id: "shuihu-zhuan-gutenberg-zh", pg: 23863, lang: "zh", title: "水滸傳", category: "中文 · 古典小说", expect: "水滸傳" },
   { id: "xingshi-yinyuan-gutenberg-zh", pg: 26161, lang: "zh", title: "醒世姻緣", category: "中文 · 古典小说", expect: "醒世姻緣" },
   { id: "laocan-youji-gutenberg-zh", pg: 25124, lang: "zh", title: "老殘遊記", category: "中文 · 近代小说", expect: "老殘遊記" },
@@ -95,12 +98,12 @@ const BOOKS = [
   { id: "luoshen-fu-gutenberg-zh", pg: 24041, lang: "zh", title: "洛神賦", category: "中文 · 辞赋", expect: "洛神賦" },
   { id: "youxue-qionglin-gutenberg-zh", pg: 52269, lang: "zh", title: "幼學瓊林", category: "中文 · 蒙学", expect: "幼學瓊林", minChapters: 4, maxChapters: 4, textSource: { kind: "bare-volume", prefer: "plain" } },
   { id: "pipa-ji-gutenberg-zh", pg: 25246, lang: "zh", title: "琵琶記", category: "中文 · 戏曲", expect: "琵琶記", minChapters: 42, maxChapters: 45, textSource: { kind: "play-act", prefer: "plain" } },
-  { id: "sanguo-zhi-gutenberg-zh", pg: 25606, lang: "zh", title: "三國志", category: "中文 · 史书", expect: "三國志" },
+  { id: "sanguo-zhi-gutenberg-zh", pg: 25606, lang: "zh", title: "三國志", category: "中文 · 史书", expect: "三國志", minChapters: 25, maxChapters: 35, allowSparseTrailingOrdinals: true, textSource: { kind: "three-kingdoms-history", prefer: "plain" } },
   { id: "baigui-zhi-gutenberg-zh", pg: 27023, lang: "zh", title: "白圭志", category: "中文 · 古典小说", expect: "白圭志" },
   { id: "mengzi-ziyi-shuzheng-gutenberg-zh", pg: 25360, lang: "zh", title: "孟子字義疏證", category: "中文 · 儒家", expect: "孟子字義疏證", minChapters: 8, maxChapters: 8, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "理十五條", maxChars: 12 } },
   { id: "anle-ji-gutenberg-zh", pg: 24106, lang: "zh", title: "安樂集", category: "中文 · 佛典", expect: "安樂集", minChapters: 2, maxChapters: 2, textSource: { kind: "known-title-list", prefer: "plain", startPattern: "安樂集卷上", titles: ["安樂集卷上", "安樂集卷下"], ignoreRepeatedTitle: true } },
   { id: "dengxizi-gutenberg-zh", pg: 7215, lang: "zh", title: "鄧析子", category: "中文 · 名家", expect: "鄧析子", minChapters: 2, maxChapters: 2, textSource: { kind: "known-title-list", prefer: "plain", titles: ["無厚篇", "轉辭篇"] } },
-  { id: "qiuranke-zhuan-gutenberg-zh", pg: 23915, lang: "zh", title: "虬髯客傳", category: "中文 · 唐传奇", expect: "虬髯客傳" },
+  { id: "qiuranke-zhuan-gutenberg-zh", pg: 23915, lang: "zh", title: "虬髯客傳", category: "中文 · 唐传奇", expect: "虬髯客傳", minChapters: 10, maxChapters: 10, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "隋煬帝之幸江都也", titleSuffix: "段" } },
   { id: "wuchuan-lu-gutenberg-zh", pg: 27581, lang: "zh", title: "吳船錄", category: "中文 · 地理游记", expect: "吳船錄", minChapters: 2, maxChapters: 2, textSource: { kind: "known-title-list", prefer: "plain", startPattern: "石湖居士", initialTitle: "卷上", titles: ["卷下"] } },
   { id: "xingcha-shenglan-gutenberg-zh", pg: 24143, lang: "zh", title: "星槎勝覽", category: "中文 · 地理游记", expect: "星槎勝覽", minChapters: 38, maxChapters: 40, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "○真臘國", maxChars: 18 } },
   { id: "dongzhou-lieguo-zhi-gutenberg-zh", pg: 25349, lang: "zh", title: "東周列國志", category: "中文 · 历史小说", expect: "東周列國志" },
@@ -113,7 +116,7 @@ const BOOKS = [
   { id: "dou-e-yuan-gutenberg-zh", pg: 52276, lang: "zh", title: "竇娥冤", category: "中文 · 戏曲", expect: "竇娥冤", minChapters: 5, maxChapters: 5, textSource: { kind: "zaju-fold", prefer: "plain" } },
   { id: "guanzi-gutenberg-zh", pg: 7367, lang: "zh", title: "管子", category: "中文 · 诸子", expect: "管子", minChapters: 30, maxChapters: 40, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "\\n上編\\n", maxChars: 18, excludePattern: "^右" } },
   { id: "guiguzi-gutenberg-zh", pg: 25168, lang: "zh", title: "鬼谷子", category: "中文 · 纵横家", expect: "鬼谷子", minChapters: 23, maxChapters: 23, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18 } },
-  { id: "mutianzi-zhuan-gutenberg-zh", pg: 24058, lang: "zh", title: "穆天子传", category: "中文 · 史传", expect: "穆天子" },
+  { id: "mutianzi-zhuan-gutenberg-zh", pg: 24058, lang: "zh", title: "穆天子传", category: "中文 · 史传", expect: "穆天子", minChapters: 6, maxChapters: 6, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "穆 天 子 傳 卷 之 一", titleSuffix: "卷" } },
   { id: "haishanghua-liezhuan-gutenberg-zh", pg: 26872, lang: "zh", title: "海上花列傳", category: "中文 · 近代小说", expect: "海上花列傳" },
   { id: "fengyue-meng-gutenberg-zh", pg: 26931, lang: "zh", title: "風月夢", category: "中文 · 近代小说", expect: "風月夢" },
   { id: "hanshi-waizhuan-gutenberg-zh", pg: 7290, lang: "zh", title: "韓詩外傳", category: "中文 · 儒家", expect: "韓詩外傳" },
@@ -126,13 +129,12 @@ const BOOKS = [
   // Gutenberg #23962 西遊記 is public-domain metadata, but this generated EPUB
   // is missing the tenth, twentieth, thirtieth, and other round-numbered 回.
   // Gutenberg #25327 兒女英雄傳, #24264 紅樓夢, #24032 儒林外史,
-  // #24029 冷眼观, #26970 彭公案, #25162 池北偶談, #54494 海公案,
-  // and #27330 綠牡丹 expose missing 回/卷 runs or TOC fragments in the
-  // generated EPUBs; keep them out until clean sources are available.
-  // The same active-quality rule currently excludes #23876 徐霞客遊記,
-  // #25379 文明小史, #54756 官場現形記, #23838 楊家將, #25245 子不語,
-  // #25399 石點頭, and #25393 施公案 because dry-run extraction either
-  // produced too few chapters or detected required 回 gaps.
+  // #24029 冷眼观, #26970 彭公案, #54494 海公案, and #27330 綠牡丹
+  // expose missing 回/卷 runs, TOC fragments, or visible mojibake in current
+  // sources; keep them out until clean sources are available. The same
+  // active-quality rule currently excludes #54756 官場現形記, #23838 楊家將,
+  // #25245 子不語, and #25393 施公案 because dry-run extraction either produced
+  // too few chapters or detected required 回 gaps.
   // Gutenberg #25142 is titled 王陽明全集 but the generated EPUB spine also
   // mixes unrelated military classics into the extracted TOC; do not publish
   // until the source can be split or replaced cleanly.
@@ -149,33 +151,41 @@ const BOOKS = [
   { id: "taiwan-tongshi-guohai-gutenberg-zh", pg: 25557, lang: "zh", title: "臺灣通史：唐山過海的故事", category: "中文 · 史书", expect: "臺灣通史", textSource: { kind: "taiwan-history", prefer: "plain" } },
   { id: "taohuayuan-ji-gutenberg-zh", pg: 2090, lang: "zh", title: "桃花源記", category: "中文 · 古文", expect: "桃花源", textSource: { kind: "single-heading", prefer: "plain", startPattern: "桃花源記", title: "桃花源記" } },
   { id: "dayingguo-renshi-lueshuo-gutenberg-zh", pg: 54820, lang: "zh", title: "大英國人事略說", category: "中文 · 近代文献", expect: "大英國人事略說", textSource: { kind: "single-heading", prefer: "plain", startPattern: "英吉利國人品國事略說", endPattern: "大英國人事略說終", title: "英吉利國人品國事略說" } },
+  { id: "yangjia-jiang-gutenberg-zh", pg: 23842, lang: "zh", title: "楊家將", category: "中文 · 英雄传奇", expect: "楊家將", minChapters: 50, maxChapters: 50, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "wenming-xiaoshi-gutenberg-zh", pg: 25379, lang: "zh", title: "文明小史", category: "中文 · 近代小说", expect: "文明小史", minChapters: 60, maxChapters: 60, textSource: { kind: "hui", prefer: "plain" }, ordinalPlaceholders: [{ kind: "回", n: 50, title: "第五十回（缺）" }] },
+  { id: "shigong-an-gutenberg-zh", pg: 23825, lang: "zh", title: "施公案", category: "中文 · 公案小说", expect: "施公案", minChapters: 528, maxChapters: 528, textSource: { kind: "hui", prefer: "plain" }, ordinalPlaceholders: [
+    { kind: "回", n: 457, title: "第四五七回（缺）" },
+    { kind: "回", n: 469, title: "第四六九回（缺）" },
+    { kind: "回", n: 482, title: "第四八二回（缺）" },
+  ] },
+  { id: "yuli-hun-gutenberg-zh", pg: 25521, lang: "zh", title: "玉梨魂", category: "中文 · 近代小说", expect: "玉梨魂", minChapters: 30, maxChapters: 30, textSource: { kind: "zh-chapter", prefer: "plain" }, ordinalPlaceholders: [{ kind: "章", n: 20, title: "第二十章（缺）" }] },
+  { id: "yuzhiji-gutenberg-zh", pg: 27105, lang: "zh", title: "玉支机", category: "中文 · 古典小说", expect: "玉支机", minChapters: 20, maxChapters: 20, textSource: { kind: "hui", prefer: "plain" }, ordinalPlaceholders: [
+    { kind: "回", n: 7, title: "第七回（缺）" },
+    { kind: "回", n: 11, title: "第十一回（缺）" },
+    { kind: "回", n: 13, title: "第十三回（缺）" },
+  ] },
   // Gutenberg #24231, #27218, #24169, and #25142 pass public-domain metadata
   // checks but still need cleaner source selection or Chinese splitting before
   // auto-publish.
   // Gutenberg #24040 metadata is public-domain, but its text/EPUB body is
   // mojibake. Keep it out until we find a clean public-domain/CC0 source.
-  // Gutenberg #25202 補紅樓夢 has a broken 回 sequence, #54433 西海紀遊草
-  // exposes prose fragments as headings.
-  // Gutenberg #4580 粉妝樓, #24170 常言道, and #24273 西湖佳話 are
-  // public-domain metadata hits, but their extracted Chinese chapter sequences
-  // currently have numbering gaps.
-  // Gutenberg #25498 佛說無量壽經 has a garbled EPUB body, #27104 歸蓮夢
-  // and #27105 玉支机 have missing 回 headings, and #24183 宋史 is over-split
-  // into hundreds of chapters.
-  // Gutenberg #25348 雙鳳奇緣 and #25521 玉梨魂 have extracted chapter
-  // numbering gaps.
+  // Gutenberg #4580 粉妝樓 is superseded by its clean 10回 split-volume
+  // sources. Gutenberg #27330 綠牡丹 can be split, but its body contains
+  // visible mojibake in the current text source.
+  // Gutenberg #25498 佛說無量壽經 has a garbled EPUB body, #27104 歸蓮夢 has
+  // missing 回 headings, and #24183 宋史 is over-split into hundreds of chapters.
   { id: "xizhongxi-gutenberg-zh", pg: 24225, lang: "zh", title: "戲中戲", category: "中文 · 古典小说", expect: "戲中戲" },
   { id: "shanshuiqing-gutenberg-zh", pg: 25146, lang: "zh", title: "山水情", category: "中文 · 古典小说", expect: "山水情" },
   { id: "yinfengxiao-gutenberg-zh", pg: 26921, lang: "zh", title: "引鳳蕭", category: "中文 · 古典小说", expect: "引鳳蕭" },
   { id: "feituo-quanzhuan-gutenberg-zh", pg: 27331, lang: "zh", title: "飛跎全傳", category: "中文 · 古典小说", expect: "飛跎全傳" },
-  { id: "sishier-zhangjing-gutenberg-zh", pg: 23585, lang: "zh", title: "佛說四十二章經", category: "中文 · 佛典", expect: "四十二章經" },
+  { id: "sishier-zhangjing-gutenberg-zh", pg: 23585, lang: "zh", title: "佛說四十二章經", category: "中文 · 佛典", expect: "四十二章經", minChapters: 43, maxChapters: 43, textSource: { kind: "sishier-zhangjing", prefer: "plain" } },
   { id: "chunqiu-fanlou-gutenberg-zh", pg: 25385, lang: "zh", title: "春秋繁露", category: "中文 · 儒家", expect: "春秋繁露", textSource: { kind: "classic-ordinal", startPattern: "春秋繁露\\s+卷第一\\s+楚莊王第一" } },
   { id: "changsheng-dian-gutenberg-zh", pg: 52270, lang: "zh", title: "長生殿", category: "中文 · 戏曲", expect: "長生殿", textSource: { kind: "play-act" } },
   { id: "henhai-gutenberg-zh", pg: 23865, lang: "zh", title: "恨海", category: "中文 · 近代小说", expect: "恨海", textSource: { kind: "hui" } },
   { id: "jingwu-zhong-gutenberg-zh", pg: 24294, lang: "zh", title: "警悟鐘", category: "中文 · 古典小说", expect: "警悟鐘", textSource: { kind: "hui" } },
   { id: "huajian-ji-gutenberg-zh", pg: 24316, lang: "zh", title: "花間集", category: "中文 · 词集", expect: "花間集", textSource: { kind: "bracket-volume" } },
   { id: "shangzi-gutenberg-zh", pg: 7383, lang: "zh", title: "商子", category: "中文 · 法家", expect: "商子", textSource: { kind: "classic-ordinal", prefer: "plain" } },
-  { id: "youmengying-gutenberg-zh", pg: 7420, lang: "zh", title: "幽夢影", category: "中文 · 笔记", expect: "幽夢影" },
+  { id: "youmengying-gutenberg-zh", pg: 7420, lang: "zh", title: "幽夢影", category: "中文 · 笔记", expect: "幽夢影", minChapters: 210, maxChapters: 220, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "讀經宜冬", endPattern: "(?=\\n\\s*跋\\s*\\n)", titleSuffix: "則" } },
   { id: "badongtian-gutenberg-zh", pg: 27016, lang: "zh", title: "八洞天", category: "中文 · 神魔小说", expect: "八洞天", textSource: { kind: "bare-volume", prefer: "plain" } },
   { id: "hudie-mei-gutenberg-zh", pg: 27059, lang: "zh", title: "蝴蝶媒", category: "中文 · 古典小说", expect: "蝴蝶媒" },
   { id: "wudi-ji-gutenberg-zh", pg: 27087, lang: "zh", title: "吳地記", category: "中文 · 地理", expect: "吳地", minChapters: 15, maxChapters: 15, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "古館八所", maxChars: 12 } },
@@ -184,14 +194,14 @@ const BOOKS = [
   { id: "zhishi-yuwen-gutenberg-zh", pg: 26932, lang: "zh", title: "治世餘聞", category: "中文 · 笔记", expect: "治世餘聞" },
   { id: "longchuan-ci-gutenberg-zh", pg: 26873, lang: "zh", title: "龍川詞", category: "中文 · 词集", expect: "龍川詞", minChapters: 35, maxChapters: 40, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "水調歌頭", maxChars: 18 } },
   { id: "tang-zhongkui-pinggui-zhuan-gutenberg-zh", pg: 27329, lang: "zh", title: "唐鍾馗平鬼傳", category: "中文 · 神魔小说", expect: "唐鍾馗" },
-  { id: "caigentan-gutenberg-zh", pg: 24050, lang: "zh", title: "菜根譚", category: "中文 · 修身", expect: "菜根譚" },
-  { id: "huangbo-chuanxin-fayao-gutenberg-zh", pg: 25236, lang: "zh", title: "筠州黃檗山斷際禪師傳法心要", category: "中文 · 佛典", expect: "傳法心要" },
-  { id: "shanshui-xiaodu-gutenberg-zh", pg: 23914, lang: "zh", title: "山水小牘", category: "中文 · 志怪", expect: "山水小牘", minChapters: 2, maxChapters: 2, textSource: { kind: "numbered-volume", prefer: "plain" } },
-  { id: "gaoshi-zhuan-gutenberg-zh", pg: 23948, lang: "zh", title: "高士傳", category: "中文 · 史传", expect: "高士傳" },
+  { id: "caigentan-gutenberg-zh", pg: 24050, lang: "zh", title: "菜根譚", category: "中文 · 修身", expect: "菜根譚", minChapters: 220, maxChapters: 230, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "棲守道德者", titleSuffix: "則" } },
+  { id: "huangbo-chuanxin-fayao-gutenberg-zh", pg: 25236, lang: "zh", title: "筠州黃檗山斷際禪師傳法心要", category: "中文 · 佛典", expect: "傳法心要", minChapters: 40, maxChapters: 40, allowProseFragmentTitles: true, textSource: { kind: "question-answer", prefer: "plain", startPattern: "師謂休曰", endPattern: "(?=\\n\\s*工作準備\\s*\\n)", initialTitle: "傳法心要", questionTitleChars: 22 } },
+  { id: "shanshui-xiaodu-gutenberg-zh", pg: 23914, lang: "zh", title: "山水小牘", category: "中文 · 志怪", expect: "山水小牘", minChapters: 35, maxChapters: 35, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "趙知微雨夕登天柱峰翫月", endPattern: "(?=\\n\\s*逸文\\s*\\n)", maxChars: 24, excludePattern: "^(?:第一卷|第二卷|山水小牘)$" } },
+  { id: "gaoshi-zhuan-gutenberg-zh", pg: 23948, lang: "zh", title: "高士傳", category: "中文 · 史传", expect: "高士傳", minChapters: 83, maxChapters: 83, textSource: { kind: "biography-paragraphs", prefer: "plain", startPattern: "被衣" } },
   { id: "tianfei-xiansheng-lu-gutenberg-zh", pg: 54777, lang: "zh", title: "天妃顯聖錄", category: "中文 · 宗教", expect: "天妃顯聖錄", minChapters: 43, textSource: { kind: "zh-chapter", prefer: "plain", startPattern: "●第一章求佳兒" } },
   { id: "sanlue-gutenberg-zh", pg: 7218, lang: "zh", title: "三略", category: "中文 · 兵法", expect: "三略" },
   { id: "mingyi-daifang-lu-gutenberg-zh", pg: 23855, lang: "zh", title: "明夷待訪錄", category: "中文 · 政论", expect: "明夷待訪錄", minChapters: 20, maxChapters: 22, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "題辭", maxChars: 12 } },
-  { id: "yantielun-gutenberg-zh", pg: 26920, lang: "zh", title: "鹽鐵論", category: "中文 · 史论", expect: "鹽鐵論" },
+  { id: "yantielun-gutenberg-zh", pg: 26920, lang: "zh", title: "鹽鐵論", category: "中文 · 史论", expect: "鹽鐵論", minChapters: 60, maxChapters: 60, textSource: { kind: "classic-ordinal", prefer: "plain" } },
   { id: "yizhenqi-gutenberg-zh", pg: 27753, lang: "zh", title: "一枕奇", category: "中文 · 古典小说", expect: "一枕奇" },
   { id: "xingmeng-pianyan-gutenberg-zh", pg: 27108, lang: "zh", title: "醒夢駢言", category: "中文 · 古典小说", expect: "醒夢駢言" },
   { id: "taohua-shan-gutenberg-zh", pg: 24234, lang: "zh", title: "桃花扇", category: "中文 · 戏曲", expect: "桃花扇" },
@@ -204,10 +214,10 @@ const BOOKS = [
   { id: "sunzi-suanjing-gutenberg-zh", pg: 24038, lang: "zh", title: "孫子算經", category: "中文 · 算学", expect: "孫子算經" },
   { id: "lihe-shixuan-gutenberg-zh", pg: 25417, lang: "zh", title: "李賀詩選", category: "中文 · 诗歌", expect: "李賀詩選", minChapters: 4, maxChapters: 4, textSource: { kind: "bracket-volume", prefer: "plain", startPattern: "【\\s*卷一\\s*】" } },
   { id: "shuyu-ci-gutenberg-zh", pg: 25367, lang: "zh", title: "漱玉詞", category: "中文 · 词集", expect: "漱玉詞", minChapters: 45, maxChapters: 50, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "滿庭霜", maxChars: 12 } },
-  { id: "liyi-shan-shiji-gutenberg-zh", pg: 25247, lang: "zh", title: "李義山詩集", category: "中文 · 诗歌", expect: "李義山詩集" },
+  { id: "liyi-shan-shiji-gutenberg-zh", pg: 25247, lang: "zh", title: "李義山詩集", category: "中文 · 诗歌", expect: "李義山詩集", minChapters: 500, maxChapters: 600, textSource: { kind: "numbered-quoted-poems", prefer: "plain", startPattern: "1「錦瑟」" } },
   { id: "huainanzi-gutenberg-zh", pg: 24059, lang: "zh", title: "淮南子", category: "中文 · 诸子", expect: "淮南子", minChapters: 21, maxChapters: 21, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18 } },
   { id: "laocan-youji-xuji-gutenberg-zh", pg: 56291, lang: "zh", title: "老殘遊記續集", category: "中文 · 近代小说", expect: "老殘遊記續集", minChapters: 9, maxChapters: 9, textSource: { kind: "hui", prefer: "plain", startPattern: "老殘遊記續集/第01回" } },
-  { id: "haidao-suanjing-gutenberg-zh", pg: 26979, lang: "zh", title: "海島算經", category: "中文 · 算学", expect: "海島算經" },
+  { id: "haidao-suanjing-gutenberg-zh", pg: 26979, lang: "zh", title: "海島算經", category: "中文 · 算学", expect: "海島算經", minChapters: 9, maxChapters: 9, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "今有望海島", titleSuffix: "問" } },
   { id: "yulizi-gutenberg-zh", pg: 25298, lang: "zh", title: "郁離子", category: "中文 · 寓言", expect: "郁離子", minChapters: 160, maxChapters: 190, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18 } },
   { id: "renwuzhi-gutenberg-zh", pg: 7217, lang: "zh", title: "人物志", category: "中文 · 品鉴", expect: "人物志" },
   { id: "suitang-jiahua-gutenberg-zh", pg: 27596, lang: "zh", title: "隋唐嘉話", category: "中文 · 笔记", expect: "隋唐嘉話", minChapters: 4, maxChapters: 4, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "述曰", initialTitle: "隋唐嘉話上", maxChars: 18 } },
@@ -264,7 +274,7 @@ const BOOKS = [
   { id: "yinshui-ci-gutenberg-zh", pg: 25194, lang: "zh", title: "飲水詞集", category: "中文 · 词集", expect: "飲水詞", minChapters: 120, maxChapters: 135, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "夢江南", maxChars: 12 } },
   { id: "chunliuying-gutenberg-zh", pg: 26922, lang: "zh", title: "春柳鶯", category: "中文 · 古典小说", expect: "春柳鶯" },
   { id: "liuyi-ci-gutenberg-zh", pg: 25218, lang: "zh", title: "六一詞", category: "中文 · 词集", expect: "六一詞", minChapters: 220, maxChapters: 230, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "采桑子", maxChars: 12 } },
-  { id: "guitian-lu-gutenberg-zh", pg: 25431, lang: "zh", title: "歸田錄", category: "中文 · 笔记", expect: "歸田錄", minChapters: 2, maxChapters: 2, textSource: { kind: "known-title-list", prefer: "plain", titles: ["歸田錄卷一", "歸田錄卷二"] } },
+  { id: "guitian-lu-gutenberg-zh", pg: 25431, lang: "zh", title: "歸田錄", category: "中文 · 笔记", expect: "歸田錄", minChapters: 4, maxChapters: 4, textSource: { kind: "known-title-list", prefer: "plain", titles: ["自序", "歸田錄卷一", "歸田錄卷二", "佚文"], ignoreRepeatedTitle: true } },
   { id: "shubi-gutenberg-zh", pg: 23947, lang: "zh", title: "蜀碧", category: "中文 · 史料", expect: "蜀碧" },
   { id: "jiuweihu-gutenberg-zh", pg: 25134, lang: "zh", title: "九尾狐", category: "中文 · 近代小说", expect: "九尾狐" },
   { id: "nanbu-xinshu-gutenberg-zh", pg: 27088, lang: "zh", title: "南部新書", category: "中文 · 笔记", expect: "南部新書", minChapters: 10, maxChapters: 10, textSource: { kind: "known-title-list", prefer: "plain", startPattern: "\\n甲\\n", titles: ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"] } },
@@ -273,16 +283,16 @@ const BOOKS = [
   { id: "shiyi-ji-gutenberg-zh", pg: 56202, lang: "zh", title: "拾遺記", category: "中文 · 志怪", expect: "拾遺記", minChapters: 10, maxChapters: 10, textSource: { kind: "book-prefixed-volume", prefer: "plain", startPattern: "《拾遺記》者" } },
   { id: "fubao-xiantan-gutenberg-zh", pg: 25226, lang: "zh", title: "負曝閒談", category: "中文 · 近代小说", expect: "負曝閒談" },
   { id: "huanxi-yuanjia-gutenberg-zh", pg: 25286, lang: "zh", title: "歡喜冤家", category: "中文 · 话本小说", expect: "歡喜冤家", minChapters: 24, maxChapters: 30, textSource: { kind: "hui", prefer: "plain" } },
-  { id: "shitou-dian-gutenberg-zh", pg: 25399, lang: "zh", title: "石點頭", category: "中文 · 话本小说", expect: "石點頭", minChapters: 14, maxChapters: 16, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "shitou-dian-gutenberg-zh", pg: 25399, lang: "zh", title: "石點頭", category: "中文 · 话本小说", expect: "石點頭", minChapters: 14, maxChapters: 14, textSource: { kind: "hui", prefer: "plain" } },
   { id: "yanzi-jian-gutenberg-zh", pg: 24193, lang: "zh", title: "燕子箋", category: "中文 · 戏曲", expect: "燕子箋" },
   { id: "jiaoye-pa-gutenberg-zh", pg: 27148, lang: "zh", title: "蕉葉帕", category: "中文 · 戏曲", expect: "蕉葉帕" },
   { id: "shangjun-shu-gutenberg-zh", pg: 23833, lang: "zh", title: "商君書", category: "中文 · 法家", expect: "商君書" },
   { id: "suhua-qingtan-gutenberg-zh", pg: 25223, lang: "zh", title: "俗話傾談", category: "中文 · 粤语俗文学", expect: "俗話傾談" },
   { id: "shenzi-gutenberg-zh", pg: 25366, lang: "zh", title: "慎子", category: "中文 · 法家", expect: "慎子" },
   { id: "fusheng-liuji-gutenberg-zh", pg: 25192, lang: "zh", title: "浮生六記", category: "中文 · 散文", expect: "浮生六記" },
-  { id: "zhenzhong-ji-gutenberg-zh", pg: 52238, lang: "zh", title: "枕中記", category: "中文 · 唐传奇", expect: "枕中記" },
+  { id: "zhenzhong-ji-gutenberg-zh", pg: 52238, lang: "zh", title: "枕中記", category: "中文 · 唐传奇", expect: "枕中記", minChapters: 3, maxChapters: 3, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "開元七年", titleSuffix: "段" } },
   { id: "xieduo-gutenberg-zh", pg: 25375, lang: "zh", title: "諧鐸", category: "中文 · 志怪", expect: "諧鐸" },
-  { id: "yougui-ji-gutenberg-zh", pg: 26737, lang: "zh", title: "幽閨記", category: "中文 · 戏曲", expect: "幽閨記" },
+  { id: "yougui-ji-gutenberg-zh", pg: 26737, lang: "zh", title: "幽閨記", category: "中文 · 戏曲", expect: "幽閨記", minChapters: 40, maxChapters: 40, repairDuplicateActNumbers: true, textSource: { kind: "inline-play-act", prefer: "plain", includeEmptyActs: true } },
   { id: "simafa-gutenberg-zh", pg: 25167, lang: "zh", title: "司馬法", category: "中文 · 兵法", expect: "司馬法" },
   { id: "tiangong-kaiwu-gutenberg-zh", pg: 25273, lang: "zh", title: "天工開物", category: "中文 · 科技", expect: "天工開物", splitTextMarkers: [{ title: "作咸第五", marker: "甘嗜", newTitle: "甘嗜第六" }] },
   { id: "jinxiang-ting-gutenberg-zh", pg: 25279, lang: "zh", title: "錦香亭", category: "中文 · 古典小说", expect: "錦香亭" },
@@ -306,6 +316,14 @@ const BOOKS = [
   { id: "shangjie-xianxingji-gutenberg-zh", pg: 24079, lang: "zh", title: "商界現形記", category: "中文 · 近代小说", expect: "商界現形記" },
   { id: "yuchan-ji-gutenberg-zh", pg: 25137, lang: "zh", title: "玉蟾記", category: "中文 · 戏曲", expect: "玉蟾記" },
   { id: "fenzhuang-lou-quanzhuan-gutenberg-zh", pg: 26871, lang: "zh", title: "粉妝樓全傳", category: "中文 · 古典小说", expect: "粉妝樓", titleReplacements: [{ from: "第七十二回 破長安媕野~合 入皇宮訴屈伸冤", to: "第七十二回 破長安裏應外合 入皇宮訴屈伸冤" }] },
+  { id: "fenzhuang-lou-1-10-gutenberg-zh", pg: 4572, lang: "zh", title: "粉妝樓（一至十回）", category: "中文 · 古典小说", expect: "粉妝樓", minChapters: 10, maxChapters: 10, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "fenzhuang-lou-11-20-gutenberg-zh", pg: 4573, lang: "zh", title: "粉妝樓（十一至二十回）", category: "中文 · 古典小说", expect: "粉妝樓", minChapters: 10, maxChapters: 10, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "fenzhuang-lou-21-30-gutenberg-zh", pg: 4574, lang: "zh", title: "粉妝樓（二十一至三十回）", category: "中文 · 古典小说", expect: "粉妝樓", minChapters: 10, maxChapters: 10, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "fenzhuang-lou-31-40-gutenberg-zh", pg: 4575, lang: "zh", title: "粉妝樓（三十一至四十回）", category: "中文 · 古典小说", expect: "粉妝樓", minChapters: 10, maxChapters: 10, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "fenzhuang-lou-41-50-gutenberg-zh", pg: 4576, lang: "zh", title: "粉妝樓（四十一至五十回）", category: "中文 · 古典小说", expect: "粉妝樓", minChapters: 10, maxChapters: 10, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "fenzhuang-lou-51-60-gutenberg-zh", pg: 4577, lang: "zh", title: "粉妝樓（五十一至六十回）", category: "中文 · 古典小说", expect: "粉妝樓", minChapters: 10, maxChapters: 10, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "fenzhuang-lou-61-70-gutenberg-zh", pg: 4578, lang: "zh", title: "粉妝樓（六十一至七十回）", category: "中文 · 古典小说", expect: "粉妝樓", minChapters: 10, maxChapters: 10, textSource: { kind: "hui", prefer: "plain" } },
+  { id: "fenzhuang-lou-71-80-gutenberg-zh", pg: 4579, lang: "zh", title: "粉妝樓（七十一至八十回）", category: "中文 · 古典小说", expect: "粉妝樓", minChapters: 10, maxChapters: 10, textSource: { kind: "hui", prefer: "plain" } },
   { id: "yuzhi-guanghandian-ji-gutenberg-zh", pg: 30465, lang: "zh", title: "御製廣寒殿記", category: "中文 · 辞赋", expect: "廣寒殿記" },
   { id: "chiren-fu-gutenberg-zh", pg: 27184, lang: "zh", title: "癡人福", category: "中文 · 古典小说", expect: "癡人福" },
   { id: "haigong-an-gutenberg-zh", pg: 54494, lang: "zh", title: "海公案", category: "中文 · 公案小说", expect: "海公案", textSource: { kind: "hui", prefer: "plain" } },
@@ -313,21 +331,21 @@ const BOOKS = [
   { id: "lingli-jiguang-gutenberg-zh", pg: 25716, lang: "zh", title: "灵历集光", category: "中文 · 宗教", expect: "灵历集光", textSource: { kind: "lingli-jiguang", prefer: "plain", startPattern: "滕\\s*序" } },
   { id: "zhuangzi-de-gushi-gutenberg-zh", pg: 23913, lang: "zh", title: "莊子的故事", category: "中文 · 道家", expect: "莊子的故事", allowSparseTrailingOrdinals: true },
   { id: "sunzi-bingfa-daojia-xinzhu-gutenberg-zh", pg: 7349, lang: "zh", title: "孫子兵法道家新註解", category: "中文 · 兵法", expect: "孫子兵法道家" },
-  { id: "zhoubi-suanjing-gutenberg-zh", pg: 12408, lang: "zh", title: "周髀算經", category: "中文 · 算学", expect: "周髀算經" },
+  { id: "zhoubi-suanjing-gutenberg-zh", pg: 12408, lang: "zh", title: "周髀算經", category: "中文 · 算学", expect: "周髀算經", minChapters: 6, maxChapters: 6, keepLeadingTitleChapter: true, textSource: { kind: "paired-paragraphs", prefer: "plain", startPattern: "周髀算經卷上之一", headingPattern: "^周髀算經卷[上下]之[一二三]$" } },
   { id: "kongque-dongnanfei-gutenberg-zh", pg: 52275, lang: "zh", title: "孔雀東南飛", category: "中文 · 诗歌", expect: "孔雀東南飛" },
   { id: "xiaojing-gutenberg-zh", pg: 24232, lang: "zh", title: "孝經", category: "中文 · 儒家", expect: "孝經", minChapters: 18, maxChapters: 18, textSource: { kind: "classic-ordinal", prefer: "plain" } },
   { id: "chunqiu-pei-gutenberg-zh", pg: 25329, lang: "zh", title: "春秋配", category: "中文 · 戏曲", expect: "春秋配" },
   { id: "erya-gutenberg-zh", pg: 51620, lang: "zh", title: "爾雅", category: "中文 · 小学", expect: "爾雅", minChapters: 19, maxChapters: 19, textSource: { kind: "known-title-list", prefer: "plain", titles: ERYA_TITLES } },
-  { id: "zhushu-jinian-gutenberg-zh", pg: 24111, lang: "zh", title: "竹書紀年", category: "中文 · 史书", expect: "竹書紀年" },
+  { id: "zhushu-jinian-gutenberg-zh", pg: 24111, lang: "zh", title: "竹書紀年", category: "中文 · 史书", expect: "竹書紀年", minChapters: 5, maxChapters: 5, textSource: { kind: "dynasty-chronicle", prefer: "plain" } },
   { id: "huangdi-zhaijing-gutenberg-zh", pg: 27858, lang: "zh", title: "黄帝宅經", category: "中文 · 术数", expect: "黄帝宅經", minChapters: 3, maxChapters: 3, textSource: { kind: "known-title-list", prefer: "plain", titles: ["提要", "宅經卷上", "宅經卷下"] } },
   { id: "wenyuan-ge-siku-quanshu-gutenberg-zh", pg: 7221, lang: "zh", title: "文淵閣四庫全書", category: "中文 · 总集", expect: "文淵閣四庫全書" },
   { id: "bencao-beiyao-gutenberg-zh", pg: 26888, lang: "zh", title: "本草備要", category: "中文 · 医学", expect: "本草備要", minChapters: 4, maxChapters: 10, textSource: { kind: "known-title-list", prefer: "plain", titles: ["穀菜部", "金石水土部", "禽獸部", "鱗介魚蟲部"] } },
-  { id: "lunheng-gutenberg-zh", pg: 25397, lang: "zh", title: "論衡", category: "中文 · 诸子", expect: "論衡" },
+  { id: "lunheng-gutenberg-zh", pg: 25397, lang: "zh", title: "論衡", category: "中文 · 诸子", expect: "論衡", minChapters: 65, maxChapters: 90, allowSparseTrailingOrdinals: true, textSource: { kind: "pian-ordinal", prefer: "plain", startPattern: "王充 - 論衡" } },
   { id: "wei-zhenggong-jianlu-gutenberg-zh", pg: 25161, lang: "zh", title: "魏鄭公諫錄", category: "中文 · 史传", expect: "魏鄭公諫錄", minChapters: 120, maxChapters: 140, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18 } },
   { id: "renjian-cihua-gutenberg-zh", pg: 24112, lang: "zh", title: "人間詞話", category: "中文 · 词话", expect: "人間詞話", minChapters: 64, maxChapters: 64, textSource: { kind: "bare-han-section", prefer: "plain", startPattern: "\\n一\\n" } },
   { id: "haiguo-chunqiu-gutenberg-zh", pg: 29032, lang: "zh", title: "海國春秋", category: "中文 · 古典小说", expect: "海國春秋" },
   { id: "zhuzhai-ji-gutenberg-zh", pg: 7220, lang: "zh", title: "竹齋集", category: "中文 · 文集", expect: "竹齋集" },
-  { id: "xixiang-ji-gutenberg-zh", pg: 23906, lang: "zh", title: "西廂記", category: "中文 · 戏曲", expect: "西廂記" },
+  { id: "xixiang-ji-gutenberg-zh", pg: 23906, lang: "zh", title: "西廂記", category: "中文 · 戏曲", expect: "西廂記", minChapters: 20, maxChapters: 24, textSource: { kind: "inline-stage-scene", prefer: "plain" } },
   { id: "yanyi-bian-gutenberg-zh", pg: 27026, lang: "zh", title: "豔異編", category: "中文 · 志怪", expect: "豔異編", allowSparseVolumeOrdinals: true },
   { id: "fengan-yuhua-gutenberg-zh", pg: 26746, lang: "zh", title: "分甘余話", category: "中文 · 笔记", expect: "分甘余話" },
   { id: "jianxia-zhuan-gutenberg-zh", pg: 25214, lang: "zh", title: "劍俠傳", category: "中文 · 侠义", expect: "劍俠傳", minChapters: 34, maxChapters: 34, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18 } },
@@ -335,7 +353,7 @@ const BOOKS = [
   { id: "xunzi-jijie-gutenberg-zh", pg: 25314, lang: "zh", title: "荀子集解", category: "中文 · 儒家", expect: "荀子集解", minChapters: 32, maxChapters: 32, textSource: { kind: "classic-ordinal", prefer: "plain" } },
   { id: "chuanxi-lu-gutenberg-zh", pg: 25517, lang: "zh", title: "傳習錄", category: "中文 · 理学", expect: "傳習錄", minChapters: 20, maxChapters: 22, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "徐愛引言", maxChars: 12 } },
   { id: "huawai-ji-gutenberg-zh", pg: 25121, lang: "zh", title: "花外集", category: "中文 · 词集", expect: "花外集", minChapters: 59, maxChapters: 65, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "天香\\s+龍涎香", maxChars: 12 } },
-  { id: "weilu-yehua-gutenberg-zh", pg: 25421, lang: "zh", title: "圍爐夜話", category: "中文 · 修身", expect: "圍爐夜話" },
+  { id: "weilu-yehua-gutenberg-zh", pg: 25421, lang: "zh", title: "圍爐夜話", category: "中文 · 修身", expect: "圍爐夜話", minChapters: 220, maxChapters: 225, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "博學篤誌", titleSuffix: "則" } },
   { id: "weiliaozi-gutenberg-zh", pg: 7219, lang: "zh", title: "尉繚子", category: "中文 · 兵法", expect: "尉繚子" },
   { id: "mingyue-tai-gutenberg-zh", pg: 23843, lang: "zh", title: "明月台", category: "中文 · 古典小说", expect: "明月台" },
   { id: "yuhu-qinghua-gutenberg-zh", pg: 24052, lang: "zh", title: "玉壺淸話", category: "中文 · 笔记", expect: "玉壺淸話" },
@@ -354,7 +372,7 @@ const BOOKS = [
   { id: "gushi-shijiushou-gutenberg-zh", pg: 43009, lang: "zh", title: "古詩十九首", category: "中文 · 诗歌", expect: "古詩十九首", minChapters: 19, maxChapters: 19, keepLeadingTitleChapter: true, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 22 }, titleReplacements: [{ from: "古詩十九首之十八】《客從遠方來》", to: "古詩十九首之十八《客從遠方來》" }] },
   { id: "manjianghong-gutenberg-zh", pg: 27204, lang: "zh", title: "滿江紅", category: "中文 · 词", expect: "滿江紅" },
   { id: "wanruyue-gutenberg-zh", pg: 27185, lang: "zh", title: "宛如約", category: "中文 · 古典小说", expect: "宛如約" },
-  { id: "baduanjin-gutenberg-zh", pg: 25251, lang: "zh", title: "八段錦", category: "中文 · 养生", expect: "八段錦" },
+  { id: "baduanjin-gutenberg-zh", pg: 25251, lang: "zh", title: "八段錦", category: "中文 · 养生", expect: "八段錦", minChapters: 8, maxChapters: 8, textSource: { kind: "paired-paragraphs", prefer: "plain", startPattern: "第一段 懲貪色", headingPattern: "^第[一二三四五六七八九十]+段" } },
   { id: "xinqiji-cixuan-gutenberg-zh", pg: 24733, lang: "zh", title: "辛棄疾詞選", category: "中文 · 词集", expect: "辛棄疾詞選", minChapters: 73, maxChapters: 80, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "生查子", maxChars: 12 } },
   { id: "yeyu-qiudeng-lu-gutenberg-zh", pg: 25130, lang: "zh", title: "夜雨秋燈錄", category: "中文 · 志怪", expect: "夜雨秋燈錄", minChapters: 100, maxChapters: 125, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18 } },
   { id: "yutai-xinyong-gutenberg-zh", pg: 25324, lang: "zh", title: "玉台新詠", category: "中文 · 诗歌", expect: "玉台新詠" },
@@ -373,7 +391,7 @@ const BOOKS = [
   { id: "hepu-zhu-gutenberg-zh", pg: 27734, lang: "zh", title: "合浦珠", category: "中文 · 古典小说", expect: "合浦珠" },
   { id: "zhenzhu-bo-gutenberg-zh", pg: 26877, lang: "zh", title: "珍珠舶", category: "中文 · 古典小说", expect: "珍珠舶" },
   { id: "xu-zibuyu-gutenberg-zh", pg: 25315, lang: "zh", title: "續子不語", category: "中文 · 志怪", expect: "續子不語" },
-  { id: "yingying-zhuan-gutenberg-zh", pg: 52267, lang: "zh", title: "鶯鶯傳", category: "中文 · 唐传奇", expect: "鶯鶯傳" },
+  { id: "yingying-zhuan-gutenberg-zh", pg: 52267, lang: "zh", title: "鶯鶯傳", category: "中文 · 唐传奇", expect: "鶯鶯傳", minChapters: 5, maxChapters: 5, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "唐貞元中", titleSuffix: "段" } },
   { id: "rouputuan-gutenberg-zh", pg: 52205, lang: "zh", title: "肉蒲團", category: "中文 · 古典小说", expect: "肉蒲團" },
   { id: "gushi-xinduben-yi-gutenberg-zh", pg: 67976, lang: "zh", title: "故事新讀本 第一冊", category: "中文 · 读本", expect: "故事新讀本" },
   { id: "guose-tianxiang-gutenberg-zh", pg: 24156, lang: "zh", title: "國色天香", category: "中文 · 古典小说", expect: "國色天香" },
@@ -392,16 +410,16 @@ const BOOKS = [
   { id: "qijing-gutenberg-zh", pg: 7407, lang: "zh", title: "棋經", category: "中文 · 棋艺", expect: "棋經", minChapters: 15, maxChapters: 15, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18 } },
   { id: "kuoyi-zhi-gutenberg-zh", pg: 27092, lang: "zh", title: "括異志", category: "中文 · 志怪", expect: "括異志" },
   { id: "dupian-xinshu-gutenberg-zh", pg: 24021, lang: "zh", title: "杜騙新書", category: "中文 · 笔记", expect: "杜騙新書", minChapters: 80, maxChapters: 90, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18 } },
-  { id: "zhangzai-ji-gutenberg-zh", pg: 27263, lang: "zh", title: "張載集", category: "中文 · 理学", expect: "張載集" },
+  { id: "zhangzai-ji-gutenberg-zh", pg: 27263, lang: "zh", title: "張載集", category: "中文 · 理学", expect: "張載集", minChapters: 60, maxChapters: 100, allowSparseTrailingOrdinals: true, allowProseFragmentTitles: true, textSource: { kind: "zhangzai-headings", prefer: "plain", startPattern: "正蒙蘇昺序" } },
   { id: "shanghan-lun-gutenberg-zh", pg: 24272, lang: "zh", title: "傷寒論", category: "中文 · 医学", expect: "傷寒論" },
   { id: "chaoye-qianzai-gutenberg-zh", pg: 26997, lang: "zh", title: "朝野僉載", category: "中文 · 笔记", expect: "朝野僉載" },
-  { id: "youxian-ku-gutenberg-zh", pg: 25231, lang: "zh", title: "遊仙窟", category: "中文 · 唐传奇", expect: "遊仙窟" },
+  { id: "youxian-ku-gutenberg-zh", pg: 25231, lang: "zh", title: "遊仙窟", category: "中文 · 唐传奇", expect: "遊仙窟", minChapters: 3, maxChapters: 3, textSource: { kind: "paragraph-sections", prefer: "plain", startPattern: "天授中", titleSuffix: "段" } },
   { id: "wuyue-chunqiu-gutenberg-zh", pg: 25131, lang: "zh", title: "吳越春秋", category: "中文 · 史书", expect: "吳越春秋", minChapters: 10, maxChapters: 10, textSource: { kind: "spaced-classic-ordinal", prefer: "plain" } },
   { id: "minghuang-zalu-gutenberg-zh", pg: 25125, lang: "zh", title: "明皇雜錄", category: "中文 · 笔记", expect: "明皇雜錄", minChapters: 3, maxChapters: 3, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 4 } },
   { id: "shipin-gutenberg-zh", pg: 25460, lang: "zh", title: "詩品", category: "中文 · 诗论", expect: "詩品" },
   { id: "zhouli-gutenberg-zh", pg: 25263, lang: "zh", title: "周禮", category: "中文 · 礼学", expect: "周禮", minChapters: 6, maxChapters: 6, textSource: { kind: "known-title-list", prefer: "plain", titles: ZHOULI_TITLES } },
   { id: "jilei-bian-gutenberg-zh", pg: 27398, lang: "zh", title: "雞肋編", category: "中文 · 笔记", expect: "雞肋編", minChapters: 3, maxChapters: 3, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 4 } },
-  { id: "chushi-biao-gutenberg-zh", pg: 30460, lang: "zh", title: "出師表", category: "中文 · 政论", expect: "出師表" },
+  { id: "chushi-biao-gutenberg-zh", pg: 30460, lang: "zh", title: "出師表", category: "中文 · 政论", expect: "出師表", minChapters: 2, maxChapters: 2, keepLeadingTitleChapter: true, textSource: { kind: "known-title-list", prefer: "plain", titles: ["前出師表", "後出師表"] } },
   { id: "niulang-zhinuzhuan-gutenberg-zh", pg: 27217, lang: "zh", title: "牛郎織女傳", category: "中文 · 神话传说", expect: "牛郎織女" },
   { id: "zhuzi-zhijia-geyan-gutenberg-zh", pg: 23816, lang: "zh", title: "朱子治家格言", category: "中文 · 家训", expect: "朱子治家格言" },
   { id: "ouyou-zaji-gutenberg-zh", pg: 24110, lang: "zh", title: "歐遊雜記", category: "中文 · 地理游记", expect: "歐遊雜記", minChapters: 10, maxChapters: 10, textSource: { kind: "short-han-title", prefer: "plain", maxChars: 18, excludePattern: "^是我" } },
@@ -411,20 +429,20 @@ const BOOKS = [
   { id: "guoyu-gutenberg-zh", pg: 23911, lang: "zh", title: "國語", category: "中文 · 史书", expect: "國語" },
   { id: "zuozhuan-gutenberg-zh", pg: 24136, lang: "zh", title: "左傳", category: "中文 · 史书", expect: "左傳", minChapters: 254, maxChapters: 260, textSource: { kind: "short-han-title", prefer: "plain", startPattern: "隱公元年", maxChars: 12 } },
   { id: "doue-yuan-gutenberg-zh", pg: 24004, lang: "zh", title: "竇娥寃", category: "中文 · 杂剧", expect: "竇娥寃", minChapters: 5, maxChapters: 5, textSource: { kind: "zaju-fold", prefer: "plain" } },
-  { id: "xu-xiake-youji-gutenberg-zh", pg: 23876, lang: "zh", title: "徐霞客遊記", category: "中文 · 地理游记", expect: "徐霞客遊記", minChapters: 35, maxChapters: 50, textSource: { kind: "travel-diary", prefer: "plain", startPattern: "游天台山日記" } },
+  { id: "xu-xiake-youji-gutenberg-zh", pg: 23876, lang: "zh", title: "徐霞客遊記", category: "中文 · 地理游记", expect: "徐霞客遊記", minChapters: 42, maxChapters: 42, textSource: { kind: "travel-diary", prefer: "plain", startPattern: "游天台山日記" } },
   { id: "xiyouji-gutenberg-zh", pg: 23962, lang: "zh", title: "西遊記", category: "中文 · 神魔小说", expect: "西遊記" },
-  { id: "changyan-dao-gutenberg-zh", pg: 24170, lang: "zh", title: "常言道", category: "中文 · 近代小说", expect: "常言道" },
+  { id: "changyan-dao-gutenberg-zh", pg: 24170, lang: "zh", title: "常言道", category: "中文 · 古典小说", expect: "常言道", minChapters: 16, maxChapters: 16, textSource: { kind: "hui-next-title-line", prefer: "plain" } },
   { id: "hanxiangzi-quanzhuan-gutenberg-zh", pg: 24231, lang: "zh", title: "韓湘子全傳", category: "中文 · 神魔小说", expect: "韓湘子" },
-  { id: "xihu-jiahua-gutenberg-zh", pg: 24273, lang: "zh", title: "西湖佳話", category: "中文 · 古典小说", expect: "西湖佳話" },
-  { id: "chibei-outan-gutenberg-zh", pg: 25162, lang: "zh", title: "池北偶談", category: "中文 · 笔记", expect: "池北偶談" },
-  { id: "bu-hongloumeng-gutenberg-zh", pg: 25202, lang: "zh", title: "補紅樓夢", category: "中文 · 古典小说", expect: "補紅樓夢" },
+  { id: "xihu-jiahua-gutenberg-zh", pg: 24273, lang: "zh", title: "西湖佳話", category: "中文 · 话本小说", expect: "西湖佳話", minChapters: 16, maxChapters: 16, textSource: { kind: "numbered-volume", prefer: "plain" } },
+  { id: "chibei-outan-gutenberg-zh", pg: 25162, lang: "zh", title: "池北偶談", category: "中文 · 笔记", expect: "池北偶談", minChapters: 26, maxChapters: 26, textSource: { kind: "numbered-volume", prefer: "plain" } },
+  { id: "bu-hongloumeng-gutenberg-zh", pg: 25202, lang: "zh", title: "補紅樓夢", category: "中文 · 古典小说", expect: "補紅樓夢", minChapters: 48, maxChapters: 48, textSource: { kind: "hui", prefer: "plain" } },
   { id: "zibuyu-gutenberg-zh", pg: 25245, lang: "zh", title: "子不語", category: "中文 · 志怪", expect: "子不語" },
   { id: "ernv-yingxiong-zhuan-gutenberg-zh", pg: 25327, lang: "zh", title: "兒女英雄傳", category: "中文 · 侠义小说", expect: "兒女英雄傳" },
-  { id: "shuangfeng-qiyuan-gutenberg-zh", pg: 25348, lang: "zh", title: "雙鳳奇緣", category: "中文 · 古典小说", expect: "雙鳳奇緣" },
+  { id: "shuangfeng-qiyuan-gutenberg-zh", pg: 25348, lang: "zh", title: "雙鳳奇緣", category: "中文 · 古典小说", expect: "雙鳳奇緣", minChapters: 80, maxChapters: 80, textSource: { kind: "hui", prefer: "plain" } },
   { id: "yangjiajiang-yanyi-gutenberg-zh", pg: 27082, lang: "zh", title: "楊家將演義", category: "中文 · 英雄传奇", expect: "楊家將" },
   { id: "guilian-meng-gutenberg-zh", pg: 27104, lang: "zh", title: "歸蓮夢", category: "中文 · 古典小说", expect: "歸蓮夢" },
   { id: "taiwan-waiji-gutenberg-zh", pg: 27218, lang: "zh", title: "臺灣外紀", category: "中文 · 史书", expect: "臺灣外紀" },
-  { id: "xihai-jiyoucao-gutenberg-zh", pg: 54433, lang: "zh", title: "西海紀遊草", category: "中文 · 地理游记", expect: "西海紀遊草" },
+  { id: "xihai-jiyoucao-gutenberg-zh", pg: 54433, lang: "zh", title: "西海紀遊草", category: "中文 · 地理游记", expect: "西海紀遊草", minChapters: 5, maxChapters: 5, textSource: { kind: "known-title-list", prefer: "plain", startPattern: "西海紀遊序", endPattern: "藏於紐約公共圖書館的珍本照片", titles: ["西海紀遊序", "西海紀遊自序", "西海紀遊詩", "救回被誘潮人記", "〔附〕記先祖妣節孝事略"] } },
 
   { id: "alice-wonderland-gutenberg-en", pg: 11, lang: "en", title: "Alice's Adventures in Wonderland", category: "English · Fiction", expect: "Alice" },
   { id: "pride-prejudice-gutenberg-en", pg: 1342, lang: "en", title: "Pride and Prejudice", category: "English · Fiction", expect: "Pride" },
@@ -854,7 +872,19 @@ function parseIntegerOption(value, label, { min = 0 } = {}) {
 }
 
 function parseArgs(argv) {
-  const out = { publish: false, json: false, audit: false, allLangs: false, apiUrl: API_URL, ids: [], langs: [], limit: null, offset: 0 };
+  const out = {
+    publish: false,
+    json: false,
+    audit: false,
+    allLangs: false,
+    apiUrl: API_URL,
+    ids: [],
+    langs: [],
+    limit: null,
+    offset: 0,
+    concurrency: null,
+    chapterConcurrency: DEFAULT_CHAPTER_PUBLISH_CONCURRENCY,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--publish" || arg === "--json" || arg === "--summary" || arg === "--audit") {
@@ -873,10 +903,12 @@ function parseArgs(argv) {
       out.continueOnError = true;
       continue;
     }
-    if (arg === "--limit" || arg === "--offset") {
+    if (arg === "--limit" || arg === "--offset" || arg === "--concurrency" || arg === "--chapter-concurrency") {
       const value = argv[++i];
       if (!value) throw new Error(`Missing value for ${arg}`);
-      out[arg.slice(2)] = parseIntegerOption(value, arg, { min: arg === "--limit" ? 1 : 0 });
+      const key = arg === "--chapter-concurrency" ? "chapterConcurrency" : arg.slice(2);
+      const min = arg === "--offset" ? 0 : 1;
+      out[key] = parseIntegerOption(value, arg, { min });
       continue;
     }
     if (arg === "--api-url" || arg === "--ids" || arg === "--lang" || arg === "--langs") {
@@ -890,6 +922,27 @@ function parseArgs(argv) {
     throw new Error(`Unknown argument: ${arg}`);
   }
   return out;
+}
+
+function importBookConcurrency(options) {
+  if (options.concurrency != null) return Number(options.concurrency);
+  return options.publish ? DEFAULT_PUBLISH_CONCURRENCY : DEFAULT_DRY_RUN_CONCURRENCY;
+}
+
+async function mapWithConcurrency(items, concurrency, worker) {
+  const limit = Math.max(1, Math.min(Number(concurrency) || 1, items.length));
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function runWorker() {
+    for (;;) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) return;
+      results[index] = await worker(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: limit }, () => runWorker()));
+  return results;
 }
 
 function selectBooks(options = {}, books = BOOKS) {
@@ -2295,6 +2348,30 @@ function insertConfiguredOrdinalPlaceholders(book, chapters) {
   return out;
 }
 
+function replaceChineseActOrdinal(title, n) {
+  return String(title || "").replace(new RegExp(`^第\\s*${HAN_ORDINAL_RE}\\s*出`, "u"), `第${formatHanNumber(n)}出`);
+}
+
+function repairDuplicateActNumbers(book, chapters) {
+  if (!book.repairDuplicateActNumbers || chapters.length < 3) return chapters;
+  const out = chapters.map((chapter) => ({ ...chapter }));
+  for (let index = 1; index < out.length; index += 1) {
+    const previous = chineseOrdinalFromTitle(out[index - 1].title);
+    const current = chineseOrdinalFromTitle(out[index].title);
+    const next = index + 1 < out.length ? chineseOrdinalFromTitle(out[index + 1].title) : null;
+    if (previous?.kind !== "出" || current?.kind !== "出") continue;
+    const expected = previous.n + 1;
+    if (current.n === expected) continue;
+    if (next?.kind === "出" && next.n === expected + 1) {
+      out[index] = {
+        ...out[index],
+        title: replaceChineseActOrdinal(out[index].title, expected),
+      };
+    }
+  }
+  return out;
+}
+
 function cleanGutenbergPayload(book, payload) {
   const chapters = payload.chapters || [];
   if (book.lang === "zh" && book.title) {
@@ -2325,9 +2402,10 @@ function cleanGutenbergPayload(book, payload) {
   });
   const split = splitTextMarkerChapters(book, filtered);
   const withOrdinalPlaceholders = insertConfiguredOrdinalPlaceholders(book, split);
+  const withActRepairs = repairDuplicateActNumbers(book, withOrdinalPlaceholders);
   const cleaned = book.lang === "zh"
-    ? repairShanghanLunChapters(book, repairKongcongziChapters(book, repairMudantingChapters(book, repairKuoyiZhiChapters(book, repairShenlouZhiChapters(book, repairChukePaianJingqiChapters(book, removeExactDuplicateChapters(mergeShortChineseInterludeChapters(mergeShortChineseReviewChapters(withOrdinalPlaceholders)))))))))
-    : withOrdinalPlaceholders;
+    ? repairShanghanLunChapters(book, repairKongcongziChapters(book, repairMudantingChapters(book, repairKuoyiZhiChapters(book, repairShenlouZhiChapters(book, repairChukePaianJingqiChapters(book, removeExactDuplicateChapters(mergeShortChineseInterludeChapters(mergeShortChineseReviewChapters(withActRepairs)))))))))
+    : withActRepairs;
   if (!cleaned.length) return payload;
   payload.chapters = cleaned.map((chapter, index) => ({
     ...chapter,
@@ -2408,6 +2486,419 @@ function cleanPlainTextLine(line) {
     .replace(/[ \t\f\v\u00a0]+/g, " ")
     .replace(/^[　\s]+|[　\s]+$/g, "")
     .trim();
+}
+
+function nextLineHuiSubtitle(line) {
+  const value = cleanPlainTextLine(line);
+  if (!value) return "";
+  if ([...value.replace(/\s+/g, "")].length > 80) return "";
+  if (!/\p{Script=Han}/u.test(value)) return "";
+  if (/[，。！？；;:：、,.!?]/u.test(value)) return "";
+  if (/^(?:話說|话说|卻說|却说|且說|且说|看官|詩曰|诗曰)/u.test(value)) return "";
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function parseSishierZhangjingParagraphs(text) {
+  const paragraphs = String(text || "")
+    .split(/\n\s*\n/u)
+    .map((paragraph) => paragraph.split("\n").map(cleanPlainTextLine).filter(Boolean).join("").trim())
+    .filter(Boolean);
+  const titleIndex = paragraphs.findIndex((paragraph) => /佛[說说]四十二章[經经]/u.test(paragraph));
+  const firstTeachingIndex = paragraphs.findIndex((paragraph, index) => (
+    index > titleIndex
+    && /^(?:佛言|沙門問佛|沙门问佛|沙門夜誦|沙门夜诵|天神獻|天神献|佛問沙門|佛问沙门)/u.test(paragraph)
+  ));
+  if (firstTeachingIndex < 0) return [];
+
+  const introStart = titleIndex >= 0 ? titleIndex + 1 : 0;
+  const intro = paragraphs
+    .slice(introStart, firstTeachingIndex)
+    .filter((paragraph) => !/^Produced\s*by/i.test(paragraph))
+    .join("\n\n")
+    .trim();
+
+  const teachings = [];
+  const seen = new Set();
+  for (const paragraph of paragraphs.slice(firstTeachingIndex)) {
+    if (!/^(?:佛言|沙門問佛|沙门问佛|沙門夜誦|沙门夜诵|天神獻|天神献|佛問沙門|佛问沙门)/u.test(paragraph)) continue;
+    const key = paragraph.replace(/\s+/g, "");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    teachings.push(paragraph);
+    if (teachings.length === 42) break;
+  }
+  if (teachings.length !== 42) return [];
+
+  return [
+    {
+      n: 1,
+      title: "緣起",
+      text: intro || "本篇为原文經名與譯者題記。",
+    },
+    ...teachings.map((paragraph, index) => ({
+      n: index + 2,
+      title: `第${formatHanNumber(index + 1)}章`,
+      text: paragraph,
+    })),
+  ];
+}
+
+function paragraphBlocks(text) {
+  return String(text || "")
+    .split(/\n\s*\n/u)
+    .map((paragraph) => paragraph.split("\n").map(cleanPlainTextLine).filter(Boolean).join("").trim())
+    .filter(Boolean);
+}
+
+function parseParagraphSectionChapters(text, textSource = {}) {
+  const minChars = Number(textSource.minParagraphChars || 6);
+  const skipPattern = textSource.skipParagraphPattern ? new RegExp(textSource.skipParagraphPattern, "u") : null;
+  const titleSuffix = String(textSource.titleSuffix || "則").trim();
+  const paragraphs = paragraphBlocks(text)
+    .filter((paragraph) => !/^Produced\s*by/i.test(paragraph))
+    .filter((paragraph) => !skipPattern || !skipPattern.test(paragraph))
+    .filter((paragraph) => [...paragraph].length >= minChars);
+  return paragraphs.map((paragraph, index) => ({
+    n: index + 1,
+    title: `第${index + 1}${titleSuffix}`,
+    text: paragraph,
+  }));
+}
+
+function cleanParagraphHeading(value) {
+  return String(value || "")
+    .replace(/[　\s]+/gu, " ")
+    .trim();
+}
+
+function biographyParagraphTitle(paragraph, textSource = {}) {
+  const titlePattern = textSource.titlePattern
+    ? new RegExp(textSource.titlePattern, "u")
+    : /^([\p{Script=Han}]{1,12})[　\s]{2,}/u;
+  const match = String(paragraph || "").match(titlePattern);
+  const title = cleanParagraphHeading(match?.[1] || "");
+  if (!title || /[，。！？；;:：、,.!?]/u.test(title)) return "";
+  return title;
+}
+
+function parseBiographyParagraphChapters(text, textSource = {}) {
+  const minChars = Number(textSource.minParagraphChars || 8);
+  const paragraphs = paragraphBlocks(text)
+    .filter((paragraph) => !/^Produced\s*by/i.test(paragraph))
+    .filter((paragraph) => [...paragraph].length >= minChars);
+  const chapters = [];
+  for (const paragraph of paragraphs) {
+    const title = biographyParagraphTitle(paragraph, textSource);
+    if (!title) continue;
+    chapters.push({
+      n: chapters.length + 1,
+      title,
+      text: paragraph,
+    });
+  }
+  return chapters;
+}
+
+function pairedParagraphTitle(value) {
+  const clean = cleanParagraphHeading(value);
+  const compact = compactSpacedHanTitle(clean);
+  return cleanParagraphHeading(compact);
+}
+
+function parsePairedParagraphChapters(text, textSource = {}) {
+  const headingPattern = textSource.headingPattern ? new RegExp(textSource.headingPattern, "u") : null;
+  if (!headingPattern) return [];
+  const minBodyChars = Number(textSource.minBodyChars || 6);
+  const paragraphs = paragraphBlocks(text).filter((paragraph) => !/^Produced\s*by/i.test(paragraph));
+  const chapters = [];
+  for (let index = 0; index < paragraphs.length; index += 1) {
+    const title = pairedParagraphTitle(paragraphs[index]);
+    if (!title || !headingPattern.test(title)) continue;
+    const body = paragraphs[index + 1] || "";
+    if ([...body].length < minBodyChars) continue;
+    chapters.push({
+      n: chapters.length + 1,
+      title,
+      text: body,
+    });
+    index += 1;
+  }
+  return chapters;
+}
+
+function inlinePlayActTitle(value) {
+  const line = cleanParagraphHeading(value);
+  const match = line.match(new RegExp(`^(第\\s*${HAN_ORDINAL_RE}\\s*出)\\s*(.{0,40})$`, "u"));
+  if (!match) return "";
+  const prefix = match[1].replace(/\s+/g, "");
+  const rest = cleanParagraphHeading(match[2] || "");
+  return `${prefix}${rest ? ` ${rest}` : ""}`.trim();
+}
+
+function parseInlinePlayActChapters(text, textSource = {}) {
+  const source = String(text || "");
+  const headingPattern = new RegExp(`(^|\\n)\\s*(第\\s*${HAN_ORDINAL_RE}\\s*出[^\\n]{0,40})`, "gu");
+  const headings = [];
+  for (const match of source.matchAll(headingPattern)) {
+    const title = inlinePlayActTitle(match[2]);
+    if (!title) continue;
+    headings.push({
+      title,
+      start: match.index + match[1].length,
+      end: match.index + match[0].length,
+    });
+  }
+  const chapters = [];
+  for (let index = 0; index < headings.length; index += 1) {
+    const heading = headings[index];
+    const next = headings[index + 1];
+    const body = source
+      .slice(heading.end, next ? next.start : source.length)
+      .split("\n")
+      .map(cleanPlainTextLine)
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    if (!body && !textSource.includeEmptyActs) continue;
+    chapters.push({
+      n: chapters.length + 1,
+      title: heading.title,
+      text: body || "本出在 Project Gutenberg 原文中只列标题；此处保留目录占位，避免出目编号错位。",
+    });
+  }
+  return chapters;
+}
+
+function cleanQuestionAnswerBody(value) {
+  return String(value || "")
+    .split("\n")
+    .map(cleanPlainTextLine)
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function questionAnswerTitle(value, textSource = {}) {
+  const maxChars = Number(textSource.questionTitleChars || 22);
+  const compact = cleanQuestionAnswerBody(value).replace(/\s+/g, "");
+  const question = compact.match(/^問[:：](.+?)(?:師云|[？?。]|$)/u)?.[1] || "";
+  if (!question) return "";
+  const chars = [...question];
+  return `問：${chars.slice(0, maxChars).join("")}${chars.length > maxChars ? "..." : ""}`;
+}
+
+function parseQuestionAnswerChapters(text, textSource = {}) {
+  const source = String(text || "");
+  const questionIndexes = [...source.matchAll(/問[:：]/gu)].map((match) => match.index);
+  if (!questionIndexes.length) return [];
+  const chapters = [];
+  const initialTitle = String(textSource.initialTitle || "").trim();
+  const intro = cleanQuestionAnswerBody(source.slice(0, questionIndexes[0]));
+  if (initialTitle && intro) {
+    chapters.push({
+      n: chapters.length + 1,
+      title: initialTitle,
+      text: intro,
+    });
+  }
+  for (let index = 0; index < questionIndexes.length; index += 1) {
+    const start = questionIndexes[index];
+    const next = questionIndexes[index + 1] ?? source.length;
+    const text = cleanQuestionAnswerBody(source.slice(start, next));
+    const title = questionAnswerTitle(text, textSource);
+    if (!text || !title) continue;
+    chapters.push({
+      n: chapters.length + 1,
+      title,
+      text,
+    });
+  }
+  return chapters;
+}
+
+function compactRightMarkerTitle(value) {
+  return String(value || "")
+    .replace(/^右/u, "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function parseRightMarkerChapters(text, textSource = {}) {
+  const markerPattern = textSource.markerPattern ? new RegExp(textSource.markerPattern, "gu") : null;
+  const mainPattern = textSource.mainPattern ? new RegExp(textSource.mainPattern, "u") : null;
+  if (!markerPattern || !mainPattern) return [];
+
+  const source = String(text || "").trim();
+  const main = mainPattern.exec(source);
+  if (!main?.index && main?.index !== 0) return [];
+
+  const chapters = [];
+  const introTitle = String(textSource.introTitle || "").trim();
+  if (introTitle) {
+    const introIndex = source.indexOf(introTitle);
+    if (introIndex >= 0 && introIndex < main.index) {
+      const introText = source.slice(introIndex + introTitle.length, main.index).trim();
+      if (introText) chapters.push({ n: chapters.length + 1, title: introTitle, text: introText });
+    }
+  }
+
+  const bodyStart = main.index + (textSource.includeMainPattern === false ? main[0].length : 0);
+  const body = source.slice(bodyStart).trim();
+  let previousIndex = 0;
+  let lastChapter = null;
+  for (const match of body.matchAll(markerPattern)) {
+    const title = compactRightMarkerTitle(match[0]);
+    const textBeforeMarker = body.slice(previousIndex, match.index).trim();
+    if (title && textBeforeMarker) {
+      lastChapter = {
+        n: chapters.length + 1,
+        title,
+        text: textBeforeMarker,
+      };
+      chapters.push(lastChapter);
+    }
+    previousIndex = match.index + match[0].length;
+  }
+  const tail = body.slice(previousIndex).trim();
+  if (tail && lastChapter && [...tail].length <= 1200) {
+    lastChapter.text = [lastChapter.text, tail].filter(Boolean).join("\n\n");
+  }
+  return chapters.map((chapter, index) => ({ ...chapter, n: index + 1 }));
+}
+
+function buildLineHeadingChapters(text, titleForLine) {
+  const chapters = [];
+  let current = null;
+  const push = () => {
+    if (!current) return;
+    const body = current.lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    if (body) {
+      chapters.push({
+        n: chapters.length + 1,
+        title: current.title,
+        text: body,
+      });
+    }
+    current = null;
+  };
+
+  for (const rawLine of String(text || "").split("\n")) {
+    const line = cleanPlainTextLine(rawLine);
+    const heading = titleForLine(line);
+    if (heading?.title) {
+      push();
+      current = { title: heading.title, lines: [] };
+      if (heading.rest) current.lines.push(heading.rest);
+      continue;
+    }
+    if (!current) continue;
+    if (!line) {
+      if (current.lines.length) current.lines.push("");
+      continue;
+    }
+    current.lines.push(line);
+  }
+  push();
+  return chapters.map((chapter, index) => ({ ...chapter, n: index + 1 }));
+}
+
+function parseNumberedQuotedPoemChapters(text) {
+  return buildLineHeadingChapters(text, (line) => {
+    const match = String(line || "").match(/^(\d{1,4})「([^」]{1,120})」$/u);
+    if (!match) return null;
+    return { title: match[2].trim() };
+  });
+}
+
+function parsePianOrdinalChapters(text) {
+  return buildLineHeadingChapters(text, (line) => {
+    const compact = String(line || "").replace(/\s+/g, "");
+    const match = compact.match(new RegExp(`^([\\p{Script=Han}]{1,16}篇第${HAN_ORDINAL_RE})$`, "u"));
+    return match ? { title: match[1] } : null;
+  });
+}
+
+function parseThreeKingdomsHistoryChapters(text) {
+  return buildLineHeadingChapters(text, (line) => {
+    const value = String(line || "").replace(/\s+/g, " ").trim();
+    const match = value.match(new RegExp(`^((?:魏書|蜀書|吳書)\\s*${HAN_ORDINAL_RE}\\s+.{1,48}第${HAN_ORDINAL_RE})$`, "u"));
+    return match ? { title: match[1].replace(/\s+/g, " ").trim() } : null;
+  });
+}
+
+function parseDynastyChronicleChapters(text) {
+  return buildLineHeadingChapters(text, (line) => {
+    const compact = String(line || "").replace(/\s+/g, "");
+    const match = compact.match(/^([夏商殷周晉晋魏秦漢汉唐宋元明清]{1,4})紀$/u);
+    return match ? { title: `${match[1].replace(/晋/u, "晉")}紀` } : null;
+  });
+}
+
+function zhangzaiPlainHeadingTitle(line) {
+  const compact = String(line || "").replace(/\s+/g, "").trim();
+  if (!compact || [...compact].length > 28) return "";
+  if (!/^\p{Script=Han}+$/u.test(compact)) return "";
+  if (/^(?:橫渠易說|經學理窟|橫渠經學理窟|張子語錄|文集佚存|拾遺|附錄)$/u.test(compact)) return compact;
+  if (new RegExp(`^[\\p{Script=Han}]{1,12}篇第${HAN_ORDINAL_RE}$`, "u").test(compact)) return compact;
+  if (/^[\p{Script=Han}]{2,24}(?:序|跋|提要|題辭|書)$/u.test(compact)) return compact;
+  if (/^(?:上經|下經|系辭上|系辭下|說卦|序卦|雜卦|佚文|周禮|詩書|宗法|禮樂|氣質|義理|自道|祭祀|月令統|喪紀|語錄上|語錄中|語錄下|後錄上|後錄下|性理拾遺|近思錄拾遺|雜詩)$/u.test(compact)) return compact;
+  if (/^學大原[上下]$/u.test(compact)) return compact;
+  return "";
+}
+
+function parseZhangzaiHeadingChapters(text) {
+  return buildLineHeadingChapters(text, (line) => {
+    const title = zhangzaiPlainHeadingTitle(line);
+    return title ? { title } : null;
+  });
+}
+
+function inlineStageSceneHeading(line, sceneNumber) {
+  const value = String(line || "").trim();
+  const match = value.match(/^(\[[^\]\n]{1,80}(?:上開|上開雲|上白|上雲|上云|上)[^\]\n]{0,20}\])(.*)$/u);
+  if (!match) return null;
+  const marker = match[1];
+  const content = marker.slice(1, -1);
+  const role = content.match(/老夫人|夫人|張生|张生|鶯鶯|莺莺|紅娘|红娘|法聰|法聪|長老|长老|鄭琚|郑琚/u)?.[0]
+    || content.match(/正末|末|正旦|旦|紅|红|外|淨|净|潔|洁/u)?.[0]
+    || content.match(/^([\p{Script=Han}]{2,8}?)(?=引|上|扮)/u)?.[1]
+    || "場面";
+  const roleMap = {
+    夫人: "老夫人",
+    张生: "張生",
+    莺莺: "鶯鶯",
+    红娘: "紅娘",
+    法聪: "法聰",
+    长老: "長老",
+    郑琚: "鄭琚",
+    正末: "張生",
+    末: "張生",
+    正旦: "鶯鶯",
+    旦: "鶯鶯",
+    紅: "紅娘",
+    红: "紅娘",
+    外: "老夫人",
+    淨: "鄭琚",
+    净: "鄭琚",
+    潔: "長老",
+    洁: "長老",
+  };
+  const titleRole = roleMap[role] || role;
+  const rest = [marker, cleanPlainTextLine(match[2])].filter(Boolean).join("");
+  return {
+    title: `第${sceneNumber}段 ${titleRole}`,
+    rest,
+  };
+}
+
+function parseInlineStageSceneChapters(text) {
+  let sceneNumber = 0;
+  return buildLineHeadingChapters(text, (line) => {
+    const heading = inlineStageSceneHeading(line, sceneNumber + 1);
+    if (!heading) return null;
+    sceneNumber += 1;
+    return heading;
+  });
 }
 
 function knownPlainTextTitle(value, textSource = {}) {
@@ -2503,7 +2994,7 @@ function plainTextHeadingTitle(line, textSource = {}) {
       }
     }
   }
-  if (textSource.kind === "hui") {
+  if (textSource.kind === "hui" || textSource.kind === "hui-next-title-line") {
     const huiValue = value.replace(/^[^/]{1,40}\//u, "");
     const match = huiValue.match(new RegExp(`^(第\\s*${HAN_ORDINAL_RE}\\s*回)\\s*(.{0,80})$`, "u"));
     if (match) return `${match[1].replace(/\s+/g, "")}${match[2] ? ` ${match[2].trim()}` : ""}`.trim();
@@ -2621,6 +3112,58 @@ function parseGutenbergPlainTextChapters(book, raw) {
   const text = cleanGutenbergPlainText(raw, book.textSource || {});
   const warnings = garbledTextWarnings(text);
   if (warnings.length) throw new Error(`Plain-text source looks garbled: ${warnings.join("; ")}`);
+  if (book.textSource?.kind === "sishier-zhangjing") {
+    const chapters = parseSishierZhangjingParagraphs(text);
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "paragraph-sections") {
+    const chapters = parseParagraphSectionChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "biography-paragraphs") {
+    const chapters = parseBiographyParagraphChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "paired-paragraphs") {
+    const chapters = parsePairedParagraphChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "inline-play-act") {
+    const chapters = parseInlinePlayActChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "question-answer") {
+    const chapters = parseQuestionAnswerChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "right-marker") {
+    const chapters = parseRightMarkerChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "numbered-quoted-poems") {
+    const chapters = parseNumberedQuotedPoemChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "pian-ordinal") {
+    const chapters = parsePianOrdinalChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "three-kingdoms-history") {
+    const chapters = parseThreeKingdomsHistoryChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "dynasty-chronicle") {
+    const chapters = parseDynastyChronicleChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "zhangzai-headings") {
+    const chapters = parseZhangzaiHeadingChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
+  if (book.textSource?.kind === "inline-stage-scene") {
+    const chapters = parseInlineStageSceneChapters(text, book.textSource || {});
+    if (chapters.length) return chapters;
+  }
   const chapters = [];
   let current = book.textSource?.initialTitle
     ? {
@@ -2632,11 +3175,30 @@ function parseGutenbergPlainTextChapters(book, raw) {
     : null;
   const push = () => {
     if (!current) return;
-    const body = current.lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    const lines = [...current.lines];
+    let title = current.title;
+    if (book.textSource?.kind === "hui-next-title-line" && new RegExp(`^第${HAN_ORDINAL_RE}回$`, "u").test(title)) {
+      const subtitleIndex = lines.findIndex((line) => line.trim());
+      const subtitles = [];
+      const subtitle = subtitleIndex >= 0 ? nextLineHuiSubtitle(lines[subtitleIndex]) : "";
+      if (subtitle && subtitleIndex >= 0) {
+        subtitles.push(subtitle);
+        lines.splice(subtitleIndex, 1);
+        const continuation = nextLineHuiSubtitle(lines[subtitleIndex]);
+        if (continuation && lines[subtitleIndex + 1] != null && !String(lines[subtitleIndex + 1]).trim()) {
+          subtitles.push(continuation);
+          lines.splice(subtitleIndex, 1);
+        }
+      }
+      if (subtitles.length) {
+        title = `${title} ${subtitles.join(" ")}`;
+      }
+    }
+    const body = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
     if (body || current.lacuna || current.structural) {
       chapters.push({
         n: chapters.length + 1,
-        title: current.title,
+        title,
         text: body || (current.structural ? "本篇为原文分部标题；正文见后续篇目。" : "本篇原文标为「闕」。"),
       });
     }
@@ -2794,7 +3356,7 @@ async function importOne(book, options) {
       category: book.category,
       lang: book.lang,
       ingestPayload: payload,
-      concurrency: 6,
+      concurrency: options.chapterConcurrency,
       onProgress: (event) => {
         if (event.stage === "chapter") {
           process.stderr.write(`[gutenberg] ${book.id} chapter ${event.current}/${event.total}: ${event.chapter.title}\n`);
@@ -2929,12 +3491,13 @@ async function main() {
     process.stdout.write(options.json ? `${JSON.stringify(body, null, 2)}\n` : `${formatCatalogAudit(catalogAudit, selected)}\n`);
     return;
   }
-  const results = [];
-  for (const book of selected) {
+  const bookConcurrency = importBookConcurrency(options);
+  process.stderr.write(`[gutenberg] selected ${selected.length} books; book concurrency ${bookConcurrency}${options.publish ? `; chapter concurrency ${options.chapterConcurrency}` : ""}\n`);
+  const results = await mapWithConcurrency(selected, bookConcurrency, async (book) => {
     try {
       if (options.publish && options.skipExisting && await liveBookExists(options.apiUrl, book)) {
         process.stderr.write(`[gutenberg] ${book.id} exists; skip\n`);
-        results.push({
+        return {
           id: book.id,
           pg: book.pg,
           title: book.title,
@@ -2943,14 +3506,13 @@ async function main() {
           source: sourceUrl(book),
           accepted: true,
           skipped: true,
-        });
-        continue;
+        };
       }
-      results.push(await importOne(book, options));
+      return await importOne(book, options);
     } catch (error) {
       if (!options.continueOnError) throw error;
       process.stderr.write(`[gutenberg] ${book.id} failed: ${error.message}\n`);
-      results.push({
+      return {
         id: book.id,
         pg: book.pg,
         title: book.title,
@@ -2959,9 +3521,9 @@ async function main() {
         source: sourceUrl(book),
         accepted: false,
         error: error.message,
-      });
+      };
     }
-  }
+  });
   const output = { mode: options.publish ? "publish" : "dry-run", apiUrl: options.apiUrl, results };
   const body = options.summary ? summarizeOutput(output) : output;
   process.stdout.write(options.json ? `${JSON.stringify(body, null, 2)}\n` : `${results.map((r) => `${r.id}: ${r.title}`).join("\n")}\n`);
@@ -2983,6 +3545,7 @@ export {
   chapterQualityWarnings,
   cleanGutenbergPayload,
   main,
+  parseArgs,
   parseGutenbergPlainTextChapters,
   selectBooks,
   summarizeCatalogAudit,

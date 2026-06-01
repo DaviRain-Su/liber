@@ -224,13 +224,21 @@ until a clean public-domain source-specific splitter is added. Those splitters
 cover forms such as `词曲部` and `结构第一`, implicit opening sections where the
 first numbered heading is omitted, bilingual exercise books such as
 `滬語開路`, and Lu Xun collections such as `南腔北調集` where `BB` note
-separators must stay inside the right article. Modern Chinese collections can
-use explicit story-title lists so internal `一/二/三` sections stay inside their
-story instead of becoming fake top-level chapters. Bilingual public-domain
-entries can be cropped to a clean Chinese source range when the original
-Chinese text is explicit.
+separators must stay inside the right article. Newer plain-text splitters cover
+numbered poem titles, `篇第…` essay headings, dynasty chronicle sections,
+`魏書/吳書` history headings, Zhang Zai collection headings, travel-diary
+sections, inline drama scene openings, and 回目 titles whose subtitle continues
+on the next plain-text line. Modern Chinese collections can use explicit
+story-title lists so internal `一/二/三` sections stay inside their story
+instead of becoming fake top-level chapters. Bilingual public-domain entries
+can be cropped to a clean Chinese source range when the original Chinese text
+is explicit.
 Use `--skip-existing` for live curation batches and `--all-langs` only when
 deliberately auditing the wider multilingual backlog.
+Use `--concurrency` to run multiple Gutenberg books in parallel: dry-runs
+default to 4 concurrent books, while live publishing defaults to 2 concurrent
+books and keeps each book's chunked chapter uploads bounded by
+`--chapter-concurrency` (default 6).
 
 Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
 (real Sui personal-message signature check via `@mysten/sui`). Frontend flow in

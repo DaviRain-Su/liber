@@ -14,6 +14,7 @@ test("dynamic catalog quarantines known broken Chinese imports", async () => {
   assert.match(source, /QUARANTINED_LIBRARY_BOOK_IDS/);
   assert.doesNotMatch(source, /"hongloumeng-gutenberg-zh"/);
   assert.doesNotMatch(source, /"haigong-an-gutenberg-zh"/);
+  assert.doesNotMatch(source, /"wenming-xiaoshi-gutenberg-zh"/);
   assert.match(source, /"rulin-waishi-gutenberg-zh"/);
   assert.match(source, /function visibleLibraryBookWhere/);
   assert.match(source, /WHERE \$\{visibleLibraryBookWhere\("lb"\)\}/);

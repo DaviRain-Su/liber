@@ -15,7 +15,6 @@ const QUARANTINED_LIBRARY_BOOK_IDS = [
   "lv-mudan-gutenberg-zh",
   "penggong-an-gutenberg-zh",
   "rulin-waishi-gutenberg-zh",
-  "wenming-xiaoshi-gutenberg-zh",
 ] as const;
 
 const QUARANTINED_LIBRARY_BOOK_SET = new Set<string>(QUARANTINED_LIBRARY_BOOK_IDS);

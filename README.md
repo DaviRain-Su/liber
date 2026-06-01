@@ -215,13 +215,16 @@ optimized around classical Chinese chapter splitting, 繁简显示, 竖排, and
 古文今译:
 
 ```bash
-npm run import:gutenberg-classics -- --json
-npm run import:gutenberg-classics -- --publish --skip-existing --json --ids <comma-separated chinese ids>
+npm run import:gutenberg-classics -- --json --concurrency 6
+npm run import:gutenberg-classics -- --publish --skip-existing --json --concurrency 2 --ids <comma-separated chinese ids>
 ```
 
 Use `ADMIN_TOKEN` or a CLI token from an `ADMIN_WALLETS` allow-listed wallet
 when rebuilding an existing catalogue book with better Chinese chapter splits;
 ordinary CLI publish tokens can still only overwrite books they created.
+The importer runs books concurrently (`--concurrency`); dry-runs default to 4
+books at once, while live publishing defaults to 2 books at once and keeps
+per-book chapter uploads bounded by `--chapter-concurrency` (default 6).
 
 To explicitly inspect or import the wider multilingual backlog, opt in:
 
@@ -240,6 +243,10 @@ fragments with Chinese/full-width punctuation, out-of-order volume sequences,
 TOC fragments, placeholder titles, Latin noise headings in Chinese books, and
 mojibake/garbled text. Known source lacunae stay explicit as `（缺）`
 placeholder chapters instead of being hidden by relaxed quality gates. Short
+plain-text source splitters also cover numbered poem titles, `篇第…` essay
+headings, dynasty chronicle sections, `魏書/吳書` history headings, Zhang Zai
+collection headings, travel-diary sections, inline drama scene openings, and
+回目 titles whose subtitle continues on the next plain-text line.
 `評`/`评` review sections and short interlude titles inside chapter runs are
 merged back into the previous chapter instead of becoming standalone reader
 chapters. The current Chinese catalogue has no configured single-chapter
