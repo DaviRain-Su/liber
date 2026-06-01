@@ -7,6 +7,7 @@ import { putBlob } from "../lib/storage";
 import { chain } from "../lib/chains";
 import { getBook, getChapterText, hasLibraryBooks, textToChapter } from "../lib/catalog";
 import { readingStats } from "../lib/reading-summary";
+import { relTime } from "../lib/time";
 import * as S from "../lib/seed";
 
 // Co-reading & social: annotations, feed, shares, groups, threads, works.
@@ -97,7 +98,7 @@ async function publicReaderProfile(env: Env, user: UserRow) {
       bookId: n.book_id,
       book: n.title || n.book_id,
       chap: sentence.chap,
-      when: "刚刚",
+      when: relTime(n.created_at),
       up: n.up || 0,
       createdAt: n.created_at,
     });
@@ -310,16 +311,16 @@ async function liveFeed(env: Env) {
       return {
         kind: "anno", id: `note:${n.id}`, threadKey: `note:${n.id}`, userId: n.user_id, u: n.name || "读者", color: n.color || "#3a4fb0",
         book: n.book_title || n.book_id, bookId: n.book_id, sid: n.sid, chap: cn ? `第 ${cn} 章` : "",
-        t: n.text, up: n.up || 0, replies: 0, when: "刚刚", createdAt: n.created_at,
+        t: n.text, up: n.up || 0, replies: 0, when: relTime(n.created_at), createdAt: n.created_at,
       };
     }),
     ...shares.map((s) => ({
       kind: "convo", id: `share:${s.id}`, threadKey: `share:${s.id}`, userId: s.user_id, u: s.name || "读者", color: s.color || "#3a4fb0",
-      book: s.book_title || s.book_id, title: s.title || "分享了一段阅读对话", quote: s.quote, up: shareVotes[s.id] || 0, saved: 0, replies: 0, when: "刚刚", createdAt: s.created_at,
+      book: s.book_title || s.book_id, title: s.title || "分享了一段阅读对话", quote: s.quote, up: shareVotes[s.id] || 0, saved: 0, replies: 0, when: relTime(s.created_at), createdAt: s.created_at,
     })),
     ...posts.map((p) => ({
       kind: "group", id: `gpost:${p.id}`, threadKey: `gpost:${p.id}`, userId: p.user_id, u: p.name || "读者", color: p.color || "#3a4fb0",
-      groupId: p.group_id, t: p.text, chap: p.chap || "", up: p.up || 0, members: 0, replies: 0, when: "刚刚", createdAt: p.created_at,
+      groupId: p.group_id, t: p.text, chap: p.chap || "", up: p.up || 0, members: 0, replies: 0, when: relTime(p.created_at), createdAt: p.created_at,
     })),
   ].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)).slice(0, 30);
   // Real reply counts, bounded to the visible items' thread keys.
@@ -521,7 +522,7 @@ social.get("/groups/:id", async (c) => {
   if (!g) return c.json({ error: "未找到共读小组" }, 404);
   const posts = await all(
     c.env.DB,
-    `SELECT gp.text, gp.chap, gp.up, gp.user_id, u.name, u.color FROM group_posts gp JOIN users u ON u.id = gp.user_id
+    `SELECT gp.text, gp.chap, gp.up, gp.user_id, gp.created_at, u.name, u.color FROM group_posts gp JOIN users u ON u.id = gp.user_id
      WHERE gp.group_id = ? ORDER BY gp.created_at DESC LIMIT 50`,
     g.id,
   );
@@ -530,7 +531,7 @@ social.get("/groups/:id", async (c) => {
     userId: p.user_id,
     u: p.name || "读者",
     color: p.color || "#3a4fb0",
-    when: "刚刚",
+    when: relTime(p.created_at),
     chap: p.chap,
     t: p.text,
     up: p.up || 0,
@@ -566,14 +567,14 @@ social.post("/groups/:id/join", async (c) => {
 social.get("/threads/:key", async (c) => {
   const replies = await all(
     c.env.DB,
-    `SELECT tr.text, tr.up, tr.user_id, u.name, u.color FROM thread_replies tr JOIN users u ON u.id = tr.user_id
+    `SELECT tr.text, tr.up, tr.user_id, tr.created_at, u.name, u.color FROM thread_replies tr JOIN users u ON u.id = tr.user_id
      WHERE tr.thread_key = ? ORDER BY tr.created_at ASC`,
     c.req.param("key"),
   );
   const mine = c.get("userId");
   // Replies only — the discussion root is the real feed item the client opened,
   // not a seed thread.
-  return c.json({ replies: replies.map((r) => ({ userId: r.user_id, u: r.name, color: r.color, when: "刚刚", t: r.text, up: r.up || 0, mine: r.user_id === mine })) });
+  return c.json({ replies: replies.map((r) => ({ userId: r.user_id, u: r.name, color: r.color, when: relTime(r.created_at), t: r.text, up: r.up || 0, mine: r.user_id === mine })) });
 });
 
 social.post("/threads/:key", async (c) => {
@@ -630,7 +631,7 @@ social.get("/comments/:type/:id", async (c) => {
   return c.json({
     comments: rows.map((r) => ({
       id: r.id, u: r.name || "读者", color: r.color || "#3a4fb0", seal: r.seal || "读",
-      userId: r.user_id, t: r.text, up: (r.up || 0) + (voteCounts[r.id] || 0), when: "刚刚", mine: r.user_id === mine, walrus: r.walrus || null,
+      userId: r.user_id, t: r.text, up: (r.up || 0) + (voteCounts[r.id] || 0), when: relTime(r.created_at), mine: r.user_id === mine, walrus: r.walrus || null,
     })),
   });
 });

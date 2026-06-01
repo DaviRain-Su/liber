@@ -2,18 +2,10 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { all, first, run } from "../lib/db";
 import { requireUser } from "../lib/auth";
+import { relTime } from "../lib/time";
 
 // User notifications feed (关注 / 回复 / 赞同 / 私信 / Agent).
 const notifications = new Hono<{ Bindings: Env; Variables: Variables }>();
-
-function relTime(ms: number): string {
-  const d = Date.now() - Number(ms || 0);
-  if (d < 60_000) return "刚刚";
-  if (d < 3_600_000) return `${Math.floor(d / 60_000)} 分钟前`;
-  if (d < 86_400_000) return `${Math.floor(d / 3_600_000)} 小时前`;
-  if (d < 7 * 86_400_000) return `${Math.floor(d / 86_400_000)} 天前`;
-  return new Date(Number(ms)).toISOString().slice(0, 10);
-}
 
 notifications.get("/", async (c) => {
   const uid = requireUser(c);

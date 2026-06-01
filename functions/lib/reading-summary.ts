@@ -1,6 +1,7 @@
 import type { Env } from "./types";
 import { all } from "./db";
 import { getChapterText, hasLibraryBooks, textToChapter } from "./catalog";
+import { relTime } from "./time";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -190,7 +191,7 @@ export async function readingSummary(env: Env, userId?: string | null) {
       color: h.color || "hl-user",
       t: sentence.text,
       note: note?.text || "",
-      when: "刚刚",
+      when: relTime(h.created_at),
       live: true,
       createdAt: h.created_at,
     });
@@ -207,7 +208,7 @@ export async function readingSummary(env: Env, userId?: string | null) {
       color: n.color || "hl-user",
       t: sentence.text,
       note: n.text,
-      when: "刚刚",
+      when: relTime(n.created_at),
       live: true,
       createdAt: n.created_at,
     });

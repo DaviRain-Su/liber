@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { all, first, run, id, now } from "../lib/db";
 import { requireUser } from "../lib/auth";
+import { relTime } from "../lib/time";
 
 // Direct messages (私信) between readers. A message may quote a passage/annotation.
 const messages = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -66,7 +67,7 @@ messages.get("/with/:userId", async (c) => {
   const p = await first<any>(c.env.DB, `SELECT id, name, handle, color, seal FROM users WHERE id = ?`, other);
   return c.json({
     partner: p ? { userId: p.id, name: p.name || "读者", handle: p.handle || "", color: p.color || "#3a4fb0", seal: p.seal || String(p.name || "读")[0] } : null,
-    messages: rows.map((m) => ({ id: m.id, fromMe: m.from_id === uid, t: m.body, quote: safeParse(m.quote), when: "刚刚" })),
+    messages: rows.map((m) => ({ id: m.id, fromMe: m.from_id === uid, t: m.body, quote: safeParse(m.quote), when: relTime(m.created_at) })),
   });
 });
 
