@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { bearerToken, hasAdminToken, createSession, getUser } from "../lib/auth";
 import { id, now, run, first } from "../lib/db";
-import { turnkeyConfigured, createSubOrgWithSuiWallet, provisionWallets, getWalletAccount, signRawPayload } from "../lib/turnkey";
+import { turnkeyConfigured, createSubOrgWithSuiWallet, provisionWallets, getWalletAccount, signRawPayload, getSubOrgRootUserId, createPasskeyAuthenticator } from "../lib/turnkey";
 import { suiAddressFromEd25519Pubkey, suiPersonalMessageDigestHex, suiTransactionDigestHex, assembleSuiSignature } from "../lib/turnkey-sui";
 import { upsertTurnkeyUser, ensureTurnkeyWallet } from "../lib/turnkey-auth";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
@@ -220,6 +220,44 @@ turnkey.post("/sign-test", async (c) => {
     return c.json({ ok: true, subOrgId: p.subOrgId, results });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
+  }
+});
+
+// Enroll a WebAuthn passkey as an authenticator on the logged-in user's wallet
+// sub-org, so they (not the server) can authorize signing. The attestation is
+// created client-side via navigator.credentials.create / the Turnkey SDK.
+turnkey.post("/passkey/enroll", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  if (!user.turnkey_sub_org_id) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const att = body?.attestation;
+  if (!att?.credentialId || !att?.clientDataJson || !att?.attestationObject || !body?.challenge) {
+    return c.json({ ok: false, error: "bad_attestation" }, 400);
+  }
+  try {
+    let rootUserId = user.turnkey_root_user_id;
+    if (!rootUserId) {
+      rootUserId = await getSubOrgRootUserId(c.env, user.turnkey_sub_org_id);
+      if (rootUserId) await run(c.env.DB, `UPDATE users SET turnkey_root_user_id = ? WHERE id = ?`, rootUserId, uid);
+    }
+    if (!rootUserId) return c.json({ ok: false, error: "no_root_user" }, 502);
+    await createPasskeyAuthenticator(c.env, user.turnkey_sub_org_id, rootUserId, {
+      authenticatorName: String(body.authenticatorName || "Liber Wallet Passkey").slice(0, 64),
+      challenge: String(body.challenge),
+      attestation: {
+        credentialId: att.credentialId,
+        clientDataJson: att.clientDataJson,
+        attestationObject: att.attestationObject,
+        transports: Array.isArray(att.transports) && att.transports.length ? att.transports : ["AUTHENTICATOR_TRANSPORT_INTERNAL"],
+      },
+    });
+    await run(c.env.DB, `UPDATE users SET turnkey_passkey_at = ? WHERE id = ?`, now(), uid);
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
 });
 

@@ -82,8 +82,8 @@ export async function ensureTurnkeyWallet(env: Env, user: UserRow): Promise<{ su
   if (!p.subOrgId || !p.addresses.sui) return null;
   await run(
     env.DB,
-    `UPDATE users SET turnkey_sub_org_id = ?, turnkey_wallet_id = ?, turnkey_sui_address = ?, turnkey_addresses = ? WHERE id = ?`,
-    p.subOrgId, p.walletId, p.addresses.sui, JSON.stringify(p.addresses), user.id,
+    `UPDATE users SET turnkey_sub_org_id = ?, turnkey_wallet_id = ?, turnkey_root_user_id = ?, turnkey_sui_address = ?, turnkey_addresses = ? WHERE id = ?`,
+    p.subOrgId, p.walletId, p.rootUserId, p.addresses.sui, JSON.stringify(p.addresses), user.id,
   );
   return { subOrgId: p.subOrgId, addresses: p.addresses };
 }

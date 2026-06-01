@@ -112,7 +112,7 @@ export async function createSubOrgWithSuiWallet(env: Env, label: string): Promis
 // Create a sub-org with a multi-chain HD wallet (Sui + Ethereum + Solana) and return
 // the parsed ids + addresses. addresses[] order matches the accounts order above.
 export async function provisionWallets(env: Env, label: string): Promise<{
-  subOrgId: string; walletId: string; addresses: { sui: string | null; ethereum: string | null; solana: string | null; bitcoin: string | null }; raw: any;
+  subOrgId: string; walletId: string; rootUserId: string | null; addresses: { sui: string | null; ethereum: string | null; solana: string | null; bitcoin: string | null }; raw: any;
 }> {
   const { result } = await createSubOrgWithSuiWallet(env, label);
   const r = result?.createSubOrganizationResultV7 || result?.createSubOrganizationResult || result || {};
@@ -120,9 +120,33 @@ export async function provisionWallets(env: Env, label: string): Promise<{
   return {
     subOrgId: r.subOrganizationId,
     walletId: r.wallet?.walletId,
+    rootUserId: (r.rootUserIds || [])[0] ?? null,
     addresses: { sui: a[0] ?? null, ethereum: a[1] ?? null, solana: a[2] ?? null, bitcoin: a[3] ?? null },
     raw: r,
   };
+}
+
+// Find the root user id of a sub-org (for users provisioned before we stored it).
+export async function getSubOrgRootUserId(env: Env, subOrgId: string): Promise<string | null> {
+  const j = await post(env, "/public/v1/query/get_organization", { organizationId: subOrgId });
+  const users = j?.organizationData?.users || j?.organization?.users || j?.users || [];
+  const root = users.find((u: any) => (u.userName || "").includes("liber") ) || users[0];
+  return root?.userId ?? null;
+}
+
+// Add a WebAuthn passkey as an authenticator on a sub-org user (so the user — not the
+// server — can authorize signing). The attestation is captured client-side.
+export async function createPasskeyAuthenticator(
+  env: Env, subOrgId: string, userId: string,
+  authenticator: { authenticatorName: string; challenge: string; attestation: { credentialId: string; clientDataJson: string; attestationObject: string; transports: string[] } },
+): Promise<any> {
+  const submit = await post(env, "/public/v1/submit/create_authenticators", {
+    type: "ACTIVITY_TYPE_CREATE_AUTHENTICATORS_V2",
+    timestampMs: String(Date.now()),
+    organizationId: subOrgId,
+    parameters: { userId, authenticators: [authenticator] },
+  });
+  return await awaitResult(env, submit);
 }
 
 // Look up a wallet account to get its raw ed25519 public key (needed to assemble the
