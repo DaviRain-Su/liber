@@ -19,6 +19,7 @@ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { evmAddressFromSignature, verifyEd25519, verifySecp256k1 } from "../lib/turnkey-verify";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { sha256 } from "@noble/hashes/sha2.js";
+import { relTime } from "../lib/time";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -384,6 +385,61 @@ turnkey.post("/sui/broadcast", async (c) => {
     return c.json({ ok: true, digest: res.digest, status: res.effects?.status?.status, network, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
+  }
+});
+
+// Real on-chain activity ledger for the user's Sui address. Queries the fullnode for
+// transactions where the address is sender OR recipient, reduces each to the net SUI
+// balance change for the address, and returns them newest-first. This is genuinely
+// real: a passkey transfer made above shows up here once confirmed. (Other chains'
+// history is a follow-up; Sui is the platform's main chain + the one with real sends.)
+turnkey.get("/activity", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: true, items: [] });
+  let addrs: any = null;
+  try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  if (!suiAddress) return c.json({ ok: true, items: [] });
+
+  try {
+    const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("mainnet");
+    const network = suiNetworkOf(url);
+    const client = new SuiJsonRpcClient({ url, network: network as any });
+    const options = { showBalanceChanges: true, showEffects: true } as any;
+    const [sent, recvd] = await Promise.all([
+      client.queryTransactionBlocks({ filter: { FromAddress: suiAddress }, options, limit: 15, order: "descending" }).catch(() => ({ data: [] as any[] })),
+      client.queryTransactionBlocks({ filter: { ToAddress: suiAddress }, options, limit: 15, order: "descending" }).catch(() => ({ data: [] as any[] })),
+    ]);
+
+    const seen = new Map<string, { digest: string; amt: number; status: string; ts: number }>();
+    for (const t of [...((sent as any).data || []), ...((recvd as any).data || [])]) {
+      if (!t?.digest || seen.has(t.digest)) continue;
+      let delta = 0n;
+      for (const bc of (t.balanceChanges || [])) {
+        const ownerAddr = bc?.owner?.AddressOwner;
+        if (ownerAddr === suiAddress && bc?.coinType === "0x2::sui::SUI") delta += BigInt(bc.amount);
+      }
+      seen.set(t.digest, { digest: t.digest, amt: Number(delta) / 1e9, status: t.effects?.status?.status || "", ts: Number(t.timestampMs || 0) });
+    }
+    const items = [...seen.values()].sort((a, b) => b.ts - a.ts).slice(0, 20).map((x) => {
+      const kind = x.amt < 0 ? "send" : x.amt > 0 ? "recv" : "gas";
+      return {
+        id: x.digest,
+        kind,
+        title: kind === "send" ? "转账 · SUI" : kind === "recv" ? "收款 · SUI" : "链上操作 · SUI",
+        sub: x.status === "success" ? "已确认 · 永久存证" : (x.status || "处理中"),
+        sym: "SUI", chain: "Sui",
+        amt: (x.amt >= 0 ? "+" : "") + x.amt.toFixed(x.amt === 0 ? 0 : 4),
+        when: x.ts ? relTime(x.ts) : "—",
+        hash: x.digest.slice(0, 6) + "…" + x.digest.slice(-4),
+        explorer: `https://suiscan.xyz/${network}/tx/${x.digest}`,
+      };
+    });
+    return c.json({ ok: true, items, network });
+  } catch (e: any) {
+    return c.json({ ok: true, items: [], error: String(e?.message || e).slice(0, 200) });
   }
 });
 

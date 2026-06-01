@@ -74,6 +74,8 @@ export const api = {
     // digest) → sign in the browser with the passkey → broadcast (server executes).
     suiPrepare: (payload) => post("/turnkey/sui/prepare", payload),
     suiBroadcast: (payload) => post("/turnkey/sui/broadcast", payload),
+    // Real on-chain activity ledger (Sui sender/recipient history).
+    walletActivity: () => get("/turnkey/activity"),
     cliStart: () => post("/auth/cli/start"),
     cliPoll: (deviceCode) => get(`/auth/cli/poll/${encodeURIComponent(deviceCode)}`),
     cliApprove: (deviceCode) => post("/auth/cli/approve", { deviceCode }),

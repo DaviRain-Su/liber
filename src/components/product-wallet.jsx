@@ -253,7 +253,9 @@ function ActivityDetail({ item, onClose }){
     <div className="rr"><span className="k">时间</span><span className="v">{item.when}</span></div><div className="rr"><span className="k">交易哈希</span><span className="v">{item.hash}</span></div>
     <div className="rr"><span className="k">状态</span><span className="v" style={{ color:"var(--pos)" }}>● 已确认 · 永久存证</span></div></div>
     {item.note && <div style={{ fontFamily:"var(--body)", fontStyle:"italic", fontSize:15, color:"var(--ink-2)", marginTop:16, padding:"0 4px" }}>「{item.note}」</div>}
-    <button className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20 }}>{WI.ext} 在区块浏览器中查看</button></Sheet>);
+    {item.explorer
+      ? <a className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20, display:"flex", justifyContent:"center", gap:8, textDecoration:"none" }} href={item.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器中查看</a>
+      : <button className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20 }}>{WI.ext} 在区块浏览器中查看</button>}</Sheet>);
 }
 function FlowHost({ flow, addresses, tokens, onClose }){
   if (!flow) return null;
@@ -321,11 +323,14 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const [pkErr, setPkErr] = useS("");
   const [bal, setBal] = useS(null);
   const [loading, setLoading] = useS(true);
+  const [acts, setActs] = useS(null); // real on-chain ledger items (null = loading)
+  const [reload, setReload] = useS(0);
   useE(() => {
     let live = true;
     api.auth.walletBalances().then((r) => { if (live) { setBal(r); setLoading(false); } }).catch(() => { if (live) setLoading(false); });
+    api.auth.walletActivity().then((r) => { if (live) setActs((r && r.items) || []); }).catch(() => { if (live) setActs([]); });
     return () => { live = false; };
-  }, []);
+  }, [reload]);
   const tokens = ((bal && bal.tokens) || []).map((t) => ({
     sym: t.sym, name: t.name, chain: t.chain, cls: t.cls, glyph: t.glyph,
     amt: t.amt == null ? "—" : String(t.amt), value: t.value == null ? 0 : t.value,
@@ -375,10 +380,12 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
         <UsesGrid onAction={onAction}/>
       </div>
       <div>
-        <div className="pfw-h"><span className="t">账册 · 最近活动</span></div>
-        <div className="panel" style={{ padding: "26px", textAlign: "center", fontFamily: "var(--mono)", fontSize: 13, color: "var(--ink-3)" }}>暂无链上活动 · 交易后会出现在这里</div>
+        <div className="pfw-h"><span className="t">账册 · 最近活动</span><span className="lock">{acts == null ? "加载中…" : "Sui 链上记录 · 实时"}</span></div>
+        {acts && acts.length
+          ? <ActivityList items={acts} onOpen={(a) => onAction("activity", a)} limit={8}/>
+          : <div className="panel" style={{ padding: "26px", textAlign: "center", fontFamily: "var(--mono)", fontSize: 13, color: "var(--ink-3)" }}>{acts == null ? "正在读取链上记录…" : "暂无链上活动 · 转账后会出现在这里"}</div>}
       </div>
-      <FlowHost flow={flow} addresses={addresses} tokens={tokens} onClose={() => setFlow(null)}/>
+      <FlowHost flow={flow} addresses={addresses} tokens={tokens} onClose={() => { const wasSend = flow && (flow.kind === "send" || flow.kind === "swap"); setFlow(null); if (wasSend) setReload((n) => n + 1); }}/>
     </div>
   );
 }
