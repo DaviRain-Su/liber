@@ -284,8 +284,8 @@ function SwapFlow({ tokens, presetToken, onClose }){
       <div className="swap-mid"><button onClick={flip}>{WI.swap}</button></div>
       <div className="swap-leg"><div className="sl-top"><span>获得（预估）</span><span className="tnum">余额 {to.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" readOnly value={out?out.toPrecision(6):"0"}/><div className="sl-pick" onClick={()=>setPick("to")}><TokenSeal token={to} size={26}/><span className="nm">{to.sym}</span>{WI.down}</div></div></div>
       <div className="swap-rate"><div className="sr"><span className="k">汇率 · 实时价</span><span className="tnum">{rate?`1 ${from.sym} ≈ ${rate.toPrecision(5)} ${to.sym}`:"—"}</span></div><div className="sr"><span className="k">滑点上限</span><span>1%</span></div><div className="sr"><span className="k">路由</span><span>{realPair?(crossChain?"LI.FI · 跨链":"LI.FI"):"—"}</span></div></div>
-      {!realPair && <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} 真实兑换支持 <b>ETH / USDC / SOL</b> 之间任意互换（含跨链）。Sui 与 BTC 经由 LI.FI 暂不支持,仅显示实时报价。</div>}
-      <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} disabled={!(Number(amt)>0)||!realPair} onClick={()=>setPhase("pk")}>{WI.sign} {realPair?"审阅并用通行密钥兑换":"该兑换对暂不可执行"}</button></>)}
+      <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} 兑换支持 <b>ETH · USDC · SOL</b> 之间任意互换（含跨链）。<b>BTC、Sui 暂不支持兑换</b>，可用「转账 / 收款」管理。</div>
+      <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} disabled={!(Number(amt)>0)||!realPair} onClick={()=>setPhase("pk")}>{WI.sign} {realPair?"审阅并用通行密钥兑换":"请选择不同的两种代币"}</button></>)}
   </Sheet>);
 }
 function SignFlow({ onClose }){
