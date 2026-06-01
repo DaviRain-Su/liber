@@ -68,9 +68,17 @@ binding = "BROWSER"
 # token is set, /auth/email returns the code in the response (dev mode) so login
 # still works.
 
+# Login OTP email is sent by the standalone liber-email Worker (workers/email-sender),
+# reached via this service binding. Pages can't hold the Email Service send_email
+# binding (Workers-only); the Worker can, and needs no token. Deploy the Worker FIRST:
+#   npx wrangler deploy --config workers/email-sender/wrangler.toml
+[[services]]
+binding = "MAILER"
+service = "liber-email"
+
 [vars]
 CHAIN = "sui"
-# Cloudflare account id (public; used to build the Email Sending REST URL).
+# Cloudflare account id (public; used only by the REST-API email fallback).
 CF_ACCOUNT_ID = "fb5d95d6e0ff4055cbf5321f8dfc30e9"
 # Sender for login emails — an address on a domain verified in Cloudflare Email Sending.
 EMAIL_FROM = "Liber <login@davirain.xyz>"

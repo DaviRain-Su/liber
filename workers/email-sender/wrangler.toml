@@ -1,0 +1,25 @@
+# Standalone mailer Worker for Liber login OTP email.
+#
+# Why a separate Worker: Cloudflare Pages Functions cannot hold the Email Service
+# `[[send_email]]` binding (Workers-only — Pages deploys reject it). So the Pages
+# app relays the send to THIS Worker through a service binding (MAILER, declared in
+# the root wrangler.toml), and this Worker sends via the account-level Email Service
+# binding. No API token, no secret: the Workers runtime authenticates the binding at
+# the account level. `workers_dev = false` → no public URL; the only way to reach it
+# is the in-account service binding, so there is no public email-send surface.
+#
+# Deploy (uses the already-authenticated wrangler OAuth session — no token needed):
+#   npx wrangler deploy --config workers/email-sender/wrangler.toml
+name = "liber-email"
+main = "index.ts"
+compatibility_date = "2024-11-01"
+workers_dev = false
+
+# New Cloudflare Email Service binding. Omitting allowed_destination_addresses lets
+# it send to ANY recipient (paid plan); the sender domain davirain.xyz is verified.
+[[send_email]]
+name = "EMAIL"
+
+[vars]
+# Default sender (bare address on the verified sending domain). Overridable per-request.
+EMAIL_FROM = "login@davirain.xyz"
