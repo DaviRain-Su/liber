@@ -9,7 +9,7 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { bearerToken, hasAdminToken, createSession, getUser } from "../lib/auth";
-import { id, now, run, first } from "../lib/db";
+import { id, now, run, first, all } from "../lib/db";
 import { turnkeyConfigured, createSubOrgWithSuiWallet, provisionWallets, getWalletAccount, signRawPayload, getSubOrgRootUserId, createPasskeyAuthenticator, getSignRawPayloadResult } from "../lib/turnkey";
 import { suiAddressFromEd25519Pubkey, suiPersonalMessageDigestHex, suiTransactionDigestHex, assembleSuiSignature } from "../lib/turnkey-sui";
 import { upsertTurnkeyUser, ensureTurnkeyWallet } from "../lib/turnkey-auth";
@@ -671,6 +671,115 @@ turnkey.get("/activity", async (c) => {
     return c.json({ ok: true, items, network });
   } catch (e: any) {
     return c.json({ ok: true, items: [], error: String(e?.message || e).slice(0, 200) });
+  }
+});
+
+// 通讯录 — real recipients: Liber readers you follow who have an embedded wallet, with
+// their real per-chain addresses. The send flow resolves the address for the chosen chain.
+turnkey.get("/contacts", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ ok: true, contacts: [] });
+  const rows = await all<any>(
+    c.env.DB,
+    `SELECT DISTINCT u.id, u.name, u.handle, u.seal, u.color, u.turnkey_addresses
+     FROM follows f JOIN users u ON u.id = f.followee_id
+     WHERE f.follower_id = ? AND u.is_guest = 0 AND u.turnkey_addresses IS NOT NULL
+     ORDER BY u.name LIMIT 60`,
+    uid,
+  );
+  const contacts = rows.map((u) => {
+    let a: any = {}; try { a = JSON.parse(u.turnkey_addresses) || {}; } catch { a = {}; }
+    return { id: u.id, name: u.name, sub: u.handle || "", seal: u.seal || "读", cls: "ink", color: u.color || "#3a4fb0",
+      addresses: { SUI: a.sui || null, ETH: a.ethereum || null, SOL: a.solana || null, BTC: a.bitcoin || null } };
+  }).filter((x) => x.addresses.SUI || x.addresses.ETH || x.addresses.SOL || x.addresses.BTC);
+  return c.json({ ok: true, contacts });
+});
+
+// 致谢墙 — real incoming SUI transfers (tips/payments received), with the sender named
+// when their address maps to a Liber reader. Reflects actual on-chain receipts.
+turnkey.get("/tips", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ ok: true, tips: [] });
+  const user: any = await getUser(c.env, uid);
+  let addrs: any = null; try { addrs = user?.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const suiAddress = user?.turnkey_sui_address || addrs?.sui;
+  if (!suiAddress) return c.json({ ok: true, tips: [] });
+  try {
+    const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("mainnet");
+    const network = suiNetworkOf(url);
+    const client = new SuiJsonRpcClient({ url, network: network as any });
+    const recvd: any = await client.queryTransactionBlocks({ filter: { ToAddress: suiAddress }, options: { showBalanceChanges: true, showInput: true } as any, limit: 25, order: "descending" }).catch(() => ({ data: [] }));
+    const raw: { sender: string; amt: number; ts: number; hash: string }[] = [];
+    for (const t of (recvd.data || [])) {
+      const sender = t?.transaction?.data?.sender;
+      if (!sender || sender === suiAddress) continue;
+      let delta = 0n;
+      for (const bc of (t.balanceChanges || [])) {
+        if (bc?.owner?.AddressOwner === suiAddress && bc?.coinType === "0x2::sui::SUI") delta += BigInt(bc.amount);
+      }
+      if (delta <= 0n) continue;
+      raw.push({ sender, amt: Number(delta) / 1e9, ts: Number(t.timestampMs || 0), hash: t.digest });
+    }
+    const seen: Record<string, any> = {};
+    for (const r of raw) {
+      if (seen[r.sender] === undefined) seen[r.sender] = await first<any>(c.env.DB, `SELECT name, seal, color FROM users WHERE turnkey_sui_address = ? LIMIT 1`, r.sender);
+    }
+    const tips = raw.slice(0, 12).map((r) => {
+      const u = seen[r.sender];
+      return { name: u?.name || (r.sender.slice(0, 6) + "…" + r.sender.slice(-4)), seal: u?.seal || "匿", color: u?.color || "#5b6478",
+        amt: "+" + r.amt.toFixed(r.amt >= 1 ? 2 : 4), sym: "SUI", msg: "", when: r.ts ? relTime(r.ts) : "—",
+        hash: r.hash.slice(0, 6) + "…" + r.hash.slice(-4), explorer: `https://suiscan.xyz/${network}/tx/${r.hash}` };
+    });
+    return c.json({ ok: true, tips });
+  } catch (e: any) {
+    return c.json({ ok: true, tips: [], error: String(e?.message || e).slice(0, 200) });
+  }
+});
+
+// Real same-chain swap: ETH → USDC via the Uniswap V2 router (one signature, no token
+// approval needed for an ETH-in swap). Quote from getAmountsOut; 1% slippage floor.
+// Reuses /turnkey/evm/broadcast to sign+send (the returned tx is a plain EVM tx).
+const UNI_V2_ROUTER = "0x7a250d5630b4cf539739df2c5dacb4c659f2488d";
+const WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+const pad32 = (hexNo0x: string): string => hexNo0x.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+turnkey.post("/evm/swap/prepare", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const from = addrs?.ethereum; const subOrgId = user.turnkey_sub_org_id;
+  if (!from || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const fromSym = String(body?.from || "").toUpperCase();
+  const toSym = String(body?.to || "").toUpperCase();
+  const amount = Number(body?.amount);
+  if (!(fromSym === "ETH" && toSym === "USDC")) return c.json({ ok: false, error: "unsupported_pair", message: "目前仅支持 ETH → USDC 的真实兑换" }, 400);
+  if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
+  try {
+    const url = evmRpcUrl(c.env);
+    const amountIn = toBaseUnits(amount, 18);
+    // getAmountsOut(amountIn, [WETH, USDC])
+    const callData = "0xd06ca61f" + pad32(amountIn.toString(16)) + pad32("40") + pad32("2") + pad32(WETH) + pad32(USDC_MAINNET);
+    const outRes: string = await ethCall(url, "eth_call", [{ to: UNI_V2_ROUTER, data: callData }, "latest"]);
+    // return = [offset, len, amounts[0], amounts[1]] → amounts[1] is the 4th word
+    const expectedOut = hexBig("0x" + outRes.replace(/^0x/, "").slice(3 * 64, 4 * 64));
+    if (expectedOut <= 0n) return c.json({ ok: false, error: "no_quote", message: "无法获取兑换报价" }, 502);
+    const minOut = (expectedOut * 99n) / 100n; // 1% slippage
+    const deadline = BigInt(Math.floor(now() / 1000) + 1200);
+    // swapExactETHForTokens(amountOutMin, path, to, deadline)
+    const swapData = "0x7ff36ab5" + pad32(minOut.toString(16)) + pad32("80") + pad32(from) + pad32(deadline.toString(16)) + pad32("2") + pad32(WETH) + pad32(USDC_MAINNET);
+    const chainId = Number(hexBig(await ethCall(url, "eth_chainId", []))) || 1;
+    const nonce = hexBig(await ethCall(url, "eth_getTransactionCount", [from, "pending"]));
+    const gasPrice = hexBig(await ethCall(url, "eth_gasPrice", []));
+    let gas = 220000n;
+    try { gas = (hexBig(await ethCall(url, "eth_estimateGas", [{ from, to: UNI_V2_ROUTER, value: "0x" + amountIn.toString(16), data: swapData }])) * 12n) / 10n; } catch { /* fallback */ }
+    const ethBal = hexBig(await ethCall(url, "eth_getBalance", [from, "latest"]));
+    if (ethBal < amountIn + gasPrice * gas) return c.json({ ok: false, error: "no_gas", message: "ETH 余额不足以支付兑换与矿工费" }, 400);
+    const tx: EvmTx = { nonce: nonce.toString(), gasPrice: gasPrice.toString(), gas: gas.toString(), to: UNI_V2_ROUTER, value: amountIn.toString(), data: swapData, chainId };
+    return c.json({ ok: true, digestHex: evmSigningDigestHex(tx), signWith: from, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NO_OP", tx, quote: { out: Number(expectedOut) / 1e6, minOut: Number(minOut) / 1e6 } });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
 });
 

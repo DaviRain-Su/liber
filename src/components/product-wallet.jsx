@@ -147,13 +147,22 @@ function Sheet({ title, step, onBack, onClose, wide, children }){
 function TokenPick({ tokens, value, onChange }){
   return (<div className="tok-pick">{tokens.map(t=>(<div key={t.sym} className={"tok-pill"+(value&&value.sym===t.sym?" on":"")} onClick={()=>onChange(t)}><TokenSeal token={t} size={30}/><div><div className="tp-nm">{t.sym}</div><div className="tp-bal tnum">{t.amt}</div></div></div>))}</div>);
 }
-function RecipientPick({ token, value, onChange }){
+// chain → which address field on a contact (and the token.sym we match the chain by).
+const CHAIN_KEY = { Sui:"SUI", Ethereum:"ETH", Solana:"SOL", Bitcoin:"BTC" };
+function RecipientPick({ token, contacts, value, onChange }){
   const [custom,setCustom]=useS("");
-  const filtered=CONTACTS.filter(c=>!token||c.chains.includes(token.sym)||c.chains.includes(token.chain));
-  return (<div><div className="fld"><div className="fld-l">粘贴地址或 .liber 名称</div>
-    <input className="inp" placeholder="0x… / bc1… / name.liber" value={custom} onChange={(e)=>{ setCustom(e.target.value); onChange(e.target.value?{ name:"自定义地址", addr:e.target.value, cls:"slate", seal:"#" }:null); }}/></div>
-    <div className="recip-divider">通讯录</div>
-    {(filtered.length?filtered:CONTACTS).map(c=>(<div key={c.name} className={"recip"+(value&&value.name===c.name?" on":"")} onClick={()=>{ setCustom(""); onChange(c); }}><span className={"av "+c.cls}>{c.seal}</span><div className="rb"><div className="nm">{c.name}</div><div className="ad">{c.addr} · {c.chains.join(" / ")}</div></div><div className="rb r-sub"><div className="sub">{c.sub}</div></div></div>))}</div>);
+  const key = token ? CHAIN_KEY[token.chain] : null;
+  // Only contacts that have an address on the selected token's chain.
+  const usable = (contacts||[]).filter(c=>key && c.addresses && c.addresses[key]);
+  const placeholder = token && token.chain==="Bitcoin" ? "bc1q…" : token && token.chain==="Solana" ? "Solana 地址" : "0x…";
+  return (<div><div className="fld"><div className="fld-l">粘贴 {token?token.chain:""} 收款地址</div>
+    <input className="inp" placeholder={placeholder} value={custom} onChange={(e)=>{ const v=e.target.value.trim(); setCustom(v); onChange(v?{ name:v.slice(0,10)+"…", addr:v, cls:"slate", seal:"#" }:null); }}/></div>
+    <div className="recip-divider">{usable.length?"通讯录 · 你关注的读者":"通讯录为空 · 关注有钱包的读者后会出现在这里"}</div>
+    {usable.map(c=>{ const addr=c.addresses[key]; const short=addr.slice(0,6)+"…"+addr.slice(-4); return (
+      <div key={c.id} className={"recip"+(value&&value.id===c.id?" on":"")} onClick={()=>{ setCustom(""); onChange({ id:c.id, name:c.name, addr, cls:c.cls||"ink", seal:c.seal, sub:c.sub }); }}>
+        <span className={"av "+(c.cls||"ink")} style={c.color?{ background:c.color }:null}>{c.seal}</span>
+        <div className="rb"><div className="nm">{c.name}</div><div className="ad">{short} · {token&&token.chain}</div></div>
+        <div className="rb r-sub"><div className="sub">{c.sub}</div></div></div>); })}</div>);
 }
 function AmountEntry({ token, amount, onChange }){
   const max=balNum(token), fiat=(Number(amount)||0)*priceNum(token);
@@ -169,7 +178,7 @@ function ReviewRows({ token, recipient, amount }){
     <div className="rr"><span className="k">矿工费</span><span className="v tnum">≈ $0.21</span></div>
     <div className="rr total"><span className="k">合计</span><span className="v tnum">{amount||0} {token.sym}</span></div></div>);
 }
-function SendFlow({ tokens, presetToken, onClose }){
+function SendFlow({ tokens, presetToken, contacts, onClose }){
   const [token,setToken]=useS(presetToken||tokens[0]);
   const [recipient,setRecipient]=useS(null);
   const [amount,setAmount]=useS("");
@@ -204,7 +213,7 @@ function SendFlow({ tokens, presetToken, onClose }){
   return (<Sheet title={titles[phase]} step={phase!=="done"?`${idx+1} / 5`:null} onBack={back} onClose={onClose}>
     <div className="steps" style={{ marginBottom:20 }}>{order.slice(0,5).map((s,i)=><i key={s} className={i===idx?"on":i<idx?"done":""}/>)}</div>
     {phase==="asset" && <TokenPick tokens={tokens} value={token} onChange={(t)=>{ setToken(t); next(); }}/>}
-    {phase==="recipient" && <RecipientPick token={token} value={recipient} onChange={setRecipient}/>}
+    {phase==="recipient" && <RecipientPick token={token} contacts={contacts} value={recipient} onChange={setRecipient}/>}
     {phase==="amount" && <AmountEntry token={token} amount={amount} onChange={setAmount}/>}
     {phase==="review" && <ReviewRows token={token} recipient={recipient} amount={amount}/>}
     {phase==="pk" && <RealSignGate label="用通行密钥确认转账" sub={`${amount} ${token.sym} → ${recipient&&recipient.name} · 真实上链`} onSign={signAndSend} onCancel={()=>setPhase("review")}/>}
@@ -230,17 +239,34 @@ function ReceiveFlow({ presetToken, addresses, onClose }){
 }
 function SwapFlow({ tokens, presetToken, onClose }){
   const [from,setFrom]=useS(presetToken||tokens[0]);
-  const [to,setTo]=useS(tokens[1]||tokens[0]); const [amt,setAmt]=useS("1"); const [pick,setPick]=useS(null); const [phase,setPhase]=useS("form");
-  const rate=priceNum(from)/(priceNum(to)||1), out=(Number(amt)||0)*rate; const flip=()=>{ setFrom(to); setTo(from); };
+  const [to,setTo]=useS(tokens.find(t=>t.sym==="USDC")||tokens[1]||tokens[0]);
+  const [amt,setAmt]=useS(""); const [pick,setPick]=useS(null); const [phase,setPhase]=useS("form");
+  const [result,setResult]=useS(null);
+  // Live rate from real prices fetched by /balances (USD per unit).
+  const fp=Number(from&&from.price)||0, tp=Number(to&&to.price)||0;
+  const rate=fp&&tp?fp/tp:0, out=(Number(amt)||0)*rate;
+  const flip=()=>{ setFrom(to); setTo(from); };
+  // Only ETH → USDC executes for real (Uniswap V2, one signature). Everything else is
+  // honestly gated — we don't fake a swap we can't broadcast.
+  const realPair = from&&to&&from.sym==="ETH"&&to.sym==="USDC";
+  const swap=async()=>{
+    const prep=await api.auth.evmSwapPrepare({ from:from.sym, to:to.sym, amount:Number(amt) });
+    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建兑换失败");
+    const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
+    const o=await api.auth.evmBroadcast({ tx:prep.tx, activityId });
+    if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"广播失败");
+    setResult({ ...o, out:prep.quote&&prep.quote.out }); setPhase("done");
+  };
   if (pick) return (<Sheet title="选择代币" onBack={()=>setPick(null)} onClose={onClose}><TokenPick tokens={tokens} value={pick==="from"?from:to} onChange={(t)=>{ pick==="from"?setFrom(t):setTo(t); setPick(null); }}/></Sheet>);
   return (<Sheet title="兑换 · Swap" onClose={onClose} onBack={phase==="pk"?()=>setPhase("form"):null}>
-    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">兑换完成</div><div className="dsub">{amt} {from.sym} → {out.toPrecision(6)} {to.sym}</div></div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
-    : phase==="pk" ? <PasskeyGate label="确认兑换" onDone={()=>setPhase("done")} onCancel={()=>setPhase("form")}/>
-    : (<><div className="swap-leg"><div className="sl-top"><span>支付</span><span className="tnum">余额 {from.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" inputMode="decimal" value={amt} onChange={(e)=>setAmt(e.target.value.replace(/[^0-9.]/g,""))}/><div className="sl-pick" onClick={()=>setPick("from")}><TokenSeal token={from} size={26}/><span className="nm">{from.sym}</span>{WI.down}</div></div></div>
+    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">兑换已上链</div><div className="dsub">{amt} {from.sym} → ≈ {result&&result.out!=null?Number(result.out).toFixed(2):out.toPrecision(6)} {to.sym}<br/>已在以太坊广播。</div>{result&&result.explorer&&<a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
+    : phase==="pk" ? <RealSignGate label="用通行密钥确认兑换" sub={`${amt} ${from.sym} → USDC · 真实上链`} onSign={swap} onCancel={()=>setPhase("form")}/>
+    : (<><div className="swap-leg"><div className="sl-top"><span>支付</span><span className="tnum">余额 {from.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" inputMode="decimal" placeholder="0" value={amt} onChange={(e)=>setAmt(e.target.value.replace(/[^0-9.]/g,""))}/><div className="sl-pick" onClick={()=>setPick("from")}><TokenSeal token={from} size={26}/><span className="nm">{from.sym}</span>{WI.down}</div></div></div>
       <div className="swap-mid"><button onClick={flip}>{WI.swap}</button></div>
       <div className="swap-leg"><div className="sl-top"><span>获得（预估）</span><span className="tnum">余额 {to.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" readOnly value={out?out.toPrecision(6):"0"}/><div className="sl-pick" onClick={()=>setPick("to")}><TokenSeal token={to} size={26}/><span className="nm">{to.sym}</span>{WI.down}</div></div></div>
-      <div className="swap-rate"><div className="sr"><span className="k">汇率</span><span className="tnum">1 {from.sym} ≈ {rate.toPrecision(5)} {to.sym}</span></div><div className="sr"><span className="k">滑点</span><span>0.5%</span></div><div className="sr"><span className="k">网络费</span><span className="tnum">≈ $0.21</span></div></div>
-      <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} disabled={!(Number(amt)>0)} onClick={()=>setPhase("pk")}>{WI.sign} 审阅并签名兑换</button></>)}
+      <div className="swap-rate"><div className="sr"><span className="k">汇率 · 实时价</span><span className="tnum">{rate?`1 ${from.sym} ≈ ${rate.toPrecision(5)} ${to.sym}`:"—"}</span></div><div className="sr"><span className="k">滑点上限</span><span>1%</span></div><div className="sr"><span className="k">路由</span><span>{realPair?"Uniswap V2":"—"}</span></div></div>
+      {!realPair && <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} 目前仅支持 <b>ETH → USDC</b> 的真实链上兑换（Uniswap）。其它兑换对为实时报价，暂不可执行。</div>}
+      <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} disabled={!(Number(amt)>0)||!realPair} onClick={()=>setPhase("pk")}>{WI.sign} {realPair?"审阅并用通行密钥兑换":"该兑换对暂不可执行"}</button></>)}
   </Sheet>);
 }
 function SignFlow({ onClose }){
@@ -267,9 +293,9 @@ function ActivityDetail({ item, onClose }){
       ? <a className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20, display:"flex", justifyContent:"center", gap:8, textDecoration:"none" }} href={item.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器中查看</a>
       : <button className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20 }}>{WI.ext} 在区块浏览器中查看</button>}</Sheet>);
 }
-function FlowHost({ flow, addresses, tokens, onClose }){
+function FlowHost({ flow, addresses, tokens, contacts, onClose }){
   if (!flow) return null;
-  if (flow.kind==="send") return <SendFlow tokens={tokens} presetToken={flow.token} onClose={onClose}/>;
+  if (flow.kind==="send") return <SendFlow tokens={tokens} presetToken={flow.token} contacts={contacts} onClose={onClose}/>;
   if (flow.kind==="receive") return <ReceiveFlow presetToken={flow.token} addresses={addresses} onClose={onClose}/>;
   if (flow.kind==="swap") return <SwapFlow tokens={tokens} presetToken={flow.token} onClose={onClose}/>;
   if (flow.kind==="sign") return <SignFlow onClose={onClose}/>;
@@ -321,9 +347,9 @@ function UsesGrid({ onAction }){
   return (<div className="uses-grid">{USES.map(u=>(<div key={u.k} className="use-card"><div className="u-h"><TokenSeal token={u.sym} size={30}/><div className="u-t">{u.title}</div></div><div className="u-d">{u.desc}</div>
     <div className="u-cta" onClick={()=>onAction(u.k==="tip"?"send":u.k==="storage"?"swap":u.k==="mint"?"receive":"sign")}>{u.cta} {WI.right}</div></div>))}</div>);
 }
-function ThanksWall(){
-  return (<div className="pfw-card thanks-wall"><div className="tw-list">{TIPS_WALL.map((t,i)=>(<div className="tw-item" key={i}><span className="tw-av" style={{ background:`linear-gradient(135deg, ${t.color}, #2e3a7a)` }}>{t.seal}</span>
-    <div className="tw-b"><div className="tw-top"><span className="tw-nm">{t.name}</span><span className="tw-amt tnum">{t.amt} {t.sym}</span></div>{t.msg&&<div className="tw-msg">「{t.msg}」</div>}<div className="tw-meta">{t.when} · <span className="tw-hash">{t.hash}</span></div></div></div>))}</div></div>);
+function ThanksWall({ tips }){
+  return (<div className="pfw-card thanks-wall"><div className="tw-list">{tips.map((t,i)=>(<div className="tw-item" key={i}><span className="tw-av" style={{ background:`linear-gradient(135deg, ${t.color}, #2e3a7a)` }}>{t.seal}</span>
+    <div className="tw-b"><div className="tw-top"><span className="tw-nm">{t.name}</span><span className="tw-amt tnum">{t.amt} {t.sym}</span></div>{t.msg&&<div className="tw-msg">「{t.msg}」</div>}<div className="tw-meta">{t.explorer?<a href={t.explorer} target="_blank" rel="noreferrer" style={{ color:"inherit" }}>{t.when} · <span className="tw-hash">{t.hash}</span></a>:<>{t.when} · <span className="tw-hash">{t.hash}</span></>}</div></div></div>))}</div></div>);
 }
 
 /* ---------- the 钱包 tab (pane + flow host) ---------- */
@@ -334,13 +360,21 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const [bal, setBal] = useS(null);
   const [loading, setLoading] = useS(true);
   const [acts, setActs] = useS(null); // real on-chain ledger items (null = loading)
+  const [contacts, setContacts] = useS([]); // real recipients (followed readers w/ wallets)
+  const [tips, setTips] = useS(null); // real incoming SUI receipts
   const [reload, setReload] = useS(0);
   useE(() => {
     let live = true;
     api.auth.walletBalances().then((r) => { if (live) { setBal(r); setLoading(false); } }).catch(() => { if (live) setLoading(false); });
     api.auth.walletActivity().then((r) => { if (live) setActs((r && r.items) || []); }).catch(() => { if (live) setActs([]); });
+    api.auth.walletTips().then((r) => { if (live) setTips((r && r.tips) || []); }).catch(() => { if (live) setTips([]); });
     return () => { live = false; };
   }, [reload]);
+  useE(() => {
+    let live = true;
+    api.auth.walletContacts().then((r) => { if (live) setContacts((r && r.contacts) || []); }).catch(() => { if (live) setContacts([]); });
+    return () => { live = false; };
+  }, []);
   const tokens = ((bal && bal.tokens) || []).map((t) => ({
     sym: t.sym, name: t.name, chain: t.chain, cls: t.cls, glyph: t.glyph,
     amt: t.amt == null ? "—" : String(t.amt), value: t.value == null ? 0 : t.value,
@@ -395,7 +429,13 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
           ? <ActivityList items={acts} onOpen={(a) => onAction("activity", a)} limit={8}/>
           : <div className="panel" style={{ padding: "26px", textAlign: "center", fontFamily: "var(--mono)", fontSize: 13, color: "var(--ink-3)" }}>{acts == null ? "正在读取链上记录…" : "暂无链上活动 · 转账后会出现在这里"}</div>}
       </div>
-      <FlowHost flow={flow} addresses={addresses} tokens={tokens} onClose={() => { const wasSend = flow && (flow.kind === "send" || flow.kind === "swap"); setFlow(null); if (wasSend) setReload((n) => n + 1); }}/>
+      {tips && tips.length > 0 && (
+        <div>
+          <div className="pfw-h"><span className="t">致谢墙 · 收到的打赏</span><span className="lock">Sui 链上收款 · 实时</span></div>
+          <ThanksWall tips={tips}/>
+        </div>
+      )}
+      <FlowHost flow={flow} addresses={addresses} tokens={tokens} contacts={contacts} onClose={() => { const wasSend = flow && (flow.kind === "send" || flow.kind === "swap"); setFlow(null); if (wasSend) setReload((n) => n + 1); }}/>
     </div>
   );
 }

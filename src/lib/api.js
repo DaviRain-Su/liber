@@ -80,6 +80,9 @@ export const api = {
     solBroadcast: (payload) => post("/turnkey/sol/broadcast", payload),
     btcPrepare: (payload) => post("/turnkey/btc/prepare", payload),
     btcBroadcast: (payload) => post("/turnkey/btc/broadcast", payload),
+    walletContacts: () => get("/turnkey/contacts"),
+    walletTips: () => get("/turnkey/tips"),
+    evmSwapPrepare: (payload) => post("/turnkey/evm/swap/prepare", payload),
     // Real on-chain activity ledger (Sui sender/recipient history).
     walletActivity: () => get("/turnkey/activity"),
     cliStart: () => post("/auth/cli/start"),
