@@ -21,6 +21,8 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { relTime } from "../lib/time";
 import { evmSigningDigestHex, evmSignedRawTx, erc20TransferData, toBaseUnits, type EvmTx } from "../lib/turnkey-evm";
+import { solTransferMessage, solMessageHex, solSignedTxBase64 } from "../lib/turnkey-solana";
+import { p2wpkhProgram, p2wpkhScript, bip143Sighashes, derLowS, buildSignedTx, hash160, estVsize, DUST_P2WPKH, bytesToHex as btcBytesToHex, type TxOutput, type TxInput } from "../lib/turnkey-bitcoin";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -470,6 +472,148 @@ turnkey.post("/evm/broadcast", async (c) => {
     const url = evmRpcUrl(c.env);
     const hash = await ethCall(url, "eth_sendRawTransaction", [raw]);
     return c.json({ ok: true, digest: hash, status: "success", network: "ethereum", explorer: `https://etherscan.io/tx/${hash}` });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
+  }
+});
+
+// --- Real passkey-signed Solana transfer (non-custodial) -------------------------
+// Solana ed25519-signs the serialized message directly, so the passkey "payload" is
+// the whole message (NOT_APPLICABLE) and r||s is the 64-byte signature.
+const SOL_RPC = "https://api.mainnet-beta.solana.com";
+async function solRpc(method: string, params: any[]): Promise<any> {
+  const r = await fetch(SOL_RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  const jj: any = await r.json();
+  if (jj.error) throw new Error(jj.error.message || "sol rpc error");
+  return jj.result;
+}
+function hexToBytesLocal(h: string): Uint8Array { const a = new Uint8Array(h.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16); return a; }
+
+turnkey.post("/sol/prepare", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const from = addrs?.solana; const subOrgId = user.turnkey_sub_org_id;
+  if (!from || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const to = String(body?.to || "").trim();
+  const amount = Number(body?.amount);
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(to)) return c.json({ ok: false, error: "bad_recipient", message: "请填写有效的 Solana 地址" }, 400);
+  if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
+  try {
+    const lamports = BigInt(Math.round(amount * 1e9));
+    const bal: any = await solRpc("getBalance", [from]);
+    const have = BigInt(bal?.value ?? 0);
+    if (have < lamports + 5000n) return c.json({ ok: false, error: "no_gas", message: "Solana 余额不足以支付转账与手续费" }, 400);
+    const bh: any = await solRpc("getLatestBlockhash", [{ commitment: "finalized" }]);
+    const blockhash = bh?.value?.blockhash;
+    if (!blockhash) return c.json({ ok: false, error: "no_blockhash" }, 502);
+    const msg = solTransferMessage(from, to, lamports, blockhash);
+    return c.json({ ok: true, digestHex: solMessageHex(msg), signWith: from, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", sol: { messageHex: solMessageHex(msg) } });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+turnkey.post("/sol/broadcast", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const messageHex = String(body?.sol?.messageHex || "");
+  const activityId = String(body?.activityId || "");
+  if (!messageHex || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  try {
+    const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
+    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    const txB64 = solSignedTxBase64(hexToBytesLocal(messageHex), sr.r + sr.s);
+    const sig = await solRpc("sendTransaction", [txB64, { encoding: "base64", preflightCommitment: "confirmed" }]);
+    return c.json({ ok: true, digest: sig, status: "success", network: "solana", explorer: `https://solscan.io/tx/${sig}` });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
+  }
+});
+
+// --- Real passkey-signed Bitcoin transfer (P2WPKH, single-input, non-custodial) ----
+// Turnkey secp256k1-signs the BIP143 sighash (NO_OP); we DER-encode (low-S) + assemble
+// the witness tx. Single input keeps it to one signature (one Face ID) + simple change.
+const BTC_API = "https://blockstream.info/api";
+
+turnkey.post("/btc/prepare", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const from = addrs?.bitcoin; const subOrgId = user.turnkey_sub_org_id; const walletId = user.turnkey_wallet_id;
+  if (!from || !subOrgId || !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const to = String(body?.to || "").trim();
+  const amount = Number(body?.amount);
+  if (!/^bc1q[02-9ac-hj-np-z]{38,58}$/.test(to)) return c.json({ ok: false, error: "bad_recipient", message: "仅支持原生隔离见证地址（bc1q…）" }, 400);
+  if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
+  try {
+    const amountSats = BigInt(Math.round(amount * 1e8));
+    const utxos: any[] = await (await fetch(`${BTC_API}/address/${from}/utxo`)).json();
+    const confirmed = (utxos || []).filter((u) => u?.status?.confirmed).sort((a, b) => a.value - b.value);
+    if (!confirmed.length) return c.json({ ok: false, error: "no_utxo", message: "该比特币地址暂无已确认余额" }, 400);
+    let feeRate = 8;
+    try { const fe: any = await (await fetch(`${BTC_API}/fee-estimates`)).json(); feeRate = Math.max(2, Math.ceil(fe["6"] || fe["3"] || fe["1"] || 8)); } catch { /* fallback */ }
+    const fee2 = BigInt(feeRate * estVsize(2));
+    const utxo = confirmed.find((u) => BigInt(u.value) >= amountSats + fee2);
+    if (!utxo) return c.json({ ok: false, error: "no_single_utxo", message: "没有单个 UTXO 能覆盖该金额（暂不支持合并多个 UTXO），可减小金额" }, 400);
+
+    const inVal = BigInt(utxo.value);
+    const ownProgram = p2wpkhProgram(from);
+    const recScript = p2wpkhScript(p2wpkhProgram(to));
+    let change = inVal - amountSats - fee2;
+    const outputs: TxOutput[] = [{ script: recScript, value: amountSats }];
+    if (change >= DUST_P2WPKH) outputs.push({ script: p2wpkhScript(ownProgram), value: change });
+    else { // fold dust change into fee; recompute against the 1-output fee floor
+      const fee1 = BigInt(feeRate * estVsize(1));
+      if (inVal < amountSats + fee1) return c.json({ ok: false, error: "insufficient", message: "余额不足以覆盖金额与矿工费" }, 400);
+    }
+    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, from))?.account?.publicKey;
+    if (!pubkeyHex) return c.json({ ok: false, error: "no_pubkey" }, 502);
+    const pubkeyHash = hash160(hexToBytesLocal(pubkeyHex));
+    const input = { txid: utxo.txid, vout: utxo.vout, sequence: 0xffffffff };
+    const sighash = bip143Sighashes([{ ...input, amount: inVal, pubkeyHash }], outputs, 2, 0)[0];
+    return c.json({
+      ok: true, digestHex: sighash, signWith: from, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NO_OP",
+      btc: { input, outputs: outputs.map((o) => ({ scriptHex: btcBytesToHex(o.script), value: o.value.toString() })), pubkeyHex, version: 2, locktime: 0, feeRate },
+    });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+turnkey.post("/btc/broadcast", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const btc = body?.btc; const activityId = String(body?.activityId || "");
+  if (!btc?.input || !btc?.outputs || !btc?.pubkeyHex || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  try {
+    const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
+    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    const der = derLowS(sr.r, sr.s);
+    const witnessSig = new Uint8Array(der.length + 1); witnessSig.set(der, 0); witnessSig[der.length] = 0x01; // SIGHASH_ALL
+    const outputs: TxOutput[] = btc.outputs.map((o: any) => ({ script: hexToBytesLocal(o.scriptHex), value: BigInt(o.value) }));
+    const input: TxInput = { txid: btc.input.txid, vout: btc.input.vout, sequence: btc.input.sequence >>> 0 };
+    const rawHex = buildSignedTx([input], outputs, [[witnessSig, hexToBytesLocal(btc.pubkeyHex)]], btc.version || 2, btc.locktime || 0);
+    const res = await fetch(`${BTC_API}/tx`, { method: "POST", headers: { "content-type": "text/plain" }, body: rawHex });
+    const txt = await res.text();
+    if (!res.ok) return c.json({ ok: false, error: "broadcast_rejected", message: txt.slice(0, 200) }, 502);
+    return c.json({ ok: true, digest: txt, status: "success", network: "bitcoin", explorer: `https://mempool.space/tx/${txt}` });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
