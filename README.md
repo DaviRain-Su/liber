@@ -246,7 +246,10 @@ placeholder chapters instead of being hidden by relaxed quality gates. Short
 plain-text source splitters also cover numbered poem titles, `篇第…` essay
 headings, dynasty chronicle sections, `魏書/吳書` history headings, Zhang Zai
 collection headings, travel-diary sections, inline drama scene openings, and
-回目 titles whose subtitle continues on the next plain-text line.
+回目 titles whose subtitle continues on the next plain-text line, plus
+line-by-line `則` collections, body-titled line primers such as `千字文`/`百家姓`,
+short one-off prose paragraph sections, body-titled poem/fu lines, repeated
+詞牌 headings, and marked biographical sections such as `▲李白…歲`.
 `評`/`评` review sections and short interlude titles inside chapter runs are
 merged back into the previous chapter instead of becoming standalone reader
 chapters. The current Chinese catalogue has no configured single-chapter

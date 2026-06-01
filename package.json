@@ -16,6 +16,7 @@
     "smoke:real-content": "node scripts/real-content-smoke.mjs",
     "import:pd-texts": "node scripts/import-public-domain-texts.mjs",
     "import:gutenberg-classics": "node scripts/import-gutenberg-classics.mjs",
+    "import:wikisource-classics": "node scripts/import-wikisource-classics.mjs",
     "audit:gutenberg-catalog": "node scripts/import-gutenberg-classics.mjs --audit --summary --json",
     "test:cli": "npm --workspace liber-cli test",
     "pack:cli": "npm --cache ./.npm-cache --workspace liber-cli pack --dry-run",

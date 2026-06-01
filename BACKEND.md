@@ -214,7 +214,10 @@ forms (`第…回/章/卷`, inline headings, cross-spine terminal headings, numb
 gaps, 廿/卅 shorthand numerals, full-width digit headings/brackets, `书名·篇名`
 chapter prefixes, prose-fragment headings with Chinese/full-width punctuation,
 out-of-order volume runs, TOC fragments, placeholder titles, Latin noise
-headings in Chinese books, and garbled text). Known source lacunae are preserved
+headings in Chinese books, garbled text, line-by-line `則` collections, and
+body-titled line primers such as `千字文`/`百家姓`, short one-off prose paragraph
+sections, body-titled poem/fu lines, repeated 詞牌 headings, and marked
+biographical sections such as `▲李白…歲`). Known source lacunae are preserved
 as explicit `（缺）` placeholder chapters so the reader, TOC, and downstream
 translation/search jobs keep stable numbering. `評`/`评` review snippets and
 short interlude titles inside chapter runs are folded into the previous Chinese

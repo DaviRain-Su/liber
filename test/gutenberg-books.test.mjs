@@ -775,6 +775,66 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
   assert.deepEqual(paragraphs.map((chapter) => chapter.title), ["第1則", "第2則"]);
   assert.match(paragraphs[0].text, /第一則正文/);
 
+  const lineSections = parseGutenbergPlainTextChapters(
+    { title: "幽夢影", textSource: { kind: "line-sections", startPattern: "讀經宜冬", titleSuffix: "則" } },
+    `幽夢影
+
+讀經宜冬，其神專也。
+經傳宜獨坐讀；史鑑宜與友共讀。`,
+  );
+  assert.deepEqual(lineSections.map((chapter) => chapter.title), ["第1則", "第2則"]);
+  assert.match(lineSections[1].text, /史鑑宜/);
+
+  const titledLineSections = parseGutenbergPlainTextChapters(
+    { title: "千字文", textSource: { kind: "line-sections", startPattern: "天地玄黃", titleFromLineChars: 8 } },
+    `千字文
+
+天地玄黃 宇宙洪荒
+日月盈昃 辰宿列張`,
+  );
+  assert.deepEqual(titledLineSections.map((chapter) => chapter.title), ["天地玄黃宇宙洪荒", "日月盈昃辰宿列張"]);
+
+  const markedLineSections = parseGutenbergPlainTextChapters(
+    {
+      title: "李太白集",
+      textSource: {
+        kind: "marked-line-sections",
+        startPattern: "▲李白十五歲",
+        headingPattern: "^▲\\s*李白",
+        titlePattern: "^▲\\s*(李白[一二三四五六七八九十百]+歲)",
+      },
+    },
+    `李太白集
+
+▲李白十五歲。好神仙。
+明堂賦正文。
+▲李白十八歲。在大匡山。
+訪戴天山道士不遇正文。`,
+  );
+  assert.deepEqual(markedLineSections.map((chapter) => chapter.title), ["李白十五歲", "李白十八歲"]);
+  assert.match(markedLineSections[0].text, /明堂賦正文/);
+
+  const repeatedMarkedLineSections = parseGutenbergPlainTextChapters(
+    {
+      title: "水調歌頭",
+      textSource: {
+        kind: "marked-line-sections",
+        startPattern: "水調歌頭",
+        headingPattern: "^水[调調]歌[头頭]$",
+        skipBodyLinePattern: "^(?:水[调調]歌[头頭]|苏轼蘇軾)$",
+        titleFromBodyChars: 8,
+      },
+    },
+    `水調歌頭
+苏轼蘇軾
+明月幾時有，把酒問青天。
+水调歌头
+苏轼蘇軾
+昵昵兒女語，燈火夜微明。`,
+  );
+  assert.deepEqual(repeatedMarkedLineSections.map((chapter) => chapter.title), ["明月幾時有，把酒", "昵昵兒女語，燈火"]);
+  assert.doesNotMatch(repeatedMarkedLineSections[0].text, /水調歌頭|苏轼/);
+
   const biographies = parseGutenbergPlainTextChapters(
     { title: "高士傳", textSource: { kind: "biography-paragraphs", startPattern: "被衣" } },
     `高士傳
@@ -1918,18 +1978,31 @@ test("Gutenberg catalog keeps recovered Chinese plain-text sources chaptered", (
     ["shuangfeng-qiyuan-gutenberg-zh", [25348, 80, "hui"]],
     ["xu-xiake-youji-gutenberg-zh", [23876, 42, "travel-diary"]],
     ["changyan-dao-gutenberg-zh", [24170, 16, "hui-next-title-line"]],
+    ["qianziwen-gutenberg-zh", [24075, 20, "line-sections", 22]],
+    ["baijiaxing-gutenberg-zh", [25196, 30, "line-sections", 50]],
+    ["sanzijing-gutenberg-zh", [12479, 5, "paragraph-sections"]],
+    ["zhuzi-zhijia-geyan-gutenberg-zh", [23816, 6, "paragraph-sections"]],
+    ["dayingguo-renshi-lueshuo-gutenberg-zh", [54820, 9, "paragraph-sections"]],
+    ["manjianghong-gutenberg-zh", [27204, 2, "marked-line-sections"]],
+    ["changhen-ge-gutenberg-zh", [25352, 30, "line-sections"]],
+    ["shuidiao-getou-gutenberg-zh", [27123, 4, "marked-line-sections"]],
+    ["kongque-dongnanfei-gutenberg-zh", [52275, 184, "line-sections", 185]],
+    ["luoshen-fu-gutenberg-zh", [24041, 30, "line-sections"]],
+    ["li-taibai-ji-gutenberg-zh", [24060, 40, "marked-line-sections", 45]],
+    ["youmeng-ying-gutenberg-zh", [25381, 200, "line-sections", 230]],
+    ["youming-lu-gutenberg-zh", [52278, 200, "line-sections", 350]],
     ["xihu-jiahua-gutenberg-zh", [24273, 16, "numbered-volume"]],
     ["chibei-outan-gutenberg-zh", [25162, 26, "numbered-volume"]],
     ["bu-hongloumeng-gutenberg-zh", [25202, 48, "hui"]],
     ["shitou-dian-gutenberg-zh", [25399, 14, "hui"]],
   ]);
 
-  for (const [id, [pg, chapters, kind]] of expected) {
+  for (const [id, [pg, chapters, kind, maxChapters = chapters]] of expected) {
     const book = BOOKS.find((row) => row.id === id);
     assert.equal(book?.pg, pg);
     assert.equal(book.lang, "zh");
     assert.equal(book.minChapters, chapters);
-    assert.equal(book.maxChapters, chapters);
+    assert.equal(book.maxChapters, maxChapters);
     assert.equal(book.textSource.kind, kind);
     assert.equal(book.textSource.prefer, "plain");
   }
