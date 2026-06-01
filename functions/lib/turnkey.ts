@@ -105,10 +105,11 @@ export async function createSubOrgWithSuiWallet(env: Env, label: string): Promis
 }
 
 // Look up a wallet account to get its raw ed25519 public key (needed to assemble the
-// Sui signature) alongside the Sui address.
-export async function getWalletAccount(env: Env, subOrgId: string, address: string): Promise<any> {
+// Sui signature). get_wallet_account requires organizationId + walletId (+ address).
+export async function getWalletAccount(env: Env, subOrgId: string, walletId: string, address: string): Promise<any> {
   return post(env, "/public/v1/query/get_wallet_account", {
     organizationId: subOrgId,
+    walletId,
     address,
   });
 }

@@ -86,7 +86,7 @@ EMAIL_FROM = "Liber <login@davirain.xyz>"
 # key are not secret; the API private key goes in as a Pages secret:
 #   npx wrangler pages secret put TURNKEY_API_PRIVATE_KEY
 TURNKEY_ORG_ID = "f42d5685-5e5e-4139-98ad-4208cfb31295"
-# TURNKEY_API_PUBLIC_KEY = "<P-256 compressed pubkey hex from the Turnkey dashboard>"
+TURNKEY_API_PUBLIC_KEY = "02f8fc5f38fad13ca949af3250a30b74604dd72f38506b429351f0062f96b6b1c5"
 # Google "Sign in with Google" client id (public; the ID-token aud is checked
 # against it). Add your site to the OAuth client's Authorized JavaScript origins.
 GOOGLE_CLIENT_ID = "1021328086145-18jc2gqb4rdflor24ein4ub5pgkhi4qn.apps.googleusercontent.com"

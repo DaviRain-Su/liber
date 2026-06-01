@@ -29,11 +29,12 @@ turnkey.post("/spike", async (c) => {
     debug.create = created.result;
     const r = created.result?.createSubOrganizationResultV7 || created.result?.createSubOrganizationResult || created.result || {};
     const subOrgId = r.subOrganizationId;
+    const walletId = r.wallet?.walletId;
     const suiAddress = (r.wallet?.addresses || [])[0];
-    if (!subOrgId || !suiAddress) return c.json({ ok: false, step: "create_sub_org", error: "missing subOrgId/address — check field names", debug }, 502);
+    if (!subOrgId || !walletId || !suiAddress) return c.json({ ok: false, step: "create_sub_org", error: "missing subOrgId/walletId/address — check field names", debug }, 502);
 
     // 2. Fetch the wallet account to get its raw ed25519 public key (needed to assemble).
-    const acct = await getWalletAccount(env, subOrgId, suiAddress);
+    const acct = await getWalletAccount(env, subOrgId, walletId, suiAddress);
     debug.account = acct;
     const pubkeyHex = acct?.account?.publicKey || acct?.publicKey;
     if (!pubkeyHex) return c.json({ ok: false, step: "get_wallet_account", error: "missing publicKey — check field names", debug }, 502);
