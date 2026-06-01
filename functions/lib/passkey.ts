@@ -20,6 +20,7 @@ import {
 import type { Env, Variables } from "./types";
 import { batch, first, run, id, now } from "./db";
 import { createSession, getUser, type UserRow } from "./auth";
+import { provisionWalletsWithPasskey, turnkeyConfigured } from "./turnkey";
 
 type Ctx = Context<{ Bindings: Env; Variables: Variables }>;
 
@@ -154,6 +155,30 @@ export async function passkeyRegisterVerify(c: Ctx, response: any): Promise<{ to
       cred.id, userId, bufToB64url(cred.publicKey), cred.counter ?? 0,
       cred.transports ? JSON.stringify(cred.transports) : null, now()],
   ]);
+  // Unify login + wallet: register this same passkey with Turnkey so it is also the
+  // wallet's signer — no separate "set up a wallet passkey" step. Best-effort; never
+  // block login if Turnkey is unavailable.
+  if (turnkeyConfigured(c.env) && response?.response?.attestationObject) {
+    try {
+      const p = await provisionWalletsWithPasskey(c.env, `liber-${userId}`, {
+        authenticatorName: "Liber 通行密钥",
+        challenge,
+        attestation: {
+          credentialId: response.id,
+          clientDataJson: response.response.clientDataJSON,
+          attestationObject: response.response.attestationObject,
+          transports: (response.response.transports || []).map((t: string) => "AUTHENTICATOR_TRANSPORT_" + String(t).toUpperCase()),
+        },
+      });
+      if (p.subOrgId) {
+        await run(
+          c.env.DB,
+          `UPDATE users SET turnkey_sub_org_id = ?, turnkey_wallet_id = ?, turnkey_root_user_id = ?, turnkey_sui_address = ?, turnkey_addresses = ?, turnkey_passkey_at = ? WHERE id = ?`,
+          p.subOrgId, p.walletId, p.rootUserId, p.addresses.sui, JSON.stringify(p.addresses), now(), userId,
+        );
+      }
+    } catch { /* Turnkey down or attestation format mismatch — login still succeeds */ }
+  }
   const user = (await getUser(c.env, userId))!;
   const token = await createSession(c.env, user.id);
   return { token, user };

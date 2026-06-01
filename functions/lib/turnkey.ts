@@ -126,6 +126,48 @@ export async function provisionWallets(env: Env, label: string): Promise<{
   };
 }
 
+// Provision a sub-org whose root user holds BOTH the user's passkey (so the user can
+// sign) AND the server API key (so the server can run automated actions). Used at
+// passkey signup so the login passkey is also the wallet signer — no second passkey.
+export async function provisionWalletsWithPasskey(
+  env: Env, label: string,
+  passkey: { authenticatorName: string; challenge: string; attestation: { credentialId: string; clientDataJson: string; attestationObject: string; transports: string[] } },
+): Promise<{ subOrgId: string; walletId: string; rootUserId: string | null; addresses: { sui: string | null; ethereum: string | null; solana: string | null; bitcoin: string | null } }> {
+  const submit = await post(env, "/public/v1/submit/create_sub_organization", {
+    type: "ACTIVITY_TYPE_CREATE_SUB_ORGANIZATION_V7",
+    timestampMs: String(Date.now()),
+    organizationId: env.TURNKEY_ORG_ID,
+    parameters: {
+      subOrganizationName: label,
+      rootQuorumThreshold: 1,
+      rootUsers: [{
+        userName: "liber-user",
+        apiKeys: [{ apiKeyName: "liber-server", publicKey: env.TURNKEY_API_PUBLIC_KEY, curveType: "API_KEY_CURVE_P256" }],
+        authenticators: [passkey],
+        oauthProviders: [],
+      }],
+      wallet: {
+        walletName: "Liber Wallet",
+        accounts: [
+          { curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/784'/0'/0'/0'", addressFormat: "ADDRESS_FORMAT_SUI" },
+          { curve: "CURVE_SECP256K1", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/60'/0'/0/0", addressFormat: "ADDRESS_FORMAT_ETHEREUM" },
+          { curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/501'/0'/0'", addressFormat: "ADDRESS_FORMAT_SOLANA" },
+          { curve: "CURVE_SECP256K1", pathFormat: "PATH_FORMAT_BIP32", path: "m/84'/0'/0'/0/0", addressFormat: "ADDRESS_FORMAT_BITCOIN_MAINNET_P2WPKH" },
+        ],
+      },
+    },
+  });
+  const result = await awaitResult(env, submit);
+  const r = result?.createSubOrganizationResultV7 || result?.createSubOrganizationResult || result || {};
+  const a = r.wallet?.addresses || [];
+  return {
+    subOrgId: r.subOrganizationId,
+    walletId: r.wallet?.walletId,
+    rootUserId: (r.rootUserIds || [])[0] ?? null,
+    addresses: { sui: a[0] ?? null, ethereum: a[1] ?? null, solana: a[2] ?? null, bitcoin: a[3] ?? null },
+  };
+}
+
 // Find the root user id of a sub-org (for users provisioned before we stored it).
 export async function getSubOrgRootUserId(env: Env, subOrgId: string): Promise<string | null> {
   const j = await post(env, "/public/v1/query/get_organization", { organizationId: subOrgId });
