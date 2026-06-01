@@ -82,7 +82,8 @@ export const api = {
     btcBroadcast: (payload) => post("/turnkey/btc/broadcast", payload),
     walletContacts: () => get("/turnkey/contacts"),
     walletTips: () => get("/turnkey/tips"),
-    evmSwapPrepare: (payload) => post("/turnkey/evm/swap/prepare", payload),
+    // Cross-chain swap via LI.FI; returns ordered EVM steps to passkey-sign + broadcast.
+    swapPrepare: (payload) => post("/turnkey/swap/prepare", payload),
     // Real on-chain activity ledger (Sui sender/recipient history).
     walletActivity: () => get("/turnkey/activity"),
     cliStart: () => post("/auth/cli/start"),

@@ -237,35 +237,46 @@ function ReceiveFlow({ presetToken, addresses, onClose }){
     <div style={{ fontFamily:"var(--mono)", fontSize:12, color:"var(--ink-3)", marginTop:16, lineHeight:1.6 }}>仅向此地址转入 <b style={{ color:"var(--ink-2)" }}>{chain}</b> 网络资产。<br/>由通行密钥守护 · 无需助记词。</div>
   </div></Sheet>);
 }
+// LI.FI routes from an Ethereum-source token (ETH/USDC), same-chain or cross-chain to
+// SOL. SOL-source + Sui/BTC aren't routable yet, so they're honestly gated.
+const SWAP_FROM = ["ETH","USDC"]; const SWAP_TO = ["ETH","USDC","SOL"];
 function SwapFlow({ tokens, presetToken, onClose }){
-  const [from,setFrom]=useS(presetToken||tokens[0]);
-  const [to,setTo]=useS(tokens.find(t=>t.sym==="USDC")||tokens[1]||tokens[0]);
+  const pickable=tokens.filter(t=>SWAP_FROM.includes(t.sym)||SWAP_TO.includes(t.sym));
+  const [from,setFrom]=useS((presetToken&&SWAP_FROM.includes(presetToken.sym)?presetToken:null)||pickable.find(t=>t.sym==="ETH")||pickable[0]);
+  const [to,setTo]=useS(pickable.find(t=>t.sym==="USDC")||pickable.find(t=>t.sym==="SOL")||pickable[0]);
   const [amt,setAmt]=useS(""); const [pick,setPick]=useS(null); const [phase,setPhase]=useS("form");
-  const [result,setResult]=useS(null);
-  // Live rate from real prices fetched by /balances (USD per unit).
+  const [result,setResult]=useS(null); const [progress,setProgress]=useS("");
+  // Live rate from real /balances prices (USD per unit).
   const fp=Number(from&&from.price)||0, tp=Number(to&&to.price)||0;
   const rate=fp&&tp?fp/tp:0, out=(Number(amt)||0)*rate;
   const flip=()=>{ setFrom(to); setTo(from); };
-  // Only ETH → USDC executes for real (Uniswap V2, one signature). Everything else is
-  // honestly gated — we don't fake a swap we can't broadcast.
-  const realPair = from&&to&&from.sym==="ETH"&&to.sym==="USDC";
+  const crossChain = from&&to&&from.chain!==to.chain;
+  // Real LI.FI execution: ETH/USDC source → ETH/USDC/SOL. (USDC source = approve + swap.)
+  const realPair = from&&to&&SWAP_FROM.includes(from.sym)&&SWAP_TO.includes(to.sym)&&from.sym!==to.sym;
   const swap=async()=>{
-    const prep=await api.auth.evmSwapPrepare({ from:from.sym, to:to.sym, amount:Number(amt) });
+    const prep=await api.auth.swapPrepare({ from:from.sym, to:to.sym, amount:Number(amt) });
     if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建兑换失败");
-    const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
-    const o=await api.auth.evmBroadcast({ tx:prep.tx, activityId });
-    if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"广播失败");
-    setResult({ ...o, out:prep.quote&&prep.quote.out }); setPhase("done");
+    const steps=prep.steps||[]; let last=null;
+    for (let i=0;i<steps.length;i++){
+      const st=steps[i];
+      setProgress(steps.length>1?`第 ${i+1}/${steps.length} 步 · ${st.kind==="approve"?"授权代币":"兑换"}`:"");
+      const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:st.digestHex, hashFunction:prep.hashFunction });
+      const o=await api.auth.evmBroadcast({ tx:st.tx, activityId });
+      if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"广播失败");
+      last=o;
+    }
+    setResult({ ...last, quote:prep.quote }); setPhase("done");
   };
-  if (pick) return (<Sheet title="选择代币" onBack={()=>setPick(null)} onClose={onClose}><TokenPick tokens={tokens} value={pick==="from"?from:to} onChange={(t)=>{ pick==="from"?setFrom(t):setTo(t); setPick(null); }}/></Sheet>);
+  if (pick) return (<Sheet title="选择代币" onBack={()=>setPick(null)} onClose={onClose}><TokenPick tokens={pickable} value={pick==="from"?from:to} onChange={(t)=>{ pick==="from"?setFrom(t):setTo(t); setPick(null); }}/></Sheet>);
+  const q=result&&result.quote;
   return (<Sheet title="兑换 · Swap" onClose={onClose} onBack={phase==="pk"?()=>setPhase("form"):null}>
-    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">兑换已上链</div><div className="dsub">{amt} {from.sym} → ≈ {result&&result.out!=null?Number(result.out).toFixed(2):out.toPrecision(6)} {to.sym}<br/>已在以太坊广播。</div>{result&&result.explorer&&<a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
-    : phase==="pk" ? <RealSignGate label="用通行密钥确认兑换" sub={`${amt} ${from.sym} → USDC · 真实上链`} onSign={swap} onCancel={()=>setPhase("form")}/>
+    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{q&&q.crossChain?"跨链兑换已提交":"兑换已上链"}</div><div className="dsub">{amt} {from.sym} → ≈ {q&&q.toAmount?Number(q.toAmount).toPrecision(6):out.toPrecision(6)} {to.sym}<br/>{q&&q.crossChain?`已通过 ${q.tool||"LI.FI"} 跨链路由提交，到账需数分钟。`:"已在以太坊广播。"}</div>{result&&result.explorer&&<a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
+    : phase==="pk" ? <RealSignGate label="用通行密钥确认兑换" sub={progress||`${amt} ${from.sym} → ${to.sym}${crossChain?" · 跨链":""} · 真实上链`} onSign={swap} onCancel={()=>setPhase("form")}/>
     : (<><div className="swap-leg"><div className="sl-top"><span>支付</span><span className="tnum">余额 {from.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" inputMode="decimal" placeholder="0" value={amt} onChange={(e)=>setAmt(e.target.value.replace(/[^0-9.]/g,""))}/><div className="sl-pick" onClick={()=>setPick("from")}><TokenSeal token={from} size={26}/><span className="nm">{from.sym}</span>{WI.down}</div></div></div>
       <div className="swap-mid"><button onClick={flip}>{WI.swap}</button></div>
       <div className="swap-leg"><div className="sl-top"><span>获得（预估）</span><span className="tnum">余额 {to.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" readOnly value={out?out.toPrecision(6):"0"}/><div className="sl-pick" onClick={()=>setPick("to")}><TokenSeal token={to} size={26}/><span className="nm">{to.sym}</span>{WI.down}</div></div></div>
-      <div className="swap-rate"><div className="sr"><span className="k">汇率 · 实时价</span><span className="tnum">{rate?`1 ${from.sym} ≈ ${rate.toPrecision(5)} ${to.sym}`:"—"}</span></div><div className="sr"><span className="k">滑点上限</span><span>1%</span></div><div className="sr"><span className="k">路由</span><span>{realPair?"Uniswap V2":"—"}</span></div></div>
-      {!realPair && <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} 目前仅支持 <b>ETH → USDC</b> 的真实链上兑换（Uniswap）。其它兑换对为实时报价，暂不可执行。</div>}
+      <div className="swap-rate"><div className="sr"><span className="k">汇率 · 实时价</span><span className="tnum">{rate?`1 ${from.sym} ≈ ${rate.toPrecision(5)} ${to.sym}`:"—"}</span></div><div className="sr"><span className="k">滑点上限</span><span>1%</span></div><div className="sr"><span className="k">路由</span><span>{realPair?(crossChain?"LI.FI · 跨链":"LI.FI"):"—"}</span></div></div>
+      {!realPair && <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} 真实兑换来源目前支持 <b>ETH / USDC</b>（可兑换为 ETH / USDC / 跨链 SOL）。SOL 作为来源、以及 Sui / BTC，LI.FI 暂不支持，仅显示报价。</div>}
       <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} disabled={!(Number(amt)>0)||!realPair} onClick={()=>setPhase("pk")}>{WI.sign} {realPair?"审阅并用通行密钥兑换":"该兑换对暂不可执行"}</button></>)}
   </Sheet>);
 }

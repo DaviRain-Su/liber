@@ -736,48 +736,73 @@ turnkey.get("/tips", async (c) => {
   }
 });
 
-// Real same-chain swap: ETH → USDC via the Uniswap V2 router (one signature, no token
-// approval needed for an ETH-in swap). Quote from getAmountsOut; 1% slippage floor.
-// Reuses /turnkey/evm/broadcast to sign+send (the returned tx is a plain EVM tx).
-const UNI_V2_ROUTER = "0x7a250d5630b4cf539739df2c5dacb4c659f2488d";
-const WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+// Real cross-chain swap via the LI.FI aggregator (li.quest, keyless). LI.FI returns a
+// ready EVM `transactionRequest` for an Ethereum-source swap — same-chain (ETH↔USDC) or
+// cross-chain (e.g. ETH/USDC → SOL, which LI.FI settles via its bridges). We build the
+// EvmTx(s) and the user passkey-signs each; broadcast reuses /turnkey/evm/broadcast.
+// ERC20 source (USDC) prepends an approve step (2 signatures). LI.FI doesn't cover Sui
+// or native BTC, and SOL-source is a follow-up, so those are honestly gated client-side.
 const pad32 = (hexNo0x: string): string => hexNo0x.toLowerCase().replace(/^0x/, "").padStart(64, "0");
-turnkey.post("/evm/swap/prepare", async (c) => {
+const LIFI_QUOTE = "https://li.quest/v1/quote";
+const SWAP_TOKENS: Record<string, { chain: string; token: string; decimals: number; addrKey: "ethereum" | "solana"; native?: boolean }> = {
+  ETH:  { chain: "1", token: "0x0000000000000000000000000000000000000000", decimals: 18, addrKey: "ethereum", native: true },
+  USDC: { chain: "1", token: USDC_MAINNET, decimals: 6, addrKey: "ethereum" },
+  SOL:  { chain: "1151111081099710", token: "11111111111111111111111111111111", decimals: 9, addrKey: "solana", native: true },
+};
+
+turnkey.post("/swap/prepare", async (c) => {
   const uid = c.get("userId");
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   const user: any = await getUser(c.env, uid);
   if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
   let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const from = addrs?.ethereum; const subOrgId = user.turnkey_sub_org_id;
-  if (!from || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!subOrgId || !addrs) return c.json({ ok: false, error: "no_wallet" }, 400);
+
   const body: any = await c.req.json().catch(() => ({}));
   const fromSym = String(body?.from || "").toUpperCase();
   const toSym = String(body?.to || "").toUpperCase();
   const amount = Number(body?.amount);
-  if (!(fromSym === "ETH" && toSym === "USDC")) return c.json({ ok: false, error: "unsupported_pair", message: "目前仅支持 ETH → USDC 的真实兑换" }, 400);
+  const F = SWAP_TOKENS[fromSym], T = SWAP_TOKENS[toSym];
+  if (!F || !T || fromSym === toSym) return c.json({ ok: false, error: "unsupported_pair", message: "暂不支持该兑换对" }, 400);
+  if (F.chain !== "1") return c.json({ ok: false, error: "unsupported_source", message: `${fromSym} 作为来源的真实兑换即将支持` }, 400);
   if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
+  const fromAddr = addrs[F.addrKey], toAddr = addrs[T.addrKey];
+  if (!fromAddr || !toAddr) return c.json({ ok: false, error: "no_wallet" }, 400);
   try {
+    const fromAmount = toBaseUnits(amount, F.decimals).toString();
+    const params = new URLSearchParams({ fromChain: F.chain, toChain: T.chain, fromToken: F.token, toToken: T.token, fromAmount, fromAddress: fromAddr, toAddress: toAddr, slippage: "0.01" });
+    const q: any = await (await fetch(`${LIFI_QUOTE}?${params.toString()}`)).json();
+    const tr = q?.transactionRequest;
+    if (!tr?.to || !tr?.data) return c.json({ ok: false, error: "no_route", message: q?.message || "没有可用的兑换路径" }, 502);
+
     const url = evmRpcUrl(c.env);
-    const amountIn = toBaseUnits(amount, 18);
-    // getAmountsOut(amountIn, [WETH, USDC])
-    const callData = "0xd06ca61f" + pad32(amountIn.toString(16)) + pad32("40") + pad32("2") + pad32(WETH) + pad32(USDC_MAINNET);
-    const outRes: string = await ethCall(url, "eth_call", [{ to: UNI_V2_ROUTER, data: callData }, "latest"]);
-    // return = [offset, len, amounts[0], amounts[1]] → amounts[1] is the 4th word
-    const expectedOut = hexBig("0x" + outRes.replace(/^0x/, "").slice(3 * 64, 4 * 64));
-    if (expectedOut <= 0n) return c.json({ ok: false, error: "no_quote", message: "无法获取兑换报价" }, 502);
-    const minOut = (expectedOut * 99n) / 100n; // 1% slippage
-    const deadline = BigInt(Math.floor(now() / 1000) + 1200);
-    // swapExactETHForTokens(amountOutMin, path, to, deadline)
-    const swapData = "0x7ff36ab5" + pad32(minOut.toString(16)) + pad32("80") + pad32(from) + pad32(deadline.toString(16)) + pad32("2") + pad32(WETH) + pad32(USDC_MAINNET);
-    const chainId = Number(hexBig(await ethCall(url, "eth_chainId", []))) || 1;
-    const nonce = hexBig(await ethCall(url, "eth_getTransactionCount", [from, "pending"]));
+    const chainId = Number(tr.chainId) || 1;
+    let nonce = hexBig(await ethCall(url, "eth_getTransactionCount", [fromAddr, "pending"]));
     const gasPrice = hexBig(await ethCall(url, "eth_gasPrice", []));
-    let gas = 220000n;
-    try { gas = (hexBig(await ethCall(url, "eth_estimateGas", [{ from, to: UNI_V2_ROUTER, value: "0x" + amountIn.toString(16), data: swapData }])) * 12n) / 10n; } catch { /* fallback */ }
-    const ethBal = hexBig(await ethCall(url, "eth_getBalance", [from, "latest"]));
-    if (ethBal < amountIn + gasPrice * gas) return c.json({ ok: false, error: "no_gas", message: "ETH 余额不足以支付兑换与矿工费" }, 400);
-    const tx: EvmTx = { nonce: nonce.toString(), gasPrice: gasPrice.toString(), gas: gas.toString(), to: UNI_V2_ROUTER, value: amountIn.toString(), data: swapData, chainId };
-    return c.json({ ok: true, digestHex: evmSigningDigestHex(tx), signWith: from, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NO_OP", tx, quote: { out: Number(expectedOut) / 1e6, minOut: Number(minOut) / 1e6 } });
+    const steps: { kind: string; tx: EvmTx; digestHex: string }[] = [];
+
+    if (!F.native) { // ERC20 source → ensure the LI.FI spender has allowance
+      const spender = q?.estimate?.approvalAddress || tr.to;
+      const cur = hexBig(await ethCall(url, "eth_call", [{ to: F.token, data: "0xdd62ed3e" + pad32(fromAddr) + pad32(spender) }, "latest"]));
+      if (cur < BigInt(fromAmount)) {
+        const approveData = "0x095ea7b3" + pad32(spender) + pad32(BigInt(fromAmount).toString(16));
+        const atx: EvmTx = { nonce: nonce.toString(), gasPrice: gasPrice.toString(), gas: "80000", to: F.token, value: "0", data: approveData, chainId };
+        steps.push({ kind: "approve", tx: atx, digestHex: evmSigningDigestHex(atx) });
+        nonce = nonce + 1n;
+      }
+    }
+    const swapGas = (BigInt(tr.gasLimit || "350000") * 13n) / 10n;
+    const stx: EvmTx = { nonce: nonce.toString(), gasPrice: gasPrice.toString(), gas: swapGas.toString(), to: tr.to, value: BigInt(tr.value || "0").toString(), data: tr.data, chainId };
+    const ethBal = hexBig(await ethCall(url, "eth_getBalance", [fromAddr, "latest"]));
+    const gasCost = steps.reduce((s, st) => s + BigInt(st.tx.gas) * gasPrice, 0n) + BigInt(stx.gas) * gasPrice;
+    if (ethBal < BigInt(stx.value) + gasCost) return c.json({ ok: false, error: "no_gas", message: "ETH 余额不足以支付兑换与矿工费" }, 400);
+    steps.push({ kind: "swap", tx: stx, digestHex: evmSigningDigestHex(stx) });
+
+    return c.json({
+      ok: true, organizationId: subOrgId, signWith: fromAddr, hashFunction: "HASH_FUNCTION_NO_OP", steps,
+      quote: { fromSym, toSym, amount, toAmount: Number(q?.estimate?.toAmount || 0) / 10 ** T.decimals, tool: q?.tool || "lifi", crossChain: F.chain !== T.chain },
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
