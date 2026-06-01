@@ -16,6 +16,9 @@ import { upsertTurnkeyUser, ensureTurnkeyWallet } from "../lib/turnkey-auth";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
 import { Transaction } from "@mysten/sui/transactions";
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+import { evmAddressFromSignature, verifyEd25519, verifySecp256k1 } from "../lib/turnkey-verify";
+import { keccak_256 } from "@noble/hashes/sha3.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -172,6 +175,49 @@ turnkey.post("/sui-transfer-test", async (c) => {
 
     const res = await client.executeTransactionBlock({ transactionBlock: bytes, signature, options: { showEffects: true } });
     return c.json({ ok: true, network, suiAddress, recipient, digest: res.digest, status: res.effects?.status?.status, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
+  }
+});
+
+// Admin: prove the embedded wallet signs valid signatures on EVM, Solana, and BTC
+// (the foundation the send feature builds on). Signs a test digest per chain via
+// Turnkey and verifies it recovers/matches the wallet's address/pubkey. No funds.
+turnkey.post("/sign-test", async (c) => {
+  const env = c.env;
+  if (!hasAdminToken(env, bearerToken(c))) return c.json({ error: "unauthorized" }, 401);
+  if (!turnkeyConfigured(env)) return c.json({ error: "turnkey_not_configured" }, 501);
+  const enc = new TextEncoder();
+  const toHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  try {
+    const p = await provisionWallets(env, `liber-sign-${Date.now()}`);
+    const results: any = {};
+
+    // EVM (secp256k1, keccak digest → ecrecover → address must match).
+    {
+      const addr = p.addresses.ethereum!;
+      const digestHex = toHex(keccak_256(enc.encode("Liber Turnkey EVM test")));
+      const sr = (await signRawPayload(env, p.subOrgId, addr, digestHex, "HASH_FUNCTION_NO_OP")).result?.signRawPayloadResult || {};
+      const recovered = evmAddressFromSignature(digestHex, sr.r, sr.s, Number(sr.v ?? 0));
+      results.ethereum = { address: addr, recovered, valid: recovered.toLowerCase() === addr.toLowerCase() };
+    }
+    // Solana (ed25519, verify signature over the message against the account pubkey).
+    {
+      const addr = p.addresses.solana!;
+      const pubkeyHex = (await getWalletAccount(env, p.subOrgId, p.walletId, addr))?.account?.publicKey;
+      const msgHex = toHex(enc.encode("Liber Turnkey SOL test"));
+      const sr = (await signRawPayload(env, p.subOrgId, addr, msgHex, "HASH_FUNCTION_NOT_APPLICABLE")).result?.signRawPayloadResult || {};
+      results.solana = { address: addr, valid: verifyEd25519(msgHex, (sr.r || "") + (sr.s || ""), pubkeyHex) };
+    }
+    // Bitcoin (secp256k1, sha256 digest → ECDSA verify against the account pubkey).
+    {
+      const addr = p.addresses.bitcoin!;
+      const pubkeyHex = (await getWalletAccount(env, p.subOrgId, p.walletId, addr))?.account?.publicKey;
+      const digestHex = toHex(sha256(enc.encode("Liber Turnkey BTC test")));
+      const sr = (await signRawPayload(env, p.subOrgId, addr, digestHex, "HASH_FUNCTION_NO_OP")).result?.signRawPayloadResult || {};
+      results.bitcoin = { address: addr, valid: verifySecp256k1(digestHex, sr.r, sr.s, pubkeyHex) };
+    }
+    return c.json({ ok: true, subOrgId: p.subOrgId, results });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }

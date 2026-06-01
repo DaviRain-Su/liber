@@ -136,7 +136,10 @@ export async function getWalletAccount(env: Env, subOrgId: string, walletId: str
 }
 
 // Sign a pre-computed digest with a sub-org wallet (raw ed25519, no extra hashing).
-export async function signRawPayload(env: Env, subOrgId: string, signWith: string, payloadHex: string): Promise<any> {
+export async function signRawPayload(
+  env: Env, subOrgId: string, signWith: string, payloadHex: string,
+  hashFunction: string = "HASH_FUNCTION_NOT_APPLICABLE",
+): Promise<any> {
   const submit = await post(env, "/public/v1/submit/sign_raw_payload", {
     type: "ACTIVITY_TYPE_SIGN_RAW_PAYLOAD_V2",
     timestampMs: String(Date.now()),
@@ -145,7 +148,7 @@ export async function signRawPayload(env: Env, subOrgId: string, signWith: strin
       signWith,
       payload: payloadHex,
       encoding: "PAYLOAD_ENCODING_HEXADECIMAL",
-      hashFunction: "HASH_FUNCTION_NOT_APPLICABLE",
+      hashFunction,
     },
   });
   return { submit, result: await awaitResult(env, submit) };
