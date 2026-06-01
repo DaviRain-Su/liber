@@ -1,68 +1,186 @@
-/* Turnkey embedded wallet — profile panel.
-   Ported from the "Liber Profile Wallet" design (on-chain identity strip + quick
-   actions + receive sheet). Builds on liber.css vars (--hair/--paper/--ink/--accent
-   /--mono/--display); adds the few it needs below. */
-:root{
-  --paper-3: color-mix(in oklab, var(--paper) 86%, var(--ink));
-  --pos: #2e9e6b;
-  --neg: #d9544d;
-  --tk-btc:#f7931a; --tk-eth:#627eea; --tk-sol:#9945ff; --tk-sui:#4da2ff;
+/* ============================================================
+   wallet-profile.css — embedding the Liber wallet inside the
+   personal profile page. Three placement variants + visitor tip.
+   Builds on liber.css + product2.css (profile shell) + wallet.css.
+   ============================================================ */
+
+/* keep the profile column comfortable */
+.pfw-wrap{ max-width:1080px; margin:0 auto; padding:0 40px 90px; }
+.pf-tabs button{ white-space:nowrap; display:inline-flex; align-items:center; gap:6px; }
+
+/* the existing tiny pf-wallet chip becomes interactive in our demo */
+.pf-wallet{ cursor:pointer; transition:all .15s; white-space:nowrap; }
+.pf-wallet:hover{ border-color:var(--accent); }
+
+/* ------------------------------------------------------------
+   SHARED: a "card" that matches profile surfaces
+   ------------------------------------------------------------ */
+.pfw-card{ border:1px solid var(--hair); border-radius:16px; background:var(--paper); overflow:hidden; }
+.pfw-h{ display:flex; align-items:center; gap:12px; margin:0 0 14px; }
+.pfw-h .t{ font-family:var(--display); font-size:22px; font-weight:600; white-space:nowrap; }
+.pfw-h .lock{ display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; color:var(--ink-3); border:1px solid var(--hair); border-radius:999px; padding:4px 10px; }
+.pfw-h .more{ margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--accent); cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
+.pfw-h .more:hover{ gap:8px; }
+
+/* ------------------------------------------------------------
+   VARIANT A — wallet as a profile TAB
+   (compact dashboard rendered in the tab content area)
+   ------------------------------------------------------------ */
+.pfw-tabpane{ display:flex; flex-direction:column; gap:22px; }
+
+/* compact balance band */
+.pfw-band{
+  border:1px solid var(--hair); border-radius:16px; background:var(--paper);
+  padding:24px 26px; display:grid; grid-template-columns:1fr auto; gap:26px; align-items:center;
+  box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 22px 54px -42px rgba(33,27,21,.5);
+}
+.pfw-band .bb-label{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3); display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.pfw-band .bb-total{ font-family:var(--display); font-size:clamp(36px,5vw,52px); font-weight:600; line-height:1; margin-top:12px; letter-spacing:-.01em; }
+.pfw-band .bb-total .cents{ color:var(--ink-3); font-size:.52em; }
+.pfw-band .bb-delta{ display:inline-flex; align-items:center; gap:8px; margin-top:12px; font-family:var(--mono); font-size:13px; white-space:nowrap; }
+.pfw-band .bb-delta.pos{ color:var(--pos); } .pfw-band .bb-delta.neg{ color:var(--neg); }
+.pfw-band .bb-delta .pill{ display:inline-flex; align-items:center; gap:4px; background:color-mix(in oklab, currentColor 13%, transparent); padding:4px 9px; border-radius:999px; }
+.pfw-band .bb-ring{ display:flex; align-items:center; gap:18px; }
+
+/* quick actions row (reuse .qa from wallet.css) */
+.pfw-actions{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+
+/* chain chips strip (compact multi-chain identity) */
+.chain-strip{ display:flex; flex-wrap:wrap; gap:10px; }
+.chain-chip{ display:flex; align-items:center; gap:10px; border:1px solid var(--hair); border-radius:12px; background:var(--paper-2); padding:10px 14px 10px 10px; cursor:pointer; transition:all .15s; }
+.chain-chip:hover{ border-color:var(--accent-line); transform:translateY(-1px); }
+.chain-chip .cc-b{ }
+.chain-chip .cc-sym{ font-family:var(--display); font-size:16px; font-weight:600; line-height:1; }
+.chain-chip .cc-val{ font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-top:3px; }
+
+/* ------------------------------------------------------------
+   VARIANT B — wallet SUMMARY CARD pinned in profile
+   ------------------------------------------------------------ */
+.pfw-summary{ padding:22px 24px; }
+.pfw-summary .ps-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:18px; }
+.pfw-summary .ps-total{ font-family:var(--display); font-size:40px; font-weight:600; line-height:1; letter-spacing:-.01em; }
+.pfw-summary .ps-total .cents{ color:var(--ink-3); font-size:.52em; }
+.pfw-summary .ps-delta{ font-family:var(--mono); font-size:12.5px; margin-top:8px; display:inline-flex; align-items:center; gap:7px; }
+.pfw-summary .ps-delta.pos{ color:var(--pos); } .pfw-summary .ps-delta.neg{ color:var(--neg); }
+.pfw-summary .ps-seals{ display:flex; }
+.pfw-summary .ps-seals .tok-seal{ box-shadow:0 0 0 2px var(--paper); margin-left:-8px; }
+.pfw-summary .ps-seals .tok-seal:first-child{ margin-left:0; }
+.pfw-summary .ps-bar{ display:flex; height:8px; border-radius:999px; overflow:hidden; margin:18px 0 16px; background:var(--hair); }
+.pfw-summary .ps-bar span{ display:block; height:100%; }
+.pfw-summary .ps-actions{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.pfw-mini{ display:flex; flex-direction:column; align-items:center; gap:7px; padding:12px 6px; border:1px solid var(--hair); border-radius:11px; background:var(--paper-2); color:var(--ink); cursor:pointer; transition:all .15s; font-family:var(--mono); font-size:11.5px; }
+.pfw-mini:hover{ border-color:var(--accent-line); transform:translateY(-2px); }
+.pfw-mini .mi{ width:34px; height:34px; border-radius:50%; display:grid; place-items:center; background:var(--accent); color:#fff; }
+.pfw-mini.ghost .mi{ background:var(--paper-3); color:var(--accent); border:1px solid var(--accent-line); }
+
+/* ------------------------------------------------------------
+   VARIANT C — on-chain IDENTITY strip (replaces the chip)
+   ------------------------------------------------------------ */
+.pfw-identity{ padding:18px 22px; }
+.pfw-identity .pi-h{ display:flex; align-items:center; gap:10px; margin-bottom:14px; font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); }
+.pfw-identity .pi-h .vfy{ color:var(--pos); display:inline-flex; align-items:center; gap:5px; }
+.pfw-addr-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--hair); border:1px solid var(--hair); border-radius:12px; overflow:hidden; }
+.pfw-addr{ background:var(--paper); padding:13px 15px; display:flex; align-items:center; gap:11px; cursor:pointer; transition:background .14s; }
+.pfw-addr:hover{ background:var(--paper-2); }
+.pfw-addr .pa-b{ min-width:0; flex:1; }
+.pfw-addr .pa-nm{ font-family:var(--display); font-size:15px; font-weight:600; }
+.pfw-addr .pa-ad{ font-family:var(--mono); font-size:11px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pfw-addr .pa-cp{ color:var(--ink-3); flex-shrink:0; display:flex; }
+.pfw-addr:hover .pa-cp{ color:var(--accent); }
+
+/* ------------------------------------------------------------
+   VISITOR view — tip affordance (no balances)
+   ------------------------------------------------------------ */
+.pfw-tip{ padding:22px 24px; display:flex; align-items:center; gap:18px; }
+.pfw-tip .tp-ic{ width:50px; height:50px; border-radius:14px; display:grid; place-items:center; background:var(--accent-soft); color:var(--accent); flex-shrink:0; }
+.pfw-tip .tp-b{ flex:1; min-width:0; }
+.pfw-tip .tp-t{ font-family:var(--display); font-size:19px; font-weight:600; }
+.pfw-tip .tp-d{ font-size:14px; color:var(--ink-2); margin-top:3px; line-height:1.5; }
+.pfw-tip .tp-chains{ display:flex; gap:6px; margin-top:9px; }
+
+/* tip amount presets in sheet */
+.tip-presets{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 6px; }
+.tip-preset{ border:1px solid var(--hair); border-radius:12px; background:var(--paper-2); padding:14px 8px; cursor:pointer; text-align:center; transition:all .15s; }
+.tip-preset:hover{ border-color:var(--accent-line); }
+.tip-preset.on{ border-color:var(--accent); background:var(--accent-soft); }
+.tip-preset .tp-amt{ font-family:var(--display); font-size:22px; font-weight:600; }
+.tip-preset .tp-sub{ font-family:var(--mono); font-size:10.5px; color:var(--ink-3); margin-top:3px; }
+.tip-target{ display:flex; align-items:center; gap:12px; padding:14px 16px; border:1px solid var(--hair); border-radius:12px; background:var(--paper-2); margin-bottom:18px; }
+.tip-target .tt-av{ width:44px; height:44px; border-radius:50%; display:grid; place-items:center; font-family:var(--display); font-size:18px; color:#fff; flex-shrink:0; }
+.tip-target .tt-nm{ font-family:var(--display); font-size:18px; font-weight:600; }
+.tip-target .tt-hd{ font-family:var(--mono); font-size:11px; color:var(--ink-3); }
+
+/* visitor "send a tip" big button on profile actions */
+.btn-tip{ display:inline-flex; align-items:center; gap:8px; }
+
+/* ------------------------------------------------------------
+   demo perspective switch (me / visitor) — floating, not chrome
+   ------------------------------------------------------------ */
+.persp{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:700;
+  display:inline-flex; gap:4px; background:var(--paper); border:1px solid var(--hair); border-radius:999px; padding:4px; box-shadow:0 14px 34px -16px rgba(33,27,21,.5); }
+.persp button{ font-family:var(--mono); font-size:12px; color:var(--ink-2); background:transparent; border:0; padding:8px 16px; border-radius:999px; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:7px; }
+.persp button.on{ background:var(--accent); color:#fff; }
+.persp .lbl{ font-size:10px; color:var(--ink-3); letter-spacing:.1em; text-transform:uppercase; padding:0 8px 0 12px; align-self:center; }
+
+@media (max-width:760px){
+  .pfw-wrap{ padding:0 16px 90px; }
+  .pfw-band{ grid-template-columns:1fr; }
+  .pfw-band .bb-ring{ display:none; }
+  .pfw-actions, .pfw-summary .ps-actions{ grid-template-columns:repeat(4,1fr); }
+  .pfw-addr-grid{ grid-template-columns:1fr; }
+  .persp{ bottom:78px; }
+  .w-nav, .wallet-pill .wp-amt{ display:none; }
 }
 
-/* token seal (chain glyph rendered as a Liber-style seal) */
-.tok-seal{ display:grid; place-items:center; border-radius:30%; color:#fff; font-weight:700;
-  flex-shrink:0; line-height:1; box-shadow:0 1px 2px rgba(0,0,0,.18); }
-.tok-seal.btc{ background:linear-gradient(135deg,#f7931a,#d97b06); }
-.tok-seal.eth{ background:linear-gradient(135deg,#627eea,#3f57c9); }
-.tok-seal.sol{ background:linear-gradient(135deg,#9945ff,#14c0a5); }
-.tok-seal.sui{ background:linear-gradient(135deg,#4da2ff,#2e6fd0); }
+/* ------------------------------------------------------------
+   TOPBAR NAV + WALLET QUICK-ACCESS PILL
+   ------------------------------------------------------------ */
+.w-nav{ display:flex; gap:4px; margin-left:6px; }
+.w-nav button{ font-family:var(--mono); font-size:13px; color:var(--ink-2); background:transparent; border:0; padding:8px 14px; border-radius:999px; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+.w-nav button:hover{ color:var(--ink); background:var(--paper-2); }
+.w-nav button.on{ color:var(--accent); background:var(--accent-soft); }
 
-/* the embedded-wallet panel card (sits under the profile identity) */
-.wpanel{ border:1px solid var(--hair); border-radius:16px; background:var(--paper);
-  overflow:hidden; margin:6px 0 26px; }
-.wpanel-h{ display:flex; align-items:center; gap:10px; padding:16px 20px 0;
-  font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); }
-.wpanel-h .vfy{ color:var(--pos); display:inline-flex; align-items:center; gap:5px; }
-.wpanel-h .more{ margin-left:auto; color:var(--accent); cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
-.wpanel-h .more:hover{ gap:8px; }
+.wallet-pill{ display:inline-flex; align-items:center; gap:9px; border:1px solid var(--hair); border-radius:999px;
+  background:var(--paper-2); padding:5px 12px 5px 6px; cursor:pointer; transition:all .16s; color:var(--ink); }
+.wallet-pill:hover{ border-color:var(--accent-line); transform:translateY(-1px); }
+.wallet-pill .wp-ring{ display:flex; flex-shrink:0; }
+.wallet-pill .wp-amt{ font-family:var(--mono); font-size:13px; white-space:nowrap; }
+.wallet-pill .wp-go{ color:var(--ink-3); display:flex; }
 
-.waddr-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--hair);
-  border-top:1px solid var(--hair); border-bottom:1px solid var(--hair); margin-top:14px; }
-.waddr{ background:var(--paper); padding:13px 16px; display:flex; align-items:center; gap:11px;
-  cursor:pointer; transition:background .14s; }
-.waddr:hover{ background:var(--paper-2); }
-.waddr .wa-b{ min-width:0; flex:1; }
-.waddr .wa-nm{ font-family:var(--display); font-size:15px; font-weight:600; }
-.waddr .wa-ad{ font-family:var(--mono); font-size:11px; color:var(--ink-3);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.waddr .wa-cp{ color:var(--ink-3); flex-shrink:0; display:flex; }
-.waddr:hover .wa-cp{ color:var(--accent); }
+/* ------------------------------------------------------------
+   TIP: public on-chain thank-you toggle + done note
+   ------------------------------------------------------------ */
+.tip-toggle{ display:flex; align-items:center; gap:14px; padding:14px 16px; border:1px solid var(--hair); border-radius:12px; background:var(--paper-2); cursor:pointer; transition:border-color .15s; }
+.tip-toggle:hover{ border-color:var(--accent-line); }
+.tip-toggle .tt-l{ flex:1; min-width:0; }
+.tip-toggle .tt-t{ font-family:var(--display); font-size:16px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.tip-toggle .tt-t svg{ color:var(--accent); }
+.tip-toggle .tt-d{ font-family:var(--mono); font-size:11.5px; color:var(--ink-3); margin-top:4px; line-height:1.5; }
+.tip-toggle .tt-sw{ width:42px; height:24px; border-radius:999px; background:var(--hair); position:relative; flex-shrink:0; transition:background .18s; }
+.tip-toggle .tt-sw i{ position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:var(--paper); box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .18s; }
+.tip-toggle .tt-sw.on{ background:var(--accent); }
+.tip-toggle .tt-sw.on i{ left:21px; }
 
-/* quick actions */
-.wactions{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:16px 20px 18px; }
-.wact{ display:flex; flex-direction:column; align-items:center; gap:7px; padding:12px 6px;
-  border:1px solid var(--hair); border-radius:11px; background:var(--paper-2); color:var(--ink);
-  cursor:pointer; transition:all .15s; font-family:var(--mono); font-size:11.5px; }
-.wact:hover{ border-color:var(--accent-line); transform:translateY(-2px); }
-.wact .wa-ic{ width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
-  background:var(--accent); color:#fff; }
-.wact.ghost .wa-ic{ background:var(--paper-3); color:var(--accent); border:1px solid var(--accent-line); }
-.wtoast{ text-align:center; font-family:var(--mono); font-size:12px; color:var(--ink-3); padding:0 20px 16px; }
+.tip-pubnote{ display:flex; gap:10px; align-items:flex-start; margin-top:18px; padding:13px 15px; border-radius:11px;
+  font-family:var(--mono); font-size:12px; line-height:1.55; color:var(--ink-2);
+  background:var(--paper-2); border:1px solid var(--hair); }
+.tip-pubnote.on{ background:var(--accent-soft); border-color:var(--accent-line); color:var(--ink); }
+.tip-pubnote svg{ flex-shrink:0; margin-top:1px; color:var(--accent); }
+.tip-pubnote b{ font-family:var(--display); font-weight:600; }
 
-/* receive sheet (modal) */
-.wsheet-scrim{ position:fixed; inset:0; background:rgba(20,16,12,.42); display:grid; place-items:center;
-  z-index:900; padding:20px; }
-.wsheet{ width:min(440px,100%); max-height:88vh; overflow:auto; background:var(--paper);
-  border:1px solid var(--hair); border-radius:18px; box-shadow:0 30px 80px -30px rgba(20,16,12,.6); }
-.wsheet-h{ display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid var(--hair); }
-.wsheet-h .ttl{ font-family:var(--display); font-size:20px; font-weight:600; }
-.wsheet-h .x{ cursor:pointer; color:var(--ink-3); display:flex; }
-.wsheet-body{ padding:18px 20px 22px; display:flex; flex-direction:column; gap:13px; }
-.wrcv{ border:1px solid var(--hair); border-radius:14px; padding:14px 16px; background:var(--paper); }
-.wrcv-top{ display:flex; align-items:center; gap:11px; }
-.wrcv-top .wr-nm{ font-family:var(--display); font-size:16px; font-weight:600; }
-.wrcv-top .wr-net{ font-family:var(--mono); font-size:11px; color:var(--ink-3); }
-.wrcv-addr{ font-family:var(--mono); font-size:12.5px; color:var(--ink-2); word-break:break-all; margin-top:10px; line-height:1.55; }
-.wrcv-copy{ margin-top:11px; display:inline-flex; align-items:center; gap:7px; font-family:var(--mono); font-size:12px; color:var(--accent); cursor:pointer; }
-
-@media (max-width:760px){ .waddr-grid{ grid-template-columns:1fr; } }
+/* ------------------------------------------------------------
+   THANKS WALL
+   ------------------------------------------------------------ */
+.thanks-wall{ padding:18px 20px; }
+.thanks-wall .tw-list{ display:flex; flex-direction:column; }
+.thanks-wall .tw-item{ display:flex; gap:13px; padding:14px 0; border-bottom:1px solid var(--hair-2); }
+.thanks-wall .tw-item:first-child{ padding-top:4px; }
+.thanks-wall .tw-item:last-child{ border-bottom:0; padding-bottom:2px; }
+.thanks-wall .tw-av{ width:40px; height:40px; border-radius:50%; display:grid; place-items:center; font-family:var(--display); font-size:17px; color:#fff; flex-shrink:0; }
+.thanks-wall .tw-b{ flex:1; min-width:0; }
+.thanks-wall .tw-top{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.thanks-wall .tw-nm{ font-family:var(--display); font-size:16px; font-weight:600; }
+.thanks-wall .tw-amt{ font-family:var(--mono); font-size:13px; color:var(--pos); white-space:nowrap; }
+.thanks-wall .tw-msg{ font-family:var(--body); font-style:italic; font-size:14.5px; color:var(--ink-2); margin-top:4px; line-height:1.5; }
+.thanks-wall .tw-meta{ font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-top:5px; }
+.thanks-wall .tw-hash{ color:var(--ink-3); }

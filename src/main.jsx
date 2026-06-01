@@ -16,6 +16,7 @@ import "./styles/product-booklist.css";
 import "./styles/product-reader-empty.css";
 import "./styles/product-news.css";
 import "./styles/product-messaging.css";
+import "./styles/wallet.css";
 import "./styles/wallet-profile.css";
 
 /* Data is a bootstrapped singleton: importing it populates window.* (BOOKS,

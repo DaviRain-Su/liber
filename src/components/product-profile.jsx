@@ -1,5 +1,6 @@
 import React from "react";
 import { I, Cover } from "./product-shared.jsx";
+import { WalletTab } from "./product-wallet.jsx";
 import { findCatalogBook, getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
 
@@ -9,81 +10,6 @@ import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
    编辑资料 / 退出 + a 关注中 list of the friends I follow. */
 const { useState: useSp, useEffect: useEpf } = React;
 
-/* ---- Embedded Turnkey wallet panel (ported from the Liber Profile Wallet design) ---- */
-const CHAIN_META = {
-  sui:      { sym:"SUI", cls:"sui", glyph:"S",  name:"Sui" },
-  ethereum: { sym:"ETH", cls:"eth", glyph:"Ξ",  name:"Ethereum" },
-  solana:   { sym:"SOL", cls:"sol", glyph:"◎",  name:"Solana" },
-  bitcoin:  { sym:"BTC", cls:"btc", glyph:"₿",  name:"Bitcoin" },
-};
-const WIC = {
-  shield: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3 5 6v5c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>,
-  recv:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 4v13M6 11l6 6 6-6M5 20h14"/></svg>,
-  swap:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M7 4 4 7l3 3M4 7h12M17 20l3-3-3-3M20 17H8"/></svg>,
-  sign:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 19c3-1 4-9 6-9s2 5 4 5 2-3 4-3M4 21h16"/></svg>,
-  check:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 12 4.5 4.5L19 7"/></svg>,
-};
-const CHAIN_ORDER = ["sui", "ethereum", "solana", "bitcoin"];
-function TokenSeal({ chain, size = 34 }){
-  const m = CHAIN_META[chain] || { cls:"sui", glyph:"◦" };
-  return <div className={`tok-seal ${m.cls}`} style={{ width:size, height:size, fontSize:Math.round(size*0.5) }}>{m.glyph}</div>;
-}
-function WalletPanel({ wallets, onReceive }){
-  const chains = CHAIN_ORDER.filter(c => wallets[c]);
-  const [copied, setCopied] = useSp(null);
-  const [toast, setToast] = useSp("");
-  const copy = (c, a) => { try { navigator.clipboard.writeText(a); } catch (e) {} setCopied(c); setTimeout(() => setCopied(null), 1200); };
-  const soon = (m) => { setToast(m); setTimeout(() => setToast(""), 1800); };
-  return (
-    <div className="wpanel">
-      <div className="wpanel-h">
-        <span>通行密钥钱包 · {chains.length} 链</span>
-        <span className="vfy">{WIC.shield} 已验证</span>
-        <span className="more" onClick={onReceive}>收款 {I.right}</span>
-      </div>
-      <div className="waddr-grid">
-        {chains.map(c => (
-          <div key={c} className="waddr" onClick={() => copy(c, wallets[c])} title={wallets[c]}>
-            <TokenSeal chain={c}/>
-            <div className="wa-b">
-              <div className="wa-nm">{CHAIN_META[c].name}</div>
-              <div className="wa-ad">{wallets[c].slice(0, 8)}…{wallets[c].slice(-6)}</div>
-            </div>
-            <span className="wa-cp">{copied === c ? WIC.check : I.copy}</span>
-          </div>
-        ))}
-      </div>
-      <div className="wactions">
-        <div className="wact" onClick={onReceive}><span className="wa-ic">{WIC.recv}</span>收款</div>
-        <div className="wact" onClick={() => soon("转账功能即将上线")}><span className="wa-ic">{I.send}</span>转账</div>
-        <div className="wact" onClick={() => soon("兑换功能即将上线")}><span className="wa-ic">{WIC.swap}</span>兑换</div>
-        <div className="wact ghost" onClick={() => soon("链上签名即将上线")}><span className="wa-ic">{WIC.sign}</span>签名</div>
-      </div>
-      {toast && <div className="wtoast">{toast}</div>}
-    </div>
-  );
-}
-function ReceiveSheet({ wallets, onClose }){
-  const chains = CHAIN_ORDER.filter(c => wallets[c]);
-  const [copied, setCopied] = useSp(null);
-  const copy = (c, a) => { try { navigator.clipboard.writeText(a); } catch (e) {} setCopied(c); setTimeout(() => setCopied(null), 1400); };
-  return (
-    <div className="wsheet-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="wsheet" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="wsheet-h"><span className="ttl">收款地址</span><span className="x" onClick={onClose}>{I.x}</span></div>
-        <div className="wsheet-body">
-          {chains.map(c => (
-            <div className="wrcv" key={c}>
-              <div className="wrcv-top"><TokenSeal chain={c} size={30}/><div><div className="wr-nm">{CHAIN_META[c].name}</div><div className="wr-net">{CHAIN_META[c].sym} · 主网</div></div></div>
-              <div className="wrcv-addr">{wallets[c]}</div>
-              <div className="wrcv-copy" onClick={() => copy(c, wallets[c])}>{copied === c ? WIC.check : I.copy} {copied === c ? "已复制" : "复制地址"}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 const EMPTY_ME = {
   name: "未登录读者",
   handle: "@login",
@@ -202,7 +128,6 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
   const [editSaving, setEditSaving] = useSp(false);
   const [editError, setEditError] = useSp("");
   const [, refreshShelf] = useSp(0);
-  const [walletReceive, setWalletReceive] = useSp(false);
   useEpf(() => {
     const offCatalog = subscribeCatalog((books) => setCatalog(books));
     const offShelf = subscribeShelf(() => refreshShelf((n) => n + 1));
@@ -359,7 +284,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               <h1>{person.name}{isMe && <span className="pf-you">你</span>}</h1>
               <div className="handle">{person.handle} · {person.joined}</div>
               <p className="bio">{person.bio}</p>
-              <div className="pf-wallet" onClick={() => isMe && person.turnkeyWallets && setWalletReceive(true)} style={isMe && person.turnkeyWallets ? { cursor: "pointer" } : undefined}>{I.lock} {person.wallet}</div>
+              <div className="pf-wallet" onClick={() => { if (isMe && person.turnkeyWallets) setTab("wallet"); }} style={isMe && person.turnkeyWallets ? { cursor: "pointer" } : undefined}>{I.lock} {isMe && person.turnkeyWallets ? "通行密钥钱包 · 4 链" : person.wallet}</div>
             </div>
             <div className="pf-actions">
               {isMe ? (
@@ -382,10 +307,6 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
             </div>
           </div>
 
-          {isMe && person.turnkeyWallets && (person.turnkeyWallets.sui || person.turnkeyWallets.ethereum || person.turnkeyWallets.solana || person.turnkeyWallets.bitcoin) && (
-            <WalletPanel wallets={person.turnkeyWallets} onReceive={() => setWalletReceive(true)} />
-          )}
-
           <div className="pf-stats">
             <Stat n={realStats.read} l="在读"/>
             <Stat n={realStats.finished} l="读完"/>
@@ -403,7 +324,12 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
             <button className={tab==="finished"?"on":""} onClick={()=>setTab("finished")}>读完 · {finished.length}</button>
             <button className={tab==="notes"?"on":""} onClick={()=>setTab("notes")}>公开批注 · {publicNotes.length}</button>
             {isMe && <button className={tab==="following"?"on":""} onClick={()=>setTab("following")}>关注中 · {followedPeople.length}</button>}
+            {isMe && person.turnkeyWallets && <button className={tab==="wallet"?"on":""} onClick={()=>setTab("wallet")}>{I.lock} 钱包</button>}
           </div>
+
+          {tab === "wallet" && isMe && person.turnkeyWallets && (
+            <WalletTab wallets={person.turnkeyWallets} />
+          )}
 
           {tab === "shelf" && (
             <div className="pf-shelf">
@@ -467,9 +393,6 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
           onSave={saveEdit}
           onClose={() => !editSaving && setEditOpen(false)}
         />
-      )}
-      {walletReceive && person.turnkeyWallets && (
-        <ReceiveSheet wallets={person.turnkeyWallets} onClose={() => setWalletReceive(false)} />
       )}
     </div>
   );
