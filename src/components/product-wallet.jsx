@@ -133,8 +133,8 @@ function Sheet({ title, step, onBack, onClose, wide, children }){
       <div className="sheet-h">{onBack&&<span className="back" onClick={onBack}>{WI.left}</span>}<span className="ttl">{title}</span>{step&&<span className="step">{step}</span>}<span className="x" onClick={onClose}>{WI.x}</span></div>
       <div className="sheet-body">{children}</div></div></div>);
 }
-function TokenPick({ value, onChange }){
-  return (<div className="tok-pick">{TOKENS.map(t=>(<div key={t.sym} className={"tok-pill"+(value&&value.sym===t.sym?" on":"")} onClick={()=>onChange(t)}><TokenSeal token={t} size={30}/><div><div className="tp-nm">{t.sym}</div><div className="tp-bal tnum">{t.amt}</div></div></div>))}</div>);
+function TokenPick({ tokens, value, onChange }){
+  return (<div className="tok-pick">{tokens.map(t=>(<div key={t.sym} className={"tok-pill"+(value&&value.sym===t.sym?" on":"")} onClick={()=>onChange(t)}><TokenSeal token={t} size={30}/><div><div className="tp-nm">{t.sym}</div><div className="tp-bal tnum">{t.amt}</div></div></div>))}</div>);
 }
 function RecipientPick({ token, value, onChange }){
   const [custom,setCustom]=useS("");
@@ -158,8 +158,8 @@ function ReviewRows({ token, recipient, amount }){
     <div className="rr"><span className="k">矿工费</span><span className="v tnum">≈ $0.21</span></div>
     <div className="rr total"><span className="k">合计</span><span className="v tnum">{amount||0} {token.sym}</span></div></div>);
 }
-function SendFlow({ presetToken, onClose }){
-  const [token,setToken]=useS(presetToken||TOKENS[0]);
+function SendFlow({ tokens, presetToken, onClose }){
+  const [token,setToken]=useS(presetToken||tokens[0]);
   const [recipient,setRecipient]=useS(null);
   const [amount,setAmount]=useS("");
   const [phase,setPhase]=useS("asset");
@@ -169,7 +169,7 @@ function SendFlow({ presetToken, onClose }){
   const next=()=>setPhase(order[idx+1]); const back=idx>0&&phase!=="done"?()=>setPhase(order[idx-1]):null;
   return (<Sheet title={titles[phase]} step={phase!=="done"?`${idx+1} / 5`:null} onBack={back} onClose={onClose}>
     <div className="steps" style={{ marginBottom:20 }}>{order.slice(0,5).map((s,i)=><i key={s} className={i===idx?"on":i<idx?"done":""}/>)}</div>
-    {phase==="asset" && <TokenPick value={token} onChange={(t)=>{ setToken(t); next(); }}/>}
+    {phase==="asset" && <TokenPick tokens={tokens} value={token} onChange={(t)=>{ setToken(t); next(); }}/>}
     {phase==="recipient" && <RecipientPick token={token} value={recipient} onChange={setRecipient}/>}
     {phase==="amount" && <AmountEntry token={token} amount={amount} onChange={setAmount}/>}
     {phase==="review" && <ReviewRows token={token} recipient={recipient} amount={amount}/>}
@@ -192,11 +192,11 @@ function ReceiveFlow({ presetToken, addresses, onClose }){
     <div style={{ fontFamily:"var(--mono)", fontSize:12, color:"var(--ink-3)", marginTop:16, lineHeight:1.6 }}>仅向此地址转入 <b style={{ color:"var(--ink-2)" }}>{chain}</b> 网络资产。<br/>由通行密钥守护 · 无需助记词。</div>
   </div></Sheet>);
 }
-function SwapFlow({ presetToken, onClose }){
-  const [from,setFrom]=useS(presetToken&&!presetToken.stable?presetToken:TOKENS[1]);
-  const [to,setTo]=useS(TOKENS[4]); const [amt,setAmt]=useS("1"); const [pick,setPick]=useS(null); const [phase,setPhase]=useS("form");
+function SwapFlow({ tokens, presetToken, onClose }){
+  const [from,setFrom]=useS(presetToken||tokens[0]);
+  const [to,setTo]=useS(tokens[1]||tokens[0]); const [amt,setAmt]=useS("1"); const [pick,setPick]=useS(null); const [phase,setPhase]=useS("form");
   const rate=priceNum(from)/(priceNum(to)||1), out=(Number(amt)||0)*rate; const flip=()=>{ setFrom(to); setTo(from); };
-  if (pick) return (<Sheet title="选择代币" onBack={()=>setPick(null)} onClose={onClose}><TokenPick value={pick==="from"?from:to} onChange={(t)=>{ pick==="from"?setFrom(t):setTo(t); setPick(null); }}/></Sheet>);
+  if (pick) return (<Sheet title="选择代币" onBack={()=>setPick(null)} onClose={onClose}><TokenPick tokens={tokens} value={pick==="from"?from:to} onChange={(t)=>{ pick==="from"?setFrom(t):setTo(t); setPick(null); }}/></Sheet>);
   return (<Sheet title="兑换 · Swap" onClose={onClose} onBack={phase==="pk"?()=>setPhase("form"):null}>
     {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">兑换完成</div><div className="dsub">{amt} {from.sym} → {out.toPrecision(6)} {to.sym}</div></div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
     : phase==="pk" ? <PasskeyGate label="确认兑换" onDone={()=>setPhase("done")} onCancel={()=>setPhase("form")}/>
@@ -229,23 +229,24 @@ function ActivityDetail({ item, onClose }){
     {item.note && <div style={{ fontFamily:"var(--body)", fontStyle:"italic", fontSize:15, color:"var(--ink-2)", marginTop:16, padding:"0 4px" }}>「{item.note}」</div>}
     <button className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20 }}>{WI.ext} 在区块浏览器中查看</button></Sheet>);
 }
-function FlowHost({ flow, addresses, onClose }){
+function FlowHost({ flow, addresses, tokens, onClose }){
   if (!flow) return null;
-  if (flow.kind==="send") return <SendFlow presetToken={flow.token} onClose={onClose}/>;
+  if (flow.kind==="send") return <SendFlow tokens={tokens} presetToken={flow.token} onClose={onClose}/>;
   if (flow.kind==="receive") return <ReceiveFlow presetToken={flow.token} addresses={addresses} onClose={onClose}/>;
-  if (flow.kind==="swap") return <SwapFlow presetToken={flow.token} onClose={onClose}/>;
+  if (flow.kind==="swap") return <SwapFlow tokens={tokens} presetToken={flow.token} onClose={onClose}/>;
   if (flow.kind==="sign") return <SignFlow onClose={onClose}/>;
   if (flow.kind==="activity") return <ActivityDetail item={flow.item} onClose={onClose}/>;
   return null;
 }
 
 /* ---------- tab-pane sections ---------- */
-function WalletBand(){
-  const p=PORTFOLIO; const [whole,cents]=fmtUSD(p.total).replace("$","").split("."); const pos=p.chg24h>=0;
-  return (<div className="pfw-band"><div><div className="bb-label">{WI.shield} 我的资产 · 由通行密钥守护 · 示例数据</div>
+function WalletBand({ portfolio, alloc, loading }){
+  const [whole, cents] = fmtUSD(portfolio.total).replace("$", "").split(".");
+  const hasAlloc = alloc && alloc.length > 0;
+  return (<div className="pfw-band"><div><div className="bb-label">{WI.shield} 我的资产 · 由通行密钥守护{loading ? " · 加载中…" : ""}</div>
     <div className="bb-total tnum">${whole}<span className="cents">.{cents}</span></div>
-    <div className={"bb-delta "+(pos?"pos":"neg")}><span className="pill">{pos?WI.up:WI.down} {signed(p.chg24h)}</span><span className="tnum">{pos?"+":""}{fmtUSD(Math.abs(p.chgAbs))} · 今日</span></div></div>
-    <div className="bb-ring"><AllocRing alloc={ALLOC} size={108} thick={15}/></div></div>);
+    <div className="bb-delta"><span className="tnum" style={{ color: "var(--ink-3)" }}>{hasAlloc ? "链上实时余额 · 主网" : "暂无资产 · 向上方地址转入即可"}</span></div></div>
+    {hasAlloc && <div className="bb-ring"><AllocRing alloc={alloc} size={108} thick={15}/></div>}</div>);
 }
 function QuickActions({ onAction }){
   return (<div className="pfw-actions">
@@ -262,14 +263,14 @@ function IdentityStrip({ wallets, onReceive }){
   return (<div className="pfw-card pfw-identity"><div className="pi-h"><span>链上身份 · 真实地址</span><span className="vfy">{WI.shield} 通行密钥已验证</span><span className="more" style={{ marginLeft:"auto" }} onClick={onReceive}>收款 {WI.right}</span></div>
     <div className="pfw-addr-grid">{rows.map(([k,sym,name])=>(<div key={k} className="pfw-addr" onClick={()=>copy(k,wallets[k])} title={wallets[k]}><TokenSeal token={sym} size={34}/><div className="pa-b"><div className="pa-nm">{name}</div><div className="pa-ad">{wallets[k]}</div></div><span className="pa-cp">{copied===k?WI.check:WI.copy}</span></div>))}</div></div>);
 }
-function AssetList({ onOpen }){
-  return (<div className="panel"><div className="asset-rows">{TOKENS.map(t=>{ const pos=t.chg>=0; return (
+function AssetList({ tokens, onOpen }){
+  return (<div className="panel"><div className="asset-rows">{tokens.map(t=>(
     <div key={t.sym} className="arow" onClick={()=>onOpen(t)}><TokenSeal token={t} size={42}/>
       <div className="a-id"><div className="nm">{t.name}</div><div className="ch">{t.chain} · {t.sym}</div></div>
-      <div className="a-price tnum">${t.price}<span className={"chg "+(pos?"pos":"neg")}>{signed(t.chg)}</span></div>
-      <div className="a-spark"><Sparkline data={t.spark} w={120} h={34} up={pos}/></div>
-      <div className="a-bal"><div className="v tnum">{fmtUSD(t.value)}</div><div className="u tnum">{t.amt} {t.sym}</div></div>
-      <span className="a-go">{WI.chev}</span></div>); })}</div></div>);
+      <div className="a-price tnum">{t.price != null ? "$" + Number(t.price).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</div>
+      <div className="a-spark">{t.spark ? <Sparkline data={t.spark} w={120} h={34} up/> : null}</div>
+      <div className="a-bal"><div className="v tnum">{t.value ? fmtUSD(t.value) : "$0.00"}</div><div className="u tnum">{t.amt} {t.sym}</div></div>
+      <span className="a-go">{WI.chev}</span></div>))}</div></div>);
 }
 function ActivityList({ items, onOpen, limit }){
   const list=limit?items.slice(0,limit):items;
@@ -292,10 +293,24 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const [flow, setFlow] = useS(null);
   const [pkState, setPkState] = useS(passkeyEnrolled ? "done" : "idle"); // idle | working | done | error
   const [pkErr, setPkErr] = useS("");
+  const [bal, setBal] = useS(null);
+  const [loading, setLoading] = useS(true);
+  useE(() => {
+    let live = true;
+    api.auth.walletBalances().then((r) => { if (live) { setBal(r); setLoading(false); } }).catch(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, []);
+  const tokens = ((bal && bal.tokens) || []).map((t) => ({
+    sym: t.sym, name: t.name, chain: t.chain, cls: t.cls, glyph: t.glyph,
+    amt: t.amt == null ? "—" : String(t.amt), value: t.value == null ? 0 : t.value,
+    price: t.price, chg: 0, spark: null, address: t.address,
+  }));
+  const portfolio = { total: (bal && bal.total) || 0 };
+  const alloc = tokens.filter((t) => t.value > 0).map((t) => ({ sym: t.sym, cls: t.cls, value: t.value })).sort((a, b) => b.value - a.value);
   const addresses = { SUI: wallets.sui, ETH: wallets.ethereum, SOL: wallets.solana, BTC: wallets.bitcoin };
   const onAction = (kind, arg) => {
-    if (kind === "asset") { setFlow({ kind: "activity", item: ACTIVITY[0] }); return; }
     if (kind === "activity") { setFlow({ kind: "activity", item: arg }); return; }
+    if ((kind === "send" || kind === "swap") && !tokens.length) return;
     setFlow({ kind, token: arg });
   };
   const enrollPasskey = async () => {
@@ -322,26 +337,22 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
           </button>
         </div>
       )}
-      <WalletBand/>
+      <WalletBand portfolio={portfolio} alloc={alloc} loading={loading}/>
       <QuickActions onAction={onAction}/>
       <IdentityStrip wallets={wallets} onReceive={() => setFlow({ kind: "receive" })}/>
       <div>
-        <div className="pfw-h"><span className="t">资产 · {TOKENS.length} 项</span><span className="lock">示例余额 · 待接入链上</span><span className="more" onClick={() => onAction("swap")}>兑换 {WI.right}</span></div>
-        <AssetList onOpen={(t) => onAction("send", t)}/>
+        <div className="pfw-h"><span className="t">资产 · {tokens.length || 4} 链</span><span className="lock">{loading ? "加载中…" : "链上实时余额 · 主网"}</span></div>
+        <AssetList tokens={tokens} onOpen={(t) => onAction("send", t)}/>
       </div>
       <div>
         <div className="pfw-h"><span className="t">在 Liber 里用它</span></div>
         <UsesGrid onAction={onAction}/>
       </div>
       <div>
-        <div className="pfw-h"><span className="t">账册 · 最近活动</span><span className="lock">示例</span></div>
-        <ActivityList items={ACTIVITY} onOpen={(a) => onAction("activity", a)} limit={5}/>
+        <div className="pfw-h"><span className="t">账册 · 最近活动</span></div>
+        <div className="panel" style={{ padding: "26px", textAlign: "center", fontFamily: "var(--mono)", fontSize: 13, color: "var(--ink-3)" }}>暂无链上活动 · 交易后会出现在这里</div>
       </div>
-      <div>
-        <div className="pfw-h"><span className="t">收到的致谢</span><span className="lock">{WI.book} 链上公开</span></div>
-        <ThanksWall/>
-      </div>
-      <FlowHost flow={flow} addresses={addresses} onClose={() => setFlow(null)}/>
+      <FlowHost flow={flow} addresses={addresses} tokens={tokens} onClose={() => setFlow(null)}/>
     </div>
   );
 }

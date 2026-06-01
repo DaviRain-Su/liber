@@ -223,6 +223,44 @@ turnkey.post("/sign-test", async (c) => {
   }
 });
 
+// Real on-chain balances for the logged-in user's 4 addresses + live prices.
+// Best-effort per chain (a failed RPC returns null → the UI shows "—").
+turnkey.get("/balances", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  let tk: any = null;
+  try { tk = user?.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { tk = null; }
+  if (!tk) return c.json({ ok: true, tokens: [], total: 0 });
+
+  const jrpc = async (url: string, method: string, params: any[]) => {
+    const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+    const j: any = await r.json(); if (j.error) throw new Error(j.error.message); return j.result;
+  };
+  const suiBal = async (a: string) => { try { const cl = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("mainnet"), network: "mainnet" as any }); const b: any = await cl.getBalance({ owner: a }); return Number(b.totalBalance) / 1e9; } catch { return null; } };
+  const evmBal = async (a: string) => { try { const r = await jrpc("https://ethereum-rpc.publicnode.com", "eth_getBalance", [a, "latest"]); return r ? parseInt(r, 16) / 1e18 : null; } catch { return null; } };
+  const solBal = async (a: string) => { try { const r: any = await jrpc("https://api.mainnet-beta.solana.com", "getBalance", [a]); return r ? Number(r.value) / 1e9 : null; } catch { return null; } };
+  const btcBal = async (a: string) => { try { const r = await fetch(`https://blockstream.info/api/address/${a}`); const j: any = await r.json(); const s = j.chain_stats; return s ? (Number(s.funded_txo_sum) - Number(s.spent_txo_sum)) / 1e8 : null; } catch { return null; } };
+
+  const [btc, eth, sol, sui] = await Promise.all([btcBal(tk.bitcoin), evmBal(tk.ethereum), solBal(tk.solana), suiBal(tk.sui)]);
+  let prices: any = {};
+  try { const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,sui&vs_currencies=usd"); prices = await r.json(); } catch { prices = {}; }
+
+  const META = [
+    { key: "bitcoin", sym: "BTC", chain: "Bitcoin", cls: "btc", cg: "bitcoin", amt: btc },
+    { key: "ethereum", sym: "ETH", chain: "Ethereum", cls: "eth", cg: "ethereum", amt: eth },
+    { key: "solana", sym: "SOL", chain: "Solana", cls: "sol", cg: "solana", amt: sol },
+    { key: "sui", sym: "SUI", chain: "Sui", cls: "sui", cg: "sui", amt: sui },
+  ];
+  const tokens = META.map((m) => {
+    const price = prices?.[m.cg]?.usd ?? null;
+    const value = m.amt != null && price != null ? m.amt * price : m.amt != null ? 0 : null;
+    return { sym: m.sym, name: m.chain, chain: m.chain, cls: m.cls, glyph: { BTC: "₿", ETH: "Ξ", SOL: "◎", SUI: "S" }[m.sym], amt: m.amt, price, value, address: tk[m.key] };
+  });
+  const total = tokens.reduce((s, t) => s + (t.value || 0), 0);
+  return c.json({ ok: true, tokens, total });
+});
+
 // Enroll a WebAuthn passkey as an authenticator on the logged-in user's wallet
 // sub-org, so they (not the server) can authorize signing. The attestation is
 // created client-side via navigator.credentials.create / the Turnkey SDK.

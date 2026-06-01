@@ -69,6 +69,7 @@ export const api = {
     ensureWallet: () => post("/turnkey/ensure"),
     // Enroll a WebAuthn passkey on the wallet sub-org (payload from createWalletPasskey).
     enrollWalletPasskey: (payload) => post("/turnkey/passkey/enroll", payload),
+    walletBalances: () => get("/turnkey/balances"),
     cliStart: () => post("/auth/cli/start"),
     cliPoll: (deviceCode) => get(`/auth/cli/poll/${encodeURIComponent(deviceCode)}`),
     cliApprove: (deviceCode) => post("/auth/cli/approve", { deviceCode }),
