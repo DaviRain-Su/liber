@@ -6,6 +6,7 @@
 import type { Env } from "./types";
 import { first, run, id, now } from "./db";
 import { getUser, type UserRow } from "./auth";
+import { createSubOrgWithSuiWallet, turnkeyConfigured } from "./turnkey";
 
 export interface TurnkeyUserInput {
   // The Liber identity key stored in users.sui_address — UNCHANGED for existing users
@@ -52,4 +53,29 @@ export async function upsertTurnkeyUser(env: Env, input: TurnkeyUserInput): Prom
     input.suiAddress,
   );
   return { user: (await getUser(env, uid))!, isNew: true };
+}
+
+// Lazily give a user a Turnkey embedded Sui wallet (the product win: a real
+// non-custodial on-chain address for every reader). Idempotent. Only provisions for
+// wallet-less users (email:/google:/passkey-NULL); wallet-connect users already
+// brought their own address, and guests are skipped. The server (parent API key) is
+// a root user of the sub-org, so it can sign Sui actions for the user (custodial,
+// see plan): exactly what work-registration needs.
+export async function ensureTurnkeyWallet(env: Env, user: UserRow): Promise<{ subOrgId: string; suiAddress: string } | null> {
+  const u = user as any;
+  if (u.turnkey_sub_org_id && u.turnkey_sui_address) {
+    return { subOrgId: u.turnkey_sub_org_id, suiAddress: u.turnkey_sui_address };
+  }
+  if (!turnkeyConfigured(env) || user.is_guest) return null;
+  const key = user.sui_address || "";
+  const ownWallet = !!key && !key.startsWith("email:") && !key.startsWith("google:") && !key.startsWith("guest:");
+  if (ownWallet) return null; // wallet-connect users already control their own wallet
+
+  const created = await createSubOrgWithSuiWallet(env, `liber-${user.id}`);
+  const r = created.result?.createSubOrganizationResultV7 || created.result?.createSubOrganizationResult || created.result || {};
+  const subOrgId = r.subOrganizationId;
+  const suiAddress = (r.wallet?.addresses || [])[0];
+  if (!subOrgId || !suiAddress) return null;
+  await run(env.DB, `UPDATE users SET turnkey_sub_org_id = ?, turnkey_sui_address = ? WHERE id = ?`, subOrgId, suiAddress, user.id);
+  return { subOrgId, suiAddress };
 }

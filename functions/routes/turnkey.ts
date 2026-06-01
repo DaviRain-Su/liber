@@ -8,10 +8,11 @@
 // ADMIN_TOKEN so it can't be triggered by the public.
 import { Hono } from "hono";
 import type { Env, Variables } from "../lib/types";
-import { bearerToken, hasAdminToken, createSession } from "../lib/auth";
+import { bearerToken, hasAdminToken, createSession, getUser } from "../lib/auth";
+import { id, now, run, first } from "../lib/db";
 import { turnkeyConfigured, createSubOrgWithSuiWallet, getWalletAccount, signRawPayload } from "../lib/turnkey";
 import { suiAddressFromEd25519Pubkey, suiPersonalMessageDigestHex, assembleSuiSignature } from "../lib/turnkey-sui";
-import { upsertTurnkeyUser } from "../lib/turnkey-auth";
+import { upsertTurnkeyUser, ensureTurnkeyWallet } from "../lib/turnkey-auth";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -75,6 +76,45 @@ turnkey.post("/spike", async (c) => {
     });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e), debug }, 500);
+  }
+});
+
+// Give the logged-in user a Turnkey embedded Sui wallet if they don't have one
+// (idempotent). The frontend calls this once after login. Wallet-connect users and
+// guests are no-ops.
+turnkey.post("/ensure", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  try {
+    const res = await ensureTurnkeyWallet(c.env, user);
+    return c.json({ ok: true, provisioned: !!res, suiAddress: res?.suiAddress ?? (user as any).turnkey_sui_address ?? null });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+// Admin self-test: make a synthetic wallet-less email user, then provision. Proves
+// the bolt-on path without an interactive login.
+turnkey.post("/ensure-test", async (c) => {
+  const env = c.env;
+  if (!hasAdminToken(env, bearerToken(c))) return c.json({ error: "unauthorized" }, 401);
+  if (!turnkeyConfigured(env)) return c.json({ error: "turnkey_not_configured" }, 501);
+  const uid = id("u_");
+  const identityKey = `email:tk-test-${uid}@example.com`;
+  await run(
+    env.DB,
+    `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
+    uid, identityKey, `@${uid}`, "Turnkey 测试用户", "#2e7d57", "测", "", now(),
+  );
+  try {
+    const user = await getUser(env, uid);
+    const res = await ensureTurnkeyWallet(env, user!);
+    const after = await first<any>(env.DB, `SELECT turnkey_sub_org_id, turnkey_sui_address FROM users WHERE id = ?`, uid);
+    return c.json({ ok: true, identityKey, provisioned: !!res, suiAddress: res?.suiAddress ?? null, linked: after });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
 });
 
