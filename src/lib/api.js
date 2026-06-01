@@ -64,6 +64,9 @@ export const api = {
       loginVerify: (response) => post("/auth/passkey/login/verify", { response }),
     },
     updateMe: (payload) => put("/auth/me", payload),
+    // Provision a Turnkey embedded Sui wallet for a wallet-less signed-in user
+    // (idempotent; no-op for wallet-connect users + guests). Called once post-login.
+    ensureWallet: () => post("/turnkey/ensure"),
     cliStart: () => post("/auth/cli/start"),
     cliPoll: (deviceCode) => get(`/auth/cli/poll/${encodeURIComponent(deviceCode)}`),
     cliApprove: (deviceCode) => post("/auth/cli/approve", { deviceCode }),

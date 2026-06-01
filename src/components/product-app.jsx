@@ -99,7 +99,26 @@ function App(){
     }
     let live = true;
     window.liberApi.auth.me()
-      .then(r => { if (live) setAuthUser(r?.user || null); })
+      .then(r => {
+        if (!live) return;
+        const u = r?.user || null;
+        setAuthUser(u);
+        // Bolt-on: give a wallet-less signed-in reader a Turnkey embedded Sui wallet
+        // (best-effort, once per device). Wallet-connect users + guests are no-ops.
+        if (u && !u.is_guest && !u.turnkey_sui_address && window.liberApi.auth.ensureWallet) {
+          const flag = `liber.tk.ensured.${u.id}`;
+          if (!localStorage.getItem(flag)) {
+            window.liberApi.auth.ensureWallet()
+              .then(res => {
+                localStorage.setItem(flag, "1");
+                if (live && res?.suiAddress) {
+                  setAuthUser(prev => (prev && prev.id === u.id) ? { ...prev, turnkey_sui_address: res.suiAddress } : prev);
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      })
       .catch(() => { if (live) setAuthUser(null); });
     return () => { live = false; };
   }, []);
