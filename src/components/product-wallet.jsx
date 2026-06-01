@@ -237,9 +237,9 @@ function ReceiveFlow({ presetToken, addresses, onClose }){
     <div style={{ fontFamily:"var(--mono)", fontSize:12, color:"var(--ink-3)", marginTop:16, lineHeight:1.6 }}>仅向此地址转入 <b style={{ color:"var(--ink-2)" }}>{chain}</b> 网络资产。<br/>由通行密钥守护 · 无需助记词。</div>
   </div></Sheet>);
 }
-// LI.FI routes from an Ethereum-source token (ETH/USDC), same-chain or cross-chain to
-// SOL. SOL-source + Sui/BTC aren't routable yet, so they're honestly gated.
-const SWAP_FROM = ["ETH","USDC"]; const SWAP_TO = ["ETH","USDC","SOL"];
+// LI.FI routes any pair among ETH/USDC/SOL (same-chain + cross-chain). Sui/BTC aren't
+// routable via LI.FI, so they're honestly gated (quote shown, execute disabled).
+const SWAP_FROM = ["ETH","USDC","SOL"]; const SWAP_TO = ["ETH","USDC","SOL"];
 function SwapFlow({ tokens, presetToken, onClose }){
   const pickable=tokens.filter(t=>SWAP_FROM.includes(t.sym)||SWAP_TO.includes(t.sym));
   const [from,setFrom]=useS((presetToken&&SWAP_FROM.includes(presetToken.sym)?presetToken:null)||pickable.find(t=>t.sym==="ETH")||pickable[0]);
@@ -256,14 +256,22 @@ function SwapFlow({ tokens, presetToken, onClose }){
   const swap=async()=>{
     const prep=await api.auth.swapPrepare({ from:from.sym, to:to.sym, amount:Number(amt) });
     if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建兑换失败");
-    const steps=prep.steps||[]; let last=null;
-    for (let i=0;i<steps.length;i++){
-      const st=steps[i];
-      setProgress(steps.length>1?`第 ${i+1}/${steps.length} 步 · ${st.kind==="approve"?"授权代币":"兑换"}`:"");
-      const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:st.digestHex, hashFunction:prep.hashFunction });
-      const o=await api.auth.evmBroadcast({ tx:st.tx, activityId });
-      if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"广播失败");
-      last=o;
+    let last=null;
+    if (prep.chainKind==="sol"){ // Solana-source: one ed25519 signature over the LI.FI tx
+      setProgress("");
+      const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
+      last=await api.auth.swapSolBroadcast({ sol:prep.sol, activityId });
+      if (!last||!last.ok) throw new Error((last&&(last.message||last.error))||"广播失败");
+    } else { // EVM-source: ordered steps (approve → swap)
+      const steps=prep.steps||[];
+      for (let i=0;i<steps.length;i++){
+        const st=steps[i];
+        setProgress(steps.length>1?`第 ${i+1}/${steps.length} 步 · ${st.kind==="approve"?"授权代币":"兑换"}`:"");
+        const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:st.digestHex, hashFunction:prep.hashFunction });
+        const o=await api.auth.evmBroadcast({ tx:st.tx, activityId });
+        if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"广播失败");
+        last=o;
+      }
     }
     setResult({ ...last, quote:prep.quote }); setPhase("done");
   };
@@ -276,7 +284,7 @@ function SwapFlow({ tokens, presetToken, onClose }){
       <div className="swap-mid"><button onClick={flip}>{WI.swap}</button></div>
       <div className="swap-leg"><div className="sl-top"><span>获得（预估）</span><span className="tnum">余额 {to.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" readOnly value={out?out.toPrecision(6):"0"}/><div className="sl-pick" onClick={()=>setPick("to")}><TokenSeal token={to} size={26}/><span className="nm">{to.sym}</span>{WI.down}</div></div></div>
       <div className="swap-rate"><div className="sr"><span className="k">汇率 · 实时价</span><span className="tnum">{rate?`1 ${from.sym} ≈ ${rate.toPrecision(5)} ${to.sym}`:"—"}</span></div><div className="sr"><span className="k">滑点上限</span><span>1%</span></div><div className="sr"><span className="k">路由</span><span>{realPair?(crossChain?"LI.FI · 跨链":"LI.FI"):"—"}</span></div></div>
-      {!realPair && <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} 真实兑换来源目前支持 <b>ETH / USDC</b>（可兑换为 ETH / USDC / 跨链 SOL）。SOL 作为来源、以及 Sui / BTC，LI.FI 暂不支持，仅显示报价。</div>}
+      {!realPair && <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} 真实兑换支持 <b>ETH / USDC / SOL</b> 之间任意互换（含跨链）。Sui 与 BTC 经由 LI.FI 暂不支持,仅显示实时报价。</div>}
       <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} disabled={!(Number(amt)>0)||!realPair} onClick={()=>setPhase("pk")}>{WI.sign} {realPair?"审阅并用通行密钥兑换":"该兑换对暂不可执行"}</button></>)}
   </Sheet>);
 }

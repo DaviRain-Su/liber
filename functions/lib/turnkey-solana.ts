@@ -41,3 +41,40 @@ export function solSignedTxBase64(message: Uint8Array, sigHex: string): string {
   const sig = hexToBytes(sigHex);
   return base64.encode(concat([shortvec(1), sig, message]));
 }
+
+// --- signing a pre-built Solana tx (e.g. from the LI.FI aggregator) ----------------
+// The wire format is [shortvec(numSigs)][numSigs*64 sig slots][message]; each signer
+// ed25519-signs the whole message. We locate the signer's slot, return the message to
+// sign, then splice the 64-byte signature into its slot.
+function readShortvec(bytes: Uint8Array, pos: number): { value: number; len: number } {
+  let value = 0, len = 0, shift = 0;
+  for (;;) { const b = bytes[pos + len]; value |= (b & 0x7f) << shift; len++; if (!(b & 0x80)) break; shift += 7; }
+  return { value, len };
+}
+
+// Parse a base64 transaction for a given signer (base58 pubkey): returns the message
+// hex to sign and the byte offset of that signer's signature slot.
+export function solParseForSigning(txB64: string, signerB58: string): { messageHex: string; sigOffset: number } {
+  const bytes = base64.decode(txB64);
+  const signer = base58.decode(signerB58);
+  const sig = readShortvec(bytes, 0);
+  const messageStart = sig.len + sig.value * 64;
+  let p = messageStart;
+  if (bytes[p] & 0x80) p += 1; // versioned (v0) message version byte
+  const numReq = bytes[p]; p += 3; // message header (3 bytes)
+  const accs = readShortvec(bytes, p); p += accs.len;
+  let slot = 0;
+  for (let i = 0; i < numReq; i++) {
+    let match = true;
+    for (let k = 0; k < 32; k++) if (bytes[p + i * 32 + k] !== signer[k]) { match = false; break; }
+    if (match) { slot = i; break; }
+  }
+  return { messageHex: bytesToHex(bytes.slice(messageStart)), sigOffset: sig.len + slot * 64 };
+}
+
+// Splice a 64-byte signature into the given slot and return the broadcast-ready base64.
+export function solInjectSignature(txB64: string, sigHex: string, sigOffset: number): string {
+  const bytes = base64.decode(txB64);
+  bytes.set(hexToBytes(sigHex).slice(0, 64), sigOffset);
+  return base64.encode(bytes);
+}

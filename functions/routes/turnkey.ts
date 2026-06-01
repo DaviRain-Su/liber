@@ -21,7 +21,7 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { relTime } from "../lib/time";
 import { evmSigningDigestHex, evmSignedRawTx, erc20TransferData, toBaseUnits, type EvmTx } from "../lib/turnkey-evm";
-import { solTransferMessage, solMessageHex, solSignedTxBase64 } from "../lib/turnkey-solana";
+import { solTransferMessage, solMessageHex, solSignedTxBase64, solParseForSigning, solInjectSignature } from "../lib/turnkey-solana";
 import { p2wpkhProgram, p2wpkhScript, bip143Sighashes, derLowS, buildSignedTx, hash160, estVsize, DUST_P2WPKH, bytesToHex as btcBytesToHex, type TxOutput, type TxInput } from "../lib/turnkey-bitcoin";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -765,7 +765,6 @@ turnkey.post("/swap/prepare", async (c) => {
   const amount = Number(body?.amount);
   const F = SWAP_TOKENS[fromSym], T = SWAP_TOKENS[toSym];
   if (!F || !T || fromSym === toSym) return c.json({ ok: false, error: "unsupported_pair", message: "暂不支持该兑换对" }, 400);
-  if (F.chain !== "1") return c.json({ ok: false, error: "unsupported_source", message: `${fromSym} 作为来源的真实兑换即将支持` }, 400);
   if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
   const fromAddr = addrs[F.addrKey], toAddr = addrs[T.addrKey];
   if (!fromAddr || !toAddr) return c.json({ ok: false, error: "no_wallet" }, 400);
@@ -774,6 +773,15 @@ turnkey.post("/swap/prepare", async (c) => {
     const params = new URLSearchParams({ fromChain: F.chain, toChain: T.chain, fromToken: F.token, toToken: T.token, fromAmount, fromAddress: fromAddr, toAddress: toAddr, slippage: "0.01" });
     const q: any = await (await fetch(`${LIFI_QUOTE}?${params.toString()}`)).json();
     const tr = q?.transactionRequest;
+    const quote = { fromSym, toSym, amount, toAmount: Number(q?.estimate?.toAmount || 0) / 10 ** T.decimals, tool: q?.tool || "lifi", crossChain: F.chain !== T.chain };
+
+    // Solana-source: LI.FI returns a base64 Solana tx with a zero signer placeholder.
+    // We sign the message (ed25519) and splice the signature in on broadcast.
+    if (F.chain === SWAP_TOKENS.SOL.chain) {
+      if (!tr?.data) return c.json({ ok: false, error: "no_route", message: q?.message || "没有可用的兑换路径" }, 502);
+      const { messageHex, sigOffset } = solParseForSigning(tr.data, fromAddr);
+      return c.json({ ok: true, chainKind: "sol", organizationId: subOrgId, signWith: fromAddr, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", digestHex: messageHex, sol: { txB64: tr.data, sigOffset }, quote });
+    }
     if (!tr?.to || !tr?.data) return c.json({ ok: false, error: "no_route", message: q?.message || "没有可用的兑换路径" }, 502);
 
     const url = evmRpcUrl(c.env);
@@ -799,12 +807,34 @@ turnkey.post("/swap/prepare", async (c) => {
     if (ethBal < BigInt(stx.value) + gasCost) return c.json({ ok: false, error: "no_gas", message: "ETH 余额不足以支付兑换与矿工费" }, 400);
     steps.push({ kind: "swap", tx: stx, digestHex: evmSigningDigestHex(stx) });
 
-    return c.json({
-      ok: true, organizationId: subOrgId, signWith: fromAddr, hashFunction: "HASH_FUNCTION_NO_OP", steps,
-      quote: { fromSym, toSym, amount, toAmount: Number(q?.estimate?.toAmount || 0) / 10 ** T.decimals, tool: q?.tool || "lifi", crossChain: F.chain !== T.chain },
-    });
+    return c.json({ ok: true, chainKind: "evm", organizationId: subOrgId, signWith: fromAddr, hashFunction: "HASH_FUNCTION_NO_OP", steps, quote });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+// Broadcast a Solana-source LI.FI swap: splice the passkey signature into the LI.FI tx
+// and send it. (EVM-source swaps reuse /turnkey/evm/broadcast.)
+turnkey.post("/swap/sol/broadcast", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const txB64 = String(body?.sol?.txB64 || "");
+  const sigOffset = Number(body?.sol?.sigOffset);
+  const activityId = String(body?.activityId || "");
+  if (!txB64 || !Number.isInteger(sigOffset) || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  try {
+    const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
+    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    const signed = solInjectSignature(txB64, sr.r + sr.s, sigOffset);
+    const sig = await solRpc("sendTransaction", [signed, { encoding: "base64", preflightCommitment: "confirmed" }]);
+    return c.json({ ok: true, digest: sig, status: "success", network: "solana", explorer: `https://solscan.io/tx/${sig}` });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
 });
 
