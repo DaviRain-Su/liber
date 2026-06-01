@@ -328,7 +328,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
           </div>
 
           {tab === "wallet" && isMe && person.turnkeyWallets && (
-            <WalletTab wallets={person.turnkeyWallets} />
+            <WalletTab wallets={person.turnkeyWallets} passkeyEnrolled={!!person.turnkey_passkey_at} userId={person.id} userName={person.name} />
           )}
 
           {tab === "shelf" && (

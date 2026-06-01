@@ -184,3 +184,11 @@
 .thanks-wall .tw-msg{ font-family:var(--body); font-style:italic; font-size:14.5px; color:var(--ink-2); margin-top:4px; line-height:1.5; }
 .thanks-wall .tw-meta{ font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-top:5px; }
 .thanks-wall .tw-hash{ color:var(--ink-3); }
+
+/* wallet passkey enrollment banner */
+.pk-banner{ display:flex; align-items:center; gap:16px; padding:16px 20px; border:1px solid var(--accent-line); border-radius:16px; background:var(--accent-soft); }
+.pk-banner .pkb-ic{ width:44px; height:44px; border-radius:12px; display:grid; place-items:center; background:var(--accent); color:#fff; flex-shrink:0; }
+.pk-banner .pkb-b{ flex:1; min-width:0; }
+.pk-banner .pkb-t{ font-family:var(--display); font-size:18px; font-weight:600; }
+.pk-banner .pkb-d{ font-size:13.5px; color:var(--ink-2); margin-top:3px; line-height:1.5; }
+@media (max-width:600px){ .pk-banner{ flex-direction:column; align-items:flex-start; } }

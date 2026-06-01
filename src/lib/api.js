@@ -67,6 +67,8 @@ export const api = {
     // Provision a Turnkey embedded Sui wallet for a wallet-less signed-in user
     // (idempotent; no-op for wallet-connect users + guests). Called once post-login.
     ensureWallet: () => post("/turnkey/ensure"),
+    // Enroll a WebAuthn passkey on the wallet sub-org (payload from createWalletPasskey).
+    enrollWalletPasskey: (payload) => post("/turnkey/passkey/enroll", payload),
     cliStart: () => post("/auth/cli/start"),
     cliPoll: (deviceCode) => get(`/auth/cli/poll/${encodeURIComponent(deviceCode)}`),
     cliApprove: (deviceCode) => post("/auth/cli/approve", { deviceCode }),

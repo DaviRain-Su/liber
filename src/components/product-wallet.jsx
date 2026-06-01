@@ -4,6 +4,8 @@
    (Sui/ETH/SOL/BTC) are wired into the identity strip + receive flow; balances /
    assets / activity are sample data until on-chain balance + history are fetched. */
 import React from "react";
+import { api } from "../lib/api.js";
+import { createWalletPasskey, passkeySupported } from "../lib/turnkey-passkey.js";
 const { useState: useS, useEffect: useE, useRef: useR } = React;
 
 /* ---------- icons ---------- */
@@ -286,16 +288,40 @@ function ThanksWall(){
 }
 
 /* ---------- the 钱包 tab (pane + flow host) ---------- */
-export function WalletTab({ wallets }){
+export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const [flow, setFlow] = useS(null);
+  const [pkState, setPkState] = useS(passkeyEnrolled ? "done" : "idle"); // idle | working | done | error
+  const [pkErr, setPkErr] = useS("");
   const addresses = { SUI: wallets.sui, ETH: wallets.ethereum, SOL: wallets.solana, BTC: wallets.bitcoin };
   const onAction = (kind, arg) => {
     if (kind === "asset") { setFlow({ kind: "activity", item: ACTIVITY[0] }); return; }
     if (kind === "activity") { setFlow({ kind: "activity", item: arg }); return; }
     setFlow({ kind, token: arg });
   };
+  const enrollPasskey = async () => {
+    if (!passkeySupported()) { setPkErr("此设备不支持通行密钥"); setPkState("error"); return; }
+    setPkState("working"); setPkErr("");
+    try {
+      const payload = await createWalletPasskey({ userId, userName });
+      const r = await api.auth.enrollWalletPasskey(payload);
+      if (r && r.ok) setPkState("done");
+      else { setPkState("error"); setPkErr((r && r.error) || "注册失败"); }
+    } catch (e) { setPkState("error"); setPkErr((e && e.message) || "已取消或失败"); }
+  };
   return (
     <div className="pfw-tabpane">
+      {pkState !== "done" && (
+        <div className="pk-banner">
+          <div className="pkb-ic">{WI.shield}</div>
+          <div className="pkb-b">
+            <div className="pkb-t">为钱包设置通行密钥</div>
+            <div className="pkb-d">{pkErr || "用 Face ID / 指纹给钱包加一把签名钥匙。之后转账由你的通行密钥授权，服务器无法擅自动用你的资产。"}</div>
+          </div>
+          <button className="wbtn wbtn-primary" style={{ flex: "none" }} disabled={pkState === "working"} onClick={enrollPasskey}>
+            {pkState === "working" ? "请在设备上确认…" : <>{WI.finger} 设置</>}
+          </button>
+        </div>
+      )}
       <WalletBand/>
       <QuickActions onAction={onAction}/>
       <IdentityStrip wallets={wallets} onReceive={() => setFlow({ kind: "receive" })}/>
