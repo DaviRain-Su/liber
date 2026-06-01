@@ -111,8 +111,8 @@ auth.post("/email/start", async (c) => {
   await c.env.KV.put(`email-otp:${addr}`, JSON.stringify({ code, attempts: 0 }), { expirationTtl: 600 });
   await c.env.KV.put(`email-otp-rl:${addr}`, "1", { expirationTtl: 60 }); // 60s = KV's TTL floor
   const { sent } = await sendOtpEmail(c.env, addr, code);
-  // Only ever expose the code when nothing was emailed (no provider configured).
-  return c.json({ ok: true, sent, devCode: c.env.RESEND_API_KEY ? undefined : code });
+  // Only ever expose the code when nothing was actually emailed (binding absent).
+  return c.json({ ok: true, sent, devCode: sent ? undefined : code });
 });
 
 auth.post("/email/verify", async (c) => {

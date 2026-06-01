@@ -1,24 +1,25 @@
 import type { Env } from "./types";
 
-// Send a transactional email. Uses Resend when RESEND_API_KEY is set (RESEND_FROM
-// is the verified sender, defaults to Resend's test sender). Returns whether it
-// was actually sent — callers fall back to surfacing the code in dev when not.
+// Send the login one-time-code email via Cloudflare Email Sending — the SEND_EMAIL
+// binding (blog.cloudflare.com/email-service). No third-party service. Returns
+// whether it was actually sent; when the binding isn't configured yet, the caller
+// surfaces the code in the response so the flow stays testable (dev mode).
+//
+// Setup (once Email Sending beta access is granted): bind SEND_EMAIL + verify a
+// sender domain, then set EMAIL_FROM, e.g. "Liber <login@yourdomain.com>".
 export async function sendOtpEmail(env: Env, to: string, code: string): Promise<{ sent: boolean }> {
-  const key = env.RESEND_API_KEY;
-  if (!key) return { sent: false };
-  const from = env.RESEND_FROM || "Liber <onboarding@resend.dev>";
+  if (!env.SEND_EMAIL?.send) return { sent: false };
+  const raw = (env.EMAIL_FROM || "Liber <login@liber-99x.pages.dev>").trim();
+  const m = raw.match(/^(.*?)\s*<([^>]+)>$/);
+  const from = m ? { name: m[1].trim() || "Liber", email: m[2].trim() } : { email: raw, name: "Liber" };
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        from,
-        to,
-        subject: `Liber 登录验证码 ${code}`,
-        text: `你的 Liber 登录验证码是：${code}\n\n10 分钟内有效。如果不是你本人操作，请忽略此邮件。`,
-      }),
+    await env.SEND_EMAIL.send({
+      to: [{ email: to }],
+      from,
+      subject: `Liber 登录验证码 ${code}`,
+      text: `你的 Liber 登录验证码是：${code}\n\n10 分钟内有效。如果不是你本人操作，请忽略此邮件。`,
     });
-    return { sent: res.ok };
+    return { sent: true };
   } catch {
     return { sent: false };
   }

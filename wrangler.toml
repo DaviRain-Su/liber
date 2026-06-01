@@ -58,8 +58,18 @@ binding = "BROWSER"
 # falls back to R2 until you opt in. To use the public Walrus testnet, set:
 #   WALRUS_PUBLISHER  = "https://publisher.walrus-testnet.walrus.space"
 #   WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space"
+# Cloudflare Email Sending — transactional email (login OTP codes) to any
+# recipient. Private beta (join the waitlist: blog.cloudflare.com/email-service),
+# needs a paid Workers plan + a sender domain verified in Email Sending. Once
+# granted, uncomment this binding and set EMAIL_FROM in [vars]. Until then,
+# /auth/email returns the code in the response (dev mode) — login still works.
+# [[send_email]]
+# name = "SEND_EMAIL"
+
 [vars]
 CHAIN = "sui"
+# Sender for login emails — a domain verified in Cloudflare Email Sending.
+# EMAIL_FROM = "Liber <login@your-verified-domain.com>"
 # Google "Sign in with Google" client id (public; the ID-token aud is checked
 # against it). Add your site to the OAuth client's Authorized JavaScript origins.
 GOOGLE_CLIENT_ID = "1021328086145-18jc2gqb4rdflor24ein4ub5pgkhi4qn.apps.googleusercontent.com"
