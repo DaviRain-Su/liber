@@ -217,13 +217,17 @@ function applyEpubScriptMode(rendition, mode, originalText) {
   for (const content of contents) applyChineseScriptToDocument(epubContentDocument(content), mode, originalText);
 }
 
-function EpubReader({ bookId, controlRef, font, size, lead, rtheme, scriptMode, layout, onNavigation, onRelocated, onUnavailable }) {
+function EpubReader({ bookId, controlRef, font, size, lead, rtheme, scriptMode, layout, epubScroll, onNavigation, onRelocated, onUnavailable }) {
   const hostRef = useR(null);
   const renditionRef = useR(null);
   const scriptModeRef = useR(scriptMode);
   const originalTextRef = useR(new WeakMap());
   const [status, setStatus] = useS("loading");
   const [error, setError] = useS("");
+  // Last reading position (CFI), so toggling scroll/paginated flow re-opens where
+  // the reader was instead of jumping back to the book's first page.
+  const lastCfiRef = useR(null);
+  const bookIdRef = useR(bookId);
 
   useE(() => {
     scriptModeRef.current = scriptMode;
@@ -236,6 +240,8 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, scriptMode, 
     let rendition = null;
     setStatus("loading");
     setError("");
+    // Keep the CFI across a flow toggle (same book), but drop it on a book switch.
+    if (bookIdRef.current !== bookId) { lastCfiRef.current = null; bookIdRef.current = bookId; }
     const source = `/api/books/${encodeURIComponent(bookId)}/reader.epub`;
 
     import("epubjs").then((mod) => {
@@ -249,7 +255,9 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, scriptMode, 
       rendition = epubBook.renderTo(hostRef.current, {
         width: "100%",
         height: "100%",
-        flow: "paginated",
+        // 滚动翻页: continuous vertical scroll vs. discrete left/right pages,
+        // driven by the shared 翻页方式 setting (pageMode === "scroll").
+        flow: epubScroll ? "scrolled-doc" : "paginated",
         spread: "none",
       });
       renditionRef.current = rendition;
@@ -262,10 +270,12 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, scriptMode, 
         applyChineseScriptToDocument(epubContentDocument(contents), scriptModeRef.current, originalTextRef.current);
       });
       rendition.on?.("relocated", (loc) => {
-        if (!cancelled) onRelocated?.(loc);
+        if (cancelled) return;
+        lastCfiRef.current = loc?.start?.cfi || lastCfiRef.current;
+        onRelocated?.(loc);
       });
       applyEpubTheme(rendition, { font, size, lead, rtheme, layout });
-      return rendition.display();
+      return rendition.display(lastCfiRef.current || undefined);
     }).then(() => {
       if (!cancelled) setStatus("ready");
     }).catch((err) => {
@@ -284,7 +294,7 @@ function EpubReader({ bookId, controlRef, font, size, lead, rtheme, scriptMode, 
       try { rendition?.destroy?.(); } catch { /* ignore */ }
       try { epubBook?.destroy?.(); } catch { /* ignore */ }
     };
-  }, [bookId, onNavigation, onRelocated, onUnavailable]);
+  }, [bookId, epubScroll, onNavigation, onRelocated, onUnavailable]);
 
   useE(() => {
     applyEpubTheme(renditionRef.current, { font, size, lead, rtheme, layout });
@@ -948,6 +958,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
             rtheme={rtheme}
             scriptMode={scriptMode}
             layout={layout}
+            epubScroll={pageMode === "scroll"}
             onNavigation={setEpubToc}
             onRelocated={setEpubLocation}
             onUnavailable={onEpubUnavailable}
@@ -1108,7 +1119,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
               </div>
             </div>
             <div className="set-row">
-              <div className="lab">翻页方式 <span className="set-hint">{readMode==="epub"?"EPUB 自带翻页":pageMode==="scroll"?"上下卷动":"左右翻页"}</span></div>
+              <div className="lab">翻页方式 <span className="set-hint">{readMode==="epub"?(pageMode==="scroll"?"上下滚动":"左右翻页"):pageMode==="scroll"?"上下卷动":"左右翻页"}</span></div>
               <div className="seg page-seg">
                 {[["scroll","卷轴"],["slide","滑动"],["book","书页"],["curl","卷页"],["fade","淡出"]].map(([k,l]) => (
                   <button key={k} className={pageMode===k?"on":""} onClick={() => setPageMode(k)}>{l}</button>
