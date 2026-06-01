@@ -1,0 +1,68 @@
+/* Turnkey embedded wallet — profile panel.
+   Ported from the "Liber Profile Wallet" design (on-chain identity strip + quick
+   actions + receive sheet). Builds on liber.css vars (--hair/--paper/--ink/--accent
+   /--mono/--display); adds the few it needs below. */
+:root{
+  --paper-3: color-mix(in oklab, var(--paper) 86%, var(--ink));
+  --pos: #2e9e6b;
+  --neg: #d9544d;
+  --tk-btc:#f7931a; --tk-eth:#627eea; --tk-sol:#9945ff; --tk-sui:#4da2ff;
+}
+
+/* token seal (chain glyph rendered as a Liber-style seal) */
+.tok-seal{ display:grid; place-items:center; border-radius:30%; color:#fff; font-weight:700;
+  flex-shrink:0; line-height:1; box-shadow:0 1px 2px rgba(0,0,0,.18); }
+.tok-seal.btc{ background:linear-gradient(135deg,#f7931a,#d97b06); }
+.tok-seal.eth{ background:linear-gradient(135deg,#627eea,#3f57c9); }
+.tok-seal.sol{ background:linear-gradient(135deg,#9945ff,#14c0a5); }
+.tok-seal.sui{ background:linear-gradient(135deg,#4da2ff,#2e6fd0); }
+
+/* the embedded-wallet panel card (sits under the profile identity) */
+.wpanel{ border:1px solid var(--hair); border-radius:16px; background:var(--paper);
+  overflow:hidden; margin:6px 0 26px; }
+.wpanel-h{ display:flex; align-items:center; gap:10px; padding:16px 20px 0;
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); }
+.wpanel-h .vfy{ color:var(--pos); display:inline-flex; align-items:center; gap:5px; }
+.wpanel-h .more{ margin-left:auto; color:var(--accent); cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
+.wpanel-h .more:hover{ gap:8px; }
+
+.waddr-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--hair);
+  border-top:1px solid var(--hair); border-bottom:1px solid var(--hair); margin-top:14px; }
+.waddr{ background:var(--paper); padding:13px 16px; display:flex; align-items:center; gap:11px;
+  cursor:pointer; transition:background .14s; }
+.waddr:hover{ background:var(--paper-2); }
+.waddr .wa-b{ min-width:0; flex:1; }
+.waddr .wa-nm{ font-family:var(--display); font-size:15px; font-weight:600; }
+.waddr .wa-ad{ font-family:var(--mono); font-size:11px; color:var(--ink-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.waddr .wa-cp{ color:var(--ink-3); flex-shrink:0; display:flex; }
+.waddr:hover .wa-cp{ color:var(--accent); }
+
+/* quick actions */
+.wactions{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:16px 20px 18px; }
+.wact{ display:flex; flex-direction:column; align-items:center; gap:7px; padding:12px 6px;
+  border:1px solid var(--hair); border-radius:11px; background:var(--paper-2); color:var(--ink);
+  cursor:pointer; transition:all .15s; font-family:var(--mono); font-size:11.5px; }
+.wact:hover{ border-color:var(--accent-line); transform:translateY(-2px); }
+.wact .wa-ic{ width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
+  background:var(--accent); color:#fff; }
+.wact.ghost .wa-ic{ background:var(--paper-3); color:var(--accent); border:1px solid var(--accent-line); }
+.wtoast{ text-align:center; font-family:var(--mono); font-size:12px; color:var(--ink-3); padding:0 20px 16px; }
+
+/* receive sheet (modal) */
+.wsheet-scrim{ position:fixed; inset:0; background:rgba(20,16,12,.42); display:grid; place-items:center;
+  z-index:900; padding:20px; }
+.wsheet{ width:min(440px,100%); max-height:88vh; overflow:auto; background:var(--paper);
+  border:1px solid var(--hair); border-radius:18px; box-shadow:0 30px 80px -30px rgba(20,16,12,.6); }
+.wsheet-h{ display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid var(--hair); }
+.wsheet-h .ttl{ font-family:var(--display); font-size:20px; font-weight:600; }
+.wsheet-h .x{ cursor:pointer; color:var(--ink-3); display:flex; }
+.wsheet-body{ padding:18px 20px 22px; display:flex; flex-direction:column; gap:13px; }
+.wrcv{ border:1px solid var(--hair); border-radius:14px; padding:14px 16px; background:var(--paper); }
+.wrcv-top{ display:flex; align-items:center; gap:11px; }
+.wrcv-top .wr-nm{ font-family:var(--display); font-size:16px; font-weight:600; }
+.wrcv-top .wr-net{ font-family:var(--mono); font-size:11px; color:var(--ink-3); }
+.wrcv-addr{ font-family:var(--mono); font-size:12.5px; color:var(--ink-2); word-break:break-all; margin-top:10px; line-height:1.55; }
+.wrcv-copy{ margin-top:11px; display:inline-flex; align-items:center; gap:7px; font-family:var(--mono); font-size:12px; color:var(--accent); cursor:pointer; }
+
+@media (max-width:760px){ .waddr-grid{ grid-template-columns:1fr; } }
