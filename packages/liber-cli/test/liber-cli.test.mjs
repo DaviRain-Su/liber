@@ -539,6 +539,50 @@ test("extractEpubChapters splits Chinese Gutenberg spine files by internal title
   assert.doesNotMatch(chapters[0].text, /墨子 - Mozi/);
 });
 
+test("extractEpubChapters recognizes Chinese 篇五 style headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "鬼谷子",
+      raw: `<p>捭闔第一</p>
+<p>捭闔正文。</p>
+<p>反應第二</p>
+<p>反應正文。</p>
+<p>內揵第三</p>
+<p>內揵正文。</p>
+<p>抵巇第四</p>
+<p>抵巇正文。</p>
+<p>飛箝篇五</p>
+<p>飛箝正文。</p>
+<p>忤合第六</p>
+<p>忤合正文。</p>`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), ["捭闔第一", "反應第二", "內揵第三", "抵巇第四", "飛箝篇五", "忤合第六"]);
+  assert.match(chapters[4].text, /飛箝正文/);
+});
+
+test("extractEpubChapters splits Chinese headings stuck to the previous paragraph", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "貞觀政要",
+      raw: `<p>任賢第三</p>
+<p>任賢正文。太宗曰：「然。」 求諫第四</p>
+<p>求諫正文。臣聞君明臣直。</p>
+<p>納諫第五</p>
+<p>納諫正文。貞觀初，太宗宴語。此處故意拉長一段，模擬源文件把篇名接在上一段末尾而且上一段因 OCR 或換行沒有句讀。此處故意拉長一段，模擬源文件把篇名接在上一段末尾而且上一段因 OCR 或換行沒有句讀。此處故意拉長一段，模擬源文件把篇名接在上一段末尾而且上一段因 OCR 或換行沒有句讀。此處故意拉長一段，模擬源文件把篇名接在上一段末尾而且上一段因 OCR 或換行沒有句讀 誠信第十七</p>
+<p>誠信正文。貞觀初，有上書請去佞臣者。</p>`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), ["任賢第三", "求諫第四", "納諫第五", "誠信第十七"]);
+  assert.match(chapters[0].text, /任賢正文/);
+  assert.match(chapters[1].text, /求諫正文/);
+  assert.match(chapters[3].text, /誠信正文/);
+});
+
 test("extractEpubChapters keeps Chinese classic numbered sections as paragraphs", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {
@@ -839,6 +883,35 @@ test("extractEpubChapters splits Chinese book-prefixed history chapter titles", 
   assert.match(chapters[2].text, /項籍者/);
 });
 
+test("extractEpubChapters splits Chinese middle-dot book-prefixed section titles", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "抱朴子",
+      raw: `<p>《抱朴子‧塞難》</p><p>按仙經以為諸得仙者。</p>
+<p>《抱朴子·辯問》</p><p>按易內戒皆云。</p>`,
+    },
+  ], { title: "抱朴子" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), ["塞難", "辯問"]);
+  assert.match(chapters[1].text, /易內戒/);
+});
+
+test("extractEpubChapters splits Chinese full-width bracket history titles", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "漢書",
+      raw: `<p>漢書 卷一</p>
+<p>【高帝紀第一】</p><p>高祖，沛豐邑中陽裏人也。</p>
+<p>【惠帝紀第二】</p><p>孝惠皇帝，高祖太子也。</p>`,
+    },
+  ], { title: "漢書" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), ["高帝紀第一", "惠帝紀第二"]);
+  assert.match(chapters[0].text, /高祖/);
+});
+
 test("extractEpubChapters scans same-title Chinese spine continuations before skipping noise titles", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {
@@ -936,6 +1009,54 @@ test("extractEpubChapters splits Chinese hui headings with white-circle zero num
   assert.match(chapters[1].text, /眾人齊聲稱冤/);
 });
 
+test("extractEpubChapters splits Chinese shorthand and full-width numbered headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "公案小說",
+      raw: `<p>第廿回 霜夜訊案</p><p>縣堂燈火通明。</p>
+<p>第２１回 雨夜再審</p><p>眾人各供其詞。</p>
+<p>第卅回 結案還鄉</p><p>案情終於大白。</p>`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["第廿回 霜夜訊案", "第２１回 雨夜再審", "第卅回 結案還鄉"]);
+  assert.match(chapters[1].text, /眾人各供其詞/);
+});
+
+test("extractEpubChapters merges Chinese prose-fragment and duplicate spine titles", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    { title: "封禪書", raw: "<h1>封禪書</h1><p>自古受命帝王，未有睹符瑞見而不臻乎泰山者也。</p>" },
+    { title: "可。", raw: "<h1>可。</h1><p>其後十八年，孝文帝即位。</p>" },
+    { title: "河渠書", raw: "<h1>河渠書</h1><p>夏書曰：禹抑洪水十三年。</p>" },
+    { title: "故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。", raw: "<h1>故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。</h1><p>《抱朴子‧極言》抱朴子曰：天地之大德曰生。</p>" },
+    { title: "高祖本紀", raw: "<h1>高祖本紀</h1><p>高祖，沛豐邑中陽里人。</p>" },
+    { title: "高祖本紀", raw: "<h1>高祖本紀</h1><p>漢元年十月，沛公兵遂先諸侯至霸上。</p>" },
+  ], { title: "史記" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), ["封禪書", "河渠書", "高祖本紀"]);
+  assert.match(chapters[0].text, /其後十八年/);
+  assert.match(chapters[1].text, /抱朴子/);
+  assert.match(chapters[2].text, /漢元年十月/);
+});
+
+test("extractEpubChapters merges leading Chinese prose-fragment titles into the next chapter", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "抱朴子",
+      raw: `<h1>故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。</h1>
+<p>抱朴子曰：天地之大德曰生。</p>`,
+    },
+    { title: "玉鈐經‧中篇", raw: "<h1>玉鈐經‧中篇</h1><p>立功為上，除過次之。</p>" },
+  ], { title: "抱朴子" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), ["玉鈐經‧中篇"]);
+  assert.match(chapters[0].text, /天地之大德/);
+});
+
 test("extractEpubChapters carries terminal Chinese chapter headings to the next spine file", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {
@@ -955,6 +1076,206 @@ test("extractEpubChapters carries terminal Chinese chapter headings to the next 
   assert.deepEqual(chapters.map((ch) => ch.title), ["第五十回 一戰平江", "第五十一回 無人無我一衲西歸", "第五十二回 秋心院遺跡話故人"]);
   assert.match(chapters[1].text, /荷生班師/);
   assert.match(chapters[2].text, /故人重逢/);
+});
+
+test("extractEpubChapters carries terminal Chinese volume markers to the next spine file", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "國色天香",
+      headTitle: "國色天香",
+      raw: `<p>第四卷</p><p>尋芳雅集</p><p>第四卷正文。</p><p>第五卷</p>`,
+    },
+    {
+      title: "國色天香",
+      headTitle: "國色天香",
+      raw: `<p>雙卿筆記<br/>第五卷正文。</p><p>第六卷</p><p>花神三妙傳<br/>第六卷正文。</p>`,
+    },
+  ], { title: "國色天香" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["第四卷", "第五卷", "第六卷"]);
+  assert.match(chapters[1].text, /雙卿筆記/);
+  assert.match(chapters[1].text, /第五卷正文/);
+  assert.match(chapters[2].text, /花神三妙傳/);
+});
+
+test("extractEpubChapters splits Chinese volume markers stuck to a previous poem line", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "卷六",
+      headTitle: "卷六",
+      raw: `<p>卷六</p>
+<p>作者：徐陵</p>
+<p>無由一共語，暫看日昇霞。卷七</p>
+<p>作者：徐陵</p>
+<p>卷七正文。</p>`,
+    },
+  ], { title: "玉台新詠" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["卷六", "卷七"]);
+  assert.match(chapters[0].text, /暫看日昇霞。/);
+  assert.doesNotMatch(chapters[0].text, /卷七/);
+  assert.match(chapters[1].text, /卷七正文/);
+});
+
+test("extractEpubChapters trims trailing Chinese verse from chapter headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "第九回 前情未了 後事重開",
+      raw: "<h1>第九回 前情未了 後事重開</h1><p>正文九。</p>",
+    },
+    {
+      title: "第十回 從左道一時失足 納忠言立刻回頭 神器難僥倖，奸雄漫起爭。",
+      raw: "<h1>第十回 從左道一時失足 納忠言立刻回頭 神器難僥倖，奸雄漫起爭。</h1><p>正文十。</p>",
+    },
+  ], { title: "醒夢駢言" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), [
+    "第九回 前情未了 後事重開",
+    "第十回 從左道一時失足 納忠言立刻回頭",
+  ]);
+  assert.match(chapters[1].text, /正文十/);
+});
+
+test("extractEpubChapters trims Chinese recitation text from chapter headings", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "海遊記",
+      raw: `<p>第四回     活佛慈悲在於擊棒　神仙手段那用栽贓
+　　詩曰：
+　　前頭走的小娃娃，後面相隨母夜叉。</p>
+<p>正文四。</p>
+<p>第五回     慧眼放光謾藏成自盜　耗星照命餘燼被瓜分
+詩曰：
+　　只因扛了善招牌，沾著些兒便降災。</p>
+<p>正文五。</p>`,
+    },
+  ], { title: "海遊記" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), [
+    "第四回 活佛慈悲在於擊棒 神仙手段那用栽贓",
+    "第五回 慧眼放光謾藏成自盜 耗星照命餘燼被瓜分",
+  ]);
+  assert.match(chapters[0].text, /^詩曰/u);
+  assert.match(chapters[1].text, /^詩曰/u);
+});
+
+test("extractEpubChapters merges short Chinese review chapters into previous chapter", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "第一回 丑郎君怕嬌偏得艷",
+      raw: "<h1>第一回 丑郎君怕嬌偏得艷</h1><p>正文一。</p>",
+    },
+    {
+      title: "評",
+      raw: "<h1>評</h1><p>此回短評。</p>",
+    },
+    {
+      title: "第二回 美男子避惑反生疑",
+      raw: "<h1>第二回 美男子避惑反生疑</h1><p>正文二。</p>",
+    },
+  ], { title: "無聲戲" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), [
+    "第一回 丑郎君怕嬌偏得艷",
+    "第二回 美男子避惑反生疑",
+  ]);
+  assert.match(chapters[0].text, /此回短評/);
+});
+
+test("extractEpubChapters merges Chinese interlude titles inside chapter runs", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "第一回 才子佳人初相會",
+      raw: "<h1>第一回 才子佳人初相會</h1><p>正文一。</p>",
+    },
+    {
+      title: "蝶戀花",
+      raw: "<h1>蝶戀花</h1><p>詞牌後正文一。</p>",
+    },
+    {
+      title: "第二回 花前月下訂終身",
+      raw: "<h1>第二回 花前月下訂終身</h1><p>正文二。</p>",
+    },
+    {
+      title: "第三回 風波忽起",
+      raw: "<h1>第三回 風波忽起</h1><p>正文三。</p>",
+    },
+    {
+      title: "南鄉子",
+      raw: "<h1>南鄉子</h1><p>詞牌後正文三。</p>",
+    },
+    {
+      title: "第四回 雲開月明",
+      raw: "<h1>第四回 雲開月明</h1><p>正文四。</p>",
+    },
+    {
+      title: "第五回 團圓",
+      raw: "<h1>第五回 團圓</h1><p>正文五。</p>",
+    },
+  ], { title: "夢中緣" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), [
+    "第一回 才子佳人初相會",
+    "第二回 花前月下訂終身",
+    "第三回 風波忽起",
+    "第四回 雲開月明",
+    "第五回 團圓",
+  ]);
+  assert.match(chapters[0].text, /蝶戀花/);
+  assert.match(chapters[2].text, /南鄉子/);
+});
+
+test("extractEpubChapters merges a single Chinese interlude title in a strong chapter run", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    { title: "第一回 土不制水歷年成患", raw: "<h1>第一回 土不制水歷年成患</h1><p>正文一。</p>" },
+    { title: "第二回 歷山山下古帝遺蹤", raw: "<h1>第二回 歷山山下古帝遺蹤</h1><p>正文二。</p>" },
+    { title: "第三回 金線東來尋黑虎", raw: "<h1>第三回 金線東來尋黑虎</h1><p>正文三。</p>" },
+    { title: "第四回 宮保愛才求賢若渴", raw: "<h1>第四回 宮保愛才求賢若渴</h1><p>正文四。</p>" },
+    { title: "第五回 烈婦有心殉節", raw: "<h1>第五回 烈婦有心殉節</h1><p>正文五。</p>" },
+    { title: "銀鼠諺", raw: "<h1>銀鼠諺</h1><p>短題後正文。</p>" },
+  ], { title: "老殘遊記" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), [
+    "第一回 土不制水歷年成患",
+    "第二回 歷山山下古帝遺蹤",
+    "第三回 金線東來尋黑虎",
+    "第四回 宮保愛才求賢若渴",
+    "第五回 烈婦有心殉節",
+  ]);
+  assert.match(chapters[4].text, /銀鼠諺/);
+});
+
+test("extractEpubChapters merges non-ordinal Chinese titles inside consecutive chapter runs", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    { title: "第一回 開宗明義", raw: "<h1>第一回 開宗明義</h1><p>正文一。</p>" },
+    { title: "第二回 初入城中", raw: "<h1>第二回 初入城中</h1><p>正文二。</p>" },
+    { title: "第三回 風波又起", raw: "<h1>第三回 風波又起</h1><p>正文三。</p>" },
+    { title: "第四回 親友相逢", raw: "<h1>第四回 親友相逢</h1><p>正文四。</p>" },
+    { title: "第五回 債務未清", raw: "<h1>第五回 債務未清</h1><p>正文五。</p>" },
+    { title: "對門王詮進了第二", raw: "<h1>對門王詮進了第二</h1><p>續頁正文。</p>" },
+    { title: "第六回 真相大白", raw: "<h1>第六回 真相大白</h1><p>正文六。</p>" },
+  ], { title: "幻中游" });
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.deepEqual(chapters.map((ch) => ch.title), [
+    "第一回 開宗明義",
+    "第二回 初入城中",
+    "第三回 風波又起",
+    "第四回 親友相逢",
+    "第五回 債務未清",
+    "第六回 真相大白",
+  ]);
+  assert.match(chapters[4].text, /對門王詮進了第二/);
+  assert.match(chapters[4].text, /續頁正文/);
 });
 
 test("extractEpubChapters prefers spine parsing when Chinese NCX misses chapters", async () => {
@@ -1175,15 +1496,33 @@ test("extractEpubChapters uses bare Chinese volume markers when no finer chapter
     {
       title: "孟子",
       raw: `<p>卷之一<br/>孟子見梁惠王。王曰：「叟不遠千里而來。」</p>
-<p>卷之二<br/>公孫丑問曰：「夫子當路於齊。」</p>`,
+<p>卷之二<br/>公孫丑問曰：「夫子當路於齊。」</p>
+<p>卷六補遺<br/>補遺正文。</p>`,
     },
   ]);
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["卷之一", "卷之二"]);
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["卷之一", "卷之二", "卷六補遺"]);
   assert.match(chapters[0].text, /梁惠王/);
   assert.match(chapters[1].text, /公孫丑/);
+  assert.match(chapters[2].text, /補遺正文/);
+});
+
+test("extractEpubChapters uses shorthand Chinese volume markers", async () => {
+  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+    {
+      title: "筆記",
+      raw: `<p>卷之廿<br/>山川見聞。</p>
+<p>卷之廿一<br/>城郭風俗。</p>
+<p>卷之卅上<br/>海路紀程。</p>`,
+    },
+  ]);
+  const chapters = await extractEpubChapters(epubPath);
+
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(chapters.map((ch) => ch.title), ["卷之廿", "卷之廿一", "卷之卅上"]);
+  assert.match(chapters[2].text, /海路紀程/);
 });
 
 test("createIngestPayload builds backend ingest payload from a manifest", async () => {

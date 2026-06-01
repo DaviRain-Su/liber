@@ -60,6 +60,12 @@ plain-text chapters from the EPUB spine for reader/search, and posts both layers
 to `/api/books/ingest`. Chain registration is handled by the Liber backend when
 its Sui signer and package configuration are present.
 
+For Chinese EPUBs, extraction includes dedicated Gutenberg cleanup: 第几回/章/卷
+chapter forms, shorthand numerals, full-width digit/bracket headings,
+book-prefixed titles, prose-fragment filtering, short `評`/`评` review and
+interlude-title merging, placeholder/Latin-noise title rejection, and
+conservative single-chapter fallback for known weak generated EPUB TOCs.
+
 ## Publish Policy
 
 Accepted:

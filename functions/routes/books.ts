@@ -19,14 +19,15 @@ import {
   searchDynamic,
   textToChapter,
 } from "../lib/catalog";
-import { bearerToken, getCliPublishToken, hasAdminToken } from "../lib/auth";
+import { bearerToken, getCliPublishToken, isPlatformAdmin } from "../lib/auth";
 
 const books = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// Book publishing: ADMIN_TOKEN (constant-time) or any valid CLI publish token.
+// Book publishing: platform admin may rebuild/overwrite any catalog row; any
+// valid CLI publish token may still create books or overwrite its own books.
 async function ingestAuth(c: any): Promise<{ ok: boolean; userId?: string | null }> {
   const token = bearerToken(c);
-  if (hasAdminToken(c.env, token)) return { ok: true, userId: c.get("userId") };
+  if (await isPlatformAdmin(c.env, token)) return { ok: true, userId: null };
   const cli = await getCliPublishToken(c.env, token);
   if (cli) return { ok: true, userId: cli.userId };
   return { ok: false };

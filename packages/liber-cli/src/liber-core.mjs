@@ -556,6 +556,7 @@ function looksLikeNavigationOnlyText(text, bookTitle) {
 function looksLikeProseTitle(value) {
   const title = String(value || "").replace(/\s+/g, " ").trim();
   if (englishChapterTitle(title)) return false;
+  if (looksLikeShortChineseProseTitle(title)) return true;
   if (/^[.…]+$/.test(title)) return true;
   if (/\*\*\*\*/.test(title)) return true;
   if (/^\[[12]\d{3}\s+edition\]$/i.test(title)) return true;
@@ -577,7 +578,7 @@ function looksLikeCreditTitle(value) {
 function isUnusableChapterTitle(title, bookTitle) {
   const value = String(title || "").replace(/\s+/g, " ").trim();
   const undecorated = undecorateTitle(value);
-  const wasBracketed = /^《[^《》]{1,80}》$/.test(value);
+  const wasBracketed = /^(?:《[^《》]{1,80}》|【[^【】]{1,80}】)$/.test(value);
   if (undecorated && looksLikeChapterTitle(undecorated, wasBracketed)) return false;
   if (/^\d{1,3}[.、]\s+/.test(value)) return false;
   return !value
@@ -620,7 +621,8 @@ function hasExplicitChapterHeading(text, bookTitle) {
 
 function cleanChapterTitle(title, text, fallback, bookTitle = "") {
   const value = String(title || "").replace(/\s+/g, " ").trim();
-  if (!isUnusableChapterTitle(value, bookTitle)) return value;
+  const trimmed = trimChineseChapterTitleProseTail(value);
+  if (!isUnusableChapterTitle(trimmed, bookTitle)) return trimmed;
   return candidateTitleFromText(text, bookTitle, fallback);
 }
 
@@ -630,10 +632,114 @@ function comparableTitle(value) {
     .toLowerCase();
 }
 
+const HAN_ORDINAL_CHARS = "一二两兩三四五六七八九十百千〇○零廿卄卅卌\\d０-９";
+const HAN_ORDINAL_RE = `[${HAN_ORDINAL_CHARS}]+`;
+const CHINESE_CHAPTER_PREFIX_RE = new RegExp(`^(?:第\\s*)?${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷)`, "u");
+const CHINESE_VOLUME_MARKER_RE = new RegExp(`^(?:卷第?${HAN_ORDINAL_RE}(?:補遺|补遗)?|卷之${HAN_ORDINAL_RE}(?:上|中|下)?|第${HAN_ORDINAL_RE}卷)$`, "u");
+const HAN_NUMBER_DIGITS = new Map([
+  ["〇", 0],
+  ["○", 0],
+  ["零", 0],
+  ["一", 1],
+  ["二", 2],
+  ["两", 2],
+  ["兩", 2],
+  ["三", 3],
+  ["四", 4],
+  ["五", 5],
+  ["六", 6],
+  ["七", 7],
+  ["八", 8],
+  ["九", 9],
+]);
+const HAN_NUMBER_UNITS = new Map([
+  ["十", 10],
+  ["百", 100],
+  ["千", 1000],
+]);
+
+function parseHanOrdinalNumber(value) {
+  const text = String(value || "")
+    .replace(/[０-９]/gu, (ch) => String(ch.charCodeAt(0) - 0xff10))
+    .replace(/[廿卄]/gu, "二十")
+    .replace(/卅/gu, "三十")
+    .replace(/卌/gu, "四十")
+    .replace(/\s+/g, "")
+    .trim();
+  if (!text) return null;
+  if (/^\d+$/u.test(text)) return Number(text);
+  if (![...text].every((ch) => HAN_NUMBER_DIGITS.has(ch) || HAN_NUMBER_UNITS.has(ch))) return null;
+  if (![...text].some((ch) => HAN_NUMBER_UNITS.has(ch))) {
+    const digits = [...text].map((ch) => HAN_NUMBER_DIGITS.get(ch));
+    const number = Number(digits.join(""));
+    return Number.isFinite(number) ? number : null;
+  }
+
+  let total = 0;
+  let current = 0;
+  for (const ch of text) {
+    if (HAN_NUMBER_DIGITS.has(ch)) {
+      current = HAN_NUMBER_DIGITS.get(ch);
+      continue;
+    }
+    const unit = HAN_NUMBER_UNITS.get(ch);
+    if (!unit) return null;
+    total += (current || 1) * unit;
+    current = 0;
+  }
+  return total + current;
+}
+
+function chineseOrdinalFromTitle(title) {
+  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const chapter = value.match(new RegExp(`^第\\s*(${HAN_ORDINAL_RE})\\s*(回|章|節|节|篇|卦|卷)`, "u"));
+  if (chapter) {
+    const n = parseHanOrdinalNumber(chapter[1]);
+    return n ? { kind: chapter[2], n } : null;
+  }
+  const volume = value.match(new RegExp(`^卷第?\\s*(${HAN_ORDINAL_RE})`, "u"))
+    || value.match(new RegExp(`^卷之\\s*(${HAN_ORDINAL_RE})`, "u"));
+  if (volume) {
+    const n = parseHanOrdinalNumber(volume[1]);
+    return n ? { kind: "卷", n } : null;
+  }
+  return null;
+}
+
+function trimChineseChapterTitleProseTail(title) {
+  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const recitationStart = value.search(/\s+(?:詩曰|诗曰|詞曰|词曰)[:：]/u);
+  if (recitationStart > 0 && CHINESE_CHAPTER_PREFIX_RE.test(value)) {
+    return value.slice(0, recitationStart).trim();
+  }
+  const withoutRecitationMarker = value.replace(/\s+(?:詩曰|诗曰|詞曰|词曰)[:：]?$/u, "").trim();
+  if (withoutRecitationMarker !== value) return withoutRecitationMarker;
+  if (!CHINESE_CHAPTER_PREFIX_RE.test(value) || !/[。！？；;]/u.test(value)) return value;
+  const chunks = value.split(/\s+/).filter(Boolean);
+  if (chunks.length < 4) return value;
+  const last = chunks[chunks.length - 1] || "";
+  const bodyChunks = chunks.slice(1, -1);
+  if (bodyChunks.length < 2) return value;
+  if (bodyChunks.some((chunk) => /[，。！？；;:：]/u.test(chunk))) return value;
+  if (!/[，。！？；;]/u.test(last) || !/[。！？；;]$/u.test(last)) return value;
+  if ([...last].length > 28) return value;
+  return chunks.slice(0, -1).join(" ");
+}
+
+function looksLikeShortChineseProseTitle(title) {
+  const value = String(title || "").replace(/\s+/g, " ").trim();
+  if (!value || !/\p{Script=Han}/u.test(value)) return false;
+  if (CHINESE_CHAPTER_PREFIX_RE.test(value) || isVolumeMarker(value)) return false;
+  if (/^\d{1,3}[.、]\s+[\p{Script=Han}]{1,16}$/u.test(value)) return false;
+  return [...value].length <= 48 && /(?:[。！？!?；;﹗﹖﹔]|……|…+)$/u.test(value);
+}
+
 function chineseBookPrefixedChapterTitle(title, bookTitle) {
   const value = String(title || "").replace(/\s+/g, " ").trim();
   const book = String(bookTitle || "").replace(/\s+/g, " ").trim();
   if (!value || !book || !/\p{Script=Han}/u.test(book)) return null;
+  const dotted = value.match(new RegExp(`^${escapeRegExp(book)}\\s*[‧·・．.]\\s*([\\p{Script=Han}]{1,24})$`, "u"));
+  if (dotted) return dotted[1];
   const match = value.match(new RegExp(`^${escapeRegExp(book)}\\s+([\\p{Script=Han}]{1,24}(?:本紀|世家|列傳|列传|書|书|表|志|傳|传))$`, "u"));
   return match?.[1] || null;
 }
@@ -648,13 +754,17 @@ function undecorateTitle(block) {
   const lines = String(block || "").split("\n").map((line) => line.trim()).filter(Boolean);
   if (lines.length !== 1) return null;
   let title = lines[0].replace(/\s+/g, " ").trim();
-  const bracketed = title.match(/^[《〈「『]([^《》〈〉「」『』]{1,80})[》〉」』]$/u);
+  const bracketed = title.match(/^[《〈「『【]([^《》〈〉「」『』【】]{1,80})[》〉」』】]$/u);
   if (bracketed) title = bracketed[1].trim();
   return title || null;
 }
 
 function isVolumeMarker(title) {
-  return /^(?:卷第?[一二两三四五六七八九十百千〇○零\d]+|卷之[一二两三四五六七八九十百千〇○零\d]+(?:上|中|下)?|第[一二两三四五六七八九十百千〇○零\d]+卷)$/u.test(title);
+  return CHINESE_VOLUME_MARKER_RE.test(title);
+}
+
+function isChineseVolumeMarkerTitle(title) {
+  return isVolumeMarker(String(title || "").replace(/\s+/g, " ").trim());
 }
 
 function isNoiseTitle(title, bookTitle) {
@@ -679,18 +789,19 @@ function looksLikeChapterTitle(title, wasBracketed) {
     || /^LIBER\s+[IVXLCDM]+$/u.test(title)
     || /^[\p{L}]+ runo$/iu.test(title)
     || /^KSIĘGA\s+[\p{L}]+\.?$/iu.test(title)
-    || /^第\s*[一二两三四五六七八九十百千〇○零\d]+\s*(?:章|回|節|节|篇|卦|卷).{0,40}$/u.test(title)
-    || /^卷第?[一二两三四五六七八九十百千〇○零\d]+\s+.{1,40}$/u.test(title)
-    || /^卷之[一二两三四五六七八九十百千〇○零\d]+[\p{Script=Han}]{1,16}(?:上|中|下)?$/u.test(title)
-    || /^[\p{Script=Han}]{1,16}(?:上|中|下)?第[一二两三四五六七八九十百千〇○零\d]+$/u.test(title)
+    || new RegExp(`^第\\s*${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷).{0,80}$`, "u").test(title)
+    || new RegExp(`^卷第?${HAN_ORDINAL_RE}\\s+.{1,40}$`, "u").test(title)
+    || new RegExp(`^卷之${HAN_ORDINAL_RE}[\\p{Script=Han}]{1,16}(?:上|中|下)?$`, "u").test(title)
+    || new RegExp(`^[\\p{Script=Han}]{1,16}篇${HAN_ORDINAL_RE}$`, "u").test(title)
+    || new RegExp(`^[\\p{Script=Han}]{1,16}(?:上|中|下)?第${HAN_ORDINAL_RE}$`, "u").test(title)
     || /^\d{1,3}[.、]\s+[\p{Script=Han}]{1,12}$/u.test(title)
     || /^\d{3}[.、\s]+[\p{Script=Han}][^\n:：。！？；「」“”]{1,80}$/u.test(title);
 }
 
 function classifyLogicalHeading(block, bookTitle) {
   const raw = String(block || "").trim();
-  const wasBracketed = /^[《〈「『][^《》〈〉「」『』]{1,80}[》〉」』]$/u.test(raw);
-  const title = undecorateTitle(raw);
+  const wasBracketed = /^[《〈「『【][^《》〈〉「」『』【】]{1,80}[》〉」』】]$/u.test(raw);
+  const title = trimChineseChapterTitleProseTail(undecorateTitle(raw));
   if (!title) return null;
   const prefixed = chineseBookPrefixedChapterTitle(title, bookTitle);
   if (prefixed) return { kind: "chapter", title: prefixed };
@@ -748,11 +859,13 @@ function splitNumberedPoemBlock(block) {
 
 function splitInlineChineseChapterBlock(block) {
   const text = String(block || "").trim();
-  const numeral = "[一二两三四五六七八九十百千〇○零\\d]+";
-  const re = new RegExp(`(^|[\\s。！？；;])((?:第\\s*${numeral}\\s*回\\s*[:：]?\\s*[\\p{Script=Han}][^\\n。！？；;，、]{1,40})|(?:第\\s*${numeral}\\s*回)|(?:第\\s*${numeral}\\s*(?:章|節|节|篇|卦|卷)))(?=\\s|　|$|[。！？；;:：])`, "gu");
+  const re = new RegExp(`(^|[\\s。！？；;])((?:第\\s*${HAN_ORDINAL_RE}\\s*回\\s*[:：]?\\s*[\\p{Script=Han}][^\\n。！？；;，、]{1,80})|(?:第\\s*${HAN_ORDINAL_RE}\\s*回)|(?:第\\s*${HAN_ORDINAL_RE}\\s*(?:章|節|节|篇|卦|卷)))(?=\\s|　|$|[。！？；;:：])`, "gu");
   const matches = [...text.matchAll(re)];
   if (!matches.length) return null;
-  if (matches.length === 1 && matches[0].index === 0 && !matches[0][1]) return null;
+  if (matches.length === 1 && matches[0].index === 0 && !matches[0][1]) {
+    const bodyStart = matches[0].index + matches[0][0].length;
+    if (!text.slice(bodyStart).trim()) return null;
+  }
 
   const parts = [];
   const preface = text.slice(0, matches[0].index).trim();
@@ -761,9 +874,15 @@ function splitInlineChineseChapterBlock(block) {
     const m = matches[i];
     const next = matches[i + 1];
     const headingStart = m.index + m[1].length;
-    const bodyStart = m.index + m[0].length;
+    let bodyStart = m.index + m[0].length;
+    let heading = text.slice(headingStart, bodyStart).trim();
+    const recitation = heading.match(/\s+(?=(?:詩曰|诗曰|詞曰|词曰)[:：])/u);
+    if (recitation?.index != null) {
+      bodyStart = headingStart + recitation.index + recitation[0].length;
+      heading = heading.slice(0, recitation.index).trim();
+    }
     const body = text.slice(bodyStart, next?.index ?? text.length).trim();
-    parts.push(text.slice(headingStart, bodyStart).trim());
+    parts.push(heading);
     if (body) parts.push(body);
   }
   return parts;
@@ -771,7 +890,7 @@ function splitInlineChineseChapterBlock(block) {
 
 function splitInlineVolumeBlock(block) {
   const text = String(block || "").trim();
-  const re = /(?:^|\s)(卷之[一二两三四五六七八九十百千〇○零\d]+(?:[\p{Script=Han}]{1,16}(?:上|中|下)?)?)(?=\s|　|$)/gu;
+  const re = new RegExp(`(?:^|\\s)((?:卷之${HAN_ORDINAL_RE}(?:[\\p{Script=Han}]{1,16}(?:上|中|下)?)?)|(?:卷第?${HAN_ORDINAL_RE}(?:補遺|补遗)?))(?=\\s|　|$)`, "gu");
   const matches = [...text.matchAll(re)];
   if (!matches.length) return null;
 
@@ -788,6 +907,20 @@ function splitInlineVolumeBlock(block) {
     if (body) parts.push(body);
   }
   return parts;
+}
+
+function splitTrailingChineseHeadingBlock(block) {
+  const text = String(block || "").trim();
+  if (!text || classifyLogicalHeading(text, "")?.kind === "chapter") return null;
+  const re = new RegExp(`((?:卷${HAN_ORDINAL_RE})|[\\p{Script=Han}]{2,18}(?:篇)?第${HAN_ORDINAL_RE}|[\\p{Script=Han}]{2,18}篇${HAN_ORDINAL_RE})$`, "u");
+  const match = text.match(re);
+  if (!match || match.index == null) return null;
+  const title = match[1].trim();
+  if (!classifyLogicalHeading(title, "") || looksLikeProseTitle(title)) return null;
+  const body = text.slice(0, match.index).trim();
+  if (match.index < 80 && !/[。！？」』”"]$/u.test(body)) return null;
+  if (!body || (!/[。！？」』”"]$/u.test(body) && !(body.length > 120 && /\p{Script=Han}$/u.test(body)))) return null;
+  return [body, title];
 }
 
 function splitInlineEnglishChapterBlock(block) {
@@ -844,13 +977,19 @@ function expandLogicalBlocks(blocks) {
       continue;
     }
 
+    const trailingChineseHeading = splitTrailingChineseHeadingBlock(block);
+    if (trailingChineseHeading) {
+      out.push(...trailingChineseHeading);
+      continue;
+    }
+
     const inlineEnglish = splitInlineEnglishChapterBlock(block);
     if (inlineEnglish) {
       out.push(...inlineEnglish);
       continue;
     }
 
-    const bracketed = block.match(/^([《〈「『][^《》〈〉「」『』]{1,80}[》〉」』])\s+([\s\S]+)$/u);
+    const bracketed = block.match(/^([《〈「『【][^《》〈〉「」『』【】]{1,80}[》〉」』】])\s+([\s\S]+)$/u);
     if (bracketed) {
       out.push(bracketed[1].trim());
       out.push(bracketed[2].trim());
@@ -858,12 +997,12 @@ function expandLogicalBlocks(blocks) {
     }
 
     const standaloneChapterWithTitle = block.replace(/\s+/g, " ").trim();
-    if (/^第\s*[一二两三四五六七八九十百千〇○零\d]+\s*回(?:\s+[\p{Script=Han}][^。！？；;，、]{1,40})?$/u.test(standaloneChapterWithTitle)) {
+    if (new RegExp(`^第\\s*${HAN_ORDINAL_RE}\\s*回(?:\\s+[\\p{Script=Han}][^。！？；;，、]{1,80})?$`, "u").test(standaloneChapterWithTitle)) {
       out.push(standaloneChapterWithTitle);
       continue;
     }
 
-    const numbered = block.match(/^(第\s*[一二两三四五六七八九十百千〇○零\d]+\s*(?:章|回|節|节|篇|卦|卷).{0,30})\s+([\s\S]+)$/u);
+    const numbered = block.match(new RegExp(`^(第\\s*${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷).{0,80})\\s+([\\s\\S]+)$`, "u"));
     if (numbered) {
       out.push(numbered[1].trim());
       out.push(numbered[2].trim());
@@ -880,6 +1019,7 @@ function splitLogicalChapters(text, bookTitle, leadingTitle = null) {
   const build = (volumesAsChapters = false) => {
     const chapters = [];
     let current = leadingTitle ? { title: leadingTitle, blocks: [] } : null;
+    let leadingBlocks = [];
 
     const finish = (keepEmpty = false) => {
       if (!current) return;
@@ -887,22 +1027,46 @@ function splitLogicalChapters(text, bookTitle, leadingTitle = null) {
       if (body || keepEmpty) chapters.push({ title: current.title, text: body });
       current = null;
     };
+    const inferLeadingChineseFirstChapter = (nextTitle) => {
+      const match = String(nextTitle || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .match(/^第\s*二\s*(章|回|節|节|篇|卦|卷)/u);
+      return match ? `第一${match[1]}` : null;
+    };
+    const flushLeadingBlocks = (nextTitle) => {
+      if (current || !leadingBlocks.length) return;
+      const inferredTitle = inferLeadingChineseFirstChapter(nextTitle);
+      if (!inferredTitle) {
+        leadingBlocks = [];
+        return;
+      }
+      const body = normalizeTextBlocks(leadingBlocks.join("\n\n"));
+      const proseBlocks = leadingBlocks.filter(looksLikeProseBlock).length;
+      if (body.length >= 200 && proseBlocks && !looksLikeNavigationOnlyText(body, bookTitle)) {
+        chapters.push({ title: inferredTitle, text: body });
+      }
+      leadingBlocks = [];
+    };
 
     for (const block of blocks) {
       const heading = classifyLogicalHeading(block, bookTitle);
       if (heading?.kind === "volume") {
-        if (volumesAsChapters) {
+        leadingBlocks = [];
+        if (volumesAsChapters || isChineseVolumeMarkerTitle(current?.title)) {
           finish();
           current = { title: heading.title, blocks: [] };
         }
         continue;
       }
       if (heading?.kind === "chapter") {
+        flushLeadingBlocks(heading.title);
         finish();
         current = { title: heading.title, blocks: [] };
         continue;
       }
       if (current) current.blocks.push(block);
+      else if (!leadingTitle && !isProjectGutenbergBoilerplateBlock(block)) leadingBlocks.push(block);
     }
 
     finish(true);
@@ -910,7 +1074,22 @@ function splitLogicalChapters(text, bookTitle, leadingTitle = null) {
   };
 
   const chapters = build(false);
-  return chapters.length ? chapters : build(true);
+  const volumeChapters = build(true);
+  if (shouldPreferVolumeLogicalChapters(chapters, volumeChapters, leadingTitle)) return volumeChapters;
+  return chapters.length ? chapters : volumeChapters;
+}
+
+function shouldPreferVolumeLogicalChapters(chapters, volumeChapters, leadingTitle = null) {
+  if (!volumeChapters.length) return false;
+  const volumeCount = volumeChapters.filter((chapter) => isChineseVolumeMarkerTitle(chapter.title)).length;
+  if (!volumeCount) return false;
+  if (!chapters.length) return true;
+  const volumeTextLength = volumeChapters.reduce((sum, chapter) => sum + String(chapter.text || "").length, 0);
+  const chapterTextLength = chapters.reduce((sum, chapter) => sum + String(chapter.text || "").length, 0);
+  if (leadingTitle && volumeChapters.length > chapters.length && volumeTextLength >= chapterTextLength) return true;
+  return volumeCount >= 2
+    && volumeChapters.length > chapters.length
+    && volumeTextLength >= chapterTextLength;
 }
 
 function isMoziCanonTitle(title) {
@@ -976,28 +1155,118 @@ function shouldMergeProseTitleContinuation(chapter, index) {
   if (!title) return false;
   if (englishChapterTitle(title)) return false;
   if (classifyLogicalHeading(title, "")?.kind === "chapter") return false;
-  if (/^(?:第\s*)?[一二两三四五六七八九十百千〇○零\d]+\s*(?:章|回|節|节|篇|卦|卷)/u.test(title)) return false;
+  if (CHINESE_CHAPTER_PREFIX_RE.test(title)) return false;
   if (/^\d{1,3}[.、]\s+[\p{Script=Han}]{1,16}$/u.test(title)) return false;
   return looksLikeProseTitle(title)
     || looksLikeProseBlock(title)
     || (/\p{Script=Han}/u.test(title) && title.length > 24 && /[，。、；：？！“”"「」]/u.test(title));
 }
 
-function mergeProseTitleContinuations(chapters) {
+function shouldMergeDuplicateTitleContinuation(previous, chapter) {
+  const left = comparableTitle(previous?.title);
+  const right = comparableTitle(chapter?.title);
+  if (!left || left !== right) return false;
+  return left.length >= 2;
+}
+
+function shouldMergeShortChineseReviewContinuation(chapter) {
+  const title = String(chapter?.title || "").replace(/\s+/g, " ").trim();
+  const text = String(chapter?.text || "").trim();
+  return /^(?:評|评)$/u.test(title) && text.length <= 600;
+}
+
+function isShortChineseInterludeTitle(title) {
+  const value = String(title || "").replace(/\s+/g, " ").trim();
+  return /^[\p{Script=Han}]{2,6}$/u.test(value)
+    && !isChineseOrdinalChapterTitle(value)
+    && !isVolumeMarker(value)
+    && !/^(?:評|评|序|跋|自序|序言|例言|目錄|目录|附錄|附录|附記|附记|後記|后记)$/u.test(value);
+}
+
+function shouldMergeShortChineseInterludes(chapters) {
+  const ordinalCount = chapters.filter((chapter) => isChineseOrdinalChapterTitle(chapter.title)).length;
+  const interludeCount = chapters.filter((chapter) => isShortChineseInterludeTitle(chapter.title)).length;
+  return ordinalCount >= 5
+    && interludeCount >= 1
+    && ordinalCount / Math.max(1, chapters.length) >= 0.45;
+}
+
+function shouldMergeChineseOrdinalRunInterruption(chapters, index, previous) {
+  const title = String(chapters[index]?.title || "").replace(/\s+/g, " ").trim();
+  if (!previous || !title || !/\p{Script=Han}/u.test(title)) return false;
+  if (chineseOrdinalFromTitle(title) || isVolumeMarker(title)) return false;
+  if (/^(?:評|评|序|跋|自序|序言|例言|目錄|目录|附錄|附录|附記|附记|後記|后记)$/u.test(title)) return false;
+  if ([...title].length > 24) return false;
+  const previousOrdinal = chineseOrdinalFromTitle(previous.title);
+  const nextOrdinal = chineseOrdinalFromTitle(chapters[index + 1]?.title);
+  if (!previousOrdinal || !nextOrdinal || previousOrdinal.kind !== nextOrdinal.kind) return false;
+  if (nextOrdinal.n !== previousOrdinal.n + 1) return false;
+  const ordinalCount = chapters.filter((chapter) => chineseOrdinalFromTitle(chapter.title)).length;
+  return ordinalCount >= 5 && ordinalCount / Math.max(1, chapters.length) >= 0.45;
+}
+
+function mergeProseTitleContinuations(chapters, bookTitle = "") {
   const out = [];
-  chapters.forEach((chapter, index) => {
-    if (out.length && shouldMergeProseTitleContinuation(chapter, index)) {
-      const previous = out[out.length - 1];
+  const mergeShortInterludes = shouldMergeShortChineseInterludes(chapters);
+  for (let index = 0; index < chapters.length; index += 1) {
+    const chapter = chapters[index];
+    if (
+      !out.length
+      && index === 0
+      && chapters[index + 1]
+      && isSameBookTitle(chapter.title, bookTitle)
+      && String(chapter.text || "").length < 1600
+    ) {
+      const next = chapters[index + 1];
+      out.push({
+        ...next,
+        text: cleanExtractedChapterText(next.title, `${chapter.text}\n\n${next.text}`),
+      });
+      index += 1;
+      continue;
+    }
+    if (!out.length && index === 0 && chapters[index + 1] && shouldMergeProseTitleContinuation(chapter, 1)) {
+      const next = chapters[index + 1];
+      out.push({
+        ...next,
+        text: cleanExtractedChapterText(next.title, `${chapter.title}\n\n${chapter.text}\n\n${next.text}`),
+      });
+      index += 1;
+      continue;
+    }
+    const previous = out[out.length - 1];
+    if (out.length && shouldMergeDuplicateTitleContinuation(previous, chapter)) {
+      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.text}`);
+      continue;
+    }
+    if (out.length && shouldMergeShortChineseReviewContinuation(chapter)) {
       previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`);
-      return;
+      continue;
+    }
+    if (
+      mergeShortInterludes
+      && out.length
+      && isChineseOrdinalChapterTitle(previous.title)
+      && isShortChineseInterludeTitle(chapter.title)
+    ) {
+      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`);
+      continue;
+    }
+    if (out.length && shouldMergeChineseOrdinalRunInterruption(chapters, index, previous)) {
+      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`);
+      continue;
+    }
+    if (out.length && shouldMergeProseTitleContinuation(chapter, index)) {
+      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`);
+      continue;
     }
     out.push({ ...chapter });
-  });
+  }
   return out;
 }
 
-function finalizeExtractedChapters(chapters) {
-  return mergeProseTitleContinuations(chapters)
+function finalizeExtractedChapters(chapters, bookTitle = "") {
+  return mergeProseTitleContinuations(chapters, bookTitle)
     .flatMap(splitInterleavedMoziCanonChapter)
     .filter((chapter) => chapter.text)
     .map((chapter, index) => ({ ...chapter, n: index + 1 }));
@@ -1070,10 +1339,7 @@ function isSpineContinuation(title, bookTitle) {
 }
 
 function isChineseOrdinalChapterTitle(title) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
-  return /^第\s*[一二两三四五六七八九十百千〇○零\d]+\s*(?:回|章|節|节|篇|卦|卷)/u.test(value)
-    || /^卷第?\s*[一二两三四五六七八九十百千〇○零\d]+/u.test(value)
-    || /^卷之[一二两三四五六七八九十百千〇○零\d]+/u.test(value);
+  return Boolean(chineseOrdinalFromTitle(title));
 }
 
 function navigationLosesChineseCoverage(navigationChapters, spineChapters) {
@@ -1081,6 +1347,13 @@ function navigationLosesChineseCoverage(navigationChapters, spineChapters) {
   const spineChinese = spineChapters.filter((chapter) => isChineseOrdinalChapterTitle(chapter.title)).length;
   const navigationChinese = navigationChapters.filter((chapter) => isChineseOrdinalChapterTitle(chapter.title)).length;
   return spineChinese >= 8 && navigationChinese >= 8 && spineChinese > navigationChinese;
+}
+
+function looksLikeChineseProseNavigationTitle(title) {
+  const value = String(title || "").replace(/\s+/g, " ").trim();
+  if (!value || isChineseOrdinalChapterTitle(value)) return false;
+  if (!/\p{Script=Han}/u.test(value)) return false;
+  return [...value].length >= 8 && /[。！？；;﹗﹖]$/u.test(value);
 }
 
 function spineTextItems(parsed) {
@@ -1169,13 +1442,15 @@ export async function extractEpubChapters(filePath) {
     const notOversegmented = !chapters.length
       || navigationChapters.length <= Math.max(chapters.length * 1.8, chapters.length + 8);
     if (enoughCoverage && notOversegmented && !navigationLosesChineseCoverage(navigationChapters, chapters)) {
-      const finalized = finalizeExtractedChapters(navigationChapters);
-      assertReadableChapters(finalized);
-      return finalized;
+      const finalized = finalizeExtractedChapters(navigationChapters, bookTitle);
+      if (!finalized.some((chapter) => looksLikeChineseProseNavigationTitle(chapter.title))) {
+        assertReadableChapters(finalized);
+        return finalized;
+      }
     }
   }
   if (!chapters.length) throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
-  const finalized = finalizeExtractedChapters(chapters);
+  const finalized = finalizeExtractedChapters(chapters, bookTitle);
   assertReadableChapters(finalized);
   return finalized;
 }

@@ -9,6 +9,7 @@ const types = await readFile(new URL("../functions/lib/types.ts", import.meta.ur
 const apiRoute = await readFile(new URL("../functions/api/[[route]].ts", import.meta.url), "utf8");
 const platformLib = await readFile(new URL("../functions/lib/platform.ts", import.meta.url), "utf8");
 const platformRoute = await readFile(new URL("../functions/routes/platform.ts", import.meta.url), "utf8");
+const booksRoute = await readFile(new URL("../functions/routes/books.ts", import.meta.url), "utf8");
 const platformWorker = await readFile(new URL("../workers/platform-worker.ts", import.meta.url), "utf8");
 const apiClient = await readFile(new URL("../src/lib/api.js", import.meta.url), "utf8");
 const searchSource = await readFile(new URL("../src/components/product-search.jsx", import.meta.url), "utf8");
@@ -49,6 +50,13 @@ test("backend exposes platform status, semantic search, queue jobs, and worker c
   assert.match(platformLib, /env\.BROWSER\.quickAction\("screenshot"/);
   assert.match(platformWorker, /async queue\(batch: MessageBatch<PlatformQueueMessage>/);
   assert.match(platformWorker, /runPlatformJob\(env, message\.body\)/);
+});
+
+test("book ingest lets allow-listed platform admins rebuild catalog rows", () => {
+  assert.match(booksRoute, /import \{ bearerToken, getCliPublishToken, isPlatformAdmin \}/);
+  assert.match(booksRoute, /await isPlatformAdmin\(c\.env, token\)/);
+  assert.match(booksRoute, /return \{ ok: true, userId: null \}/);
+  assert.match(booksRoute, /getCliPublishToken\(c\.env, token\)/);
 });
 
 test("frontend surfaces semantic search and platform capability state", () => {

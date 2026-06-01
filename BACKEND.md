@@ -211,8 +211,26 @@ For ongoing Gutenberg curation, `npm run import:gutenberg-classics` defaults to
 the Chinese catalogue. This keeps the platform route centered on Chinese public
 domain books, where the importer has dedicated checks for classical chapter
 forms (`第…回/章/卷`, inline headings, cross-spine terminal headings, numbering
-gaps, TOC fragments, and garbled text). Use `--all-langs` only when deliberately
-auditing the wider multilingual backlog.
+gaps, 廿/卅 shorthand numerals, full-width digit headings/brackets, `书名·篇名`
+chapter prefixes, prose-fragment headings with Chinese/full-width punctuation,
+out-of-order volume runs, TOC fragments, placeholder titles, Latin noise
+headings in Chinese books, and garbled text). Known source lacunae are preserved
+as explicit `（缺）` placeholder chapters so the reader, TOC, and downstream
+translation/search jobs keep stable numbering. `評`/`评` review snippets and
+short interlude titles inside chapter runs are folded into the previous Chinese
+chapter. The current Chinese catalogue has no configured single-chapter
+fallbacks; weak future candidates should stay unpublished or temporary-only
+until a clean public-domain source-specific splitter is added. Those splitters
+cover forms such as `词曲部` and `结构第一`, implicit opening sections where the
+first numbered heading is omitted, bilingual exercise books such as
+`滬語開路`, and Lu Xun collections such as `南腔北調集` where `BB` note
+separators must stay inside the right article. Modern Chinese collections can
+use explicit story-title lists so internal `一/二/三` sections stay inside their
+story instead of becoming fake top-level chapters. Bilingual public-domain
+entries can be cropped to a clean Chinese source range when the original
+Chinese text is explicit.
+Use `--skip-existing` for live curation batches and `--all-langs` only when
+deliberately auditing the wider multilingual backlog.
 
 Wallet sign-in: `POST /api/auth/nonce` → wallet signs it → `POST /api/auth/verify`
 (real Sui personal-message signature check via `@mysten/sui`). Frontend flow in
@@ -229,7 +247,10 @@ browser flow in `src/lib/passkey.js`. Note: WebAuthn requires HTTPS (or
 CLI browser auth: `POST /api/auth/cli/start` creates a device authorization,
 the browser approves it through wallet login at `/?cli_auth=...`, and
 `GET /api/auth/cli/poll/:device` returns a scoped CLI publish token. That token
-is accepted by `/api/books/ingest` in addition to `ADMIN_TOKEN`.
+is accepted by `/api/books/ingest` in addition to `ADMIN_TOKEN`. Normal CLI
+tokens can create books and overwrite their own books; a CLI token from an
+`ADMIN_WALLETS` allow-listed wallet is treated as platform maintenance auth and
+can rebuild existing catalogue rows.
 
 CLI private-key auth uses the normal wallet nonce verification path, then calls
 `POST /api/auth/cli/token` with the wallet session to mint the same scoped

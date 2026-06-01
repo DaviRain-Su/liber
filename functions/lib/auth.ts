@@ -99,8 +99,9 @@ export function hasAdminToken(env: Env, token?: string | null): boolean {
 // Authorization for infra/cost endpoints (platform jobs, graph backfill/maintenance):
 // the ADMIN_TOKEN, or a CLI publish token whose wallet is allow-listed in
 // ADMIN_WALLETS. A self-minted CLI token from an arbitrary wallet user is NOT
-// admin — that was the privilege-escalation hole. CLI *book publishing* is gated
-// separately (see books.ingestAuth) and still accepts any CLI token.
+// admin — that was the privilege-escalation hole. CLI *book publishing* still
+// accepts any CLI token for create/own-overwrite, while books.ingestAuth uses
+// this helper only to grant maintenance overwrite to allow-listed wallets.
 export async function isPlatformAdmin(env: Env, token?: string | null): Promise<boolean> {
   if (hasAdminToken(env, token)) return true;
   const allow = new Set(

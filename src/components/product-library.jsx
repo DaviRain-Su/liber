@@ -6,6 +6,7 @@ import { compareLanguageCodes, languageCodeFor, languageLabel } from "../lib/lan
 
 /* product-library.jsx — Library browse screen. */
 const { useState: useStateLib, useEffect: useEffLib } = React;
+const DEFAULT_LIBRARY_LANG = "zh";
 
 const SUBJECTS = [
   {
@@ -112,7 +113,7 @@ function booksForSubject(books, subject) {
 }
 
 function Library({ onOpenBook, onOpenCharts }){
-  const [lang, setLang] = useStateLib("all");
+  const [lang, setLang] = useStateLib(DEFAULT_LIBRARY_LANG);
   const [subject, setSubject] = useStateLib("all");
   const [direction, setDirection] = useStateLib("all");
   const [sort, setSort] = useStateLib("最多人读");
@@ -126,6 +127,7 @@ function Library({ onOpenBook, onOpenCharts }){
   const feature = books.find(b => b.featured) || books[0];
   const featureLicense = licenseLabel(feature?.license).replace("Public Domain", "PD").replace("CC0-1.0", "CC0");
   const langs = languageGroups(books);
+  const langsKey = langs.map((row) => row.code).join("|");
   const allDirections = directionOptions(books);
   const currentLang = lang === "all" ? null : langs.find((row) => row.code === lang);
   const scopedBooks = lang === "all" ? books : books.filter((b) => languageCodeFor(b) === lang);
@@ -134,6 +136,14 @@ function Library({ onOpenBook, onOpenCharts }){
   const directions = directionOptions(subjectScopedBooks);
   const subjectKey = subjects.map((row) => row.id).join("|");
   const directionKey = directions.map((row) => row.name).join("|");
+  useEffLib(() => {
+    if (lang === "all" || !langs.length) return;
+    if (!langs.some((row) => row.code === lang)) {
+      setLang("all");
+      setSubject("all");
+      setDirection("all");
+    }
+  }, [lang, langsKey]);
   useEffLib(() => {
     if (subject === "all") return;
     if (!subjects.some((row) => row.id === subject)) {

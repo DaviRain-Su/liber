@@ -118,24 +118,20 @@ rewrites Vite assets to `index.html` and causes strict MIME errors for CSS and
 JS. The current app keeps navigation in React state, so it does not need an SPA
 fallback rule.
 
-Pick **one** trigger per Pages project (running both just double-deploys):
+Deploys are run **locally with the Cloudflare CLI** (`npm run deploy` above) —
+there is no GitHub Actions deploy workflow and no `CLOUDFLARE_API_TOKEN` secret.
+CI (`.github/workflows/ci.yml`) only builds and tests on push / PR.
 
-**A — GitHub Actions (in-repo).** `.github/workflows/deploy.yml` builds and runs
-`wrangler pages deploy` (SPA + Functions + bindings) from GitHub's runners on
-every push to `main`. Add a repository secret `CLOUDFLARE_API_TOKEN` (use the
-*Edit Cloudflare Workers* token template) under Settings → Secrets and variables
-→ Actions. Until that secret exists the workflow builds but skips the deploy, so
-it stays green.
-
-**B — Dashboard Git integration.** Cloudflare dashboard → Workers & Pages →
-Create application → Pages → Import an existing Git repository → pick this repo.
-Build command `npm run build`, output directory `dist`, production branch `main`;
-Cloudflare reads `wrangler.toml` for the Functions and bindings.
+Optional auto-deploy via **Dashboard Git integration**: Cloudflare dashboard →
+Workers & Pages → Create application → Pages → Import an existing Git repository →
+pick this repo. Build command `npm run build`, output directory `dist`,
+production branch `main`; Cloudflare reads `wrangler.toml` for the Functions and
+bindings.
 
 Future schema changes: add a new SQL file under `migrations/`, wire it into the
-`db:migrate` scripts, and the GitHub Actions deploy will apply it before Pages
-deploys. For local full-stack dev (`wrangler pages dev` + local D1/KV/R2), see
-[BACKEND.md](BACKEND.md).
+`db:migrate` scripts, and apply it manually with `npm run db:migrate` (run it
+before `npm run deploy`). For local full-stack dev (`wrangler pages dev` + local
+D1/KV/R2), see [BACKEND.md](BACKEND.md).
 
 ### Platform Jobs
 
@@ -220,8 +216,12 @@ optimized around classical Chinese chapter splitting, 繁简显示, 竖排, and
 
 ```bash
 npm run import:gutenberg-classics -- --json
-npm run import:gutenberg-classics -- --publish --json --ids <comma-separated chinese ids>
+npm run import:gutenberg-classics -- --publish --skip-existing --json --ids <comma-separated chinese ids>
 ```
+
+Use `ADMIN_TOKEN` or a CLI token from an `ADMIN_WALLETS` allow-listed wallet
+when rebuilding an existing catalogue book with better Chinese chapter splits;
+ordinary CLI publish tokens can still only overwrite books they created.
 
 To explicitly inspect or import the wider multilingual backlog, opt in:
 
@@ -234,9 +234,28 @@ The importer records ISO language codes and language-prefixed categories from
 Project Gutenberg EPUBs that pass the same `PUBLIC-DOMAIN` license checks.
 Chinese candidates also go through stricter title/TOC checks for 第几回/章/卷,
 inline chapter headings, terminal headings split across spine files, Chinese
-numbering gaps, TOC fragments, and mojibake/garbled text. Wider multilingual
-candidates stay available, but they should not displace the Chinese quality
-route.
+numbering gaps, shorthand numerals such as 廿/卅, full-width digit headings,
+full-width bracket titles, book-prefixed titles such as `史記·本紀`, prose
+fragments with Chinese/full-width punctuation, out-of-order volume sequences,
+TOC fragments, placeholder titles, Latin noise headings in Chinese books, and
+mojibake/garbled text. Known source lacunae stay explicit as `（缺）`
+placeholder chapters instead of being hidden by relaxed quality gates. Short
+`評`/`评` review sections and short interlude titles inside chapter runs are
+merged back into the previous chapter instead of becoming standalone reader
+chapters. The current Chinese catalogue has no configured single-chapter
+fallbacks; weak future candidates should stay unpublished or temporary-only
+until a clean public-domain source-specific splitter is added. Those splitters
+now cover Chinese `部`/篇目 structures such as `词曲部` and `结构第一`, implicit
+opening sections where the first numbered heading is omitted, bilingual
+exercise books such as `滬語開路`, and Lu Xun collections such as
+`南腔北調集` where `BB` note separators must stay inside the right article.
+Modern Chinese collections can also use explicit story-title lists so internal
+`一/二/三` sections stay inside their story instead of becoming fake top-level
+chapters. Bilingual public-domain Gutenberg entries can be cropped to their
+clean Chinese source range when the Chinese original is explicit. The in-app
+library also opens on the 中文 shelf first when Chinese books are present. Wider
+multilingual candidates stay available, but they should not displace the
+Chinese quality route.
 
 The CLI is packaged separately under `packages/liber-cli` as `liber-cli`, so it
 can be published to npm and installed by curators or agents. It requires
