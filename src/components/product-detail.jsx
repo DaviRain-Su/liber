@@ -4,6 +4,7 @@ import { CommentsPanel } from "./product-social.jsx";
 import { AddToBooklist } from "./product-booklist.jsx";
 import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks, licenseLabel } from "../lib/catalog.js";
 import { addShelfBook, getShelfReadingIds } from "../lib/shelf.js";
+import { useQuery } from "@tanstack/react-query";
 
 /* product-detail.jsx — Book detail page. */
 function hasOriginalEpub(book) {
@@ -20,27 +21,10 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }){
     blurb: "这本书还没有入库。", long: "",
   };
   const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
-  const [detail, setDetail] = React.useState(() => ({
-    book: seedBook,
-    toc: (window.BOOK_CONTENT?.[seedBook.id]?.toc) || null,
-    highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null,
-    reviews: seedBook.id === "daodejing" ? window.REVIEWS : null,
-  }));
-  React.useEffect(() => {
-    const fallback = {
-      book: seedBook,
-      toc: (window.BOOK_CONTENT?.[seedBook.id]?.toc) || null,
-      highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null,
-      reviews: seedBook.id === "daodejing" ? window.REVIEWS : null,
-    };
-    setDetail(fallback);
-    if (!window.liberApi) return;
-    let live = true;
-    window.liberApi.books.get(bookId).then(r => {
-      if (live && r?.book) setDetail({ book: r.book, toc: r.toc, highlights: r.highlights, reviews: r.reviews });
-    }).catch(() => {});
-    return () => { live = false; };
-  }, [bookId]);
+  const bookQ = useQuery({ queryKey: ["book", bookId, "detail"], queryFn: () => window.liberApi.books.get(bookId), enabled: !!window.liberApi });
+  const detail = (bookQ.data && bookQ.data.book)
+    ? { book: bookQ.data.book, toc: bookQ.data.toc, highlights: bookQ.data.highlights, reviews: bookQ.data.reviews }
+    : { book: seedBook, toc: (window.BOOK_CONTENT?.[seedBook.id]?.toc) || null, highlights: seedBook.id === "daodejing" ? window.HIGHLIGHTS : null, reviews: seedBook.id === "daodejing" ? window.REVIEWS : null };
   const { book, toc, highlights, reviews } = detail;
   const originalEpub = hasOriginalEpub(book);
   const [cmtOpen, setCmtOpen] = React.useState(false);

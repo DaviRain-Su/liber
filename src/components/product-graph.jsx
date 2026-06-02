@@ -13,6 +13,7 @@ import { layoutForce } from "../lib/force-graph.js";
    the seed ECHOES entirely when the backend is unavailable, so it works on a
    static deploy too — same graceful-degradation contract as the rest of api.js. */
 const { useState: useGs, useEffect: useGe, useRef: useGr } = React;
+import { useQuery } from "@tanstack/react-query";
 
 // cover-class → swatch color (mirrors .cover.* in liber.css)
 const CLS_COLOR = {
@@ -45,25 +46,15 @@ function seedMap() {
 }
 
 function GraphView({ onClose, onOpenBook }) {
-  const [state, setState] = useGs({ loading: true, source: null, nodes: [], edges: [], error: null });
+  const mapQ = useQuery({ queryKey: ["graph", "map"], queryFn: () => api.graph.map(400) });
+  const state = mapQ.isPending
+    ? { loading: true, source: null, nodes: [], edges: [], error: null }
+    : (mapQ.data && mapQ.data.nodes && mapQ.data.nodes.length)
+      ? { loading: false, ...mapQ.data, error: null }
+      : { loading: false, ...seedMap(), error: mapQ.isError ? "offline" : null };
   const [hover, setHover] = useGs(null);
   const wrapRef = useGr(null);
   const W = 560, H = 440;
-
-  useGe(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const m = await api.graph.map(400);
-        if (!alive) return;
-        if (m && m.nodes && m.nodes.length) setState({ loading: false, ...m, error: null });
-        else setState({ loading: false, ...seedMap(), error: null });
-      } catch {
-        if (alive) setState({ loading: false, ...seedMap(), error: "offline" });
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
 
   const { pts, links } = React.useMemo(
     () => (state.nodes.length ? layoutForce(state.nodes, state.edges, W, H) : { pts: [], links: [] }),
