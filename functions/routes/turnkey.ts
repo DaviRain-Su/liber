@@ -7,6 +7,7 @@
 // against the real API on the first run. Creating sub-orgs is gated behind
 // ADMIN_TOKEN so it can't be triggered by the public.
 import { Hono } from "hono";
+import type { Context } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { bearerToken, hasAdminToken, createSession, getUser } from "../lib/auth";
 import { id, now, run, first, all } from "../lib/db";
@@ -26,6 +27,27 @@ import { solTransferMessage, solMessageHex, solSignedTxBase64, solParseForSignin
 import { p2wpkhProgram, p2wpkhScript, bip143Sighashes, derLowS, buildSignedTx, hash160, estVsize, DUST_P2WPKH, bytesToHex as btcBytesToHex, type TxOutput, type TxInput } from "../lib/turnkey-bitcoin";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+type TkCtx = Context<{ Bindings: Env; Variables: Variables }>;
+interface WalletCtx { uid: string; user: any; addrs: any; suiAddress: string; subOrgId: string; walletId: string; }
+// Resolve the signed-in reader's embedded wallet, or return a ready error Response.
+// Replaces the ~8-line uid/getUser/guest/parse-addresses/extract/validate block that
+// was repeated across every wallet action endpoint. Usage:
+//   const w = await walletCtx(c, { sui: true }); if (w instanceof Response) return w;
+async function walletCtx(c: TkCtx, opts: { sui?: boolean; walletId?: boolean } = {}): Promise<WalletCtx | Response> {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  const subOrgId = user.turnkey_sub_org_id;
+  const walletId = user.turnkey_wallet_id;
+  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  if (opts.sui && !suiAddress) return c.json({ ok: false, error: "no_wallet" }, 400);
+  if (opts.walletId && !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  return { uid, user, addrs, suiAddress, subOrgId, walletId };
+}
 
 turnkey.post("/spike", async (c) => {
   const env = c.env;
@@ -324,15 +346,9 @@ function b64encode(bytes: Uint8Array): string {
 
 // 1) Build the unsigned transfer + the digest the user's passkey must sign.
 turnkey.post("/sui/prepare", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null;
-  try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const subOrgId = user.turnkey_sub_org_id;
-  const suiAddress = user.turnkey_sui_address || addrs?.sui;
-  if (!subOrgId || !suiAddress) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c, { sui: true });
+  if (w instanceof Response) return w;
+  const { suiAddress, subOrgId } = w;
 
   const body: any = await c.req.json().catch(() => ({}));
   const to = String(body?.to || "").trim();
@@ -362,16 +378,9 @@ turnkey.post("/sui/prepare", async (c) => {
 
 // 2) Read the user's passkey-signed activity and broadcast the transfer on Sui.
 turnkey.post("/sui/broadcast", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null;
-  try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const subOrgId = user.turnkey_sub_org_id;
-  const suiAddress = user.turnkey_sui_address || addrs?.sui;
-  const walletId = user.turnkey_wallet_id;
-  if (!subOrgId || !suiAddress || !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c, { sui: true, walletId: true });
+  if (w instanceof Response) return w;
+  const { suiAddress, subOrgId, walletId } = w;
 
   const body: any = await c.req.json().catch(() => ({}));
   const txBytesB64 = String(body?.txBytesB64 || "");
@@ -411,15 +420,11 @@ async function ethCall(url: string, method: string, params: any[]): Promise<any>
 const hexBig = (h: string): bigint => BigInt(h && h !== "0x" ? h : "0x0");
 
 turnkey.post("/evm/prepare", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null;
-  try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const from = (user.turnkey_addresses && addrs?.ethereum) || null;
-  const subOrgId = user.turnkey_sub_org_id;
-  if (!from || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c);
+  if (w instanceof Response) return w;
+  const { addrs, subOrgId } = w;
+  const from = addrs?.ethereum;
+  if (!from) return c.json({ ok: false, error: "no_wallet" }, 400);
 
   const body: any = await c.req.json().catch(() => ({}));
   const to = String(body?.to || "").trim();
@@ -455,12 +460,9 @@ turnkey.post("/evm/prepare", async (c) => {
 });
 
 turnkey.post("/evm/broadcast", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  const subOrgId = user.turnkey_sub_org_id;
-  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c);
+  if (w instanceof Response) return w;
+  const { subOrgId } = w;
 
   const body: any = await c.req.json().catch(() => ({}));
   const tx = body?.tx as EvmTx | undefined;
@@ -491,13 +493,11 @@ async function solRpc(method: string, params: any[]): Promise<any> {
 function hexToBytesLocal(h: string): Uint8Array { const a = new Uint8Array(h.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16); return a; }
 
 turnkey.post("/sol/prepare", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const from = addrs?.solana; const subOrgId = user.turnkey_sub_org_id;
-  if (!from || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c);
+  if (w instanceof Response) return w;
+  const { addrs, subOrgId } = w;
+  const from = addrs?.solana;
+  if (!from) return c.json({ ok: false, error: "no_wallet" }, 400);
   const body: any = await c.req.json().catch(() => ({}));
   const to = String(body?.to || "").trim();
   const amount = Number(body?.amount);
@@ -519,12 +519,9 @@ turnkey.post("/sol/prepare", async (c) => {
 });
 
 turnkey.post("/sol/broadcast", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  const subOrgId = user.turnkey_sub_org_id;
-  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c);
+  if (w instanceof Response) return w;
+  const { subOrgId } = w;
   const body: any = await c.req.json().catch(() => ({}));
   const messageHex = String(body?.sol?.messageHex || "");
   const activityId = String(body?.activityId || "");
@@ -546,13 +543,11 @@ turnkey.post("/sol/broadcast", async (c) => {
 const BTC_API = "https://blockstream.info/api";
 
 turnkey.post("/btc/prepare", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const from = addrs?.bitcoin; const subOrgId = user.turnkey_sub_org_id; const walletId = user.turnkey_wallet_id;
-  if (!from || !subOrgId || !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c, { walletId: true });
+  if (w instanceof Response) return w;
+  const { addrs, subOrgId, walletId } = w;
+  const from = addrs?.bitcoin;
+  if (!from) return c.json({ ok: false, error: "no_wallet" }, 400);
   const body: any = await c.req.json().catch(() => ({}));
   const to = String(body?.to || "").trim();
   const amount = Number(body?.amount);
@@ -594,12 +589,9 @@ turnkey.post("/btc/prepare", async (c) => {
 });
 
 turnkey.post("/btc/broadcast", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  const subOrgId = user.turnkey_sub_org_id;
-  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c);
+  if (w instanceof Response) return w;
+  const { subOrgId } = w;
   const body: any = await c.req.json().catch(() => ({}));
   const btc = body?.btc; const activityId = String(body?.activityId || "");
   if (!btc?.input || !btc?.outputs || !btc?.pubkeyHex || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
@@ -847,12 +839,9 @@ turnkey.post("/swap/prepare", async (c) => {
 // Broadcast a Solana-source LI.FI swap: splice the passkey signature into the LI.FI tx
 // and send it. (EVM-source swaps reuse /turnkey/evm/broadcast.)
 turnkey.post("/swap/sol/broadcast", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  const subOrgId = user.turnkey_sub_org_id;
-  if (!subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c);
+  if (w instanceof Response) return w;
+  const { subOrgId } = w;
   const body: any = await c.req.json().catch(() => ({}));
   const txB64 = String(body?.sol?.txB64 || "");
   const sigOffset = Number(body?.sol?.sigOffset);
@@ -873,14 +862,9 @@ turnkey.post("/swap/sol/broadcast", async (c) => {
 // verify the signature server-side so the UI can show a genuine, verifiable result.
 // No broadcast — this proves wallet ownership / consent, it isn't a transaction.
 turnkey.post("/sign/message", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const suiAddress = user.turnkey_sui_address || addrs?.sui;
-  const subOrgId = user.turnkey_sub_org_id;
-  if (!suiAddress || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c, { sui: true });
+  if (w instanceof Response) return w;
+  const { suiAddress, subOrgId } = w;
   const body: any = await c.req.json().catch(() => ({}));
   const message = String(body?.message || "");
   if (!message || message.length > 2000) return c.json({ ok: false, error: "bad_message" }, 400);
@@ -888,15 +872,9 @@ turnkey.post("/sign/message", async (c) => {
 });
 
 turnkey.post("/sign/verify", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const suiAddress = user.turnkey_sui_address || addrs?.sui;
-  const subOrgId = user.turnkey_sub_org_id;
-  const walletId = user.turnkey_wallet_id;
-  if (!suiAddress || !subOrgId || !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c, { sui: true, walletId: true });
+  if (w instanceof Response) return w;
+  const { suiAddress, subOrgId, walletId } = w;
   const body: any = await c.req.json().catch(() => ({}));
   const message = String(body?.message || "");
   const activityId = String(body?.activityId || "");
@@ -944,14 +922,9 @@ async function buildRegisterTx(
 const ONCHAIN_KINDS = new Set(["annotation", "work", "certificate", "storage"]);
 
 turnkey.post("/onchain/prepare", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const suiAddress = user.turnkey_sui_address || addrs?.sui;
-  const subOrgId = user.turnkey_sub_org_id;
-  if (!suiAddress || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c, { sui: true });
+  if (w instanceof Response) return w;
+  const { suiAddress, subOrgId } = w;
   if (!c.env.SUI_PACKAGE) return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
   const body: any = await c.req.json().catch(() => ({}));
   const contentId = String(body?.contentId || "").slice(0, 400);
@@ -980,21 +953,16 @@ turnkey.get("/my-works", async (c) => {
 });
 
 turnkey.post("/storage/prepare", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const suiAddress = user.turnkey_sui_address || addrs?.sui;
-  const subOrgId = user.turnkey_sub_org_id;
-  if (!suiAddress || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c, { sui: true });
+  if (w instanceof Response) return w;
+  const { uid, suiAddress, subOrgId } = w;
   if (!c.env.SUI_PACKAGE) return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
   const body: any = await c.req.json().catch(() => ({}));
   const workId = String(body?.workId || "");
-  const w = await first<any>(c.env.DB, `SELECT id, title, body FROM works WHERE id = ? AND user_id = ?`, workId, uid);
-  if (!w) return c.json({ ok: false, error: "not_found", message: "未找到该作品" }, 404);
+  const work = await first<any>(c.env.DB, `SELECT id, title, body FROM works WHERE id = ? AND user_id = ?`, workId, uid);
+  if (!work) return c.json({ ok: false, error: "not_found", message: "未找到该作品" }, 404);
   try {
-    const blobId = await walrusPublish(c.env, new TextEncoder().encode(String(w.body || "")), 25_000);
+    const blobId = await walrusPublish(c.env, new TextEncoder().encode(String(work.body || "")), 25_000);
     if (!blobId) return c.json({ ok: false, error: "walrus_failed", message: "Walrus 存储失败，请重试" }, 502);
     const contentId = `walrus://${blobId}`;
     const r = await buildRegisterTx(c.env, suiAddress, contentId, "storage", "CC0-1.0");
@@ -1026,15 +994,9 @@ turnkey.get("/my-books", async (c) => {
 });
 
 turnkey.post("/onchain/broadcast", async (c) => {
-  const uid = c.get("userId");
-  if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const user: any = await getUser(c.env, uid);
-  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
-  const suiAddress = user.turnkey_sui_address || addrs?.sui;
-  const subOrgId = user.turnkey_sub_org_id;
-  const walletId = user.turnkey_wallet_id;
-  if (!suiAddress || !subOrgId || !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const w = await walletCtx(c, { sui: true, walletId: true });
+  if (w instanceof Response) return w;
+  const { uid, suiAddress, subOrgId, walletId } = w;
   const body: any = await c.req.json().catch(() => ({}));
   const txBytesB64 = String(body?.txBytesB64 || "");
   const activityId = String(body?.activityId || "");
