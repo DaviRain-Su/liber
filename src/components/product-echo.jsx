@@ -10,6 +10,7 @@ import { layoutForce } from "../lib/force-graph.js";
    Echoes are fetched LIVE (get_echoes: merged seed + auto-discovered edges),
    with the static seed ECHOES as a graceful fallback. */
 const { useState: useEc2, useEffect: useEcEf, useMemo: useEcMemo } = React;
+import { useQuery } from "@tanstack/react-query";
 
 // cover-class → swatch color (mirrors .cover.* in liber.css); used when a live
 // echo item carries no explicit color (seed items do; auto-discovered ones don't).
@@ -19,20 +20,10 @@ const itemSeal = (it) => it.seal || (window.BOOKS || []).find(b => b.id === it.b
 
 function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }){
   const seed = (window.ECHOES || {})[sid] || null;
-  const [data, setData] = useEc2(seed);
-
-  /* fetch live echoes; keep the seed as the instant + fallback render. */
-  useEcEf(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const r = await api.graph.echoes(sid);
-        const live = r && r.result;
-        if (alive && live && live.items && live.items.length) setData(live);
-      } catch { /* keep seed fallback */ }
-    })();
-    return () => { alive = false; };
-  }, [sid]);
+  // live echoes; keep the seed as the instant + fallback render.
+  const echoQ = useQuery({ queryKey: ["echoes", sid], queryFn: () => api.graph.echoes(sid) });
+  const live = echoQ.data && echoQ.data.result;
+  const data = (live && live.items && live.items.length) ? live : seed;
 
   const items = data ? data.items : [];
   const theme = data ? data.theme : "主题呼应";

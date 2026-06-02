@@ -4,6 +4,7 @@ import { getCatalogBooks, getCatalogTotal, loadCatalogBooks, subscribeCatalog } 
 
 /* product-search.jsx — global search overlay: books, sentences/highlights, people. */
 const { useState: useSse, useEffect: useEse, useRef: useRse, useMemo: useMse } = React;
+import { useQuery } from "@tanstack/react-query";
 
 /* build a sentence index from every seeded book's chapters (道德经/论语/孙子兵法…) */
 function buildSentenceIndex(){
@@ -22,7 +23,8 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
   const [q, setQ] = useSse(initial || "");
   const [apiRes, setApiRes] = useSse(null);
   const [semanticRes, setSemanticRes] = useSse(null);
-  const [readers, setReaders] = useSse([]);
+  const readersQ = useQuery({ queryKey: ["readers", "list"], queryFn: () => window.liberApi.readers.list(), enabled: !!window.liberApi?.readers?.list });
+  const readers = Array.isArray(readersQ.data?.readers) ? readersQ.data.readers : [];
   const [catalog, setCatalog] = useSse(() => getCatalogBooks());
   const inputRef = useRse(null);
   const sentences = useMse(() => buildSentenceIndex(), []);
@@ -32,12 +34,6 @@ function SearchOverlay({ initial, onClose, onOpenBook }){
     const off = subscribeCatalog((books) => setCatalog(books));
     loadCatalogBooks().then(setCatalog).catch(() => {});
     return off;
-  }, []);
-  useEse(() => {
-    if (!window.liberApi?.readers?.list) return;
-    window.liberApi.readers.list()
-      .then((r) => { if (Array.isArray(r?.readers)) setReaders(r.readers); })
-      .catch(() => {});
   }, []);
 
   const term = q.trim();

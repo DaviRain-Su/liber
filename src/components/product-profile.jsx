@@ -9,6 +9,7 @@ import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
    (others). Others get a working 关注/已关注 button; my own profile gets
    编辑资料 / 退出 + a 关注中 list of the friends I follow. */
 const { useState: useSp, useEffect: useEpf } = React;
+import { useQuery } from "@tanstack/react-query";
 
 const EMPTY_ME = {
   name: "未登录读者",
@@ -38,15 +39,10 @@ function useFollowSet(){
    Shows plan + monthly quota, plus a stablecoin (链上) subscribe action when the
    treasury/coin/amount are configured server-side. */
 function MembershipCard(){
-  const [plan, setPlan] = useSp(null);
+  const planQ = useQuery({ queryKey: ["billing", "plan"], queryFn: () => window.liberApi.billing.plan(), enabled: !!window.liberApi?.billing?.plan });
+  const plan = planQ.data || null;
   const [paying, setPaying] = useSp(false);
   const [payMsg, setPayMsg] = useSp("");
-  useEpf(() => {
-    if (!window.liberApi?.billing?.plan) return;
-    let live = true;
-    window.liberApi.billing.plan().then((r) => { if (live) setPlan(r); }).catch(() => {});
-    return () => { live = false; };
-  }, []);
   if (!plan) return null;
   const usage = plan.usage;
   const payment = plan.billing?.crypto;
