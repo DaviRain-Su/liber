@@ -5,6 +5,8 @@ import { ConvoArtifact } from "./product-convocard.jsx";
 import { EchoOverlay } from "./product-echo.jsx";
 import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 import { convertChineseText, isChineseScriptMode } from "../lib/zh-convert.js";
+import { api } from "../lib/api.js";
+import { passkeySignDigest } from "../lib/turnkey-passkey.js";
 
 /* product-reader.jsx — full-screen reader with selection menu, highlights,
    others' annotations, AI companion drawer, TOC, settings, progress.
@@ -491,6 +493,30 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
   /* popovers / drawers */
   const [sel, setSel]   = useS(null);   // {x,y,text,sids}
   const [notePop, setNotePop] = useS(null); // {x,y,sid}
+  // Per-sentence "永存上链" opt-in state (sid → idle|working|done|error). Default is
+  // off: notes live in D1; only when the reader taps this do we register on Sui.
+  const [pinState, setPinState] = useS({});
+  const pinOnChain = async (sid) => {
+    setPinState(p => ({ ...p, [sid]: "working" }));
+    try {
+      const contentId = `liber:note:${book.id}#${sid}`;
+      const prep = await api.auth.onchainPrepare({ contentId, kind: "annotation" });
+      if (!prep || !prep.ok) throw new Error((prep && (prep.message || prep.error)) || "构建失败");
+      const { activityId } = await passkeySignDigest({ organizationId: prep.organizationId, signWith: prep.signWith, digestHex: prep.digestHex, hashFunction: prep.hashFunction });
+      const o = await api.auth.onchainBroadcast({ txBytesB64: prep.txBytesB64, activityId, contentId, kind: "annotation" });
+      if (!o || !o.ok) throw new Error((o && (o.message || o.error)) || "上链失败");
+      setPinState(p => ({ ...p, [sid]: "done", [sid + ":url"]: o.explorer }));
+    } catch (e) {
+      setPinState(p => ({ ...p, [sid]: "error", [sid + ":err"]: (e && e.message) || "上链失败" }));
+    }
+  };
+  const pinBtn = (sid) => {
+    const st = pinState[sid];
+    const label = st === "done" ? "✓ 已永存上链" : st === "working" ? "⛓ 上链中…" : st === "error" ? "↻ 重试上链" : "⛓ 永存上链";
+    return (<span title={st === "error" ? (pinState[sid + ":err"] || "上链失败") : "把这条批注作为不可篡改的存证写上 Sui 链（默认只存数据库）"}
+      onClick={() => { if (st === "done" && pinState[sid + ":url"]) { window.open(pinState[sid + ":url"], "_blank"); return; } if (st !== "working") pinOnChain(sid); }}
+      style={{ cursor: st === "working" ? "default" : "pointer", color: st === "done" ? "#2e7d57" : st === "error" ? "#c0432b" : "inherit", opacity: 0.85 }}>{label}</span>);
+  };
   const [tocOpen, setTocOpen] = useS(false);
   const [setOpen, setSetOpen] = useS(false);
   const [aiOpen, setAiOpen]   = useS(!!continueConvo);
@@ -1090,7 +1116,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
                     <div>
                       <ProvBadge note={n} mine={n.mine}/>
                       <div className="tx">{n.t}</div>
-                      <div className="mt"><span>{I.up} 赞同 {n.up||0}</span><span>回复 {n.replies||0}</span></div>
+                      <div className="mt"><span>{I.up} 赞同 {n.up||0}</span><span>回复 {n.replies||0}</span>{n.mine && pinBtn(notePop.sid)}</div>
                     </div>
                   </div>
                 ))}
