@@ -38,55 +38,23 @@ function WMark({ size = 26 }){
 const fmtUSD = (n, dp=2) => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits:dp, maximumFractionDigits:dp });
 const signed = (n) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 
-/* ---------- sample data (balances/assets/activity until on-chain fetch) ---------- */
-function spark(seed, n, drift){ const pts=[]; let v=50; for (let i=0;i<n;i++){ seed=(seed*9301+49297)%233280; const r=seed/233280; v+=(r-0.5)*14+drift; v=Math.max(8,Math.min(92,v)); pts.push(Math.round(v*10)/10);} return pts; }
-const TOKENS = [
-  { sym:"BTC", name:"Bitcoin", chain:"Bitcoin", cls:"btc", glyph:"₿", amt:"0.3184", value:21142.51, price:"66,400.20", chg:+2.31, spark:spark(13,40,.55) },
-  { sym:"ETH", name:"Ethereum", chain:"Ethereum", cls:"eth", glyph:"Ξ", amt:"4.207", value:13884.10, price:"3,300.71", chg:-0.84, spark:spark(71,40,-.2) },
-  { sym:"SOL", name:"Solana", chain:"Solana", cls:"sol", glyph:"◎", amt:"86.40", value:12702.24, price:"147.02", chg:+5.12, spark:spark(29,40,.7) },
-  { sym:"SUI", name:"Sui", chain:"Sui", cls:"sui", glyph:"S", amt:"3,920.5", value:7488.16, price:"1.910", chg:+1.07, spark:spark(47,40,.3) },
-  { sym:"USDC", name:"USD Coin", chain:"Ethereum", cls:"usdc", glyph:"$", amt:"5,280.00", value:5280.00, price:"1.000", chg:+0.01, stable:true, spark:spark(5,40,.02) },
-  { sym:"WAL", name:"Walrus", chain:"Sui", cls:"wal", glyph:"❖", amt:"12,400", value:3844.00, price:"0.310", chg:+8.40, spark:spark(63,40,.9) },
-];
-const PORTFOLIO = { total: TOKENS.reduce((s,t)=>s+t.value,0), chg24h:+2.74, chgAbs:+1772.40, spark:spark(101,56,.5) };
-const ALLOC = TOKENS.map(t=>({ sym:t.sym, cls:t.cls, value:t.value })).sort((a,b)=>b.value-a.value);
-const CONTACTS = [
-  { name:"译者 · 陈年", sub:"译《沉思录》", seal:"陈", cls:"cinnabar", chains:["ETH","SUI"], addr:"0x77cd…1a28" },
-  { name:"作者 · 苏白", sub:"《回声集》", seal:"苏", cls:"indigo", chains:["SOL","ETH"], addr:"7xQr…8Wz" },
-  { name:"共读组 · 玄之", sub:"道德经精读", seal:"玄", cls:"jade", chains:["SUI"], addr:"0x9a01…ee37" },
-  { name:"自己 · 冷钱包", sub:"Ledger 硬件", seal:"冷", cls:"ink", chains:["BTC","ETH"], addr:"bc1qcold…22a9" },
-];
-const ACTIVITY = [
-  { id:"tx01", kind:"tip", title:"打赏译者 · 陈年", sub:"《沉思录》全译", sym:"USDC", amt:"-25.00", chain:"Ethereum", when:"今天 · 14:22", hash:"0x9f3a…d21c", note:"感谢这版译文" },
-  { id:"tx02", kind:"gas", title:"链上批注 · 道德经", sub:"第二章 · 1 条划线上链", sym:"SUI", amt:"-0.042", chain:"Sui", when:"今天 · 11:08", hash:"sui:8c…a1f4" },
-  { id:"tx03", kind:"recv", title:"收款 · 苏白", sub:"《回声集》稿费分成", sym:"SOL", amt:"+4.50", chain:"Solana", when:"昨天 · 20:41", hash:"5KpA…q9Lm" },
-  { id:"tx04", kind:"storage", title:"永久存储 · Walrus", sub:"上传 12 MB 手稿副本", sym:"WAL", amt:"-180", chain:"Sui", when:"昨天 · 09:15", hash:"walrus://0x21be…9f04" },
-  { id:"tx05", kind:"swap", title:"兑换 · ETH → USDC", sub:"0.5 ETH 换 1,649 USDC", sym:"USDC", amt:"+1,649.00", chain:"Ethereum", when:"3 天前", hash:"0x4c7a…f9b3" },
-  { id:"tx07", kind:"send", title:"转账 · 自己 · 冷钱包", sub:"归集 BTC 到硬件钱包", sym:"BTC", amt:"-0.05", chain:"Bitcoin", when:"上周", hash:"bc1q…22a9" },
-];
+/* ---------- token cosmetics (glyph + color class for a symbol; not data) ---------- */
+const TOKEN_META = {
+  BTC:{ cls:"btc", glyph:"₿" }, ETH:{ cls:"eth", glyph:"Ξ" }, SOL:{ cls:"sol", glyph:"◎" },
+  SUI:{ cls:"sui", glyph:"S" }, USDC:{ cls:"usdc", glyph:"$" }, WAL:{ cls:"wal", glyph:"❖" },
+};
 const USES = [
   { k:"tip", title:"打赏作者 / 译者", desc:"为你读到的好译文、好书评，直接打一笔。", cta:"去打赏", sym:"USDC" },
   { k:"gas", title:"为划线 · 批注付 gas", desc:"把你的划线与批注永久写上链，按条计费。", cta:"管理上链", sym:"SUI" },
   { k:"storage", title:"永久存储费用", desc:"用 WAL 为手稿与副本支付 Walrus / Arweave 存储。", cta:"充值存储", sym:"WAL" },
   { k:"mint", title:"限量藏书证书", desc:"铸造或收藏限量版藏书证书（NFT），永久归你。", cta:"浏览证书", sym:"SUI" },
 ];
-const SIGN_REQUESTS = {
-  message: { kind:"message", origin:"liber.xyz", title:"登录 Liber", purpose:"用你的钱包签名登录，确认你是这枚地址的主人。不会发起任何转账。", chain:"Sui",
-    message:"liber.xyz 想要验证你的身份\n\nNonce: 7Hq2-9fLm-2025\n时间: 2026-06-01 14:30 UTC\n\n签名即代表同意《使用条款》。" },
-  approve: { kind:"approve", origin:"liber.xyz · 永久存储", title:"授权 Walrus 扣费", purpose:"授权 Liber 存储合约在你上传手稿时，自动从余额扣除 WAL 作为存储费。", chain:"Sui",
-    rows:[["合约","sui::walrus::StoragePool"],["授权额度","至多 500 WAL"],["每次扣费","按存储字节计算"],["可随时撤销","是"]] },
-};
-const TIPS_WALL = [
-  { name:"玄之", seal:"玄", color:"#2e7d57", amt:"+50.0", sym:"SUI", msg:"精读组受益良多，谢谢", when:"昨天 · 21:08", hash:"sui:8c…a1f4" },
-  { name:"苏白", seal:"苏", color:"#c0432b", amt:"+0.2", sym:"SOL", msg:"", when:"3 天前", hash:"5KpA…q9Lm" },
-  { name:"陈年", seal:"陈", color:"#9a5b2e", amt:"+100.00", sym:"USDC", msg:"敬这份坚持十年的译事", when:"上周", hash:"0x77cd…1a28" },
-];
 const priceNum = (t) => Number(String(t.price).replace(/,/g,"")) || 0;
 const balNum = (t) => Number(String(t.amt).replace(/,/g,"")) || 0;
 
 /* ---------- primitives ---------- */
 function TokenSeal({ token, size = 44 }){
-  const s = typeof token === "string" ? (TOKENS.find(t => t.sym === token) || { cls:"slate", glyph:"◦" }) : token;
+  const s = typeof token === "string" ? (TOKEN_META[token] || { cls:"slate", glyph:"◦" }) : token;
   return <div className={`tok-seal ${s.cls}`} style={{ width:size, height:size, fontSize:size*0.46 }}><span>{s.glyph}</span></div>;
 }
 function Sparkline({ data, w=120, h=36, up=true, area=false, strokeW=1.6 }){
@@ -116,14 +84,6 @@ function QR({ seed="liber", size=176 }){
   return (<div className="qr" style={{ width:size, height:size }}><svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
     {rects.map(([x,y],i)=><rect key={i} x={x*px+px*0.08} y={y*px+px*0.08} width={px*0.84} height={px*0.84} rx={px*0.18} fill="currentColor"/>)}{frame(0,0)}{frame(n-7,0)}{frame(0,n-7)}</svg>
     <div className="qr-mark"><WMark size={size*0.16}/></div></div>);
-}
-function PasskeyGate({ label="用通行密钥确认", sub="Face ID / 指纹 · 无需助记词", onDone, onCancel }){
-  const [phase,setPhase]=useS("idle"); const timer=useR(null);
-  const start=()=>{ if (phase!=="idle") return; setPhase("scanning"); timer.current=setTimeout(()=>{ setPhase("done"); setTimeout(()=>onDone&&onDone(),620); },1250); };
-  useE(()=>()=>clearTimeout(timer.current),[]);
-  return (<div className="pk"><button className={"pk-orb "+phase} onClick={start} aria-label={label}><span className="pk-ring"/><span className="pk-ico">{phase==="done"?WI.check:WI.finger}</span></button>
-    <div className="pk-label">{phase==="done"?"已签名":phase==="scanning"?"正在验证…":label}</div><div className="pk-sub">{sub}</div>
-    {onCancel&&phase==="idle"&&<button className="pk-cancel" onClick={onCancel}>取消</button>}</div>);
 }
 // Real passkey gate: tapping the orb runs onSign (Face ID → Turnkey → broadcast).
 // Parent unmounts this on success; on failure it shows the error and allows retry.
@@ -175,8 +135,8 @@ function ReviewRows({ token, recipient, amount }){
     <div className="rr"><span className="k">收款人</span><span className="v">{recipient?recipient.name:"—"}</span></div>
     <div className="rr"><span className="k">地址</span><span className="v">{recipient?recipient.addr:"—"}</span></div>
     <div className="rr"><span className="k">网络</span><span className="v">{token.chain}</span></div>
-    <div className="rr"><span className="k">矿工费</span><span className="v tnum">≈ $0.21</span></div>
-    <div className="rr total"><span className="k">合计</span><span className="v tnum">{amount||0} {token.sym}</span></div></div>);
+    <div className="rr"><span className="k">矿工费</span><span className="v">由 {token.chain} 网络实时结算</span></div>
+    <div className="rr total"><span className="k">转账金额</span><span className="v tnum">{amount||0} {token.sym}</span></div></div>);
 }
 function SendFlow({ tokens, presetToken, contacts, onClose }){
   const [token,setToken]=useS(presetToken||tokens[0]);
@@ -288,17 +248,37 @@ function SwapFlow({ tokens, presetToken, onClose }){
       <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} disabled={!(Number(amt)>0)||!realPair} onClick={()=>setPhase("pk")}>{WI.sign} {realPair?"审阅并用通行密钥兑换":"请选择不同的两种代币"}</button></>)}
   </Sheet>);
 }
+// Real message signing: passkey-signs a fresh Sui personal message; the backend
+// assembles + verifies the signature and returns it. No transaction, no broadcast.
 function SignFlow({ onClose }){
-  const [kind,setKind]=useS("message"); const [phase,setPhase]=useS("review"); const req=SIGN_REQUESTS[kind];
+  const [kind,setKind]=useS("message"); const [phase,setPhase]=useS("review"); const [result,setResult]=useS(null);
+  const ctx=useR(null);
+  if (!ctx.current){
+    const nonce=(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID().slice(0,18):String(Date.now());
+    const host=(typeof window!=="undefined"&&window.location.hostname)||"liber";
+    const ts=new Date().toISOString().replace("T"," ").slice(0,19)+" UTC";
+    ctx.current={ host,
+      message:`Liber 登录确认\n\n域名: ${host}\nNonce: ${nonce}\n时间: ${ts}\n\n签名即代表你是该钱包地址的主人，不会发起任何转账。`,
+      approve:`Liber 授权确认\n\n域名: ${host}\n授权: 允许 Liber 在你上链批注 / 存储时按条计费\nNonce: ${nonce}\n时间: ${ts}\n\n这是一条链下签名，可随时停止使用，不会转移你的资产。` };
+  }
+  const message = kind==="message" ? ctx.current.message : ctx.current.approve;
+  const doSign=async()=>{
+    const prep=await api.auth.signMessage({ message });
+    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建签名失败");
+    const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
+    const r=await api.auth.signVerify({ message, activityId });
+    if (!r||!r.ok) throw new Error((r&&(r.message||r.error))||"验签失败");
+    setResult(r); setPhase("done");
+  };
   return (<Sheet title="签名请求" onClose={onClose} onBack={phase==="pk"?()=>setPhase("review"):null}>
-    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{kind==="message"?"已签名":"已授权"}</div><div className="dsub">{req.origin} 已收到你的{kind==="message"?"签名":"授权"}。<br/>未发生任何转账。</div></div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
-    : phase==="pk" ? <PasskeyGate label="用通行密钥签名" sub="不会发起转账 · 仅证明身份/授权" onDone={()=>setPhase("done")} onCancel={()=>setPhase("review")}/>
-    : (<><div className="seg-tabs" style={{ marginBottom:18 }}><button className={kind==="message"?"on":""} onClick={()=>setKind("message")}>签名消息</button><button className={kind==="approve"?"on":""} onClick={()=>setKind("approve")}>授权交易</button></div>
-      <div className="sign-origin"><span className="so-fav"><WMark size={20}/></span><div><div className="so-t">{req.title}</div><div className="so-u">{WI.shield} {req.origin} · {req.chain}</div></div></div>
-      <div className="sign-purpose">{req.purpose}</div>
-      {kind==="message" ? <div className="sign-msg">{req.message}</div> : <div className="rev">{req.rows.map(([k,v],i)=><div key={i} className="rr"><span className="k">{k}</span><span className="v">{v}</span></div>)}</div>}
+    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{result&&result.verified?"已签名 · 验证通过":"已签名"}</div><div className="dsub">{result&&result.verified?"签名已由你的 Sui 地址验证通过。":"已生成签名。"}<br/>这是链下签名，未发生任何转账。</div>{result&&result.signature&&<div className="done-hash" style={{ wordBreak:"break-all", textAlign:"center", maxWidth:260 }}>{result.signature.slice(0,18)}…{result.signature.slice(-12)}</div>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
+    : phase==="pk" ? <RealSignGate label="用通行密钥签名" sub="对消息做真实签名 · 不会转账" onSign={doSign} onCancel={()=>setPhase("review")}/>
+    : (<><div className="seg-tabs" style={{ marginBottom:18 }}><button className={kind==="message"?"on":""} onClick={()=>setKind("message")}>登录签名</button><button className={kind==="approve"?"on":""} onClick={()=>setKind("approve")}>授权签名</button></div>
+      <div className="sign-origin"><span className="so-fav"><WMark size={20}/></span><div><div className="so-t">{kind==="message"?"登录确认":"授权确认"}</div><div className="so-u">{WI.shield} {ctx.current.host} · Sui</div></div></div>
+      <div className="sign-purpose">用你的钱包通行密钥对下面这条消息做一次真实签名，证明你是该地址的主人。链下签名，不会发起任何转账。</div>
+      <div className="sign-msg">{message}</div>
       <div className="sign-warn">{WI.shield} 只在你信任的站点签名。Liber 不会通过签名转移你的资产。</div>
-      <div style={{ display:"flex", gap:12, marginTop:20 }}><button className="wbtn wbtn-ghost" onClick={onClose}>拒绝</button><button className="wbtn wbtn-primary" onClick={()=>setPhase("pk")}>{WI.sign} {kind==="message"?"签名":"授权"}</button></div></>)}
+      <div style={{ display:"flex", gap:12, marginTop:20 }}><button className="wbtn wbtn-ghost" onClick={onClose}>拒绝</button><button className="wbtn wbtn-primary" onClick={()=>setPhase("pk")}>{WI.sign} 用通行密钥签名</button></div></>)}
   </Sheet>);
 }
 function ActivityDetail({ item, onClose }){
@@ -306,7 +286,7 @@ function ActivityDetail({ item, onClose }){
   return (<Sheet title="交易明细" onClose={onClose}><div className="rev"><div className="rev-hero"><TokenSeal token={item.sym} size={46}/><div><div className="rh-amt tnum" style={{ color:neg?"var(--ink)":"var(--pos)" }}>{item.amt} {item.sym}</div><div className="rh-sub">{item.title}</div></div></div>
     <div className="rr"><span className="k">说明</span><span className="v">{item.sub}</span></div><div className="rr"><span className="k">网络</span><span className="v">{item.chain}</span></div>
     <div className="rr"><span className="k">时间</span><span className="v">{item.when}</span></div><div className="rr"><span className="k">交易哈希</span><span className="v">{item.hash}</span></div>
-    <div className="rr"><span className="k">状态</span><span className="v" style={{ color:"var(--pos)" }}>● 已确认 · 永久存证</span></div></div>
+    <div className="rr"><span className="k">状态</span><span className="v" style={{ color:item.ok===false?"var(--neg)":"var(--pos)" }}>● {item.sub||"已确认"}</span></div></div>
     {item.note && <div style={{ fontFamily:"var(--body)", fontStyle:"italic", fontSize:15, color:"var(--ink-2)", marginTop:16, padding:"0 4px" }}>「{item.note}」</div>}
     {item.explorer
       ? <a className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20, display:"flex", justifyContent:"center", gap:8, textDecoration:"none" }} href={item.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器中查看</a>

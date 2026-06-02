@@ -85,6 +85,9 @@ export const api = {
     // Cross-chain swap via LI.FI; returns ordered EVM steps (or a Solana tx) to sign.
     swapPrepare: (payload) => post("/turnkey/swap/prepare", payload),
     swapSolBroadcast: (payload) => post("/turnkey/swap/sol/broadcast", payload),
+    // Real message signing: prepare the Sui personal-message digest, then verify.
+    signMessage: (payload) => post("/turnkey/sign/message", payload),
+    signVerify: (payload) => post("/turnkey/sign/verify", payload),
     // Real on-chain activity ledger (Sui sender/recipient history).
     walletActivity: () => get("/turnkey/activity"),
     cliStart: () => post("/auth/cli/start"),

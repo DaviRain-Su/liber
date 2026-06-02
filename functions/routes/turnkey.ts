@@ -659,6 +659,7 @@ turnkey.get("/activity", async (c) => {
       return {
         id: x.digest,
         kind,
+        ok: x.status === "success",
         title: kind === "send" ? "转账 · SUI" : kind === "recv" ? "收款 · SUI" : "链上操作 · SUI",
         sub: x.status === "success" ? "已确认 · 永久存证" : (x.status || "处理中"),
         sym: "SUI", chain: "Sui",
@@ -835,6 +836,52 @@ turnkey.post("/swap/sol/broadcast", async (c) => {
     return c.json({ ok: true, digest: sig, status: "success", network: "solana", explorer: `https://solscan.io/tx/${sig}` });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
+  }
+});
+
+// Real message signing (non-custodial): passkey-sign a Sui personal message, then
+// verify the signature server-side so the UI can show a genuine, verifiable result.
+// No broadcast — this proves wallet ownership / consent, it isn't a transaction.
+turnkey.post("/sign/message", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!suiAddress || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const message = String(body?.message || "");
+  if (!message || message.length > 2000) return c.json({ ok: false, error: "bad_message" }, 400);
+  return c.json({ ok: true, digestHex: suiPersonalMessageDigestHex(message), signWith: suiAddress, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE" });
+});
+
+turnkey.post("/sign/verify", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  const subOrgId = user.turnkey_sub_org_id;
+  const walletId = user.turnkey_wallet_id;
+  if (!suiAddress || !subOrgId || !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const message = String(body?.message || "");
+  const activityId = String(body?.activityId || "");
+  if (!message || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  try {
+    const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
+    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account?.publicKey;
+    if (!pubkeyHex) return c.json({ ok: false, error: "no_pubkey" }, 502);
+    const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
+    let verified = false;
+    try { verified = (await verifyPersonalMessageSignature(new TextEncoder().encode(message), signature)).toSuiAddress() === suiAddress; } catch { verified = false; }
+    return c.json({ ok: true, signature, verified, address: suiAddress });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
 });
 
