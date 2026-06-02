@@ -32,10 +32,12 @@ function pseudoAddresses(hash: string) {
 
 // Publish bytes to a Walrus publisher; returns the real blobId or null on
 // failure / when unconfigured (caller then uses the pseudo address).
-async function walrusPublish(env: Env, bytes: Uint8Array): Promise<string | null> {
+export async function walrusPublish(env: Env, bytes: Uint8Array, overrideTimeoutMs?: number): Promise<string | null> {
   const base = env.WALRUS_PUBLISHER;
   if (!base) return null;
-  const timeoutMs = Math.max(100, Math.min(10_000, Number(env.WALRUS_PUBLISH_TIMEOUT_MS || 800) || 800));
+  const timeoutMs = overrideTimeoutMs
+    ? Math.max(100, Math.min(60_000, overrideTimeoutMs))
+    : Math.max(100, Math.min(10_000, Number(env.WALRUS_PUBLISH_TIMEOUT_MS || 800) || 800));
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

@@ -93,6 +93,9 @@ export const api = {
     annotations: () => get("/turnkey/annotations"),
     onchainPrepare: (payload) => post("/turnkey/onchain/prepare", payload),
     onchainBroadcast: (payload) => post("/turnkey/onchain/broadcast", payload),
+    myWorks: () => get("/turnkey/my-works"),
+    storagePrepare: (payload) => post("/turnkey/storage/prepare", payload),
+    myBooks: () => get("/turnkey/my-books"),
     // Real on-chain activity ledger (Sui sender/recipient history).
     walletActivity: () => get("/turnkey/activity"),
     cliStart: () => post("/auth/cli/start"),

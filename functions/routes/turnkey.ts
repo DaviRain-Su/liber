@@ -20,6 +20,7 @@ import { evmAddressFromSignature, verifyEd25519, verifySecp256k1 } from "../lib/
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { relTime } from "../lib/time";
+import { walrusPublish } from "../lib/storage";
 import { evmSigningDigestHex, evmSignedRawTx, erc20TransferData, toBaseUnits, type EvmTx } from "../lib/turnkey-evm";
 import { solTransferMessage, solMessageHex, solSignedTxBase64, solParseForSigning, solInjectSignature } from "../lib/turnkey-solana";
 import { p2wpkhProgram, p2wpkhScript, bip143Sighashes, derLowS, buildSignedTx, hash160, estVsize, DUST_P2WPKH, bytesToHex as btcBytesToHex, type TxOutput, type TxInput } from "../lib/turnkey-bitcoin";
@@ -919,6 +920,24 @@ turnkey.post("/sign/verify", async (c) => {
 // register(content_id, kind, license) which creates an owned Record + emits an event.
 // The user pays gas and signs; non-custodial. prepare builds the PTB; broadcast executes
 // and records it so the UI can show 已上链.
+async function buildRegisterTx(
+  env: Env, suiAddress: string, contentId: string, kind: string, license: string,
+): Promise<{ ok: true; txBytesB64: string; digestHex: string; network: string } | { ok: false; error: string; network: string }> {
+  const url = env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
+  const network = suiNetworkOf(url);
+  const client = new SuiJsonRpcClient({ url, network: network as any });
+  const coins = await client.getCoins({ owner: suiAddress });
+  if (!coins.data?.length) return { ok: false, error: "no_gas", network };
+  const pkg = env.SUI_PACKAGE!; const mod = env.SUI_MODULE || "registry";
+  const tx = new Transaction();
+  tx.setSender(suiAddress);
+  tx.setGasBudget(20_000_000);
+  const [rec] = tx.moveCall({ target: `${pkg}::${mod}::register`, arguments: [tx.pure.string(contentId), tx.pure.string(kind), tx.pure.string(license)] });
+  tx.transferObjects([rec], suiAddress);
+  const bytes = await tx.build({ client });
+  return { ok: true, txBytesB64: b64encode(bytes), digestHex: suiTransactionDigestHex(bytes), network };
+}
+
 turnkey.post("/onchain/prepare", async (c) => {
   const uid = c.get("userId");
   if (!uid) return c.json({ error: "unauthorized" }, 401);
@@ -928,29 +947,76 @@ turnkey.post("/onchain/prepare", async (c) => {
   const suiAddress = user.turnkey_sui_address || addrs?.sui;
   const subOrgId = user.turnkey_sub_org_id;
   if (!suiAddress || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
-  const pkg = c.env.SUI_PACKAGE; const mod = c.env.SUI_MODULE || "registry";
-  if (!pkg) return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
+  if (!c.env.SUI_PACKAGE) return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
   const body: any = await c.req.json().catch(() => ({}));
   const contentId = String(body?.contentId || "").slice(0, 400);
   const kind = String(body?.kind || "annotation").slice(0, 32);
   const license = String(body?.license || "CC0-1.0").slice(0, 32);
   if (!contentId) return c.json({ ok: false, error: "bad_content", message: "缺少登记内容" }, 400);
   try {
-    const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
-    const network = suiNetworkOf(url);
-    const client = new SuiJsonRpcClient({ url, network: network as any });
-    const coins = await client.getCoins({ owner: suiAddress });
-    if (!coins.data?.length) return c.json({ ok: false, error: "no_gas", message: `该 Sui 地址在 ${network} 上没有 gas，请先充值${network === "testnet" ? "（测试网可领水）" : ""}` }, 400);
-    const tx = new Transaction();
-    tx.setSender(suiAddress);
-    tx.setGasBudget(20_000_000);
-    const [rec] = tx.moveCall({ target: `${pkg}::${mod}::register`, arguments: [tx.pure.string(contentId), tx.pure.string(kind), tx.pure.string(license)] });
-    tx.transferObjects([rec], suiAddress);
-    const bytes = await tx.build({ client });
-    return c.json({ ok: true, txBytesB64: b64encode(bytes), digestHex: suiTransactionDigestHex(bytes), signWith: suiAddress, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", contentId, kind, network });
+    const r = await buildRegisterTx(c.env, suiAddress, contentId, kind, license);
+    if (!r.ok) return c.json({ ok: false, error: r.error, message: `该 Sui 地址在 ${r.network} 上没有 gas，请先充值${r.network === "testnet" ? "（测试网可领水）" : ""}` }, 400);
+    return c.json({ ok: true, txBytesB64: r.txBytesB64, digestHex: r.digestHex, signWith: suiAddress, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", contentId, kind, network: r.network });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
+});
+
+// 永久存储 — store one of the reader's CC0 works on Walrus (real blob), then register
+// the blob reference on Sui. The card lists works; prepare does the Walrus PUT + builds
+// the register PTB; broadcast (reused) signs + executes + records.
+turnkey.get("/my-works", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ ok: true, items: [] });
+  const rows = await all<any>(c.env.DB, `SELECT id, title, body, created_at FROM works WHERE user_id = ? ORDER BY created_at DESC LIMIT 40`, uid);
+  const items = rows.map((w) => ({ id: w.id, title: w.title, snippet: String(w.body || "").replace(/\s+/g, " ").slice(0, 64) }));
+  return c.json({ ok: true, items });
+});
+
+turnkey.post("/storage/prepare", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!suiAddress || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  if (!c.env.SUI_PACKAGE) return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
+  const body: any = await c.req.json().catch(() => ({}));
+  const workId = String(body?.workId || "");
+  const w = await first<any>(c.env.DB, `SELECT id, title, body FROM works WHERE id = ? AND user_id = ?`, workId, uid);
+  if (!w) return c.json({ ok: false, error: "not_found", message: "未找到该作品" }, 404);
+  try {
+    const blobId = await walrusPublish(c.env, new TextEncoder().encode(String(w.body || "")), 25_000);
+    if (!blobId) return c.json({ ok: false, error: "walrus_failed", message: "Walrus 存储失败，请重试" }, 502);
+    const contentId = `walrus://${blobId}`;
+    const r = await buildRegisterTx(c.env, suiAddress, contentId, "storage", "CC0-1.0");
+    if (!r.ok) return c.json({ ok: false, error: r.error, message: `该 Sui 地址在 ${r.network} 上没有 gas，请先充值${r.network === "testnet" ? "（测试网可领水）" : ""}`, blobId }, 400);
+    return c.json({ ok: true, txBytesB64: r.txBytesB64, digestHex: r.digestHex, signWith: suiAddress, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", contentId, kind: "storage", blobId, network: r.network });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+// 藏书证书 — books the reader has progress on, flagged if a certificate is already minted.
+turnkey.get("/my-books", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ ok: true, items: [] });
+  const rows = await all<any>(
+    c.env.DB,
+    `SELECT lb.id, lb.title, p.percent,
+            (SELECT r.digest FROM onchain_records r WHERE r.user_id = ? AND r.kind = 'certificate' AND r.content_id = 'liber:book:' || lb.id LIMIT 1) AS cert_digest
+     FROM progress p JOIN library_books lb ON lb.id = p.book_id WHERE p.user_id = ? ORDER BY p.updated_at DESC LIMIT 40`,
+    uid, uid,
+  );
+  const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
+  const network = suiNetworkOf(url);
+  const items = rows.map((b) => ({
+    id: b.id, title: b.title, percent: b.percent || 0, contentId: `liber:book:${b.id}`,
+    onChain: !!b.cert_digest, explorer: b.cert_digest ? `https://suiscan.xyz/${network}/tx/${b.cert_digest}` : null,
+  }));
+  return c.json({ ok: true, items, network });
 });
 
 turnkey.post("/onchain/broadcast", async (c) => {

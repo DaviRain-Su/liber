@@ -45,9 +45,9 @@ const TOKEN_META = {
 };
 const USES = [
   { k:"tip", title:"打赏作者 / 译者", desc:"为你读到的好译文、好书评，直接打一笔。", cta:"去打赏", sym:"USDC" },
-  { k:"gas", title:"为划线 · 批注付 gas", desc:"把你的划线与批注永久写上链，按条计费。", cta:"管理上链", sym:"SUI" },
-  { k:"storage", title:"永久存储费用", desc:"用 WAL 为手稿与副本支付 Walrus / Arweave 存储。", cta:"充值存储", sym:"WAL" },
-  { k:"mint", title:"限量藏书证书", desc:"铸造或收藏限量版藏书证书（NFT），永久归你。", cta:"浏览证书", sym:"SUI" },
+  { k:"gas", title:"为划线 · 批注上链", desc:"把你的批注作为不可篡改的存证写上 Sui，作者与时间链上可验证。", cta:"批注上链", sym:"SUI" },
+  { k:"storage", title:"永久存储 · Walrus", desc:"把你的 CC0 作品永久存到 Walrus，并在链上登记存证。", cta:"永久存储", sym:"SUI" },
+  { k:"mint", title:"藏书证书", desc:"为读过的书铸造一枚归你所有、可转移的链上藏书证书。", cta:"铸造证书", sym:"SUI" },
 ];
 const priceNum = (t) => Number(String(t.price).replace(/,/g,"")) || 0;
 const balNum = (t) => Number(String(t.amt).replace(/,/g,"")) || 0;
@@ -284,35 +284,66 @@ function SignFlow({ onClose }){
       <div style={{ display:"flex", gap:12, marginTop:20 }}><button className="wbtn wbtn-ghost" onClick={onClose}>拒绝</button><button className="wbtn wbtn-primary" onClick={()=>setPhase("pk")}>{WI.sign} 用通行密钥签名</button></div></>)}
   </Sheet>);
 }
-// 批注上链 — register one of the reader's real notes on Sui via liber::registry, a
-// passkey-signed moveCall. Real on-chain provenance (immutable Record + event).
-function OnchainFlow({ onClose }){
-  const [items,setItems]=useS(null);
-  const [pick,setPick]=useS(null);
-  const [phase,setPhase]=useS("list"); // list | confirm | pk | done
-  const [result,setResult]=useS(null);
-  useE(()=>{ let live=true; api.auth.annotations().then(r=>{ if(live) setItems((r&&r.items)||[]); }).catch(()=>{ if(live) setItems([]); }); return ()=>{live=false;}; },[]);
-  const register=async()=>{
-    const prep=await api.auth.onchainPrepare({ contentId:pick.contentId, kind:"annotation" });
-    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建上链交易失败");
+// On-chain provenance flows (批注上链 / 永久存储 / 藏书证书) — all register on Sui via
+// liber::registry with a passkey-signed moveCall. One component, three configs.
+const PROV = {
+  annotation: {
+    title:"批注上链 · 永久存证", divider:"选择一条批注，永久写上 Sui 链",
+    empty:"你还没有批注 · 在阅读时写下笔记后即可上链", glyph:"book",
+    load:()=>api.auth.annotations(), prepare:(it)=>api.auth.onchainPrepare({ contentId:it.contentId, kind:"annotation" }),
+    primary:(it)=>it.text, secondary:(it)=>`${it.bookTitle} · ${it.sid}`, doneMark:"已上链",
+    purpose:"把下面这条批注作为不可篡改的存证写上 Sui 链（CC0-1.0）。链上记录你的地址与时间，独立于 Liber 服务器即可验证。你支付一笔链上 gas。",
+    body:(it)=>it.text, rows:(it)=>[["出处",it.bookTitle],["引用",it.sid],["许可","CC0-1.0"]],
+    signLabel:"用通行密钥签名上链", signSub:"把这条批注永久写上 Sui 链",
+    doneTitle:"批注已上链", doneText:(r)=>`这条批注已作为不可篡改的存证写上 Sui（${r&&r.network}）。\n作者与时间链上可验证，独立于 Liber 服务器。`,
+  },
+  storage: {
+    title:"永久存储 · Walrus", divider:"选择一篇作品，永久存到 Walrus 并上链存证",
+    empty:"你还没有发布作品 · 在「再创作 / 导读」发布后可永久存储", glyph:"shield",
+    load:()=>api.auth.myWorks(), prepare:(it)=>api.auth.storagePrepare({ workId:it.id }),
+    primary:(it)=>it.title, secondary:(it)=>it.snippet||"", doneMark:null,
+    purpose:"把这篇作品永久存到 Walrus（去中心化存储），并在 Sui 上登记不可篡改的存证。你支付一笔链上 gas；Walrus 测试网由公共节点赞助。",
+    body:(it)=>it.title, rows:()=>[["类型","CC0 作品"],["存储","Walrus"],["许可","CC0-1.0"]],
+    signLabel:"用通行密钥签名存证", signSub:"存到 Walrus + 写上 Sui 链",
+    doneTitle:"已永久存储 + 上链", doneText:()=>"作品已存到 Walrus，并在 Sui 上登记了不可篡改的存证。",
+  },
+  certificate: {
+    title:"藏书证书 · 链上铸造", divider:"选择一本你读过的书，铸造链上藏书证书",
+    empty:"你还没有阅读记录 · 读过的书可铸造藏书证书", glyph:"book",
+    load:()=>api.auth.myBooks(), prepare:(it)=>api.auth.onchainPrepare({ contentId:it.contentId, kind:"certificate" }),
+    primary:(it)=>it.title, secondary:(it)=>`阅读进度 ${Math.round(it.percent||0)}%`, doneMark:"已铸造",
+    purpose:"为这本书铸造一枚链上藏书证书：一个归你所有、可转移的 Sui 对象，记录你的地址与时间。你支付一笔链上 gas。",
+    body:(it)=>it.title, rows:()=>[["证书","藏书证书 · Sui 对象"],["链","Sui"],["许可","CC0-1.0"]],
+    signLabel:"用通行密钥铸造", signSub:"铸造你的藏书证书",
+    doneTitle:"藏书证书已铸造", doneText:()=>"证书已作为归你所有的 Sui 对象铸造完成，可在钱包中转移或收藏。",
+  },
+};
+function ProvenanceFlow({ mode, onClose }){
+  const cfg=PROV[mode];
+  const [items,setItems]=useS(null); const [pick,setPick]=useS(null); const [phase,setPhase]=useS("list"); const [result,setResult]=useS(null);
+  useE(()=>{ let live=true; cfg.load().then(r=>{ if(live) setItems((r&&r.items)||[]); }).catch(()=>{ if(live) setItems([]); }); return ()=>{live=false;}; },[mode]);
+  const go=async()=>{
+    const prep=await cfg.prepare(pick);
+    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建交易失败");
     const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
-    const o=await api.auth.onchainBroadcast({ txBytesB64:prep.txBytesB64, activityId, contentId:pick.contentId, kind:"annotation" });
+    const o=await api.auth.onchainBroadcast({ txBytesB64:prep.txBytesB64, activityId, contentId:prep.contentId, kind:prep.kind });
     if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"上链失败");
     setResult(o); setPhase("done");
   };
-  return (<Sheet title="批注上链 · 永久存证" onClose={onClose} onBack={phase==="confirm"?()=>setPhase("list"):phase==="pk"?()=>setPhase("confirm"):null}>
-    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">批注已上链</div><div className="dsub">这条批注已作为不可篡改的存证写上 Sui（{result&&result.network}）。<br/>作者与时间链上可验证，独立于 Liber 服务器。</div>{result&&result.explorer&&<a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
-    : phase==="pk" ? <RealSignGate label="用通行密钥签名上链" sub="把这条批注永久写上 Sui 链" onSign={register} onCancel={()=>setPhase("confirm")}/>
-    : phase==="confirm" ? (<><div className="sign-purpose">把下面这条批注作为<b>不可篡改的存证</b>写上 Sui 链（CC0-1.0）。链上记录你的地址与时间，独立于 Liber 服务器即可验证。你支付一笔链上 gas。</div>
-        <div className="sign-msg">{pick.text}</div>
-        <div className="rev"><div className="rr"><span className="k">出处</span><span className="v">{pick.bookTitle}</span></div><div className="rr"><span className="k">引用</span><span className="v" style={{ fontFamily:"var(--mono)", fontSize:12 }}>{pick.sid}</span></div><div className="rr"><span className="k">许可</span><span className="v">CC0-1.0</span></div></div>
-        <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} onClick={()=>setPhase("pk")}>{WI.shield} 用通行密钥签名上链</button></>)
-    : (<>{items==null ? <div className="panel" style={{ padding:"26px", textAlign:"center", fontFamily:"var(--mono)", fontSize:13, color:"var(--ink-3)" }}>正在读取你的批注…</div>
-        : items.length===0 ? <div className="panel" style={{ padding:"26px", textAlign:"center", fontFamily:"var(--mono)", fontSize:13, color:"var(--ink-3)" }}>你还没有批注 · 在阅读时写下笔记后即可上链</div>
-        : (<><div className="recip-divider">选择一条批注，永久写上 Sui 链</div>{items.map(it=>(<div key={it.id} className="recip" onClick={()=>{ if(!it.onChain){ setPick(it); setPhase("confirm"); } }} style={it.onChain?{ opacity:.6, cursor:"default" }:null}>
-            <span className="av ink">{WI.book}</span>
-            <div className="rb"><div className="nm" style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:190 }}>{it.text}</div><div className="ad">{it.bookTitle} · {it.sid}</div></div>
-            <div className="rb r-sub">{it.onChain ? <a className="sub" href={it.explorer} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"var(--pos)" }}>已上链 {WI.ext}</a> : <span className="sub">{WI.right}</span>}</div></div>))}</>)}</>)}
+  const empty = { padding:"26px", textAlign:"center", fontFamily:"var(--mono)", fontSize:13, color:"var(--ink-3)" };
+  return (<Sheet title={cfg.title} onClose={onClose} onBack={phase==="confirm"?()=>setPhase("list"):phase==="pk"?()=>setPhase("confirm"):null}>
+    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{cfg.doneTitle}</div><div className="dsub" style={{ whiteSpace:"pre-line" }}>{cfg.doneText(result)}</div>{result&&result.explorer&&<a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
+    : phase==="pk" ? <RealSignGate label={cfg.signLabel} sub={cfg.signSub} onSign={go} onCancel={()=>setPhase("confirm")}/>
+    : phase==="confirm" ? (<><div className="sign-purpose">{cfg.purpose}</div>
+        <div className="sign-msg">{cfg.body(pick)}</div>
+        <div className="rev">{cfg.rows(pick).map(([k,v],i)=><div key={i} className="rr"><span className="k">{k}</span><span className="v">{v}</span></div>)}</div>
+        <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} onClick={()=>setPhase("pk")}>{WI.shield} {cfg.signLabel}</button></>)
+    : (<>{items==null ? <div className="panel" style={empty}>正在读取…</div>
+        : items.length===0 ? <div className="panel" style={empty}>{cfg.empty}</div>
+        : (<><div className="recip-divider">{cfg.divider}</div>{items.map(it=>(<div key={it.id} className="recip" onClick={()=>{ if(!it.onChain){ setPick(it); setPhase("confirm"); } }} style={it.onChain?{ opacity:.6, cursor:"default" }:null}>
+            <span className="av ink">{WI[cfg.glyph]}</span>
+            <div className="rb"><div className="nm" style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:190 }}>{cfg.primary(it)}</div><div className="ad">{cfg.secondary(it)}</div></div>
+            <div className="rb r-sub">{it.onChain ? <a className="sub" href={it.explorer} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"var(--pos)" }}>{cfg.doneMark} {WI.ext}</a> : <span className="sub">{WI.right}</span>}</div></div>))}</>)}</>)}
   </Sheet>);
 }
 function ActivityDetail({ item, onClose }){
@@ -332,7 +363,7 @@ function FlowHost({ flow, addresses, tokens, contacts, tipTargets, onClose }){
   if (flow.kind==="receive") return <ReceiveFlow presetToken={flow.token} addresses={addresses} onClose={onClose}/>;
   if (flow.kind==="swap") return <SwapFlow tokens={tokens} presetToken={flow.token} onClose={onClose}/>;
   if (flow.kind==="sign") return <SignFlow onClose={onClose}/>;
-  if (flow.kind==="onchain") return <OnchainFlow onClose={onClose}/>;
+  if (flow.kind==="onchain") return <ProvenanceFlow mode={flow.mode||"annotation"} onClose={onClose}/>;
   if (flow.kind==="activity") return <ActivityDetail item={flow.item} onClose={onClose}/>;
   return null;
 }
@@ -379,7 +410,7 @@ function ActivityList({ items, onOpen, limit }){
 }
 function UsesGrid({ onAction }){
   return (<div className="uses-grid">{USES.map(u=>(<div key={u.k} className="use-card"><div className="u-h"><TokenSeal token={u.sym} size={30}/><div className="u-t">{u.title}</div></div><div className="u-d">{u.desc}</div>
-    <div className="u-cta" onClick={()=>onAction(u.k==="tip"?"tip":u.k==="gas"?"onchain":u.k==="storage"?"swap":u.k==="mint"?"receive":"sign")}>{u.cta} {WI.right}</div></div>))}</div>);
+    <div className="u-cta" onClick={()=>{ if(u.k==="tip") onAction("tip"); else onAction("onchain", u.k==="gas"?"annotation":u.k==="storage"?"storage":"certificate"); }}>{u.cta} {WI.right}</div></div>))}</div>);
 }
 function ThanksWall({ tips }){
   return (<div className="pfw-card thanks-wall"><div className="tw-list">{tips.map((t,i)=>(<div className="tw-item" key={i}><span className="tw-av" style={{ background:`linear-gradient(135deg, ${t.color}, #2e3a7a)` }}>{t.seal}</span>
@@ -422,7 +453,7 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const onAction = (kind, arg) => {
     if (kind === "activity") { setFlow({ kind: "activity", item: arg }); return; }
     if (kind === "tip") { if (!tokens.length) return; setFlow({ kind: "send", tip: true, token: arg }); return; }
-    if (kind === "onchain") { setFlow({ kind: "onchain" }); return; }
+    if (kind === "onchain") { setFlow({ kind: "onchain", mode: arg }); return; }
     if ((kind === "send" || kind === "swap") && !tokens.length) return;
     setFlow({ kind, token: arg });
   };
