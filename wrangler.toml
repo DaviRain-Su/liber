@@ -96,6 +96,9 @@ WALRUS_PUBLISH_TIMEOUT_MS = "800"
 ARWEAVE_GATEWAY = "https://arweave.net"
 # Sui fullnode for read-only chain verification (latest checkpoint + object lookup).
 SUI_RPC = "https://fullnode.testnet.sui.io:443"
+# Deployed liber::registry Move package (Sui testnet) — on-chain provenance for
+# annotations / CC0 works / 藏书证书. register(content_id, kind, license) → Record + event.
+SUI_PACKAGE = "0xc292a0b4edbd6c523183342ab39c6f3526dd2d4d717ba0bfe5d899065fe9ce78"
 # Stablecoin subscription payments are disabled until a treasury address and
 # accepted coin type are chosen. Set these as Pages variables/secrets:
 # PAYMENT_TREASURY, PAYMENT_COIN_TYPE, PAYMENT_MONTHLY_AMOUNT.

@@ -914,4 +914,105 @@ turnkey.post("/sign/verify", async (c) => {
   }
 });
 
+// --- Real on-chain provenance (liber::registry on Sui) ---------------------------
+// Shared primitive behind 批注上链 / 藏书证书 / Walrus 存证: a passkey-signed moveCall to
+// register(content_id, kind, license) which creates an owned Record + emits an event.
+// The user pays gas and signs; non-custodial. prepare builds the PTB; broadcast executes
+// and records it so the UI can show 已上链.
+turnkey.post("/onchain/prepare", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  const subOrgId = user.turnkey_sub_org_id;
+  if (!suiAddress || !subOrgId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const pkg = c.env.SUI_PACKAGE; const mod = c.env.SUI_MODULE || "registry";
+  if (!pkg) return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
+  const body: any = await c.req.json().catch(() => ({}));
+  const contentId = String(body?.contentId || "").slice(0, 400);
+  const kind = String(body?.kind || "annotation").slice(0, 32);
+  const license = String(body?.license || "CC0-1.0").slice(0, 32);
+  if (!contentId) return c.json({ ok: false, error: "bad_content", message: "缺少登记内容" }, 400);
+  try {
+    const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
+    const network = suiNetworkOf(url);
+    const client = new SuiJsonRpcClient({ url, network: network as any });
+    const coins = await client.getCoins({ owner: suiAddress });
+    if (!coins.data?.length) return c.json({ ok: false, error: "no_gas", message: `该 Sui 地址在 ${network} 上没有 gas，请先充值${network === "testnet" ? "（测试网可领水）" : ""}` }, 400);
+    const tx = new Transaction();
+    tx.setSender(suiAddress);
+    tx.setGasBudget(20_000_000);
+    const [rec] = tx.moveCall({ target: `${pkg}::${mod}::register`, arguments: [tx.pure.string(contentId), tx.pure.string(kind), tx.pure.string(license)] });
+    tx.transferObjects([rec], suiAddress);
+    const bytes = await tx.build({ client });
+    return c.json({ ok: true, txBytesB64: b64encode(bytes), digestHex: suiTransactionDigestHex(bytes), signWith: suiAddress, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", contentId, kind, network });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
+  }
+});
+
+turnkey.post("/onchain/broadcast", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const user: any = await getUser(c.env, uid);
+  if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
+  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  const suiAddress = user.turnkey_sui_address || addrs?.sui;
+  const subOrgId = user.turnkey_sub_org_id;
+  const walletId = user.turnkey_wallet_id;
+  if (!suiAddress || !subOrgId || !walletId) return c.json({ ok: false, error: "no_wallet" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const txBytesB64 = String(body?.txBytesB64 || "");
+  const activityId = String(body?.activityId || "");
+  const contentId = String(body?.contentId || "").slice(0, 400);
+  const kind = String(body?.kind || "annotation").slice(0, 32);
+  if (!txBytesB64 || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  try {
+    const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
+    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account?.publicKey;
+    if (!pubkeyHex) return c.json({ ok: false, error: "no_pubkey" }, 502);
+    const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
+    const bytes = Uint8Array.from(atob(txBytesB64), (ch) => ch.charCodeAt(0));
+    const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
+    const network = suiNetworkOf(url);
+    const client = new SuiJsonRpcClient({ url, network: network as any });
+    const res = await client.executeTransactionBlock({ transactionBlock: bytes, signature, options: { showEffects: true, showObjectChanges: true } });
+    const recordId = (res.objectChanges || []).find((o: any) => o.type === "created" && String(o.objectType || "").includes("::registry::Record")) as any;
+    if (contentId && res.effects?.status?.status === "success") {
+      await run(c.env.DB, `INSERT INTO onchain_records (id, user_id, kind, content_id, digest, record_id, network, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+        id("oc_"), uid, kind, contentId, res.digest, recordId?.objectId ?? null, network, now());
+    }
+    return c.json({ ok: true, digest: res.digest, status: res.effects?.status?.status, recordId: recordId?.objectId ?? null, network, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
+  } catch (e: any) {
+    return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
+  }
+});
+
+// The reader's annotations (notes) — candidates for 批注上链, flagged if already on-chain.
+turnkey.get("/annotations", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ ok: true, items: [] });
+  const rows = await all<any>(
+    c.env.DB,
+    `SELECT n.id, n.book_id AS bookId, n.sid, n.text, n.created_at AS createdAt, lb.title AS bookTitle,
+            (SELECT r.digest FROM onchain_records r WHERE r.user_id = n.user_id AND r.kind = 'annotation'
+                AND r.content_id = 'liber:note:' || n.book_id || '#' || n.sid LIMIT 1) AS onchainDigest
+     FROM notes n LEFT JOIN library_books lb ON lb.id = n.book_id
+     WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 40`,
+    uid,
+  );
+  const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
+  const network = suiNetworkOf(url);
+  const items = rows.map((n) => ({
+    id: n.id, bookId: n.bookId, sid: n.sid, text: n.text, bookTitle: n.bookTitle || "未命名", createdAt: n.createdAt,
+    contentId: `liber:note:${n.bookId}#${n.sid}`,
+    onChain: !!n.onchainDigest,
+    explorer: n.onchainDigest ? `https://suiscan.xyz/${network}/tx/${n.onchainDigest}` : null,
+  }));
+  return c.json({ ok: true, items, network });
+});
+
 export default turnkey;

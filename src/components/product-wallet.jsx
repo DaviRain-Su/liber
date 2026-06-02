@@ -284,6 +284,37 @@ function SignFlow({ onClose }){
       <div style={{ display:"flex", gap:12, marginTop:20 }}><button className="wbtn wbtn-ghost" onClick={onClose}>拒绝</button><button className="wbtn wbtn-primary" onClick={()=>setPhase("pk")}>{WI.sign} 用通行密钥签名</button></div></>)}
   </Sheet>);
 }
+// 批注上链 — register one of the reader's real notes on Sui via liber::registry, a
+// passkey-signed moveCall. Real on-chain provenance (immutable Record + event).
+function OnchainFlow({ onClose }){
+  const [items,setItems]=useS(null);
+  const [pick,setPick]=useS(null);
+  const [phase,setPhase]=useS("list"); // list | confirm | pk | done
+  const [result,setResult]=useS(null);
+  useE(()=>{ let live=true; api.auth.annotations().then(r=>{ if(live) setItems((r&&r.items)||[]); }).catch(()=>{ if(live) setItems([]); }); return ()=>{live=false;}; },[]);
+  const register=async()=>{
+    const prep=await api.auth.onchainPrepare({ contentId:pick.contentId, kind:"annotation" });
+    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建上链交易失败");
+    const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
+    const o=await api.auth.onchainBroadcast({ txBytesB64:prep.txBytesB64, activityId, contentId:pick.contentId, kind:"annotation" });
+    if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"上链失败");
+    setResult(o); setPhase("done");
+  };
+  return (<Sheet title="批注上链 · 永久存证" onClose={onClose} onBack={phase==="confirm"?()=>setPhase("list"):phase==="pk"?()=>setPhase("confirm"):null}>
+    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">批注已上链</div><div className="dsub">这条批注已作为不可篡改的存证写上 Sui（{result&&result.network}）。<br/>作者与时间链上可验证，独立于 Liber 服务器。</div>{result&&result.explorer&&<a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
+    : phase==="pk" ? <RealSignGate label="用通行密钥签名上链" sub="把这条批注永久写上 Sui 链" onSign={register} onCancel={()=>setPhase("confirm")}/>
+    : phase==="confirm" ? (<><div className="sign-purpose">把下面这条批注作为<b>不可篡改的存证</b>写上 Sui 链（CC0-1.0）。链上记录你的地址与时间，独立于 Liber 服务器即可验证。你支付一笔链上 gas。</div>
+        <div className="sign-msg">{pick.text}</div>
+        <div className="rev"><div className="rr"><span className="k">出处</span><span className="v">{pick.bookTitle}</span></div><div className="rr"><span className="k">引用</span><span className="v" style={{ fontFamily:"var(--mono)", fontSize:12 }}>{pick.sid}</span></div><div className="rr"><span className="k">许可</span><span className="v">CC0-1.0</span></div></div>
+        <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} onClick={()=>setPhase("pk")}>{WI.shield} 用通行密钥签名上链</button></>)
+    : (<>{items==null ? <div className="panel" style={{ padding:"26px", textAlign:"center", fontFamily:"var(--mono)", fontSize:13, color:"var(--ink-3)" }}>正在读取你的批注…</div>
+        : items.length===0 ? <div className="panel" style={{ padding:"26px", textAlign:"center", fontFamily:"var(--mono)", fontSize:13, color:"var(--ink-3)" }}>你还没有批注 · 在阅读时写下笔记后即可上链</div>
+        : (<><div className="recip-divider">选择一条批注，永久写上 Sui 链</div>{items.map(it=>(<div key={it.id} className="recip" onClick={()=>{ if(!it.onChain){ setPick(it); setPhase("confirm"); } }} style={it.onChain?{ opacity:.6, cursor:"default" }:null}>
+            <span className="av ink">{WI.book}</span>
+            <div className="rb"><div className="nm" style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:190 }}>{it.text}</div><div className="ad">{it.bookTitle} · {it.sid}</div></div>
+            <div className="rb r-sub">{it.onChain ? <a className="sub" href={it.explorer} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"var(--pos)" }}>已上链 {WI.ext}</a> : <span className="sub">{WI.right}</span>}</div></div>))}</>)}</>)}
+  </Sheet>);
+}
 function ActivityDetail({ item, onClose }){
   const neg=item.amt.trim().startsWith("-");
   return (<Sheet title="交易明细" onClose={onClose}><div className="rev"><div className="rev-hero"><TokenSeal token={item.sym} size={46}/><div><div className="rh-amt tnum" style={{ color:neg?"var(--ink)":"var(--pos)" }}>{item.amt} {item.sym}</div><div className="rh-sub">{item.title}</div></div></div>
@@ -301,6 +332,7 @@ function FlowHost({ flow, addresses, tokens, contacts, tipTargets, onClose }){
   if (flow.kind==="receive") return <ReceiveFlow presetToken={flow.token} addresses={addresses} onClose={onClose}/>;
   if (flow.kind==="swap") return <SwapFlow tokens={tokens} presetToken={flow.token} onClose={onClose}/>;
   if (flow.kind==="sign") return <SignFlow onClose={onClose}/>;
+  if (flow.kind==="onchain") return <OnchainFlow onClose={onClose}/>;
   if (flow.kind==="activity") return <ActivityDetail item={flow.item} onClose={onClose}/>;
   return null;
 }
@@ -347,7 +379,7 @@ function ActivityList({ items, onOpen, limit }){
 }
 function UsesGrid({ onAction }){
   return (<div className="uses-grid">{USES.map(u=>(<div key={u.k} className="use-card"><div className="u-h"><TokenSeal token={u.sym} size={30}/><div className="u-t">{u.title}</div></div><div className="u-d">{u.desc}</div>
-    <div className="u-cta" onClick={()=>onAction(u.k==="tip"?"tip":u.k==="storage"?"swap":u.k==="mint"?"receive":"sign")}>{u.cta} {WI.right}</div></div>))}</div>);
+    <div className="u-cta" onClick={()=>onAction(u.k==="tip"?"tip":u.k==="gas"?"onchain":u.k==="storage"?"swap":u.k==="mint"?"receive":"sign")}>{u.cta} {WI.right}</div></div>))}</div>);
 }
 function ThanksWall({ tips }){
   return (<div className="pfw-card thanks-wall"><div className="tw-list">{tips.map((t,i)=>(<div className="tw-item" key={i}><span className="tw-av" style={{ background:`linear-gradient(135deg, ${t.color}, #2e3a7a)` }}>{t.seal}</span>
@@ -390,6 +422,7 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const onAction = (kind, arg) => {
     if (kind === "activity") { setFlow({ kind: "activity", item: arg }); return; }
     if (kind === "tip") { if (!tokens.length) return; setFlow({ kind: "send", tip: true, token: arg }); return; }
+    if (kind === "onchain") { setFlow({ kind: "onchain" }); return; }
     if ((kind === "send" || kind === "swap") && !tokens.length) return;
     setFlow({ kind, token: arg });
   };

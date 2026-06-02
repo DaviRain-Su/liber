@@ -89,6 +89,10 @@ export const api = {
     // Real message signing: prepare the Sui personal-message digest, then verify.
     signMessage: (payload) => post("/turnkey/sign/message", payload),
     signVerify: (payload) => post("/turnkey/sign/verify", payload),
+    // On-chain provenance (liber::registry): list annotations, register on Sui.
+    annotations: () => get("/turnkey/annotations"),
+    onchainPrepare: (payload) => post("/turnkey/onchain/prepare", payload),
+    onchainBroadcast: (payload) => post("/turnkey/onchain/broadcast", payload),
     // Real on-chain activity ledger (Sui sender/recipient history).
     walletActivity: () => get("/turnkey/activity"),
     cliStart: () => post("/auth/cli/start"),
