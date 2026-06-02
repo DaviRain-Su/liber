@@ -5,6 +5,7 @@ import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 /* product-charts.jsx — open rankings: today / 7-day / 30-day,
    by reads / highlights / conversations. Full screen + compact library band. */
 const { useState: useCh, useEffect: useEffC } = React;
+import { useQuery } from "@tanstack/react-query";
 
 const CH_WINDOWS = [["today","今日"],["week","近 7 天"],["month","近 30 天"]];
 const CH_METRICS = [["reads","在读"],["lines","划线"],["convos","对话"],["echoes","呼应"],["surge","飙升"]];
@@ -28,11 +29,8 @@ function Charts({ onOpenBook, onBack, onAgentCharts }){
   const [metric, setMetric] = useCh("reads");
   const byId = (id) => findCatalogBook(id);
   /* live rankings from the backend (seed baseline + event aggregation), seed fallback */
-  const [live, setLive] = useCh(null);
-  useEffC(() => {
-    if (!window.liberApi) return;
-    window.liberApi.charts(win).then(r => { if (r && Array.isArray(r.rows)) setLive(r); }).catch(() => {});
-  }, [win]);
+  const liveQ = useQuery({ queryKey: ["charts", win], queryFn: () => window.liberApi.charts(win), enabled: !!window.liberApi });
+  const live = liveQ.data && Array.isArray(liveQ.data.rows) ? liveQ.data : null;
   const useLive = live && live.window === win;
   const seedChartsAllowed = !getCatalogBooks().some((b) => b.dynamic);
   const surgeMap = (useLive ? live.surge : (window.SURGE || {})[win]) || {};
@@ -142,8 +140,8 @@ function Charts({ onOpenBook, onBack, onAgentCharts }){
 /* compact band for the library */
 function ChartsBand({ onOpenBook, onOpenCharts }){
   const [win, setWin] = useCh("today");
-  const [rows, setRows] = useCh(null);
-  useEffC(() => { if (!window.liberApi) return; window.liberApi.charts(win).then(r => { if (r && Array.isArray(r.rows)) setRows(r.rows); }).catch(() => {}); }, [win]);
+  const rowsQ = useQuery({ queryKey: ["charts", win], queryFn: () => window.liberApi.charts(win), enabled: !!window.liberApi });
+  const rows = rowsQ.data && Array.isArray(rowsQ.data.rows) ? rowsQ.data.rows : null;
   const seedChartsAllowed = !getCatalogBooks().some((b) => b.dynamic);
   const data = rows || (seedChartsAllowed ? (window.CHARTS || {})[win] : []) || [];
   const ranked = rankBy(data, "reads").slice(0,5);

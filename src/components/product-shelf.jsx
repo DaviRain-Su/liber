@@ -3,6 +3,7 @@ import { I, Cover } from "./product-shared.jsx";
 import { getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
 import { loadMyBooklists, createBooklist, subscribeBooklists } from "../lib/booklists.js";
+import { useQuery } from "@tanstack/react-query";
 
 /* product-shelf.jsx — My Shelf: reading hub. Stats + reading/want/finished + 书单. */
 const { useState: useShf, useEffect: useEff } = React;
@@ -10,8 +11,6 @@ const { useState: useShf, useEffect: useEff } = React;
 function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }){
   const me = window.ME;
   const [catalog, setCatalog] = useShf(() => getCatalogBooks());
-  const [summary, setSummary] = useShf(null);
-  const [apiGroups, setApiGroups] = useShf([]);
   const [, refreshShelf] = useShf(0);
   const [myLists, setMyLists] = useShf(null);
   const [creating, setCreating] = useShf(false);
@@ -24,13 +23,10 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }){
     const offLists = subscribeBooklists(loadLists);
     return () => { offCatalog(); offShelf(); offLists(); };
   }, []);
-  useEff(() => {
-    if (!window.liberApi) return;
-    let live = true;
-    window.liberApi.reading.summary().then((r) => { if (live) setSummary(r); }).catch(() => {});
-    window.liberApi.groups.list().then((r) => { if (live && Array.isArray(r?.groups)) setApiGroups(r.groups); }).catch(() => {});
-    return () => { live = false; };
-  }, []);
+  const summaryQ = useQuery({ queryKey: ["reading", "summary"], queryFn: () => window.liberApi.reading.summary(), enabled: !!window.liberApi });
+  const groupsQ = useQuery({ queryKey: ["groups"], queryFn: () => window.liberApi.groups.list(), enabled: !!window.liberApi });
+  const summary = summaryQ.data || null;
+  const apiGroups = Array.isArray(groupsQ.data?.groups) ? groupsQ.data.groups : [];
   const byId = (id) => catalog.find((book) => book.id === id);
   const serverReading = (summary?.reading || []).map((r) => ({ id: r.id, at: r.at }));
   const reading = shelfReadingEntries(serverReading.length ? serverReading : me.reading, catalog);

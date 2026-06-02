@@ -3,21 +3,17 @@ import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks, licenseLabel } f
 
 /* product-certificate.jsx — on-chain proof certificate with verify animation. */
 const { useState: useSc, useEffect: useEc } = React;
+import { useQuery } from "@tanstack/react-query";
 
 function Certificate({ bookId, onBack, onOpenBook }){
   const missingBook = { id: bookId, t: "未找到该书", a: "", sub: "", cls: "ink", seal: "书", license: "" };
   const seedBook = findCatalogBook(bookId) || (catalogHasLiveBooks() ? missingBook : getCatalogBooks()[0]) || missingBook;
-  const [book, setBook] = useSc(seedBook);
   const [verifying, setVerifying] = useSc(false);
   const [steps, setSteps] = useSc([]); // verified step keys
-  const [net, setNet] = useSc(null);   // live storage-network reachability (from /api)
-  useEc(() => {
-    if (!window.liberApi) return;
-    let live = true;
-    window.liberApi.books.get(bookId).then(r => { if (live && r?.book) setBook(r.book); }).catch(() => {});
-    window.liberApi.books.proof(bookId).then(r => { if (live && r && r.networks) setNet(r.networks); }).catch(() => {});
-    return () => { live = false; };
-  }, [bookId]);
+  const bookQ = useQuery({ queryKey: ["book", bookId], queryFn: () => window.liberApi.books.get(bookId), enabled: !!window.liberApi });
+  const proofQ = useQuery({ queryKey: ["book", bookId, "proof"], queryFn: () => window.liberApi.books.proof(bookId), enabled: !!window.liberApi });
+  const book = bookQ.data?.book || seedBook;
+  const net = proofQ.data?.networks || null;   // live storage-network reachability
   const checks = [
     { k:"walrus", label:"Walrus 正文分块", detail:"读取 142 个内容块，哈希校验通过" },
     { k:"arweave", label:"Arweave 冷备份", detail:"永久副本存在，跨网络可达" },

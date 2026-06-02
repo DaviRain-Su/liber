@@ -5,6 +5,7 @@ import { findCatalogBook, getCatalogTotal, licenseLabel } from "../lib/catalog.j
 /* product-agentview.jsx — "Agent View": flip any page into the structured,
    addressable, MCP representation an AI Agent sees. Reuses .term styles. */
 const { useState: useAv, useEffect: useEav } = React;
+import { useQuery } from "@tanstack/react-query";
 
 const MCP_TOOLS = [
   { name:"liber.search", sig:"(query) → Book[]", desc:"全文检索书名 / 作者 / 句子" },
@@ -27,7 +28,6 @@ function JLine({ k, v, t, last, indent=1 }){
 }
 
 function AgentView({ context, onClose, onCopy, onSquare, onGraph }){
-  const [platform, setPlatform] = useAv(null);
   const book = context.book;
   const ctxCharts = context.charts;
   const corpus = !book && !ctxCharts;
@@ -35,14 +35,8 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }){
     ? { uri:`liber://${book.id}`, blob:book.blob, index:book.index, license:book.license || "CC0-1.0" }
     : { uri:"liber://registry", blob:"walrus://0x00…root", index:"sui::registry::Library", license:"CC0-1.0" };
 
-  useEav(() => {
-    if (!corpus || !window.liberApi?.platform?.status) return undefined;
-    let live = true;
-    window.liberApi.platform.status()
-      .then((r) => { if (live) setPlatform(r); })
-      .catch(() => {});
-    return () => { live = false; };
-  }, [corpus]);
+  const platformQ = useQuery({ queryKey: ["platform", "status"], queryFn: () => window.liberApi.platform.status(), enabled: !!corpus && !!window.liberApi?.platform?.status });
+  const platform = platformQ.data || null;
 
   if (ctxCharts){
     const winMap = { today:"today", week:"7d", month:"30d" };

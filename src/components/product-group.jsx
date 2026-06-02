@@ -4,6 +4,7 @@ import { getCatalogBooks } from "../lib/catalog.js";
 
 /* product-group.jsx — co-reading group detail + groups discovery list. */
 const { useState: useGrp, useEffect: useEffG } = React;
+import { useQuery } from "@tanstack/react-query";
 
 const profileRef = (x) => x?.userId ? { userId:x.userId, name:x.u || x.name } : (x?.u || x?.name || x);
 const canProfile = (x) => window.canOpenProfile(profileRef(x));
@@ -13,11 +14,8 @@ const openProfile = (x) => window.openProfile(profileRef(x));
 function GroupsList({ onOpenGroup, onBack }){
   const hasLiveCatalog = getCatalogBooks().some((b) => b.dynamic);
   const allowSeedFallback = !window.liberApi && !hasLiveCatalog;
-  const [groups, setGroups] = useGrp(allowSeedFallback ? window.GROUPS || [] : []);
-  useEffG(() => {
-    if (!window.liberApi) return;
-    window.liberApi.groups.list().then(r => { if (Array.isArray(r?.groups)) setGroups(r.groups); }).catch(() => {});
-  }, []);
+  const groupsQ = useQuery({ queryKey: ["groups"], queryFn: () => window.liberApi.groups.list(), enabled: !!window.liberApi });
+  const groups = Array.isArray(groupsQ.data?.groups) ? groupsQ.data.groups : (allowSeedFallback ? window.GROUPS || [] : []);
   return (
     <div className="app-screen">
       <div className="grp-screen">
