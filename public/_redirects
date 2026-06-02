@@ -1,0 +1,5 @@
+# SPA fallback for client-side (TanStack Router browser history) deep links.
+# Cloudflare Pages precedence: Functions (functions/api/*) and static assets are
+# matched BEFORE _redirects, so /api/* and built assets are unaffected — this only
+# catches client navigation paths like /book/<id>, /profile/<id>, /shelf, …
+/* /index.html 200
