@@ -288,7 +288,7 @@ function SignFlow({ onClose }){
 // liber::registry with a passkey-signed moveCall. One component, three configs.
 const PROV = {
   annotation: {
-    title:"批注上链 · 永久存证", divider:"选择一条批注，永久写上 Sui 链",
+    title:"批注上链 · 永久存证", divider:"批注默认只存数据库；在这里挑选值得永久存证的少数几条上链",
     empty:"你还没有批注 · 在阅读时写下笔记后即可上链", glyph:"book",
     load:()=>api.auth.annotations(), prepare:(it)=>api.auth.onchainPrepare({ contentId:it.contentId, kind:"annotation" }),
     primary:(it)=>it.text, secondary:(it)=>`${it.bookTitle} · ${it.sid}`, doneMark:"已上链",

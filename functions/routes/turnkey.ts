@@ -938,6 +938,11 @@ async function buildRegisterTx(
   return { ok: true, txBytesB64: b64encode(bytes), digestHex: suiTransactionDigestHex(bytes), network };
 }
 
+// On-chain ONLY for ownership / authorship / provenance items, and always by explicit
+// user choice. High-frequency, low-value-per-item things (划线/评论/投票/进度) stay in D1
+// by design — never registered. This allowlist enforces that policy server-side.
+const ONCHAIN_KINDS = new Set(["annotation", "work", "certificate", "storage"]);
+
 turnkey.post("/onchain/prepare", async (c) => {
   const uid = c.get("userId");
   if (!uid) return c.json({ error: "unauthorized" }, 401);
@@ -953,6 +958,7 @@ turnkey.post("/onchain/prepare", async (c) => {
   const kind = String(body?.kind || "annotation").slice(0, 32);
   const license = String(body?.license || "CC0-1.0").slice(0, 32);
   if (!contentId) return c.json({ ok: false, error: "bad_content", message: "缺少登记内容" }, 400);
+  if (!ONCHAIN_KINDS.has(kind)) return c.json({ ok: false, error: "kind_not_allowed", message: "该类型不支持上链（仅作品/批注/证书等高价值条目可永存上链）" }, 400);
   try {
     const r = await buildRegisterTx(c.env, suiAddress, contentId, kind, license);
     if (!r.ok) return c.json({ ok: false, error: r.error, message: `该 Sui 地址在 ${r.network} 上没有 gas，请先充值${r.network === "testnet" ? "（测试网可领水）" : ""}` }, 400);
