@@ -696,6 +696,35 @@ turnkey.get("/contacts", async (c) => {
   return c.json({ ok: true, contacts });
 });
 
+// 打赏对象 — real tippable creators: Liber users with an embedded wallet who have
+// authored a 导读/再创作 (works) or 书评 (shares), plus readers you follow. Each carries
+// a real context line (著《…》/ N 篇书评 / their bio) and real per-chain addresses.
+turnkey.get("/tip-targets", async (c) => {
+  const uid = c.get("userId");
+  if (!uid) return c.json({ ok: true, targets: [] });
+  const rows = await all<any>(
+    c.env.DB,
+    `SELECT u.id, u.name, u.handle, u.seal, u.color, u.bio, u.turnkey_addresses,
+            (SELECT w.title FROM works w WHERE w.user_id = u.id ORDER BY w.created_at DESC LIMIT 1) AS work_title,
+            (SELECT COUNT(*) FROM shares s WHERE s.user_id = u.id AND s.visibility = 'public') AS share_n
+     FROM users u
+     WHERE u.is_guest = 0 AND u.turnkey_addresses IS NOT NULL AND u.id <> ?
+       AND ( EXISTS (SELECT 1 FROM works w WHERE w.user_id = u.id)
+          OR EXISTS (SELECT 1 FROM shares s WHERE s.user_id = u.id AND s.visibility = 'public')
+          OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followee_id = u.id) )
+     ORDER BY (work_title IS NOT NULL) DESC, share_n DESC, u.name
+     LIMIT 40`,
+    uid, uid,
+  );
+  const targets = rows.map((u) => {
+    let a: any = {}; try { a = JSON.parse(u.turnkey_addresses) || {}; } catch { a = {}; }
+    const sub = u.work_title ? `著《${u.work_title}》` : (u.share_n > 0 ? `${u.share_n} 篇书评` : (u.bio || "你关注的读者"));
+    return { id: u.id, name: u.name, sub, seal: u.seal || "读", cls: "ink", color: u.color || "#3a4fb0",
+      addresses: { SUI: a.sui || null, ETH: a.ethereum || null, SOL: a.solana || null, BTC: a.bitcoin || null } };
+  }).filter((x) => x.addresses.SUI || x.addresses.ETH || x.addresses.SOL || x.addresses.BTC);
+  return c.json({ ok: true, targets });
+});
+
 // 致谢墙 — real incoming SUI transfers (tips/payments received), with the sender named
 // when their address maps to a Liber reader. Reflects actual on-chain receipts.
 turnkey.get("/tips", async (c) => {

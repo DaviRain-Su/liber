@@ -109,15 +109,16 @@ function TokenPick({ tokens, value, onChange }){
 }
 // chain → which address field on a contact (and the token.sym we match the chain by).
 const CHAIN_KEY = { Sui:"SUI", Ethereum:"ETH", Solana:"SOL", Bitcoin:"BTC" };
-function RecipientPick({ token, contacts, value, onChange }){
+function RecipientPick({ token, contacts, value, onChange, heading }){
   const [custom,setCustom]=useS("");
   const key = token ? CHAIN_KEY[token.chain] : null;
   // Only contacts that have an address on the selected token's chain.
   const usable = (contacts||[]).filter(c=>key && c.addresses && c.addresses[key]);
   const placeholder = token && token.chain==="Bitcoin" ? "bc1q…" : token && token.chain==="Solana" ? "Solana 地址" : "0x…";
+  const empty = heading ? `暂无可打赏的${heading}（需对方在 ${token?token.chain:""} 上有地址）` : "通讯录为空 · 关注有钱包的读者后会出现在这里";
   return (<div><div className="fld"><div className="fld-l">粘贴 {token?token.chain:""} 收款地址</div>
     <input className="inp" placeholder={placeholder} value={custom} onChange={(e)=>{ const v=e.target.value.trim(); setCustom(v); onChange(v?{ name:v.slice(0,10)+"…", addr:v, cls:"slate", seal:"#" }:null); }}/></div>
-    <div className="recip-divider">{usable.length?"通讯录 · 你关注的读者":"通讯录为空 · 关注有钱包的读者后会出现在这里"}</div>
+    <div className="recip-divider">{usable.length?(heading||"通讯录 · 你关注的读者"):empty}</div>
     {usable.map(c=>{ const addr=c.addresses[key]; const short=addr.slice(0,6)+"…"+addr.slice(-4); return (
       <div key={c.id} className={"recip"+(value&&value.id===c.id?" on":"")} onClick={()=>{ setCustom(""); onChange({ id:c.id, name:c.name, addr, cls:c.cls||"ink", seal:c.seal, sub:c.sub }); }}>
         <span className={"av "+(c.cls||"ink")} style={c.color?{ background:c.color }:null}>{c.seal}</span>
@@ -138,7 +139,7 @@ function ReviewRows({ token, recipient, amount }){
     <div className="rr"><span className="k">矿工费</span><span className="v">由 {token.chain} 网络实时结算</span></div>
     <div className="rr total"><span className="k">转账金额</span><span className="v tnum">{amount||0} {token.sym}</span></div></div>);
 }
-function SendFlow({ tokens, presetToken, contacts, onClose }){
+function SendFlow({ tokens, presetToken, contacts, tip, onClose }){
   const [token,setToken]=useS(presetToken||tokens[0]);
   const [recipient,setRecipient]=useS(null);
   const [amount,setAmount]=useS("");
@@ -147,7 +148,9 @@ function SendFlow({ tokens, presetToken, contacts, onClose }){
   const hash=useR("0x"+Math.random().toString(16).slice(2,6)+"…"+Math.random().toString(16).slice(2,6));
   // All four chains are wired for real, non-custodial passkey signing.
   const order=["asset","recipient","amount","review","pk","done"], idx=order.indexOf(phase);
-  const titles={ asset:"选择资产", recipient:"收款人", amount:"输入金额", review:"确认", pk:"签名", done:"完成" };
+  const titles=tip
+    ? { asset:"打赏 · 选择资产", recipient:"打赏给谁", amount:"打赏金额", review:"确认打赏", pk:"签名", done:"完成" }
+    : { asset:"选择资产", recipient:"收款人", amount:"输入金额", review:"确认", pk:"签名", done:"完成" };
   const next=()=>setPhase(order[idx+1]); const back=idx>0&&phase!=="done"?()=>setPhase(order[idx-1]):null;
   // Build → passkey-sign (in browser, straight to Turnkey) → broadcast (server).
   const signAndSend=async()=>{
@@ -173,7 +176,7 @@ function SendFlow({ tokens, presetToken, contacts, onClose }){
   return (<Sheet title={titles[phase]} step={phase!=="done"?`${idx+1} / 5`:null} onBack={back} onClose={onClose}>
     <div className="steps" style={{ marginBottom:20 }}>{order.slice(0,5).map((s,i)=><i key={s} className={i===idx?"on":i<idx?"done":""}/>)}</div>
     {phase==="asset" && <TokenPick tokens={tokens} value={token} onChange={(t)=>{ setToken(t); next(); }}/>}
-    {phase==="recipient" && <RecipientPick token={token} contacts={contacts} value={recipient} onChange={setRecipient}/>}
+    {phase==="recipient" && <RecipientPick token={token} contacts={contacts} value={recipient} onChange={setRecipient} heading={tip?"作者 · 译者 · 读者":null}/>}
     {phase==="amount" && <AmountEntry token={token} amount={amount} onChange={setAmount}/>}
     {phase==="review" && <ReviewRows token={token} recipient={recipient} amount={amount}/>}
     {phase==="pk" && <RealSignGate label="用通行密钥确认转账" sub={`${amount} ${token.sym} → ${recipient&&recipient.name} · 真实上链`} onSign={signAndSend} onCancel={()=>setPhase("review")}/>}
@@ -292,9 +295,9 @@ function ActivityDetail({ item, onClose }){
       ? <a className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20, display:"flex", justifyContent:"center", gap:8, textDecoration:"none" }} href={item.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器中查看</a>
       : <button className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20 }}>{WI.ext} 在区块浏览器中查看</button>}</Sheet>);
 }
-function FlowHost({ flow, addresses, tokens, contacts, onClose }){
+function FlowHost({ flow, addresses, tokens, contacts, tipTargets, onClose }){
   if (!flow) return null;
-  if (flow.kind==="send") return <SendFlow tokens={tokens} presetToken={flow.token} contacts={contacts} onClose={onClose}/>;
+  if (flow.kind==="send") return <SendFlow tokens={tokens} presetToken={flow.token} contacts={flow.tip?tipTargets:contacts} tip={flow.tip} onClose={onClose}/>;
   if (flow.kind==="receive") return <ReceiveFlow presetToken={flow.token} addresses={addresses} onClose={onClose}/>;
   if (flow.kind==="swap") return <SwapFlow tokens={tokens} presetToken={flow.token} onClose={onClose}/>;
   if (flow.kind==="sign") return <SignFlow onClose={onClose}/>;
@@ -344,7 +347,7 @@ function ActivityList({ items, onOpen, limit }){
 }
 function UsesGrid({ onAction }){
   return (<div className="uses-grid">{USES.map(u=>(<div key={u.k} className="use-card"><div className="u-h"><TokenSeal token={u.sym} size={30}/><div className="u-t">{u.title}</div></div><div className="u-d">{u.desc}</div>
-    <div className="u-cta" onClick={()=>onAction(u.k==="tip"?"send":u.k==="storage"?"swap":u.k==="mint"?"receive":"sign")}>{u.cta} {WI.right}</div></div>))}</div>);
+    <div className="u-cta" onClick={()=>onAction(u.k==="tip"?"tip":u.k==="storage"?"swap":u.k==="mint"?"receive":"sign")}>{u.cta} {WI.right}</div></div>))}</div>);
 }
 function ThanksWall({ tips }){
   return (<div className="pfw-card thanks-wall"><div className="tw-list">{tips.map((t,i)=>(<div className="tw-item" key={i}><span className="tw-av" style={{ background:`linear-gradient(135deg, ${t.color}, #2e3a7a)` }}>{t.seal}</span>
@@ -360,6 +363,7 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const [loading, setLoading] = useS(true);
   const [acts, setActs] = useS(null); // real on-chain ledger items (null = loading)
   const [contacts, setContacts] = useS([]); // real recipients (followed readers w/ wallets)
+  const [tipTargets, setTipTargets] = useS([]); // real tippable creators (authors/translators)
   const [tips, setTips] = useS(null); // real incoming SUI receipts
   const [reload, setReload] = useS(0);
   useE(() => {
@@ -372,6 +376,7 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   useE(() => {
     let live = true;
     api.auth.walletContacts().then((r) => { if (live) setContacts((r && r.contacts) || []); }).catch(() => { if (live) setContacts([]); });
+    api.auth.tipTargets().then((r) => { if (live) setTipTargets((r && r.targets) || []); }).catch(() => { if (live) setTipTargets([]); });
     return () => { live = false; };
   }, []);
   const tokens = ((bal && bal.tokens) || []).map((t) => ({
@@ -384,6 +389,7 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const addresses = { SUI: wallets.sui, ETH: wallets.ethereum, SOL: wallets.solana, BTC: wallets.bitcoin };
   const onAction = (kind, arg) => {
     if (kind === "activity") { setFlow({ kind: "activity", item: arg }); return; }
+    if (kind === "tip") { if (!tokens.length) return; setFlow({ kind: "send", tip: true, token: arg }); return; }
     if ((kind === "send" || kind === "swap") && !tokens.length) return;
     setFlow({ kind, token: arg });
   };
@@ -434,7 +440,7 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
           <ThanksWall tips={tips}/>
         </div>
       )}
-      <FlowHost flow={flow} addresses={addresses} tokens={tokens} contacts={contacts} onClose={() => { const wasSend = flow && (flow.kind === "send" || flow.kind === "swap"); setFlow(null); if (wasSend) setReload((n) => n + 1); }}/>
+      <FlowHost flow={flow} addresses={addresses} tokens={tokens} contacts={contacts} tipTargets={tipTargets} onClose={() => { const wasSend = flow && (flow.kind === "send" || flow.kind === "swap"); setFlow(null); if (wasSend) setReload((n) => n + 1); }}/>
     </div>
   );
 }
