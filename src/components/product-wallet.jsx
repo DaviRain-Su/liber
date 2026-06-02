@@ -6,6 +6,7 @@
 import React from "react";
 import { api } from "../lib/api.js";
 import { createWalletPasskey, passkeySupported, passkeySignDigest } from "../lib/turnkey-passkey.js";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 const { useState: useS, useEffect: useE, useRef: useR } = React;
 
 /* ---------- icons ---------- */
@@ -422,26 +423,21 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   const [flow, setFlow] = useS(null);
   const [pkState, setPkState] = useS(passkeyEnrolled ? "done" : "idle"); // idle | working | done | error
   const [pkErr, setPkErr] = useS("");
-  const [bal, setBal] = useS(null);
-  const [loading, setLoading] = useS(true);
-  const [acts, setActs] = useS(null); // real on-chain ledger items (null = loading)
-  const [contacts, setContacts] = useS([]); // real recipients (followed readers w/ wallets)
-  const [tipTargets, setTipTargets] = useS([]); // real tippable creators (authors/translators)
-  const [tips, setTips] = useS(null); // real incoming SUI receipts
-  const [reload, setReload] = useS(0);
-  useE(() => {
-    let live = true;
-    api.auth.walletBalances().then((r) => { if (live) { setBal(r); setLoading(false); } }).catch(() => { if (live) setLoading(false); });
-    api.auth.walletActivity().then((r) => { if (live) setActs((r && r.items) || []); }).catch(() => { if (live) setActs([]); });
-    api.auth.walletTips().then((r) => { if (live) setTips((r && r.tips) || []); }).catch(() => { if (live) setTips([]); });
-    return () => { live = false; };
-  }, [reload]);
-  useE(() => {
-    let live = true;
-    api.auth.walletContacts().then((r) => { if (live) setContacts((r && r.contacts) || []); }).catch(() => { if (live) setContacts([]); });
-    api.auth.tipTargets().then((r) => { if (live) setTipTargets((r && r.targets) || []); }).catch(() => { if (live) setTipTargets([]); });
-    return () => { live = false; };
-  }, []);
+  // TanStack Query spike: the five wallet reads, declaratively. Caching, dedup,
+  // loading/error, and refetch are handled by the cache — no useEffect / live flags /
+  // reload counter (compare against the git history of this block).
+  const qc = useQueryClient();
+  const balQ = useQuery({ queryKey: ["wallet", "balances"], queryFn: () => api.auth.walletBalances() });
+  const actsQ = useQuery({ queryKey: ["wallet", "activity"], queryFn: () => api.auth.walletActivity() });
+  const tipsQ = useQuery({ queryKey: ["wallet", "tips"], queryFn: () => api.auth.walletTips() });
+  const contactsQ = useQuery({ queryKey: ["wallet", "contacts"], queryFn: () => api.auth.walletContacts() });
+  const tipTargetsQ = useQuery({ queryKey: ["wallet", "tipTargets"], queryFn: () => api.auth.tipTargets() });
+  const bal = balQ.data || null;
+  const loading = balQ.isPending;
+  const acts = actsQ.isPending ? null : ((actsQ.data && actsQ.data.items) || []);
+  const tips = tipsQ.isPending ? null : ((tipsQ.data && tipsQ.data.tips) || []);
+  const contacts = (contactsQ.data && contactsQ.data.contacts) || [];
+  const tipTargets = (tipTargetsQ.data && tipTargetsQ.data.targets) || [];
   const tokens = ((bal && bal.tokens) || []).map((t) => ({
     sym: t.sym, name: t.name, chain: t.chain, cls: t.cls, glyph: t.glyph,
     amt: t.amt == null ? "—" : String(t.amt), value: t.value == null ? 0 : t.value,
@@ -504,7 +500,7 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
           <ThanksWall tips={tips}/>
         </div>
       )}
-      <FlowHost flow={flow} addresses={addresses} tokens={tokens} contacts={contacts} tipTargets={tipTargets} onClose={() => { const wasSend = flow && (flow.kind === "send" || flow.kind === "swap"); setFlow(null); if (wasSend) setReload((n) => n + 1); }}/>
+      <FlowHost flow={flow} addresses={addresses} tokens={tokens} contacts={contacts} tipTargets={tipTargets} onClose={() => { const wasSend = flow && (flow.kind === "send" || flow.kind === "swap"); setFlow(null); if (wasSend) ["balances", "activity", "tips"].forEach((k) => qc.invalidateQueries({ queryKey: ["wallet", k] })); }}/>
     </div>
   );
 }

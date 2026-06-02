@@ -30,10 +30,14 @@ if (typeof window !== "undefined") {
   window.liberApi = api;
 }
 
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/query.js";
 import { App } from "./components/product-app.jsx";
 import { LiberTweaks } from "./components/product-tweaks.jsx";
 
-createRoot(document.getElementById("app")).render(<App />);
+createRoot(document.getElementById("app")).render(
+  <QueryClientProvider client={queryClient}><App /></QueryClientProvider>,
+);
 
 /* The Tweaks island doesn't mount inside the phone-preview iframe (?vp=phone),
    mirroring the original guard. */
