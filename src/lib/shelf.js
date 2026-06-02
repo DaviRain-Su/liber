@@ -1,5 +1,11 @@
-const SHELF_EVENT = "liber-shelf";
+// The local 在读 shelf. localStorage stays the source of truth; a TanStack Store carries
+// the change notification (replacing the old liber-shelf CustomEvent). Public API
+// (getShelfReadingIds / addShelfBook / clearShelf / subscribeShelf / …) is unchanged.
+import { Store } from "@tanstack/store";
+
 const READING_KEY = "liber.shelf.reading";
+const shelfStore = new Store({ v: 0 }); // a tick — subscribers re-read localStorage
+const bump = () => shelfStore.setState((p) => ({ v: p.v + 1 }));
 
 function safeReadIds(key) {
   try {
@@ -12,7 +18,7 @@ function safeReadIds(key) {
 
 function writeIds(key, ids) {
   localStorage.setItem(key, JSON.stringify([...new Set(ids)]));
-  window.dispatchEvent(new CustomEvent(SHELF_EVENT));
+  bump();
 }
 
 export function getShelfReadingIds() {
@@ -30,13 +36,13 @@ export function addShelfBook(bookId) {
 export function clearShelf() {
   if (typeof localStorage === "undefined") return;
   try { localStorage.removeItem(READING_KEY); } catch { /* ignore */ }
-  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SHELF_EVENT));
+  bump();
 }
 
 export function subscribeShelf(listener) {
   if (typeof window === "undefined") return () => {};
-  window.addEventListener(SHELF_EVENT, listener);
-  return () => window.removeEventListener(SHELF_EVENT, listener);
+  const sub = shelfStore.subscribe(() => listener());
+  return () => sub.unsubscribe();
 }
 
 export function shelfReadingEntries(seedReading, catalog) {

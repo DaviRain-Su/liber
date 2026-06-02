@@ -7,11 +7,51 @@ import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks } from "../lib/ca
 import { convertChineseText, isChineseScriptMode } from "../lib/zh-convert.js";
 import { api } from "../lib/api.js";
 import { passkeySignDigest } from "../lib/turnkey-passkey.js";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 /* product-reader.jsx — full-screen reader with selection menu, highlights,
    others' annotations, AI companion drawer, TOC, settings, progress.
    Layouts: classic | folio | archive | vertical | immersive. */
 const { useState: useS, useEffect: useE, useRef: useR, useCallback: useCb } = React;
+
+// Virtualized TOC list (TanStack Virtual). A book can have 50-300+ chapters; only the
+// visible window is rendered. Lives in its own component so it mounts fresh when the
+// drawer opens — the scroll element exists by the virtualizer's first effect (no
+// conditional-scroll-element gotcha). Rows are dynamically measured (titles may wrap).
+function TocList({ tocRows, readMode, activeEpubHref, chN, tx, sameEpubHref, jumpEpubTo, jumpTo }){
+  const ref = useR(null);
+  const v = useVirtualizer({
+    count: tocRows.length,
+    getScrollElement: () => ref.current,
+    estimateSize: () => 46,
+    overscan: 8,
+    getItemKey: (i) => { const t = tocRows[i]; return (t && (t.key || t.href || t.n)) ?? i; }, // stable data key, not the index
+  });
+  // On open, center the chapter you're actually reading (virtualization means the
+  // active row may be off-DOM; this is a strict UX gain over the old inline list).
+  const activeIndex = tocRows.findIndex((t) => readMode === "epub" && t.href ? sameEpubHref(t.href, activeEpubHref) : t.n === chN);
+  useE(() => { if (activeIndex > 0) v.scrollToIndex(activeIndex, { align: "center" }); }, []); // eslint-disable-line
+  return (
+    <div className="dbody" ref={ref}>
+      <div style={{ height: v.getTotalSize(), position: "relative", width: "100%" }}>
+        {v.getVirtualItems().map((vi) => {
+          const t = tocRows[vi.index]; const idx = vi.index;
+          const active = readMode === "epub" && t.href ? sameEpubHref(t.href, activeEpubHref) : t.n === chN;
+          return (
+            <div key={vi.key} data-index={vi.index} ref={v.measureElement}
+              className={`toc-item ${active ? "on" : ""} ${!t.has ? "lock" : ""}`}
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vi.start}px)`, ...(t.depth ? { paddingLeft: 24 + t.depth * 14 } : {}) }}
+              onClick={() => t.href ? jumpEpubTo(t.href) : (t.has && jumpTo(t.n))}>
+              <span className="num">{String(t.n || idx + 1).padStart(2, "0")}</span>
+              <span className="tt">{tx(t.title)}</span>
+              {!t.has && <span className="lk">{I.lock}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 const READER_LAYOUT_OPTIONS = [
   { value: "classic", label: "经典" },
   { value: "folio", label: "书页" },
@@ -1200,26 +1240,9 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }){
           <div className="drawer-scrim" onClick={() => setTocOpen(false)}/>
           <div className="toc-drawer">
             <div className="dh"><span className="t">目录 · {tx(book.t)}</span><span className="x" onClick={() => setTocOpen(false)}>{I.x}</span></div>
-            <div className="dbody">
-              {waitingForEpubToc && (
-                <div className="toc-empty">正在读取 EPUB 阅读版目录…</div>
-              )}
-              {!waitingForEpubToc && tocRows.map((t, idx) => {
-                const active = readMode === "epub" && t.href ? sameEpubHref(t.href, activeEpubHref) : t.n === ch.n;
-                return (
-                  <div
-                    key={t.key || t.href || t.n}
-                    className={`toc-item ${active?"on":""} ${!t.has?"lock":""}`}
-                    style={t.depth ? { paddingLeft: 24 + t.depth * 14 } : undefined}
-                    onClick={() => t.href ? jumpEpubTo(t.href) : (t.has && jumpTo(t.n))}
-                  >
-                    <span className="num">{String(t.n || idx + 1).padStart(2,"0")}</span>
-                    <span className="tt">{tx(t.title)}</span>
-                    {!t.has && <span className="lk">{I.lock}</span>}
-                  </div>
-                );
-              })}
-            </div>
+            {waitingForEpubToc
+              ? <div className="dbody"><div className="toc-empty">正在读取 EPUB 阅读版目录…</div></div>
+              : <TocList tocRows={tocRows} readMode={readMode} activeEpubHref={activeEpubHref} chN={ch.n} tx={tx} sameEpubHref={sameEpubHref} jumpEpubTo={jumpEpubTo} jumpTo={jumpTo} />}
           </div>
         </>
       )}

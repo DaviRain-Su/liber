@@ -2,14 +2,19 @@
 // localStorage fallback so the static / offline / signed-out preview still
 // works. Components call these helpers and subscribe to `liber-booklists`.
 
-const EVENT = "liber-booklists";
+import { Store } from "@tanstack/store";
+
 const LOCAL_KEY = "liber.booklists";
+// A TanStack Store carries the "booklists changed" notification (replacing the old
+// liber-booklists CustomEvent). The list data itself is fetched per call (backend or
+// localStorage), so this store is just a change tick. Public API unchanged.
+const booklistsStore = new Store({ v: 0 });
 
 function api() {
   return (typeof window !== "undefined" && window.liberApi) || null;
 }
 function emit() {
-  if (typeof window !== "undefined") window.dispatchEvent(new Event(EVENT));
+  booklistsStore.setState((p) => ({ v: p.v + 1 }));
 }
 function isLocalId(id) {
   return typeof id === "string" && id.startsWith("bl_local_");
@@ -17,8 +22,8 @@ function isLocalId(id) {
 
 export function subscribeBooklists(listener) {
   if (typeof window === "undefined") return () => {};
-  window.addEventListener(EVENT, listener);
-  return () => window.removeEventListener(EVENT, listener);
+  const sub = booklistsStore.subscribe(() => listener());
+  return () => sub.unsubscribe();
 }
 
 /* ---- localStorage fallback ---- */

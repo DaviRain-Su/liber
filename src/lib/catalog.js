@@ -1,9 +1,11 @@
-const CATALOG_EVENT = "liber-catalog";
+// Catalog state is backed by a TanStack Store (one reactive primitive, replacing the
+// hand-rolled CustomEvent pub-sub). The public API (getCatalogBooks / setCatalogBooks /
+// subscribeCatalog / …) is unchanged, so the ~18 consumers don't change. `catalogStore`
+// is exported for new code that wants reactive reads via useStore(catalogStore, sel).
+import { Store } from "@tanstack/store";
 
+export const catalogStore = new Store({ books: null, total: null, loaded: false });
 let seedBooksCache = null;
-let catalogBooks = null;
-let catalogTotal = null;
-let loaded = false;
 let inFlight = null;
 
 function seedBooks() {
@@ -20,59 +22,49 @@ function cleanBooks(books) {
     .filter((book) => book && book.id && !seen.has(book.id) && seen.add(book.id));
 }
 
-function emitCatalog() {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(CATALOG_EVENT, {
-    detail: { books: getCatalogBooks(), total: getCatalogTotal(), loaded },
-  }));
-}
-
 export function getCatalogBooks() {
-  if (catalogBooks) return catalogBooks;
-  catalogBooks = seedBooks();
-  return catalogBooks;
+  return catalogStore.state.books ?? seedBooks();
 }
 
 export function getCatalogTotal() {
-  return catalogTotal ?? getCatalogBooks().length;
+  return catalogStore.state.total ?? getCatalogBooks().length;
 }
 
 export function setCatalogBooks(books, total = null) {
-  catalogBooks = cleanBooks(books);
-  catalogTotal = Number.isFinite(total) ? total : catalogBooks.length;
-  loaded = true;
+  const cleaned = cleanBooks(books);
+  const t = Number.isFinite(total) ? total : cleaned.length;
+  catalogStore.setState((p) => ({ ...p, books: cleaned, total: t, loaded: true }));
   if (typeof window !== "undefined") {
-    window.BOOKS = catalogBooks;
-    window.LIBER_CATALOG_TOTAL = catalogTotal;
+    window.BOOKS = cleaned;
+    window.LIBER_CATALOG_TOTAL = t;
   }
-  emitCatalog();
-  return catalogBooks;
+  return cleaned;
 }
 
 export async function loadCatalogBooks() {
   if (inFlight) return inFlight;
   const api = typeof window !== "undefined" ? window.liberApi : null;
   if (!api?.books?.list) {
-    loaded = true;
-    emitCatalog();
+    catalogStore.setState((p) => ({ ...p, loaded: true }));
     return getCatalogBooks();
   }
   inFlight = api.books.list()
     .then((res) => setCatalogBooks(res?.books || [], Number(res?.total)))
-    .catch(() => {
-      loaded = true;
-      emitCatalog();
-      return getCatalogBooks();
-    })
+    .catch(() => { catalogStore.setState((p) => ({ ...p, loaded: true })); return getCatalogBooks(); })
     .finally(() => { inFlight = null; });
   return inFlight;
 }
 
 export function subscribeCatalog(listener) {
   if (typeof window === "undefined") return () => {};
-  const onCatalog = (event) => listener(event.detail?.books || getCatalogBooks(), event.detail || {});
-  window.addEventListener(CATALOG_EVENT, onCatalog);
-  return () => window.removeEventListener(CATALOG_EVENT, onCatalog);
+  let last; // notify only when the books array actually changes (not on a loaded-toggle)
+  const sub = catalogStore.subscribe(() => {
+    const books = getCatalogBooks();
+    if (books === last) return;
+    last = books;
+    listener(books, { books, total: getCatalogTotal(), loaded: catalogStore.state.loaded });
+  });
+  return () => sub.unsubscribe();
 }
 
 export function findCatalogBook(bookId) {
