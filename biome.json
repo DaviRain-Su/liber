@@ -34,7 +34,27 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "warn",
+        "useIterableCallbackReturn": "warn",
+        "noAssignInExpressions": "warn",
+        "noImplicitAnyLet": "warn"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn",
+        "useJsxKeyInIterable": "warn"
+      },
+      "a11y": {
+        "noStaticElementInteractions": "warn",
+        "useButtonType": "warn",
+        "useKeyWithClickEvents": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useValidAnchor": "warn",
+        "useSemanticElements": "warn",
+        "noAutofocus": "warn",
+        "useFocusableInteractive": "warn",
+        "useAriaPropsSupportedByRole": "warn",
+        "noNoninteractiveElementToInteractiveRole": "warn"
       }
     }
   },
