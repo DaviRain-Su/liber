@@ -57,8 +57,8 @@ function isAllowedIngestUrl(raw: string | undefined, env: Env): boolean {
 books.get("/books", async (c) => {
   const cat = c.req.query("cat");
   const sort = c.req.query("sort") || "reads";
-  const rawLimit = Number(c.req.query("limit") || 1000);
-  const limit = Number.isFinite(rawLimit) ? rawLimit : 1000;
+  const rawLimit = Number(c.req.query("limit") || 2000);
+  const limit = Number.isFinite(rawLimit) ? rawLimit : 2000;
   const [list, total] = await Promise.all([
     listBooks(c.env, { cat, sort, limit }),
     countBooks(c.env, { cat }),

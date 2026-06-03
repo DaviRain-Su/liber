@@ -64,6 +64,51 @@ function compact(s?: string | null): string {
   return (s || "").trim();
 }
 
+export function sqlLikeSearchTerm(term: string): string {
+  const trimmed = compact(term);
+  const chars = [...trimmed];
+  if (chars.length <= 16) return trimmed;
+  const hanCount = chars.filter((ch) => /\p{Script=Han}/u.test(ch)).length;
+  if (hanCount < 12 || hanCount / chars.length < 0.5) return trimmed;
+  // D1 can intermittently fail long Han LIKE scans in production. Use a stable
+  // prefix to collect candidates, then rank exact full-term matches in JS.
+  return chars.slice(0, 16).join("");
+}
+
+export function searchQueryTokens(term: string): string[] {
+  return compact(term).split(/\s+/u).map((token) => token.trim()).filter(Boolean);
+}
+
+export function sqlLikeSearchTerms(term: string): string[] {
+  const tokens = searchQueryTokens(term);
+  const terms = (tokens.length ? tokens : [term]).map(sqlLikeSearchTerm).filter(Boolean);
+  return [...new Set(terms)];
+}
+
+function searchHaystack(values: unknown[]): string {
+  return values.map((value) => String(value || "")).join("\n");
+}
+
+function prioritizeFullTermBookMatches(books: any[], fullTerm: string, sqlTerm: string): any[] {
+  if (!fullTerm || fullTerm === sqlTerm) return books;
+  const exact: any[] = [];
+  const rest: any[] = [];
+  for (const book of books) {
+    const haystack = searchHaystack([book.t, book.sub, book.a, book.cat, book.blurb, book.long]);
+    if (haystack.includes(fullTerm)) exact.push(book);
+    else rest.push(book);
+  }
+  return exact.length ? [...exact, ...rest] : books;
+}
+
+function filterTokenBookMatches(books: any[], tokens: string[]): any[] {
+  if (tokens.length <= 1) return books;
+  return books.filter((book) => {
+    const haystack = searchHaystack([book.t, book.sub, book.a, book.cat, book.blurb, book.long]);
+    return tokens.every((token) => haystack.includes(token));
+  });
+}
+
 async function sha256Hex(data: BufferSource): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -867,7 +912,13 @@ export async function getReaderEpub(env: Env, bookId: string): Promise<Uint8Arra
 
 export async function searchDynamic(env: Env, term: string) {
   if (!term) return { books: [], sentences: [] };
-  const like = `%${term}%`;
+  const tokens = searchQueryTokens(term);
+  const sqlTerms = sqlLikeSearchTerms(term);
+  const bookWhere = sqlTerms.map(() => "(title LIKE ? OR subtitle LIKE ? OR author LIKE ? OR category LIKE ? OR blurb LIKE ?)").join(" OR ");
+  const bookParams = sqlTerms.flatMap((sqlTerm) => Array(5).fill(`%${sqlTerm}%`));
+  const sentenceWhere = sqlTerms.map(() => "(lc.title LIKE ? OR lc.text_preview LIKE ?)").join(" OR ");
+  const sentenceParams = sqlTerms.flatMap((sqlTerm) => Array(2).fill(`%${sqlTerm}%`));
+  const candidateLimit = tokens.length > 1 ? 100 : 20;
   const rows = await all<any>(
     env.DB,
     `SELECT id, title, subtitle, author, category, lang, year, pages, words AS words_count,
@@ -875,18 +926,18 @@ export async function searchDynamic(env: Env, term: string) {
             license, source_url, created_at
      FROM library_books
      WHERE ${visibleLibraryBookWhere("library_books")}
-       AND (title LIKE ? OR subtitle LIKE ? OR author LIKE ? OR category LIKE ? OR blurb LIKE ?)
-     ORDER BY created_at DESC LIMIT 20`,
-    like, like, like, like, like,
+       AND (${bookWhere})
+     ORDER BY created_at DESC LIMIT ?`,
+    ...bookParams, candidateLimit,
   );
   const hitRows = await all<any>(
     env.DB,
     `SELECT lc.book_id, lb.title AS book_title, lc.n, lc.title, lc.text_preview
      FROM library_chapters lc JOIN library_books lb ON lb.id = lc.book_id
      WHERE ${visibleLibraryBookWhere("lb")}
-       AND (lc.title LIKE ? OR lc.text_preview LIKE ?)
+       AND (${sentenceWhere})
      ORDER BY lc.book_id, lc.n LIMIT 20`,
-    like, like,
+    ...sentenceParams,
   );
   const sentences = hitRows.flatMap((r) => {
     // Run the SAME chapter pipeline the reader uses (textToChapter) so each sid is
@@ -897,7 +948,8 @@ export async function searchDynamic(env: Env, term: string) {
     return flat.filter((s) => s.t && s.t.includes(term)).slice(0, 2)
       .map((s) => ({ sid: s.id, t: s.t, book: r.book_title, bookId: r.book_id, chap: `第${r.n}章` }));
   });
-  return { books: rows.map(normalizeBook), sentences };
+  const books = filterTokenBookMatches(prioritizeFullTermBookMatches(rows.map(normalizeBook), term, sqlTerms[0] || term), tokens).slice(0, 20);
+  return { books, sentences };
 }
 
 export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: string | null) {

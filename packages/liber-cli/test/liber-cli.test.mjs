@@ -315,7 +315,9 @@ test("extractEpubChapters rejects garbled Chinese text", async () => {
 test("garbledTextWarnings allows readable classical Chinese", () => {
   const text = `棲守道德者，寂寞一時；依阿權勢者，淒涼萬古。
 
-達人觀物外之物，思身後之身，寧受一時之寂寞，毋取萬古之淒涼。`;
+達人觀物外之物，思身後之身，寧受一時之寂寞，毋取萬古之淒涼。
+
+雜曲歌辭·昔昔鹽·垂柳覆金堤`;
 
   assert.equal(looksLikeGarbledText(text), false);
   assert.deepEqual(garbledTextWarnings(text), []);
@@ -1542,6 +1544,21 @@ test("createIngestPayload builds backend ingest payload from a manifest", async 
   assert.equal(Buffer.from(payload.epubBase64, "base64").toString("utf8").includes("application/epub+zip"), true);
   assert.equal(payload.chapters.length, 1);
   assert.match(payload.chapters[0].text, /First paragraph\./);
+});
+
+test("createIngestPayload can use caller-supplied cleaned chapters", async () => {
+  const { epubPath } = await writeEpub("CC0-1.0", ["Generated wrapper text."]);
+  const manifest = await createBookManifest(epubPath, {
+    source: "https://example.com/wiki",
+    license: "PUBLIC-DOMAIN",
+  });
+  const payload = await createIngestPayload(manifest, {
+    id: "wiki",
+    chapters: [{ n: 1, title: "全文", text: "已清理的中文正文。" }],
+  });
+
+  assert.equal(payload.id, "wiki");
+  assert.deepEqual(payload.chapters, [{ n: 1, title: "全文", text: "已清理的中文正文。" }]);
 });
 
 test("createIngestPayload rejects an EPUB that no longer matches the manifest hash", async () => {

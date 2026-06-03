@@ -423,7 +423,7 @@ export function garbledTextWarnings(text) {
   const chars = [...sample];
   const total = chars.length || 1;
   const replacement = chars.filter((ch) => ch === "\uFFFD").length;
-  const mojibake = chars.filter((ch) => /[ÃÂâ€šœžŸ¢¤¥¦§¨©ª«¬®¯±²³´µ¶·¸¹º»¼½¾¿]/u.test(ch)).length;
+  const mojibake = chars.filter((ch) => /[ÃÂâ€šœžŸ¢¤¥¦§¨©ª«¬®¯±²³´µ¶¸¹º»¼½¾¿]/u.test(ch)).length;
   const han = chars.filter((ch) => /\p{Script=Han}/u.test(ch)).length;
   const hanPunctuation = chars.filter((ch) => /[，。、；：？！「」『』《》（）]/u.test(ch)).length;
   const oddSymbols = chars.filter((ch) => /[⊿∪∟∠⊥∩╡╰﹝ＸＹＺＴＵＷ０-９ａ-ｚ]/u.test(ch)).length;
@@ -1595,7 +1595,9 @@ export async function createIngestPayload(manifest, options = {}) {
     throw new LiberCliError("EPUB_HASH_MISMATCH", "EPUB file no longer matches the packaged manifest hash.");
   }
   const includeSource = options.includeSource !== false;
-  const chapters = await extractEpubChapters(manifest.assets?.epub?.path);
+  const chapters = Array.isArray(options.chapters) && options.chapters.length
+    ? options.chapters
+    : await extractEpubChapters(manifest.assets?.epub?.path);
   return {
     ...(options.id ? { id: options.id } : {}),
     title: options.title || manifest.book?.title || "Untitled",
@@ -1869,6 +1871,7 @@ function retryDelayMs(attempt) {
 
 async function postPublishJson(fetcher, url, token, payload, options = {}) {
   const attempts = Math.max(1, Number(options.attempts || 4) || 4);
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs || 30000) || 30000);
   let lastError = null;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     let res;
@@ -1880,6 +1883,7 @@ async function postPublishJson(fetcher, url, token, payload, options = {}) {
           "content-type": "application/json",
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
       lastError = new LiberCliError("PUBLISH_NETWORK_FAILED", `Publish request failed for ${url}: ${describeFetchError(error)}`);
@@ -1925,12 +1929,16 @@ export async function publishBookManifestChunked(manifest, options = {}) {
   const total = payload.chapters.length;
   const words = payload.chapters.reduce((sum, ch) => sum + String(ch.text || "").replace(/\s+/g, "").length, 0);
   const concurrency = Math.max(1, Math.min(12, Number(options.concurrency || 1) || 1));
+  const requestOptions = {
+    attempts: options.attempts,
+    timeoutMs: options.timeoutMs,
+  };
 
   options.onProgress?.({ stage: "begin", current: 0, total });
   const begin = await postPublishJson(fetcher, `${base}/api/books/ingest/begin`, resolved.adminToken, {
     ...meta,
     epubBase64: payload.epubBase64,
-  });
+  }, requestOptions);
 
   const chapters = new Array(total);
   let next = 0;
@@ -1944,7 +1952,7 @@ export async function publishBookManifestChunked(manifest, options = {}) {
         ...meta,
         index: i,
         chapter,
-      });
+      }, requestOptions);
     }
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, total) }, publishNext));
@@ -1954,6 +1962,6 @@ export async function publishBookManifestChunked(manifest, options = {}) {
     ...meta,
     chapterNumbers: payload.chapters.map((ch) => ch.n).filter(Boolean),
     words,
-  });
+  }, requestOptions);
   return { ok: true, begin, chapters, finalize, book: finalize.book, manifest: finalize.manifest };
 }
