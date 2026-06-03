@@ -1,0 +1,6 @@
+# Bulk reformatting commits to skip in `git blame`.
+# Configure locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub honors this file automatically.)
+
+# Format the codebase with Biome (one-time pass)
+6ebdbf64afaeba2da9f7a3fa48d6f6ef6a57ec2b
