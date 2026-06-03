@@ -1,7 +1,7 @@
 // Shared seed data — the SAME catalogue/content the frontend renders, so the
 // API serves identical reference data. User-generated content (D1) is merged on
 // top of these baselines on read. One source of truth for both tiers.
-// @ts-ignore — plain-JS data module with named exports (no type declarations)
+// plain-JS data module with named exports (no type declarations)
 import * as seed from "../../src/data/product-data.js";
 
 const s = seed as Record<string, any>;

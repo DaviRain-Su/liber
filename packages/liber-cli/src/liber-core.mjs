@@ -1745,7 +1745,7 @@ export async function extractEpubChapters(filePath) {
       isNavigationNoiseTitle(title, bookTitle) &&
       !(isSameBookTitle(title, bookTitle) && !chapters.length)
     ) {
-      continue;
+      // navigation-noise entry (cover/TOC/colophon) — intentionally dropped
     } else if (isSameBookTitle(title, bookTitle) && chapters.length) {
       const previous = chapters[chapters.length - 1];
       previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${text}`);

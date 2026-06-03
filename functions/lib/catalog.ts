@@ -177,7 +177,7 @@ function isEnglishSentenceDot(text: string, i: number): boolean {
   if (/\b(?:i\.e|e\.g|A\.D|B\.C|U\.S|U\.K)\.$/i.test(before)) return false;
   if (/\b[A-Z](?:\.[A-Z])+\.$/.test(before)) return false;
   if (/\b[A-Z]\.$/.test(before) && /^\s*[A-Z]\./.test(after)) return false;
-  return /^\s*(?:["'”’)\]]+\s*)?(?:$|[A-Z0-9“"‘'\[(])/.test(after);
+  return /^\s*(?:["'”’)\]]+\s*)?(?:$|[A-Z0-9“"‘'[(])/.test(after);
 }
 
 function splitSentences(para: string): string[] {
@@ -203,7 +203,7 @@ function splitSentences(para: string): string[] {
 function lineLooksHeading(line: string): boolean {
   const text = line.trim();
   if (!text || text.length > 80) return false;
-  if (/[\.\?!:;。！？；]$/.test(text)) return false;
+  if (/[.?!:;。！？；]$/.test(text)) return false;
   const letters = text.replace(/[^A-Za-z]/g, "");
   return letters.length >= 4 && letters === letters.toUpperCase();
 }
@@ -211,7 +211,7 @@ function lineLooksHeading(line: string): boolean {
 function shouldReflowBlocks(blocks: string[]): boolean {
   if (blocks.length < 8) return false;
   const proseLines = blocks.filter((b) => b.length >= 35 && b.length <= 95).length;
-  const unfinished = blocks.filter((b) => !/[\.\?!;:。！？；\]"”’)]$/.test(b)).length;
+  const unfinished = blocks.filter((b) => !/[.?!;:。！？；\]"”’)]$/.test(b)).length;
   return proseLines / blocks.length > 0.55 && unfinished / blocks.length > 0.35;
 }
 
@@ -234,8 +234,8 @@ function reflowWrappedBlocks(blocks: string[]): string[] {
     const line = block.replace(/\s+/g, " ").trim();
     if (!line) continue;
     const startsStructure =
-      /^\d+[\.\)]\s+/.test(line) || /^\[[^\]]/.test(line) || lineLooksHeading(line);
-    const prevComplete = /[\.\?!。！？\]"”’)]$/.test(prev);
+      /^\d+[.)]\s+/.test(line) || /^\[[^\]]/.test(line) || lineLooksHeading(line);
+    const prevComplete = /[.?!。！？\]"”’)]$/.test(prev);
     if (acc && (startsStructure || prevComplete)) flush();
     if (lineLooksHeading(line)) {
       flush();

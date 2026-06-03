@@ -1249,7 +1249,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
     );
   };
   const needsSentenceGap = (left, right) =>
-    /[A-Za-z0-9"”’')\]]$/.test(left?.t || "") && /^[A-Za-z0-9"“‘'(\[]/.test(right?.t || "");
+    /[A-Za-z0-9"”’')\]]$/.test(left?.t || "") && /^[A-Za-z0-9"“‘'([]/.test(right?.t || "");
   const renderParagraph = (p, i) => (
     <p key={i}>
       {p.map((s, j) => (

@@ -990,7 +990,7 @@ turnkey.post("/btc/prepare", async (c) => {
     const inVal = BigInt(utxo.value);
     const ownProgram = p2wpkhProgram(from);
     const recScript = p2wpkhScript(p2wpkhProgram(to));
-    let change = inVal - amountSats - fee2;
+    const change = inVal - amountSats - fee2;
     const outputs: TxOutput[] = [{ script: recScript, value: amountSats }];
     if (change >= DUST_P2WPKH) outputs.push({ script: p2wpkhScript(ownProgram), value: change });
     else {

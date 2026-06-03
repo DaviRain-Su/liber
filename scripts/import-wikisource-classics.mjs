@@ -7291,7 +7291,7 @@ function cleanWikisourceWikitext(raw) {
   text = text.replace(/\[https?:\/\/[^\]\s]+(?:\s+([^\]]+))?\]/giu, "$1");
   text = text.replace(/^\s*(?:(?:上一篇|下一篇|回目录|回目錄|目录|目錄)\s*){1,8}\s*$/gmu, "");
   text = stripTemplates(text);
-  text = text.replace(/\{\{\s*[Pp]roper[Nn]oun\s*\|\s*([^{}\]\|]+)(?:\}\]|\}|\])/gu, "$1");
+  text = text.replace(/\{\{\s*[Pp]roper[Nn]oun\s*\|\s*([^{}\]|]+)(?:\}\]|\}|\])/gu, "$1");
   text = text.replace(/\{\{\s*\*\s*\|[^}\n]*\}/gu, "");
   text = text.replace(/-\{([^{}]+)\}-/gu, (_, body) => chooseVariant(body));
   text = stripTemplates(text);
