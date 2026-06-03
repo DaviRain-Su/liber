@@ -10,6 +10,7 @@ import {
 } from "../lib/catalog.js";
 import { addShelfBook, getShelfReadingIds } from "../lib/shelf.js";
 import { useQuery } from "@tanstack/react-query";
+import { clickable } from "../lib/a11y.js";
 
 /* product-detail.jsx — Book detail page. */
 function hasOriginalEpub(book) {
@@ -90,13 +91,21 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
             <div className="detail-rail">
               <Cover book={book} />
               <div className="detail-actions">
-                <button className="btn btn-primary btn-block" onClick={() => onOpenReader(book.id)}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block"
+                  onClick={() => onOpenReader(book.id)}
+                >
                   {I.book} 开始阅读
                 </button>
-                <button className="btn btn-ghost btn-block" onClick={saveToShelf}>
+                <button type="button" className="btn btn-ghost btn-block" onClick={saveToShelf}>
                   {shelfSaved ? "已在书架" : "＋ 加入书架"}
                 </button>
-                <button className="btn btn-ghost btn-block" onClick={() => setBlOpen(true)}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-block"
+                  onClick={() => setBlOpen(true)}
+                >
                   ＋ 加入书单
                 </button>
               </div>
@@ -137,7 +146,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
                 <span className="meta-tag">已永久存证</span>
               </div>
 
-              <div className="agent-track" onClick={onOpenAgents}>
+              <div className="agent-track" {...clickable(onOpenAgents)}>
                 <div className="at-avas">
                   {["友", "导", "思", "考"].map((s, i) => (
                     <span
@@ -165,7 +174,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
                   <div className="dsec-h">
                     <span className="t">原版 EPUB</span>
                     <span className="c">目录以原书文件为准</span>
-                    <span className="more" onClick={() => onOpenReader(book.id)}>
+                    <span className="more" {...clickable(() => onOpenReader(book.id))}>
                       打开原书 →
                     </span>
                   </div>
@@ -178,7 +187,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
                     <span className="c">
                       {book.pages} 章 · {toc.filter((t) => t.has).length} 章可读
                     </span>
-                    <span className="more" onClick={() => onOpenReader(book.id)}>
+                    <span className="more" {...clickable(() => onOpenReader(book.id))}>
                       从头开始 →
                     </span>
                   </div>
@@ -187,7 +196,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
                       <div
                         className="toc-row"
                         key={t.n}
-                        onClick={() => t.has && onOpenReader(book.id, t.n)}
+                        {...clickable(() => t.has && onOpenReader(book.id, t.n))}
                         style={!t.has ? { cursor: "default", opacity: 0.5 } : null}
                       >
                         <span className="num">{String(t.n).padStart(2, "0")}</span>
@@ -204,7 +213,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
                 <div className="dsec-h">
                   <span className="t">永久存证</span>
                   <span className="c">没有人能单方面删除它 — 包括我们自己</span>
-                  <span className="more" onClick={() => onOpenCert(book.id)}>
+                  <span className="more" {...clickable(() => onOpenCert(book.id))}>
                     查看存证证书 →
                   </span>
                 </div>
@@ -266,9 +275,9 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
                       <div
                         className={"ava" + (window.canOpenProfile(r.u) ? " ava-link" : "")}
                         style={{ background: r.color }}
-                        onClick={
-                          window.canOpenProfile(r.u) ? () => window.openProfile(r.u) : undefined
-                        }
+                        {...(window.canOpenProfile(r.u)
+                          ? clickable(() => window.openProfile(r.u))
+                          : {})}
                       >
                         {r.u[0]}
                       </div>
@@ -276,9 +285,9 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
                         <div className="top">
                           <span
                             className={"nm" + (window.canOpenProfile(r.u) ? " name-link" : "")}
-                            onClick={
-                              window.canOpenProfile(r.u) ? () => window.openProfile(r.u) : undefined
-                            }
+                            {...(window.canOpenProfile(r.u)
+                              ? clickable(() => window.openProfile(r.u))
+                              : {})}
                           >
                             {r.u}
                           </span>
@@ -301,7 +310,7 @@ function Detail({ bookId, onOpenReader, onOpenCert, onBack, onOpenAgents }) {
                 <div className="dsec-h">
                   <span className="t">讨论</span>
                   <span className="c">读这本书的人在聊什么</span>
-                  <span className="more" onClick={() => setCmtOpen((o) => !o)}>
+                  <span className="more" {...clickable(() => setCmtOpen((o) => !o))}>
                     {cmtOpen ? "收起 ↑" : "展开 / 发表评论 ↓"}
                   </span>
                 </div>

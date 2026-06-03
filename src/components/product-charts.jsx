@@ -1,6 +1,7 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
 import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-charts.jsx — open rankings: today / 7-day / 30-day,
    by reads / highlights / conversations. Full screen + compact library band. */
@@ -88,7 +89,11 @@ function Charts({ onOpenBook, onBack, onAgentCharts }) {
                 实时汇总自链上的公开阅读信号——谁在读、划了哪句、聊了多少。
                 <b>这份榜单本身就是开放数据，任何 Agent 都能读取。</b>
               </p>
-              <button className="ch-agentbtn" onClick={() => onAgentCharts({ win, metric, obj })}>
+              <button
+                type="button"
+                className="ch-agentbtn"
+                onClick={() => onAgentCharts({ win, metric, obj })}
+              >
                 {I.agent} 在 Agent 视角中查看这份榜单
               </button>
             </div>
@@ -105,10 +110,18 @@ function Charts({ onOpenBook, onBack, onAgentCharts }) {
 
           {/* object toggle: 书 / 句 */}
           <div className="ch-obj">
-            <button className={obj === "book" ? "on" : ""} onClick={() => setObj("book")}>
+            <button
+              type="button"
+              className={obj === "book" ? "on" : ""}
+              onClick={() => setObj("book")}
+            >
               书榜
             </button>
-            <button className={obj === "sent" ? "on" : ""} onClick={() => setObj("sent")}>
+            <button
+              type="button"
+              className={obj === "sent" ? "on" : ""}
+              onClick={() => setObj("sent")}
+            >
               热句榜
             </button>
           </div>
@@ -118,7 +131,12 @@ function Charts({ onOpenBook, onBack, onAgentCharts }) {
               <div className="ch-controls">
                 <div className="ch-wins">
                   {CH_WINDOWS.map(([k, l]) => (
-                    <button key={k} className={win === k ? "on" : ""} onClick={() => setWin(k)}>
+                    <button
+                      type="button"
+                      key={k}
+                      className={win === k ? "on" : ""}
+                      onClick={() => setWin(k)}
+                    >
                       {l}
                     </button>
                   ))}
@@ -129,7 +147,7 @@ function Charts({ onOpenBook, onBack, onAgentCharts }) {
                     <span
                       key={k}
                       className={"ch-mt " + (metric === k ? "on" : "")}
-                      onClick={() => setMetric(k)}
+                      {...clickable(() => setMetric(k))}
                     >
                       {l}榜
                     </span>
@@ -151,7 +169,7 @@ function Charts({ onOpenBook, onBack, onAgentCharts }) {
                   const darkhorse =
                     metric === "surge" && r.surge > 0 && !readTop3.includes(r.id) && i < 3;
                   return (
-                    <div className="ch-row" key={r.id} onClick={() => onOpenBook(r.id)}>
+                    <div className="ch-row" key={r.id} {...clickable(() => onOpenBook(r.id))}>
                       <span className={"ch-rk" + (i < 3 ? " top" : "")}>{i + 1}</span>
                       <div className="ch-bk">
                         <span className={"ch-cv " + b.cls}>{b.seal}</span>
@@ -209,13 +227,15 @@ function Charts({ onOpenBook, onBack, onAgentCharts }) {
             <>
               <div className="ch-controls">
                 <div className="ch-wins">
-                  <button className="on">今日 · 热句榜</button>
+                  <button type="button" className="on">
+                    今日 · 热句榜
+                  </button>
                 </div>
                 <div className="ch-metrics">按划线人数排序</div>
               </div>
               <div className="ch-sent-list">
                 {sentences.map((s, i) => (
-                  <div className="ch-sent" key={s.sid} onClick={() => onOpenBook(s.bookId)}>
+                  <div className="ch-sent" key={s.sid} {...clickable(() => onOpenBook(s.bookId))}>
                     <span className={"ch-rk" + (i < 3 ? " top" : "")}>{i + 1}</span>
                     <div className="ch-sent-body">
                       <div className="ch-sent-q">「{s.q}」</div>
@@ -265,12 +285,17 @@ function ChartsBand({ onOpenBook, onOpenCharts }) {
         <span className="cb-title">热读榜</span>
         <div className="cb-wins">
           {CH_WINDOWS.map(([k, l]) => (
-            <button key={k} className={win === k ? "on" : ""} onClick={() => setWin(k)}>
+            <button
+              type="button"
+              key={k}
+              className={win === k ? "on" : ""}
+              onClick={() => setWin(k)}
+            >
               {l}
             </button>
           ))}
         </div>
-        <span className="cb-more" onClick={onOpenCharts}>
+        <span className="cb-more" {...clickable(onOpenCharts)}>
           完整榜单 →
         </span>
       </div>
@@ -279,7 +304,7 @@ function ChartsBand({ onOpenBook, onOpenCharts }) {
           const b = byId(r.id);
           if (!b) return null;
           return (
-            <div className="cb-row" key={r.id} onClick={() => onOpenBook(r.id)}>
+            <div className="cb-row" key={r.id} {...clickable(() => onOpenBook(r.id))}>
               <span className={"cb-rk" + (i < 3 ? " top" : "")}>{i + 1}</span>
               <span className={"cb-cv " + b.cls}>{b.seal}</span>
               <div className="cb-mid">

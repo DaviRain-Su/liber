@@ -2,6 +2,7 @@ import React from "react";
 import { I } from "./product-shared.jsx";
 import { CommentsPanel } from "./product-social.jsx";
 import { findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-notebook.jsx — your highlights/notes archive + AI chapter summaries + export. */
 const { useState: useSn, useMemo: useMemoN, useEffect: useEffN } = React;
@@ -200,10 +201,10 @@ function Notebook({ onOpenBook }) {
               </p>
             </div>
             <div className="nb-export">
-              <button className="btn btn-ghost" onClick={exportMd}>
+              <button type="button" className="btn btn-ghost" onClick={exportMd}>
                 {I.copy} 导出 Markdown
               </button>
-              <button className="btn btn-primary" onClick={() => setWriteOpen(true)}>
+              <button type="button" className="btn btn-primary" onClick={() => setWriteOpen(true)}>
                 ＋ 写成导读 <span className="arr">→</span>
               </button>
             </div>
@@ -215,25 +216,25 @@ function Notebook({ onOpenBook }) {
                 <div className="s-h">类型</div>
                 <div
                   className={`s-item ${typeF === "summary" ? "on" : ""}`}
-                  onClick={() => setTypeF("summary")}
+                  {...clickable(() => setTypeF("summary"))}
                 >
                   AI 摘要 · {summaries.length}
                 </div>
                 <div
                   className={`s-item ${typeF === "highlight" ? "on" : ""}`}
-                  onClick={() => setTypeF("highlight")}
+                  {...clickable(() => setTypeF("highlight"))}
                 >
                   全部划线 · {hls.length}
                 </div>
                 <div
                   className={`s-item ${typeF === "note" ? "on" : ""}`}
-                  onClick={() => setTypeF("note")}
+                  {...clickable(() => setTypeF("note"))}
                 >
                   我的批注 · {notesOnly.length}
                 </div>
                 <div
                   className={`s-item ${typeF === "work" ? "on" : ""}`}
-                  onClick={() => setTypeF("work")}
+                  {...clickable(() => setTypeF("work"))}
                 >
                   我的导读 · {works.length}
                 </div>
@@ -244,7 +245,7 @@ function Notebook({ onOpenBook }) {
                   <div
                     key={b}
                     className={`s-item ${bookF === b ? "on" : ""}`}
-                    onClick={() => setBookF(b)}
+                    {...clickable(() => setBookF(b))}
                   >
                     {b}
                   </div>
@@ -371,7 +372,7 @@ function Notebook({ onOpenBook }) {
                             cursor: "pointer",
                             color: "var(--accent)",
                           }}
-                          onClick={() => setCmtFor(cmtFor === w.id ? null : w.id)}
+                          {...clickable(() => setCmtFor(cmtFor === w.id ? null : w.id))}
                         >
                           {cmtFor === w.id ? "收起评论" : "评论 / 讨论"}
                         </div>
@@ -435,14 +436,14 @@ function WriteComposer({ summaries, hls, onClose, onPublish }) {
   };
   return (
     <>
-      <div className="drawer-scrim" style={{ zIndex: 862 }} onClick={onClose} />
+      <div className="drawer-scrim" style={{ zIndex: 862 }} {...clickable(onClose)} />
       <div className="write-modal">
         <div className="wm-head">
           <div>
             <div className="wm-kick">{I.note} 写成一篇导读</div>
             <div className="wm-sub">把笔记与对话，连成你自己的文字 · 以 CC0 发布回图书馆</div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {I.x}
           </span>
         </div>
@@ -466,10 +467,18 @@ function WriteComposer({ summaries, hls, onClose, onPublish }) {
           <div className="wm-row">
             <div className="wm-lab">谁能看到</div>
             <div className="seg">
-              <button className={vis === "public" ? "on" : ""} onClick={() => setVis("public")}>
+              <button
+                type="button"
+                className={vis === "public" ? "on" : ""}
+                onClick={() => setVis("public")}
+              >
                 公开发布到馆藏
               </button>
-              <button className={vis === "private" ? "on" : ""} onClick={() => setVis("private")}>
+              <button
+                type="button"
+                className={vis === "private" ? "on" : ""}
+                onClick={() => setVis("private")}
+              >
                 仅自己
               </button>
             </div>
@@ -479,7 +488,12 @@ function WriteComposer({ summaries, hls, onClose, onPublish }) {
           <div className="wm-note">
             发布后会获得一个稳定地址 <code>liber://work/…</code>，成为可被检索、可被引用的对象。
           </div>
-          <button className="btn btn-primary" disabled={!body.trim()} onClick={publish}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!body.trim()}
+            onClick={publish}
+          >
             以 CC0 发布 <span className="arr">→</span>
           </button>
         </div>

@@ -4,6 +4,7 @@ import { getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
 import { loadMyBooklists, createBooklist, subscribeBooklists } from "../lib/booklists.js";
 import { useQuery } from "@tanstack/react-query";
+import { clickable } from "../lib/a11y.js";
 
 /* product-shelf.jsx — My Shelf: reading hub. Stats + reading/want/finished + 书单. */
 const { useState: useShf, useEffect: useEff } = React;
@@ -108,13 +109,22 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }) {
           <div className="sh-grid">
             <main className="sh-main">
               <div className="sh-tabs">
-                <button className={tab === "reading" ? "on" : ""} onClick={() => setTab("reading")}>
+                <button
+                  type="button"
+                  className={tab === "reading" ? "on" : ""}
+                  onClick={() => setTab("reading")}
+                >
                   在读 · {reading.length}
                 </button>
-                <button className={tab === "want" ? "on" : ""} onClick={() => setTab("want")}>
+                <button
+                  type="button"
+                  className={tab === "want" ? "on" : ""}
+                  onClick={() => setTab("want")}
+                >
                   想读 · {want.length}
                 </button>
                 <button
+                  type="button"
                   className={tab === "finished" ? "on" : ""}
                   onClick={() => setTab("finished")}
                 >
@@ -128,7 +138,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }) {
                     <div className="rd-row" key={b.id}>
                       <Cover book={b} className="rd-row-cover" />
                       <div className="rd-row-mid">
-                        <div className="t" onClick={() => onOpenBook(b.id)}>
+                        <div className="t" {...clickable(() => onOpenBook(b.id))}>
                           {b.t}
                         </div>
                         <div className="a">
@@ -140,10 +150,18 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }) {
                         <div className="at">读到 {b.at}</div>
                       </div>
                       <div className="rd-row-act">
-                        <button className="btn btn-primary" onClick={() => onOpenReader(b.id)}>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => onOpenReader(b.id)}
+                        >
                           {I.book} 继续读
                         </button>
-                        <button className="btn btn-ghost" onClick={() => onOpenBook(b.id)}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => onOpenBook(b.id)}
+                        >
                           详情
                         </button>
                       </div>
@@ -160,7 +178,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }) {
               {(tab === "want" || tab === "finished") && (
                 <div className="sh-cards">
                   {(tab === "want" ? want : finished).map((b) => (
-                    <div className="sh-bk" key={b.id} onClick={() => onOpenBook(b.id)}>
+                    <div className="sh-bk" key={b.id} {...clickable(() => onOpenBook(b.id))}>
                       <Cover book={b} />
                       <div className="t">{b.t}</div>
                       <div className="at">
@@ -182,12 +200,12 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }) {
               <div className="sh-card">
                 <div className="shc-h">
                   我加入的共读{" "}
-                  <span className="more" onClick={() => onOpenGroup(null)}>
+                  <span className="more" {...clickable(() => onOpenGroup(null))}>
                     全部 →
                   </span>
                 </div>
                 {groups.map((g) => (
-                  <div className="sh-grp" key={g.id} onClick={() => onOpenGroup(g.id)}>
+                  <div className="sh-grp" key={g.id} {...clickable(() => onOpenGroup(g.id))}>
                     <span className="gd" style={{ background: g.color }}>
                       {g.seal}
                     </span>
@@ -213,7 +231,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }) {
                     <div
                       className="sh-coll sh-coll-link"
                       key={c.id}
-                      onClick={() => onOpenBooklist && onOpenBooklist(c.id)}
+                      {...clickable(() => onOpenBooklist && onOpenBooklist(c.id))}
                     >
                       <div className="coll-stack">
                         {(c.books || []).slice(0, 4).map((bid, i) => {
@@ -256,6 +274,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }) {
                       }}
                     />
                     <button
+                      type="button"
                       className="btn btn-primary"
                       disabled={!newName.trim()}
                       onClick={createList}
@@ -265,6 +284,7 @@ function Shelf({ onOpenBook, onOpenReader, onOpenGroup, onOpenBooklist }) {
                   </div>
                 ) : (
                   <button
+                    type="button"
                     className="btn btn-ghost btn-block"
                     style={{ marginTop: 14 }}
                     onClick={() => setCreating(true)}

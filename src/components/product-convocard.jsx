@@ -1,4 +1,5 @@
 import React from "react";
+import { clickable } from "../lib/a11y.js";
 
 /* product-convocard.jsx — shareable conversation artifact, reused by the
    reader (share preview) and the social page (feed + browse).
@@ -8,6 +9,7 @@ import React from "react";
 const CC_ICO = {
   fork: (
     <svg
+      aria-hidden="true"
       width="14"
       height="14"
       viewBox="0 0 24 24"
@@ -23,6 +25,7 @@ const CC_ICO = {
   ),
   up: (
     <svg
+      aria-hidden="true"
       width="13"
       height="13"
       viewBox="0 0 24 24"
@@ -35,6 +38,7 @@ const CC_ICO = {
   ),
   chat: (
     <svg
+      aria-hidden="true"
       width="13"
       height="13"
       viewBox="0 0 24 24"
@@ -47,6 +51,7 @@ const CC_ICO = {
   ),
   save: (
     <svg
+      aria-hidden="true"
       width="13"
       height="13"
       viewBox="0 0 24 24"
@@ -59,6 +64,7 @@ const CC_ICO = {
   ),
   saved: (
     <svg
+      aria-hidden="true"
       width="13"
       height="13"
       viewBox="0 0 24 24"
@@ -71,6 +77,7 @@ const CC_ICO = {
   ),
   img: (
     <svg
+      aria-hidden="true"
       width="13"
       height="13"
       viewBox="0 0 24 24"
@@ -85,6 +92,7 @@ const CC_ICO = {
   ),
   x: (
     <svg
+      aria-hidden="true"
       width="16"
       height="16"
       viewBox="0 0 24 24"
@@ -113,18 +121,15 @@ function CCForkTree({ convo, onOpenTree }) {
   const cs = nodes
     .slice(0, 3)
     .map((n) => [n.ava || String(n.name || "读")[0], n.color || "#3a4fb0"]);
-  const clickable = !!(onOpenTree && convo.forks > 0);
+  const isClickable = !!(onOpenTree && convo.forks > 0);
+  const treeHandler = (e) => {
+    e.stopPropagation();
+    onOpenTree(convo);
+  };
   return (
     <div
-      className={"cf-tree" + (clickable ? " link" : "")}
-      onClick={
-        clickable
-          ? (e) => {
-              e.stopPropagation();
-              onOpenTree(convo);
-            }
-          : undefined
-      }
+      className={"cf-tree" + (isClickable ? " link" : "")}
+      {...(isClickable ? clickable(treeHandler) : {})}
     >
       {cs.length > 0 && (
         <span className="dots">
@@ -135,7 +140,7 @@ function CCForkTree({ convo, onOpenTree }) {
           ))}
         </span>
       )}
-      被 {convo.forks} 人接着问过{clickable && " · 看对话树"}
+      被 {convo.forks} 人接着问过{isClickable && " · 看对话树"}
     </div>
   );
 }
@@ -143,27 +148,30 @@ function CCForkTree({ convo, onOpenTree }) {
 function CCFoot({ convo, onFork, onSave, saved, dark, onExport, onComment, onVote, voted }) {
   return (
     <div className={dark ? "ci-foot" : "cf-foot"}>
-      <button className="cf-fork" onClick={onFork}>
+      <button type="button" className="cf-fork" onClick={onFork}>
         {CC_ICO.fork} 接着这段问
       </button>
       <div className="cf-acts">
         <span
-          onClick={onVote}
+          {...(onVote ? clickable(onVote) : {})}
           style={
             onVote ? { cursor: "pointer", ...(voted ? { color: "var(--accent)" } : null) } : null
           }
         >
           {CC_ICO.up} {convo.agree}
         </span>
-        <span onClick={onComment} style={onComment ? { cursor: "pointer" } : null}>
+        <span
+          {...(onComment ? clickable(onComment) : {})}
+          style={onComment ? { cursor: "pointer" } : null}
+        >
           {CC_ICO.chat} {convo.comments}
         </span>
         {onExport && (
-          <span onClick={onExport} title="存为图片">
+          <span {...clickable(onExport)} title="存为图片">
             {CC_ICO.img} 存图
           </span>
         )}
-        <span onClick={onSave} style={saved ? { color: "var(--accent)" } : null}>
+        <span {...clickable(onSave)} style={saved ? { color: "var(--accent)" } : null}>
           {saved ? CC_ICO.saved : CC_ICO.save} {saved ? "已收藏" : "收藏"}
         </span>
       </div>
@@ -207,7 +215,7 @@ function ConvoCardForm({
         ))}
       </div>
       {!expanded && convo.msgs.length > 3 && (
-        <div className="more-turns" onClick={onToggleExpand}>
+        <div className="more-turns" {...clickable(onToggleExpand)}>
           展开全部 {convo.msgs.length} 条对话 ↓
         </div>
       )}
@@ -226,11 +234,11 @@ function ConvoCardForm({
             <span
               className="ava ava-link"
               style={{ background: convo.author.color }}
-              onClick={() => openProfile(convo.author)}
+              {...clickable(() => openProfile(convo.author))}
             >
               {convo.author.ava}
             </span>
-            <span className="name-link" onClick={() => openProfile(convo.author)}>
+            <span className="name-link" {...clickable(() => openProfile(convo.author))}>
               {convo.author.name}
             </span>{" "}
             在读《{convo.bookT}》时问出
@@ -272,7 +280,7 @@ function InsightCardForm({
         原文：<b>「{convo.quote.slice(0, 12)}…」</b>
       </div>
       {!expanded ? (
-        <div className="ci-expand" onClick={onToggleExpand}>
+        <div className="ci-expand" {...clickable(onToggleExpand)}>
           看背后的完整对话 · {convo.msgs.length} 条 ↓
         </div>
       ) : (
@@ -312,6 +320,7 @@ function InsightCardForm({
           </span>
           {Object.values(INSIGHT_THEMES).map((t) => (
             <button
+              type="button"
               key={t.key}
               title={`${t.label}色模板`}
               onClick={() => {
@@ -338,7 +347,7 @@ function InsightCardForm({
       )}
       <div
         className="ci-byline"
-        onClick={onOpenTree && convo.forks > 0 ? () => onOpenTree(convo) : undefined}
+        {...(onOpenTree && convo.forks > 0 ? clickable(() => onOpenTree(convo)) : {})}
         style={onOpenTree && convo.forks > 0 ? { cursor: "pointer" } : null}
       >
         {convo.forks} 人从这里接着往下问{onOpenTree && convo.forks > 0 && " · 看对话树"}
@@ -369,7 +378,7 @@ function TreeNode({ node, onFork, depth, path = [] }) {
         <span
           className={"ava" + (canProfile(node) ? " ava-link" : "")}
           style={{ background: node.color }}
-          onClick={canProfile(node) ? () => openProfile(node) : undefined}
+          {...(canProfile(node) ? clickable(() => openProfile(node)) : {})}
         >
           {node.ava}
         </span>
@@ -377,7 +386,7 @@ function TreeNode({ node, onFork, depth, path = [] }) {
           <div className="ft-top">
             <span
               className={"nm" + (canProfile(node) ? " name-link" : "")}
-              onClick={canProfile(node) ? () => openProfile(node) : undefined}
+              {...(canProfile(node) ? clickable(() => openProfile(node)) : {})}
             >
               {node.name}
             </span>
@@ -387,7 +396,7 @@ function TreeNode({ node, onFork, depth, path = [] }) {
           </div>
           <div className="ft-q">从这里问起：「{node.q}」</div>
           <div className="ft-acts">
-            <span onClick={() => onFork(node, here)}>接着 ta 的问 →</span>
+            <span {...clickable(() => onFork(node, here))}>接着 ta 的问 →</span>
           </div>
         </div>
       </div>
@@ -409,7 +418,7 @@ function ForkTreeModal({ convo, onClose, onFork }) {
   })(tree);
   return (
     <>
-      <div className="drawer-scrim" style={{ zIndex: 866 }} onClick={onClose} />
+      <div className="drawer-scrim" style={{ zIndex: 866 }} {...clickable(onClose)} />
       <div className="forktree-modal">
         <div className="ft-head">
           <div>
@@ -420,7 +429,7 @@ function ForkTreeModal({ convo, onClose, onFork }) {
               {convo.bookT} · {convo.chap}
             </div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {CC_ICO.x}
           </span>
         </div>
@@ -430,14 +439,14 @@ function ForkTreeModal({ convo, onClose, onFork }) {
             <span
               className={"ava" + (canProfile(convo.author) ? " ava-link" : "")}
               style={{ background: convo.author.color }}
-              onClick={canProfile(convo.author) ? () => openProfile(convo.author) : undefined}
+              {...(canProfile(convo.author) ? clickable(() => openProfile(convo.author)) : {})}
             >
               {convo.author.ava}
             </span>
             原对话 ·{" "}
             <span
               className={canProfile(convo.author) ? "name-link" : ""}
-              onClick={canProfile(convo.author) ? () => openProfile(convo.author) : undefined}
+              {...(canProfile(convo.author) ? clickable(() => openProfile(convo.author)) : {})}
             >
               {convo.author.name}
             </span>{" "}

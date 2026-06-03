@@ -11,6 +11,7 @@ import {
   passkeySignDigest,
 } from "../lib/turnkey-passkey.js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { clickable } from "../lib/a11y.js";
 const { useState: useS, useEffect: useE, useRef: useR } = React;
 
 /* ---------- icons ---------- */
@@ -23,6 +24,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M4 13 20 4l-6 16-2.5-6.5L4 13Z" />
     </svg>
@@ -35,6 +37,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M12 4v13M6 11l6 6 6-6M5 20h14" />
     </svg>
@@ -47,6 +50,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M7 4 4 7l3 3M4 7h12M17 20l3-3-3-3M20 17H8" />
     </svg>
@@ -59,6 +63,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M3 19c3-1 4-9 6-9s2 5 4 5 2-3 4-3M4 21h16" />
     </svg>
@@ -71,6 +76,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <rect x="9" y="9" width="11" height="11" rx="2" />
       <path d="M5 15V5a2 2 0 0 1 2-2h8" />
@@ -84,6 +90,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
+      aria-hidden="true"
     >
       <path d="m5 12 4.5 4.5L19 7" />
     </svg>
@@ -96,6 +103,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="m6 6 12 12M18 6 6 18" />
     </svg>
@@ -108,6 +116,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      aria-hidden="true"
     >
       <path d="m15 5-7 7 7 7" />
     </svg>
@@ -120,6 +129,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      aria-hidden="true"
     >
       <path d="m9 5 7 7-7 7" />
     </svg>
@@ -132,6 +142,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      aria-hidden="true"
     >
       <path d="m9 6 6 6-6 6" />
     </svg>
@@ -144,6 +155,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="2.2"
+      aria-hidden="true"
     >
       <path d="m6 14 6-6 6 6" />
     </svg>
@@ -156,6 +168,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="2.2"
+      aria-hidden="true"
     >
       <path d="m6 10 6 6 6-6" />
     </svg>
@@ -168,6 +181,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M12 3 5 6v5c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z" />
       <path d="m9 12 2 2 4-4" />
@@ -181,12 +195,13 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.6"
+      aria-hidden="true"
     >
       <path d="M12 4a6 6 0 0 0-6 6v3M12 4a6 6 0 0 1 6 6v2a8 8 0 0 1-1 4M9 20a10 10 0 0 1-1-7 4 4 0 0 1 8 0v2M12 13v3M15 20a14 14 0 0 0 .8-4" />
     </svg>
   ),
   dot: (
-    <svg width="8" height="8" viewBox="0 0 8 8">
+    <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
       <circle cx="4" cy="4" r="4" fill="currentColor" />
     </svg>
   ),
@@ -198,6 +213,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
     </svg>
@@ -210,6 +226,7 @@ const WI = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
       <path d="M4 19a2 2 0 0 1 2-2h12" />
@@ -311,6 +328,7 @@ function Sparkline({ data, w = 120, h = 36, up = true, area = false, strokeW = 1
       height={h}
       viewBox={`0 0 ${w} ${h}`}
       preserveAspectRatio="none"
+      aria-hidden="true"
     >
       {area && (
         <>
@@ -341,7 +359,13 @@ function AllocRing({ alloc, size = 168, thick = 22 }) {
     cx = size / 2;
   let off = 0;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="alloc-ring">
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="alloc-ring"
+      aria-hidden="true"
+    >
       <circle cx={cx} cy={cx} r={r} fill="none" stroke="var(--hair)" strokeWidth={thick} />
       {alloc.map((a) => {
         const len = (a.value / total) * c;
@@ -417,7 +441,7 @@ function QR({ seed = "liber", size = 176 }) {
   );
   return (
     <div className="qr" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         {rects.map(([x, y], i) => (
           <rect
             key={i}
@@ -458,6 +482,7 @@ function RealSignGate({ label = "用通行密钥确认", sub, onSign, onCancel }
   return (
     <div className="pk">
       <button
+        type="button"
         className={"pk-orb " + (phase === "working" ? "scanning" : "")}
         onClick={go}
         aria-label={label}
@@ -472,7 +497,7 @@ function RealSignGate({ label = "用通行密钥确认", sub, onSign, onCancel }
         {phase === "error" ? err : sub}
       </div>
       {onCancel && phase !== "working" && (
-        <button className="pk-cancel" onClick={onCancel}>
+        <button type="button" className="pk-cancel" onClick={onCancel}>
           取消
         </button>
       )}
@@ -483,22 +508,28 @@ function RealSignGate({ label = "用通行密钥确认", sub, onSign, onCancel }
 /* ---------- flows (sheets) ---------- */
 function Sheet({ title, step, onBack, onClose, wide, children }) {
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: modal backdrop / click-containment, not a control
     <div
       className="sheet-scrim"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={"sheet" + (wide ? " wide" : "")} onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className={"sheet" + (wide ? " wide" : "")}
+        role="dialog"
+        aria-modal="true"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="sheet-h">
           {onBack && (
-            <span className="back" onClick={onBack}>
+            <span className="back" {...clickable(onBack)}>
               {WI.left}
             </span>
           )}
           <span className="ttl">{title}</span>
           {step && <span className="step">{step}</span>}
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {WI.x}
           </span>
         </div>
@@ -514,7 +545,7 @@ function TokenPick({ tokens, value, onChange }) {
         <div
           key={t.sym}
           className={"tok-pill" + (value && value.sym === t.sym ? " on" : "")}
-          onClick={() => onChange(t)}
+          {...clickable(() => onChange(t))}
         >
           <TokenSeal token={t} size={30} />
           <div>
@@ -567,7 +598,7 @@ function RecipientPick({ token, contacts, value, onChange, heading }) {
           <div
             key={c.id}
             className={"recip" + (value && value.id === c.id ? " on" : "")}
-            onClick={() => {
+            {...clickable(() => {
               setCustom("");
               onChange({
                 id: c.id,
@@ -577,7 +608,7 @@ function RecipientPick({ token, contacts, value, onChange, heading }) {
                 seal: c.seal,
                 sub: c.sub,
               });
-            }}
+            })}
           >
             <span
               className={"av " + (c.cls || "ink")}
@@ -621,7 +652,7 @@ function AmountEntry({ token, amount, onChange }) {
       </div>
       <div className="quick-amt">
         {[0.25, 0.5, 1].map((f) => (
-          <button key={f} onClick={() => onChange(String(+(max * f).toPrecision(6)))}>
+          <button type="button" key={f} onClick={() => onChange(String(+(max * f).toPrecision(6)))}>
             {f === 1 ? "全部" : `${f * 100}%`}
           </button>
         ))}
@@ -817,6 +848,7 @@ function SendFlow({ tokens, presetToken, contacts, tip, onClose }) {
       {(phase === "recipient" || phase === "amount" || phase === "review") && (
         <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
           <button
+            type="button"
             className="wbtn wbtn-primary"
             disabled={
               (phase === "recipient" && !recipient) || (phase === "amount" && !(Number(amount) > 0))
@@ -829,7 +861,12 @@ function SendFlow({ tokens, presetToken, contacts, tip, onClose }) {
       )}
       {phase === "done" && (
         <div style={{ marginTop: 24 }}>
-          <button className="wbtn wbtn-ghost" style={{ width: "100%" }} onClick={onClose}>
+          <button
+            type="button"
+            className="wbtn wbtn-ghost"
+            style={{ width: "100%" }}
+            onClick={onClose}
+          >
             完成
           </button>
         </div>
@@ -860,7 +897,7 @@ function ReceiveFlow({ presetToken, addresses, onClose }) {
             <div
               key={c}
               className={"tok-pill" + (chain === c ? " on" : "")}
-              onClick={() => setChain(c)}
+              {...clickable(() => setChain(c))}
             >
               <span className="tp-nm" style={{ fontSize: 14 }}>
                 {c}
@@ -871,7 +908,7 @@ function ReceiveFlow({ presetToken, addresses, onClose }) {
         <QR seed={addr} size={184} />
         <div className="recv-addr">
           <span className="ad">{addr}</span>
-          <span className="cp" onClick={copy}>
+          <span className="cp" {...clickable(copy)}>
             {copied ? WI.check : WI.copy}
           </span>
         </div>
@@ -1004,7 +1041,12 @@ function SwapFlow({ tokens, presetToken, onClose }) {
             )}
           </div>
           <div style={{ marginTop: 24 }}>
-            <button className="wbtn wbtn-ghost" style={{ width: "100%" }} onClick={onClose}>
+            <button
+              type="button"
+              className="wbtn wbtn-ghost"
+              style={{ width: "100%" }}
+              onClick={onClose}
+            >
               完成
             </button>
           </div>
@@ -1033,7 +1075,7 @@ function SwapFlow({ tokens, presetToken, onClose }) {
                 value={amt}
                 onChange={(e) => setAmt(e.target.value.replace(/[^0-9.]/g, ""))}
               />
-              <div className="sl-pick" onClick={() => setPick("from")}>
+              <div className="sl-pick" {...clickable(() => setPick("from"))}>
                 <TokenSeal token={from} size={26} />
                 <span className="nm">{from.sym}</span>
                 {WI.down}
@@ -1041,7 +1083,9 @@ function SwapFlow({ tokens, presetToken, onClose }) {
             </div>
           </div>
           <div className="swap-mid">
-            <button onClick={flip}>{WI.swap}</button>
+            <button type="button" onClick={flip}>
+              {WI.swap}
+            </button>
           </div>
           <div className="swap-leg">
             <div className="sl-top">
@@ -1050,7 +1094,7 @@ function SwapFlow({ tokens, presetToken, onClose }) {
             </div>
             <div className="sl-row">
               <input className="sl-amt tnum" readOnly value={out ? out.toPrecision(6) : "0"} />
-              <div className="sl-pick" onClick={() => setPick("to")}>
+              <div className="sl-pick" {...clickable(() => setPick("to"))}>
                 <TokenSeal token={to} size={26} />
                 <span className="nm">{to.sym}</span>
                 {WI.down}
@@ -1078,6 +1122,7 @@ function SwapFlow({ tokens, presetToken, onClose }) {
             <b>BTC、Sui 暂不支持兑换</b>，可用「转账 / 收款」管理。
           </div>
           <button
+            type="button"
             className="wbtn wbtn-primary"
             style={{ width: "100%", marginTop: 20 }}
             disabled={!(Number(amt) > 0) || !realPair}
@@ -1152,7 +1197,12 @@ function SignFlow({ onClose }) {
             )}
           </div>
           <div style={{ marginTop: 24 }}>
-            <button className="wbtn wbtn-ghost" style={{ width: "100%" }} onClick={onClose}>
+            <button
+              type="button"
+              className="wbtn wbtn-ghost"
+              style={{ width: "100%" }}
+              onClick={onClose}
+            >
               完成
             </button>
           </div>
@@ -1167,10 +1217,18 @@ function SignFlow({ onClose }) {
       ) : (
         <>
           <div className="seg-tabs" style={{ marginBottom: 18 }}>
-            <button className={kind === "message" ? "on" : ""} onClick={() => setKind("message")}>
+            <button
+              type="button"
+              className={kind === "message" ? "on" : ""}
+              onClick={() => setKind("message")}
+            >
               登录签名
             </button>
-            <button className={kind === "approve" ? "on" : ""} onClick={() => setKind("approve")}>
+            <button
+              type="button"
+              className={kind === "approve" ? "on" : ""}
+              onClick={() => setKind("approve")}
+            >
               授权签名
             </button>
           </div>
@@ -1193,10 +1251,10 @@ function SignFlow({ onClose }) {
             {WI.shield} 只在你信任的站点签名。Liber 不会通过签名转移你的资产。
           </div>
           <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-            <button className="wbtn wbtn-ghost" onClick={onClose}>
+            <button type="button" className="wbtn wbtn-ghost" onClick={onClose}>
               拒绝
             </button>
-            <button className="wbtn wbtn-primary" onClick={() => setPhase("pk")}>
+            <button type="button" className="wbtn wbtn-primary" onClick={() => setPhase("pk")}>
               {WI.sign} 用通行密钥签名
             </button>
           </div>
@@ -1353,7 +1411,12 @@ function ProvenanceFlow({ mode, onClose }) {
             )}
           </div>
           <div style={{ marginTop: 24 }}>
-            <button className="wbtn wbtn-ghost" style={{ width: "100%" }} onClick={onClose}>
+            <button
+              type="button"
+              className="wbtn wbtn-ghost"
+              style={{ width: "100%" }}
+              onClick={onClose}
+            >
               完成
             </button>
           </div>
@@ -1378,6 +1441,7 @@ function ProvenanceFlow({ mode, onClose }) {
             ))}
           </div>
           <button
+            type="button"
             className="wbtn wbtn-primary"
             style={{ width: "100%", marginTop: 20 }}
             onClick={() => setPhase("pk")}
@@ -1402,12 +1466,12 @@ function ProvenanceFlow({ mode, onClose }) {
                 <div
                   key={it.id}
                   className="recip"
-                  onClick={() => {
+                  {...clickable(() => {
                     if (!it.onChain) {
                       setPick(it);
                       setPhase("confirm");
                     }
-                  }}
+                  })}
                   style={it.onChain ? { opacity: 0.6, cursor: "default" } : null}
                 >
                   <span className="av ink">{WI[cfg.glyph]}</span>
@@ -1519,7 +1583,7 @@ function ActivityDetail({ item, onClose }) {
           {WI.ext} 在区块浏览器中查看
         </a>
       ) : (
-        <button className="wbtn wbtn-ghost" style={{ width: "100%", marginTop: 20 }}>
+        <button type="button" className="wbtn wbtn-ghost" style={{ width: "100%", marginTop: 20 }}>
           {WI.ext} 在区块浏览器中查看
         </button>
       )}
@@ -1580,16 +1644,16 @@ function WalletBand({ portfolio, alloc, loading }) {
 function QuickActions({ onAction }) {
   return (
     <div className="pfw-actions">
-      <button className="qa" onClick={() => onAction("send")}>
+      <button type="button" className="qa" onClick={() => onAction("send")}>
         <span className="qa-ic">{WI.send}</span>转账
       </button>
-      <button className="qa" onClick={() => onAction("receive")}>
+      <button type="button" className="qa" onClick={() => onAction("receive")}>
         <span className="qa-ic">{WI.recv}</span>收款
       </button>
-      <button className="qa" onClick={() => onAction("swap")}>
+      <button type="button" className="qa" onClick={() => onAction("swap")}>
         <span className="qa-ic">{WI.swap}</span>兑换
       </button>
-      <button className="qa ghost" onClick={() => onAction("sign")}>
+      <button type="button" className="qa ghost" onClick={() => onAction("sign")}>
         <span className="qa-ic">{WI.sign}</span>签名
       </button>
     </div>
@@ -1616,13 +1680,18 @@ function IdentityStrip({ wallets, onReceive }) {
       <div className="pi-h">
         <span>链上身份 · 真实地址</span>
         <span className="vfy">{WI.shield} 通行密钥已验证</span>
-        <span className="more" style={{ marginLeft: "auto" }} onClick={onReceive}>
+        <span className="more" style={{ marginLeft: "auto" }} {...clickable(onReceive)}>
           收款 {WI.right}
         </span>
       </div>
       <div className="pfw-addr-grid">
         {rows.map(([k, sym, name]) => (
-          <div key={k} className="pfw-addr" onClick={() => copy(k, wallets[k])} title={wallets[k]}>
+          <div
+            key={k}
+            className="pfw-addr"
+            {...clickable(() => copy(k, wallets[k]))}
+            title={wallets[k]}
+          >
             <TokenSeal token={sym} size={34} />
             <div className="pa-b">
               <div className="pa-nm">{name}</div>
@@ -1640,7 +1709,7 @@ function AssetList({ tokens, onOpen }) {
     <div className="panel">
       <div className="asset-rows">
         {tokens.map((t) => (
-          <div key={t.sym} className="arow" onClick={() => onOpen(t)}>
+          <div key={t.sym} className="arow" {...clickable(() => onOpen(t))}>
             <TokenSeal token={t} size={42} />
             <div className="a-id">
               <div className="nm">{t.name}</div>
@@ -1677,7 +1746,7 @@ function ActivityList({ items, onOpen, limit }) {
         {list.map((a) => {
           const neg = a.amt.trim().startsWith("-");
           return (
-            <div key={a.id} className="act" onClick={() => onOpen && onOpen(a)}>
+            <div key={a.id} className="act" {...clickable(() => onOpen && onOpen(a))}>
               <span className="a-ic">{ACT_GLYPH[a.kind] || WI.send}</span>
               <div className="a-bd">
                 <div className="t">{a.title}</div>
@@ -1713,14 +1782,14 @@ function UsesGrid({ onAction }) {
           <div className="u-d">{u.desc}</div>
           <div
             className="u-cta"
-            onClick={() => {
+            {...clickable(() => {
               if (u.k === "tip") onAction("tip");
               else
                 onAction(
                   "onchain",
                   u.k === "gas" ? "annotation" : u.k === "storage" ? "storage" : "certificate",
                 );
-            }}
+            })}
           >
             {u.cta} {WI.right}
           </div>
@@ -1880,6 +1949,7 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }) {
             </div>
           </div>
           <button
+            type="button"
             className="wbtn wbtn-primary"
             style={{ flex: "none" }}
             disabled={pkState === "working"}

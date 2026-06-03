@@ -3,6 +3,7 @@ import { I } from "./product-shared.jsx";
 import { getCatalogTotal } from "../lib/catalog.js";
 import api from "../lib/api.js";
 import { layoutForce } from "../lib/force-graph.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-echo.jsx — cross-book "echoes" overlay (L4 connection layer).
    Given a sentence, show where the idea echoes across the library:
@@ -58,7 +59,7 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }) {
 
   return (
     <>
-      <div className="drawer-scrim" style={{ zIndex: 845 }} onClick={onClose} />
+      <div className="drawer-scrim" style={{ zIndex: 845 }} {...clickable(onClose)} />
       <div className="echo-modal">
         <div className="echo-head">
           <div>
@@ -70,6 +71,7 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }) {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.7"
+                aria-hidden="true"
               >
                 <circle cx="12" cy="12" r="3" />
                 <circle cx="5" cy="6" r="1.6" />
@@ -81,7 +83,7 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }) {
             </div>
             <div className="echo-theme">{theme}</div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {I.x}
           </span>
         </div>
@@ -98,6 +100,7 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }) {
         {/* constellation */}
         <div className="echo-constellation">
           <svg viewBox="0 0 260 240" width="100%" height="240">
+            <title>回响星图</title>
             {nodes.map((nd, i) => (
               <line
                 key={"l" + i}
@@ -114,7 +117,7 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }) {
               <g
                 key={"n" + i}
                 style={{ cursor: nd.inLib ? "pointer" : "default" }}
-                onClick={() => nd.inLib && onOpenBook(nd.bookId)}
+                {...clickable(() => nd.inLib && onOpenBook(nd.bookId))}
               >
                 <circle cx={nd.x} cy={nd.y} r="18" fill={itemColor(nd)} />
                 <text
@@ -166,7 +169,7 @@ function EchoOverlay({ sid, sentence, book, onClose, onOpenBook }) {
               </div>
               <div className="ec-acts">
                 {it.inLib ? (
-                  <button className="ec-go" onClick={() => onOpenBook(it.bookId)}>
+                  <button type="button" className="ec-go" onClick={() => onOpenBook(it.bookId)}>
                     跳去读《{it.bookT}》 →
                   </button>
                 ) : (

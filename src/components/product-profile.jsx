@@ -3,6 +3,7 @@ import { I, Cover } from "./product-shared.jsx";
 import { WalletTab } from "./product-wallet.jsx";
 import { findCatalogBook, getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 import { shelfReadingEntries, subscribeShelf } from "../lib/shelf.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-profile.jsx — profile for ME or any other reader.
    Reached from the app bar (me) or by clicking an avatar in comments/feed
@@ -89,7 +90,12 @@ function MembershipCard() {
         {payMsg && <div className="pf-mem-msg">{payMsg}</div>}
       </div>
       {!isPro && payment?.configured && (
-        <button className="btn btn-primary pf-mem-btn" disabled={paying} onClick={payStable}>
+        <button
+          type="button"
+          className="btn btn-primary pf-mem-btn"
+          disabled={paying}
+          onClick={payStable}
+        >
           {I.lock} {paying ? "确认中…" : "稳定币订阅"}
         </button>
       )}
@@ -251,7 +257,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
       <div className="app-screen">
         <div className="pf">
           <div className="pf-wrap" style={{ paddingTop: 60 }}>
-            <button className="btn btn-ghost" onClick={onBack}>
+            <button type="button" className="btn btn-ghost" onClick={onBack}>
               {I.left} 返回
             </button>
             <p className="muted" style={{ marginTop: 24, fontSize: 18 }}>
@@ -364,7 +370,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               ></div>
             )}
             {!isMe && onBack && (
-              <button className="pf-back" onClick={onBack}>
+              <button type="button" className="pf-back" onClick={onBack}>
                 {I.left} 返回
               </button>
             )}
@@ -387,9 +393,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               <p className="bio">{person.bio}</p>
               <div
                 className="pf-wallet"
-                onClick={() => {
-                  if (isMe && person.turnkeyWallets) setTab("wallet");
-                }}
+                {...(isMe && person.turnkeyWallets ? clickable(() => setTab("wallet")) : {})}
                 style={isMe && person.turnkeyWallets ? { cursor: "pointer" } : undefined}
               >
                 {I.lock} {isMe && person.turnkeyWallets ? "通行密钥钱包 · 4 链" : person.wallet}
@@ -399,15 +403,16 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               {isMe ? (
                 hasAccount ? (
                   <>
-                    <button className="btn btn-primary" onClick={openEdit}>
+                    <button type="button" className="btn btn-primary" onClick={openEdit}>
                       编辑资料
                     </button>
-                    <button className="btn btn-ghost" onClick={onLogout}>
+                    <button type="button" className="btn btn-ghost" onClick={onLogout}>
                       退出登录
                     </button>
                   </>
                 ) : (
                   <button
+                    type="button"
                     className="btn btn-primary"
                     onClick={() => window.dispatchEvent(new Event("liber-show-onboarding"))}
                   >
@@ -417,6 +422,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               ) : (
                 <>
                   <button
+                    type="button"
                     className={
                       following ? "btn btn-ghost pf-follow on" : "btn btn-primary pf-follow"
                     }
@@ -431,6 +437,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
                     )}
                   </button>
                   <button
+                    type="button"
                     className="btn btn-ghost"
                     onClick={() =>
                       window.dispatchEvent(
@@ -466,17 +473,30 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
           {isMe && hasAccount && <MembershipCard />}
 
           <div className="pf-tabs">
-            <button className={tab === "shelf" ? "on" : ""} onClick={() => setTab("shelf")}>
+            <button
+              type="button"
+              className={tab === "shelf" ? "on" : ""}
+              onClick={() => setTab("shelf")}
+            >
               在读 · {reading.length}
             </button>
-            <button className={tab === "finished" ? "on" : ""} onClick={() => setTab("finished")}>
+            <button
+              type="button"
+              className={tab === "finished" ? "on" : ""}
+              onClick={() => setTab("finished")}
+            >
               读完 · {finished.length}
             </button>
-            <button className={tab === "notes" ? "on" : ""} onClick={() => setTab("notes")}>
+            <button
+              type="button"
+              className={tab === "notes" ? "on" : ""}
+              onClick={() => setTab("notes")}
+            >
               公开批注 · {publicNotes.length}
             </button>
             {isMe && (
               <button
+                type="button"
                 className={tab === "following" ? "on" : ""}
                 onClick={() => setTab("following")}
               >
@@ -484,7 +504,11 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               </button>
             )}
             {isMe && person.turnkeyWallets && (
-              <button className={tab === "wallet" ? "on" : ""} onClick={() => setTab("wallet")}>
+              <button
+                type="button"
+                className={tab === "wallet" ? "on" : ""}
+                onClick={() => setTab("wallet")}
+              >
                 {I.lock} 钱包
               </button>
             )}
@@ -502,7 +526,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
           {tab === "shelf" && (
             <div className="pf-shelf">
               {reading.map((b) => (
-                <div className="pf-bk" key={b.id} onClick={() => onOpenBook(b.id)}>
+                <div className="pf-bk" key={b.id} {...clickable(() => onOpenBook(b.id))}>
                   <Cover book={b} />
                   <div className="prog">
                     <div className="pf-fill" style={{ width: b.at.match(/(\d+)%/)?.[1] + "%" }} />
@@ -516,7 +540,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
           {tab === "finished" && (
             <div className="pf-shelf">
               {finished.map((b) => (
-                <div className="pf-bk" key={b.id} onClick={() => onOpenBook(b.id)}>
+                <div className="pf-bk" key={b.id} {...clickable(() => onOpenBook(b.id))}>
                   <Cover book={b} />
                   <div className="t">{b.t}</div>
                   <div className="at">已读完 · {b.a}</div>
@@ -529,7 +553,7 @@ function Profile({ userId, onOpenBook, onBack, authUser, onLogout, onProfileUpda
               {publicNotes.map((h, i) => {
                 const bk = byTitleOrId(h.book);
                 return (
-                  <div className="pf-note" key={i} onClick={() => bk && onOpenBook(bk.id)}>
+                  <div className="pf-note" key={i} {...clickable(() => bk && onOpenBook(bk.id))}>
                     <div className="pn-q">「{h.q}」</div>
                     <div className="pn-t">{h.t}</div>
                     <div className="pn-meta">
@@ -581,14 +605,14 @@ function EditProfileModal({ form, setForm, saving, error, onSave, onClose }) {
   const colors = ["#3a4fb0", "#1f8a5b", "#9a5b2e", "#7a3d6b", "#b0553a", "#334155"];
   return (
     <>
-      <div className="drawer-scrim" style={{ zIndex: 872 }} onClick={onClose} />
+      <div className="drawer-scrim" style={{ zIndex: 872 }} {...clickable(onClose)} />
       <div className="pf-edit-modal">
         <div className="pf-edit-head">
           <div>
             <div className="wm-kick">编辑资料</div>
             <div className="wm-sub">这些信息会显示在公开读者主页、批注和共读里。</div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {I.x}
           </span>
         </div>
@@ -634,6 +658,7 @@ function EditProfileModal({ form, setForm, saving, error, onSave, onClose }) {
             <div>
               {colors.map((c) => (
                 <button
+                  type="button"
                   key={c}
                   className={form.color === c ? "on" : ""}
                   style={{ background: c }}
@@ -646,10 +671,10 @@ function EditProfileModal({ form, setForm, saving, error, onSave, onClose }) {
           {error && <div className="pf-edit-error">{error}</div>}
         </div>
         <div className="pf-edit-foot">
-          <button className="btn btn-ghost" onClick={onClose} disabled={saving}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>
             取消
           </button>
-          <button className="btn btn-primary" onClick={onSave} disabled={saving}>
+          <button type="button" className="btn btn-primary" onClick={onSave} disabled={saving}>
             {saving ? "保存中…" : "保存"}
           </button>
         </div>
@@ -675,11 +700,11 @@ function FollowRow({ p, following }) {
       <span
         className="ava"
         style={{ background: p.color }}
-        onClick={() => window.openProfile(target)}
+        {...clickable(() => window.openProfile(target))}
       >
         {p.seal}
       </span>
-      <div className="pf-frow-main" onClick={() => window.openProfile(target)}>
+      <div className="pf-frow-main" {...clickable(() => window.openProfile(target))}>
         <div className="nm">
           {p.name} <span className="hd">{p.handle}</span>
         </div>
@@ -689,6 +714,7 @@ function FollowRow({ p, following }) {
         </div>
       </div>
       <button
+        type="button"
         className={following ? "btn btn-ghost pf-follow on" : "btn btn-primary pf-follow"}
         onClick={toggle}
       >

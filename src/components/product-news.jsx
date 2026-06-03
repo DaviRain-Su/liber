@@ -1,5 +1,6 @@
 import React from "react";
 import { getNews, findNewsPost } from "../data/news-data.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-news.jsx — 动态 / News.
    A lightweight blog surface: a list of short, original posts plus an
@@ -69,12 +70,7 @@ function News({ onOpenPost, onBack }) {
 
           <div className="news-list">
             {posts.map((p) => (
-              <article
-                className="news-card"
-                key={p.id}
-                onClick={() => onOpenPost(p.id)}
-                role="button"
-              >
+              <article className="news-card" key={p.id} {...clickable(() => onOpenPost(p.id))}>
                 <div className={"news-seal " + (p.cls || "ink")}>{p.seal || "文"}</div>
                 <div className="news-body">
                   <div className="news-meta">
@@ -110,7 +106,7 @@ function NewsPost({ postId, onOpenPost, onBack }) {
             <h1 className="display-m" style={{ margin: "14px 0" }}>
               没有找到这篇文章。
             </h1>
-            <button className="btn btn-primary" onClick={onBack}>
+            <button type="button" className="btn btn-primary" onClick={onBack}>
               回到动态 <span className="arr">→</span>
             </button>
           </div>
@@ -161,8 +157,7 @@ function NewsPost({ postId, onOpenPost, onBack }) {
                   <div
                     className="article-more-card"
                     key={p.id}
-                    onClick={() => onOpenPost(p.id)}
-                    role="button"
+                    {...clickable(() => onOpenPost(p.id))}
                   >
                     <span className="news-tag">{p.tag}</span>
                     <div className="article-more-title">{p.title}</div>
@@ -174,7 +169,7 @@ function NewsPost({ postId, onOpenPost, onBack }) {
           )}
 
           <div style={{ marginTop: 36 }}>
-            <button className="btn btn-ghost" onClick={onBack}>
+            <button type="button" className="btn btn-ghost" onClick={onBack}>
               ← 全部动态
             </button>
           </div>

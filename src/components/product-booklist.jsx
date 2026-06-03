@@ -1,4 +1,5 @@
 import React from "react";
+import { clickable } from "../lib/a11y.js";
 import { Cover, I } from "./product-shared.jsx";
 import { findCatalogBook, getCatalogBooks, subscribeCatalog } from "../lib/catalog.js";
 import {
@@ -60,11 +61,13 @@ function AddToBooklist({ bookId, onClose }) {
   };
 
   return (
-    <div className="bl-pop-scrim" onClick={onClose}>
+    <div className="bl-pop-scrim" {...clickable(onClose)}>
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: click-containment, not a control */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: click-containment, not a control */}
       <div className="bl-pop" onClick={(e) => e.stopPropagation()}>
         <div className="bl-pop-h">
           <span>加入书单</span>
-          <button className="icon-btn" onClick={onClose} aria-label="关闭">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="关闭">
             {I.x}
           </button>
         </div>
@@ -76,6 +79,7 @@ function AddToBooklist({ bookId, onClose }) {
           {lists &&
             lists.map((l) => (
               <button
+                type="button"
                 key={l.id}
                 className={"bl-pop-row" + (l.has ? " on" : "")}
                 disabled={busy}
@@ -99,12 +103,21 @@ function AddToBooklist({ bookId, onClose }) {
                 if (e.key === "Enter") create();
               }}
             />
-            <button className="btn btn-primary" disabled={busy || !name.trim()} onClick={create}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || !name.trim()}
+              onClick={create}
+            >
               创建
             </button>
           </div>
         ) : (
-          <button className="btn btn-ghost btn-block" onClick={() => setCreating(true)}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-block"
+            onClick={() => setCreating(true)}
+          >
             ＋ 新建书单
           </button>
         )}
@@ -135,11 +148,13 @@ function BookPicker({ listId, existing, onClose }) {
     .slice(0, 60);
 
   return (
-    <div className="bl-pop-scrim" onClick={onClose}>
+    <div className="bl-pop-scrim" {...clickable(onClose)}>
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: click-containment, not a control */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: click-containment, not a control */}
       <div className="bl-pop bl-pop-wide" onClick={(e) => e.stopPropagation()}>
         <div className="bl-pop-h">
           <span>添加书籍</span>
-          <button className="icon-btn" onClick={onClose} aria-label="关闭">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="关闭">
             {I.x}
           </button>
         </div>
@@ -153,6 +168,7 @@ function BookPicker({ listId, existing, onClose }) {
         <div className="bl-pick-grid">
           {list.map((b) => (
             <button
+              type="button"
               key={b.id}
               className={"bl-pick" + (has.has(b.id) ? " on" : "")}
               disabled={has.has(b.id)}
@@ -259,7 +275,7 @@ function Booklist({ listId, onBack, onOpenBook }) {
               <span style={{ color: "var(--ink)" }}>书单</span>
             </div>
             <div className="bl-empty">没有找到这个书单，它可能已被删除或未公开。</div>
-            <button className="btn btn-ghost" onClick={onBack}>
+            <button type="button" className="btn btn-ghost" onClick={onBack}>
               ← 返回
             </button>
           </div>
@@ -292,10 +308,10 @@ function Booklist({ listId, onBack, onOpenBook }) {
                       if (e.key === "Escape") setEditing(false);
                     }}
                   />
-                  <button className="btn btn-primary" onClick={saveEdit}>
+                  <button type="button" className="btn btn-primary" onClick={saveEdit}>
                     保存
                   </button>
-                  <button className="btn btn-ghost" onClick={() => setEditing(false)}>
+                  <button type="button" className="btn btn-ghost" onClick={() => setEditing(false)}>
                     取消
                   </button>
                 </div>
@@ -315,30 +331,30 @@ function Booklist({ listId, onBack, onOpenBook }) {
           <div className="bl-actions">
             {mine ? (
               <>
-                <button className="btn btn-primary" onClick={() => setAdding(true)}>
+                <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
                   ＋ 添加书籍
                 </button>
                 {!editing && (
-                  <button className="btn btn-ghost" onClick={startEdit}>
+                  <button type="button" className="btn btn-ghost" onClick={startEdit}>
                     重命名
                   </button>
                 )}
-                <button className="btn btn-ghost" onClick={copyLink}>
+                <button type="button" className="btn btn-ghost" onClick={copyLink}>
                   {copied ? "已复制链接 ✓" : "复制书单链接"}
                 </button>
-                <button className="btn btn-ghost bl-danger" onClick={onDelete}>
+                <button type="button" className="btn btn-ghost bl-danger" onClick={onDelete}>
                   删除书单
                 </button>
               </>
             ) : (
               <>
-                <button className="btn btn-primary" onClick={onFork}>
+                <button type="button" className="btn btn-primary" onClick={onFork}>
                   Fork 到我的书单
                 </button>
-                <button className="btn btn-ghost" onClick={onSave}>
+                <button type="button" className="btn btn-ghost" onClick={onSave}>
                   {saved ? "已收藏 ✓" : "收藏书单"}
                 </button>
-                <button className="btn btn-ghost" onClick={copyLink}>
+                <button type="button" className="btn btn-ghost" onClick={copyLink}>
                   {copied ? "已复制链接 ✓" : "复制书单链接"}
                 </button>
               </>
@@ -354,15 +370,20 @@ function Booklist({ listId, onBack, onOpenBook }) {
             <div className="bl-books">
               {books.map((b) => (
                 <div className="bl-book" key={b.id}>
-                  <div className="bl-book-cover" onClick={() => onOpenBook(b.id)}>
+                  <div className="bl-book-cover" {...clickable(() => onOpenBook(b.id))}>
                     <Cover book={b} />
                   </div>
-                  <div className="bl-book-t" onClick={() => onOpenBook(b.id)}>
+                  <div className="bl-book-t" {...clickable(() => onOpenBook(b.id))}>
                     {b.t}
                   </div>
                   <div className="bl-book-a">{b.a}</div>
                   {mine && (
-                    <button className="bl-book-rm" title="移出书单" onClick={() => remove(b.id)}>
+                    <button
+                      type="button"
+                      className="bl-book-rm"
+                      title="移出书单"
+                      onClick={() => remove(b.id)}
+                    >
                       {I.x}
                     </button>
                   )}

@@ -1,4 +1,5 @@
 import React from "react";
+import { clickable } from "../lib/a11y.js";
 import { I } from "./product-shared.jsx";
 
 /* product-messaging.jsx — Direct messages (私信) overlay, wired to the live
@@ -109,8 +110,8 @@ function Messenger({ startWith, onClose }) {
   };
 
   return (
-    <div className="dm-scrim" onClick={onClose}>
-      <div className="dm" onClick={(e) => e.stopPropagation()}>
+    <div className="dm-scrim" {...clickable(onClose)}>
+      <div className="dm" {...clickable((e) => e.stopPropagation())}>
         <div className="dm-list">
           <div className="dm-list-head">私信</div>
           <div className="dm-convos">
@@ -118,10 +119,10 @@ function Messenger({ startWith, onClose }) {
               <div
                 className={"dm-convo" + (active === p.userId ? " on" : "")}
                 key={p.userId}
-                onClick={() => {
+                {...clickable(() => {
                   setActive(p.userId);
                   setPartner(p);
-                }}
+                })}
               >
                 <span className="dm-ava" style={{ background: p.color }}>
                   {p.seal}
@@ -154,15 +155,15 @@ function Messenger({ startWith, onClose }) {
                 <span
                   className="dm-ava sm"
                   style={{ background: partner.color }}
-                  onClick={openPerson}
+                  {...clickable(openPerson)}
                 >
                   {partner.seal || String(partner.name || "读")[0]}
                 </span>
-                <div className="dm-thread-id" onClick={openPerson}>
+                <div className="dm-thread-id" {...clickable(openPerson)}>
                   <div className="nm">{partner.name}</div>
                   <div className="hd">{partner.handle}</div>
                 </div>
-                <button className="dm-x" onClick={onClose}>
+                <button type="button" className="dm-x" onClick={onClose}>
                   {I.x}
                 </button>
               </div>
@@ -190,7 +191,7 @@ function Messenger({ startWith, onClose }) {
                     if (e.key === "Enter") send();
                   }}
                 />
-                <span className="send" onClick={send}>
+                <span className="send" {...clickable(send)}>
                   {I.send}
                 </span>
               </div>
@@ -270,11 +271,11 @@ function Notifications({ onClose, onOpenBook }) {
   };
   return (
     <>
-      <div className="dropdown-scrim" onClick={onClose} />
+      <div className="dropdown-scrim" {...clickable(onClose)} />
       <div className="notif-pop">
         <div className="notif-head">
           <span>通知</span>
-          <button className="notif-readall" onClick={readAll}>
+          <button type="button" className="notif-readall" onClick={readAll}>
             全部已读
           </button>
         </div>
@@ -282,7 +283,12 @@ function Notifications({ onClose, onOpenBook }) {
           {NOTIF_FILTERS.map(([k, label]) => {
             const u = unreadOf(k);
             return (
-              <button key={k} className={filter === k ? "on" : ""} onClick={() => setFilter(k)}>
+              <button
+                type="button"
+                key={k}
+                className={filter === k ? "on" : ""}
+                onClick={() => setFilter(k)}
+              >
                 {label}
                 {u > 0 && <span className="nf-count">{u}</span>}
               </button>
@@ -294,7 +300,7 @@ function Notifications({ onClose, onOpenBook }) {
             <div
               className={"notif" + (n.read ? " read" : "") + (canGo(n) ? " go" : "")}
               key={n.id}
-              onClick={canGo(n) ? () => act(n) : () => markOne(n)}
+              {...clickable(canGo(n) ? () => act(n) : () => markOne(n))}
             >
               {!n.read && <span className="notif-unread" />}
               <span className="notif-ava" style={{ background: n.color }}>

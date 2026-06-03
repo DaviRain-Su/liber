@@ -183,14 +183,19 @@ function Certificate({ bookId, onBack, onOpenBook }) {
                 </div>
               </div>
               <div className="cf-actions">
-                <button className="btn btn-primary" onClick={verify} disabled={verifying}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={verify}
+                  disabled={verifying}
+                >
                   {verifying
                     ? "验证中…"
                     : steps.length === checks.length
                       ? "重新验证"
                       : "一键验证存证"}
                 </button>
-                <button className="btn btn-ghost" onClick={() => onOpenBook(book.id)}>
+                <button type="button" className="btn btn-ghost" onClick={() => onOpenBook(book.id)}>
                   开始阅读
                 </button>
               </div>

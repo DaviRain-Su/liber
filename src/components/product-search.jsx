@@ -1,4 +1,5 @@
 import React from "react";
+import { clickable } from "../lib/a11y.js";
 import { I, Cover } from "./product-shared.jsx";
 import {
   getCatalogBooks,
@@ -144,7 +145,7 @@ function SearchOverlay({ initial, onClose, onOpenBook }) {
 
   return (
     <>
-      <div className="search-scrim" onClick={onClose} />
+      <div className="search-scrim" {...clickable(onClose)} />
       <div className="search-modal">
         <div className="sm-bar">
           {I.search}
@@ -154,7 +155,7 @@ function SearchOverlay({ initial, onClose, onOpenBook }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <kbd onClick={onClose}>Esc</kbd>
+          <kbd {...clickable(onClose)}>Esc</kbd>
         </div>
         <div className="sm-body">
           {empty && (
@@ -169,7 +170,7 @@ function SearchOverlay({ initial, onClose, onOpenBook }) {
                 {term ? "书" : "推荐"} · {books.length}
               </div>
               {books.map((b) => (
-                <div className="sm-book" key={b.id} onClick={() => open(b.id)}>
+                <div className="sm-book" key={b.id} {...clickable(() => open(b.id))}>
                   <Cover book={b} className="sm-cover" />
                   <div>
                     <div className="t">{hi(b.t)}</div>
@@ -187,7 +188,7 @@ function SearchOverlay({ initial, onClose, onOpenBook }) {
             <div className="sm-sec">
               <div className="sm-h">句子 · 划线 · {sents.length}</div>
               {sents.slice(0, 6).map((s, i) => (
-                <div className="sm-sent" key={i} onClick={() => open(s.bookId)}>
+                <div className="sm-sent" key={i} {...clickable(() => open(s.bookId))}>
                   <span className="qm">”</span>
                   <div>
                     <div className="q">{hi(s.t)}</div>
@@ -209,7 +210,7 @@ function SearchOverlay({ initial, onClose, onOpenBook }) {
                 <div
                   className="sm-sent sm-sem"
                   key={s.id || i}
-                  onClick={() => s.bookId && open(s.bookId)}
+                  {...clickable(() => s.bookId && open(s.bookId))}
                 >
                   <span className="qm">≈</span>
                   <div>
@@ -233,10 +234,10 @@ function SearchOverlay({ initial, onClose, onOpenBook }) {
                 <div
                   className="sm-person"
                   key={p.id || i}
-                  onClick={() => {
+                  {...clickable(() => {
                     window.openProfile({ userId: p.id, name: p.name });
                     onClose();
-                  }}
+                  })}
                 >
                   <div className="ava" style={{ background: p.color }}>
                     {p.seal || String(p.name || "读")[0]}
@@ -248,6 +249,7 @@ function SearchOverlay({ initial, onClose, onOpenBook }) {
                     </div>
                   </div>
                   <button
+                    type="button"
                     className="btn btn-ghost sm-follow"
                     onClick={(e) => {
                       e.stopPropagation();

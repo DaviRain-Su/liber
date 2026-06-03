@@ -2,6 +2,7 @@ import React from "react";
 import { Mark, I } from "./product-shared.jsx";
 import { getNews } from "../data/news-data.js";
 import { getCatalogBooks, getCatalogTotal, licenseLabel } from "../lib/catalog.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-landing.jsx — the public marketing landing page.
    A faithful React port of the design's Liber.html. Uses the landing-page
@@ -220,13 +221,13 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
           <a href="#news">动态</a>
         </div>
         <div className="nav-right">
-          <button className="theme-btn" onClick={toggleTheme} aria-label="切换主题">
+          <button type="button" className="theme-btn" onClick={toggleTheme} aria-label="切换主题">
             {dark ? I.sun : I.moon}
           </button>
-          <button className="btn btn-ghost" onClick={onSignIn}>
+          <button type="button" className="btn btn-ghost" onClick={onSignIn}>
             登录
           </button>
-          <button className="btn btn-primary" onClick={onEnter}>
+          <button type="button" className="btn btn-primary" onClick={onEnter}>
             开始阅读 <span className="arr">→</span>
           </button>
         </div>
@@ -252,10 +253,10 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
                 AI 书友——开放、可被 AI Agent 读取，永不下架。
               </p>
               <div className="cta-row reveal d3">
-                <button className="btn btn-primary" onClick={onEnter}>
+                <button type="button" className="btn btn-primary" onClick={onEnter}>
                   开始阅读 <span className="arr">→</span>
                 </button>
-                <button className="btn btn-ghost" onClick={onSignIn}>
+                <button type="button" className="btn btn-ghost" onClick={onSignIn}>
                   连接钱包登录
                 </button>
               </div>
@@ -344,7 +345,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
                 </aside>
                 <div className="shelf">
                   {BOOKS.map((b) => (
-                    <div className="shelf-card" key={b.id} onClick={onEnter} role="button">
+                    <div className="shelf-card" key={b.id} {...clickable(onEnter)}>
                       <MiniCover b={b} />
                       <div className="meta">
                         <div className="t">{b.t}</div>
@@ -417,6 +418,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
             }}
           >
             <button
+              type="button"
               className="btn btn-primary"
               onClick={() => onOpenNews && onOpenNews("what-is-public-domain")}
             >
@@ -444,7 +446,11 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
                 发布，可自由转载、翻译、改编。
               </p>
             </div>
-            <button className="btn btn-ghost" onClick={() => onOpenNews && onOpenNews()}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => onOpenNews && onOpenNews()}
+            >
               全部动态 <span className="arr">→</span>
             </button>
           </div>
@@ -458,6 +464,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
                 <h3>{post.title}</h3>
                 <p>{post.excerpt}</p>
                 <button
+                  type="button"
                   className="landing-news-link"
                   onClick={() => onOpenNews && onOpenNews(post.id)}
                 >
@@ -596,7 +603,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
                     <span
                       key={k}
                       className={`ai-tab${mode === k ? " on" : ""}`}
-                      onClick={() => setMode(k)}
+                      {...clickable(() => setMode(k), { role: "tab" })}
                     >
                       {label}
                     </span>
@@ -897,7 +904,7 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
           </div>
           <div className="coll-grid">
             {BOOKS.map((b) => (
-              <div className="coll-card" key={b.id} onClick={onEnter} role="button">
+              <div className="coll-card" key={b.id} {...clickable(onEnter)}>
                 <MiniCover b={b} />
                 <div className="ti">{b.t}</div>
                 <div className="au">{b.a}</div>
@@ -1017,10 +1024,10 @@ function Landing({ onEnter, onSignIn, onOpenNews }) {
             现在就进去读，或连接钱包，成为最早的读者与共建者。开源、永久、属于所有人。
           </p>
           <div className="cta-row reveal d3" style={{ justifyContent: "center" }}>
-            <button className="btn btn-primary" onClick={onEnter}>
+            <button type="button" className="btn btn-primary" onClick={onEnter}>
               开始阅读 <span className="arr">→</span>
             </button>
-            <button className="btn btn-ghost" onClick={onSignIn}>
+            <button type="button" className="btn btn-ghost" onClick={onSignIn}>
               连接钱包登录
             </button>
           </div>

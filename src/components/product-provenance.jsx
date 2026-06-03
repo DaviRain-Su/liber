@@ -1,4 +1,5 @@
 import React from "react";
+import { clickable } from "../lib/a11y.js";
 import { I } from "./product-shared.jsx";
 
 /* product-provenance.jsx — provenance badge + detail popover.
@@ -43,7 +44,7 @@ function ProvBadge({ note, mine }) {
   };
   return (
     <>
-      <span className="prov" onClick={onClick}>
+      <span className="prov" {...clickable(onClick)}>
         <span className="prov-nm">
           {f.name}
           {mine && " · 你"}
@@ -67,7 +68,7 @@ function ProvDetail({ f, pos, onClose }) {
       <div
         className="drawer-scrim"
         style={{ background: "transparent", zIndex: 852 }}
-        onClick={onClose}
+        {...clickable(onClose)}
       />
       <div
         className="prov-detail"
@@ -115,6 +116,7 @@ function ProvDetail({ f, pos, onClose }) {
         </div>
         {!f.isAgent && window.canOpenProfile(f.name) && (
           <button
+            type="button"
             className="pd-visit"
             onClick={() => {
               onClose();

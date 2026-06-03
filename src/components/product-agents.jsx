@@ -60,7 +60,9 @@ function AgentSquare({ onBack }) {
                 <div className="asqc-foot">
                   <span className="asqc-stat">被引用 {a.cited.toLocaleString()}</span>
                   <span className="asqc-stat">追踪 {a.tracking} 本</span>
-                  <button className="asqc-call">调用 / 订阅</button>
+                  <button type="button" className="asqc-call">
+                    调用 / 订阅
+                  </button>
                 </div>
               </div>
             ))}
@@ -72,7 +74,9 @@ function AgentSquare({ onBack }) {
                 基于开放的 MCP 接口与 CC0 内容，训练一个读书
                 Agent，署名发布到广场。无需平台许可，无人抽成。
               </div>
-              <button className="btn btn-ghost">查看开发者文档 →</button>
+              <button type="button" className="btn btn-ghost">
+                查看开发者文档 →
+              </button>
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@ import {
   subscribeCatalog,
 } from "../lib/catalog.js";
 import { compareLanguageCodes, languageCodeFor, languageLabel } from "../lib/languages.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-library.jsx — Library browse screen. */
 const { useState: useStateLib, useEffect: useEffLib } = React;
@@ -245,10 +246,18 @@ function Library({ onOpenBook, onOpenCharts }) {
                 </div>
                 <p className="blurb">{feature.blurb}</p>
                 <div className="row">
-                  <button className="btn btn-primary" onClick={() => onOpenBook(feature.id, true)}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => onOpenBook(feature.id, true)}
+                  >
                     开始阅读 <span className="arr">→</span>
                   </button>
-                  <button className="btn btn-ghost" onClick={() => onOpenBook(feature.id)}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => onOpenBook(feature.id)}
+                  >
                     查看详情
                   </button>
                 </div>
@@ -286,11 +295,12 @@ function Library({ onOpenBook, onOpenCharts }) {
               </div>
               <span className="tax-count">{selectedSummary}</span>
             </div>
-            <div className="tax-path" aria-label="当前分类路径">
+            <nav className="tax-path" aria-label="当前分类路径">
               {selectedPath.map((item, index) => (
                 <React.Fragment key={`${item}-${index}`}>
                   {index > 0 && <span className="tax-sep">/</span>}
                   <button
+                    type="button"
                     className={`tax-crumb ${index === selectedPath.length - 1 ? "on" : ""}`}
                     onClick={() => {
                       if (index === 0) {
@@ -309,7 +319,7 @@ function Library({ onOpenBook, onOpenCharts }) {
                   </button>
                 </React.Fragment>
               ))}
-            </div>
+            </nav>
             <div className="tax-metrics">
               <div>
                 <b>{langs.length}</b>
@@ -330,6 +340,7 @@ function Library({ onOpenBook, onOpenCharts }) {
             </div>
             <div className="lang-grid">
               <button
+                type="button"
                 className={`lang-filter ${lang === "all" ? "on" : ""}`}
                 onClick={() => {
                   setLang("all");
@@ -354,6 +365,7 @@ function Library({ onOpenBook, onOpenCharts }) {
                   .join(" / ");
                 return (
                   <button
+                    type="button"
                     key={row.code}
                     className={`lang-filter ${lang === row.code ? "on" : ""}`}
                     onClick={() => {
@@ -400,6 +412,7 @@ function Library({ onOpenBook, onOpenCharts }) {
                       <h3>{section.meta.name}</h3>
                     </div>
                     <button
+                      type="button"
                       className="text-link"
                       onClick={() => {
                         setLang(section.code);
@@ -413,6 +426,7 @@ function Library({ onOpenBook, onOpenCharts }) {
                   <div className="subject-strip">
                     {section.subjectRows.map((row) => (
                       <button
+                        type="button"
                         key={row.id}
                         className="subject-mini"
                         onClick={() => {
@@ -428,7 +442,11 @@ function Library({ onOpenBook, onOpenCharts }) {
                   </div>
                   <div className="section-book-row">
                     {section.books.map((b) => (
-                      <div className="bk-card compact" key={b.id} onClick={() => onOpenBook(b.id)}>
+                      <div
+                        className="bk-card compact"
+                        key={b.id}
+                        {...clickable(() => onOpenBook(b.id))}
+                      >
                         <Cover book={b} />
                         <div className="meta">
                           <div className="t">{b.t}</div>
@@ -457,6 +475,7 @@ function Library({ onOpenBook, onOpenCharts }) {
                 </div>
                 <div className="subject-grid">
                   <button
+                    type="button"
                     className={`subject-card ${subject === "all" ? "on" : ""}`}
                     onClick={() => {
                       setSubject("all");
@@ -476,6 +495,7 @@ function Library({ onOpenBook, onOpenCharts }) {
                       .join(" / ");
                     return (
                       <button
+                        type="button"
                         key={row.id}
                         className={`subject-card ${subject === row.id ? "on" : ""}`}
                         onClick={() => {
@@ -497,6 +517,7 @@ function Library({ onOpenBook, onOpenCharts }) {
                   </div>
                   <div className="fine-strip">
                     <button
+                      type="button"
                       className={`fine-chip ${direction === "all" ? "on" : ""}`}
                       onClick={() => setDirection("all")}
                     >
@@ -504,6 +525,7 @@ function Library({ onOpenBook, onOpenCharts }) {
                     </button>
                     {directions.map((row) => (
                       <button
+                        type="button"
                         key={row.name}
                         className={`fine-chip ${direction === row.name ? "on" : ""}`}
                         onClick={() => setDirection(row.name)}
@@ -517,7 +539,7 @@ function Library({ onOpenBook, onOpenCharts }) {
 
               <div className="lib-grid">
                 {list.map((b) => (
-                  <div className="bk-card" key={b.id} onClick={() => onOpenBook(b.id)}>
+                  <div className="bk-card" key={b.id} {...clickable(() => onOpenBook(b.id))}>
                     <Cover book={b} />
                     <div className="meta">
                       <div className="t">{b.t}</div>

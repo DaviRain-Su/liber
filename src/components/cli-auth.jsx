@@ -55,6 +55,7 @@ function CliAuth({ deviceCode, userCode }) {
           code: {userCode || deviceCode.slice(0, 8).toUpperCase()}
         </div>
         <button
+          type="button"
           className="btn btn-primary"
           disabled={status === "working" || status === "done"}
           onClick={approve}

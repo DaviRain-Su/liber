@@ -2,6 +2,7 @@ import React from "react";
 import { I } from "./product-shared.jsx";
 import { ConvoArtifact, ForkTreeModal } from "./product-convocard.jsx";
 import { getCatalogBooks } from "../lib/catalog.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-social.jsx — co-reading: feed, popular highlights, shared convos, discussion thread. */
 const { useState: useSs, useEffect: useEffS } = React;
@@ -135,13 +136,25 @@ function Social({ onOpenBook, onOpenGroup, onContinue }) {
             {/* main column */}
             <div className="soc-main">
               <div className="soc-tabs">
-                <button className={tab === "feed" ? "on" : ""} onClick={() => setTab("feed")}>
+                <button
+                  type="button"
+                  className={tab === "feed" ? "on" : ""}
+                  onClick={() => setTab("feed")}
+                >
                   动态
                 </button>
-                <button className={tab === "convos" ? "on" : ""} onClick={() => setTab("convos")}>
+                <button
+                  type="button"
+                  className={tab === "convos" ? "on" : ""}
+                  onClick={() => setTab("convos")}
+                >
                   可分享的对话
                 </button>
-                <button className={tab === "groups" ? "on" : ""} onClick={() => setTab("groups")}>
+                <button
+                  type="button"
+                  className={tab === "groups" ? "on" : ""}
+                  onClick={() => setTab("groups")}
+                >
                   共读小组
                 </button>
               </div>
@@ -200,7 +213,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }) {
                 <div className="soc-grouplist">
                   {groups.length ? (
                     groups.map((g) => (
-                      <div className="gl-card" key={g.id} onClick={() => onOpenGroup(g.id)}>
+                      <div className="gl-card" key={g.id} {...clickable(() => onOpenGroup(g.id))}>
                         <div className="glc-top">
                           <span className="glc-seal" style={{ background: g.color }}>
                             {g.seal}
@@ -245,7 +258,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }) {
                     <div
                       className="ac-hl"
                       key={h.rank}
-                      onClick={() => onOpenBook && onOpenBook("daodejing")}
+                      {...clickable(() => onOpenBook && onOpenBook("daodejing"))}
                     >
                       <span className="rk">{h.rank}</span>
                       <div>
@@ -267,7 +280,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }) {
                     <div
                       className="grp"
                       key={g.id}
-                      onClick={() => onOpenGroup(g.id)}
+                      {...clickable(() => onOpenGroup(g.id))}
                       style={{ cursor: "pointer" }}
                     >
                       <span className="gd" style={{ background: g.color }} />
@@ -283,6 +296,7 @@ function Social({ onOpenBook, onOpenGroup, onContinue }) {
                   <EmptySocial text="暂无小组" compact />
                 )}
                 <button
+                  type="button"
                   className="btn btn-ghost btn-block"
                   style={{ marginTop: 14 }}
                   onClick={() => setTab("groups")}
@@ -325,14 +339,14 @@ function FeedCard({ f, onOpenThread, onOpenBook, onOpenGroup }) {
       <div
         className={"ava" + (canOpen ? " ava-link" : "")}
         style={{ background: f.color }}
-        onClick={canOpen ? () => openProfile(f) : undefined}
+        {...(canOpen ? clickable(() => openProfile(f)) : {})}
       >
         {f.u === "书友 · AI" ? "AI" : f.u[0]}
       </div>
       <div className="fc-who">
         <div
           className={"fc-u" + (canOpen ? " name-link" : "")}
-          onClick={canOpen ? () => openProfile(f) : undefined}
+          {...(canOpen ? clickable(() => openProfile(f)) : {})}
         >
           {f.u}
         </div>
@@ -367,7 +381,7 @@ function FeedCard({ f, onOpenThread, onOpenBook, onOpenGroup }) {
     <div className="feed-card">
       {head}
       {f.quote && (
-        <div className="fc-quote" onClick={onOpenThread}>
+        <div className="fc-quote" {...clickable(onOpenThread)}>
           「{f.quote}」
         </div>
       )}
@@ -384,13 +398,13 @@ function FeedCard({ f, onOpenThread, onOpenBook, onOpenGroup }) {
           {I.up} {f.up || 0}
         </span>
         {f.replies != null && (
-          <span className="lk" onClick={onOpenThread}>
+          <span className="lk" {...clickable(onOpenThread)}>
             {f.replies} 条回复 · 加入讨论
           </span>
         )}
         {f.saved != null && <span>{f.saved} 收藏</span>}
         {onOpenGroup && (
-          <span className="lk" onClick={onOpenGroup}>
+          <span className="lk" {...clickable(onOpenGroup)}>
             进入小组
           </span>
         )}
@@ -436,7 +450,7 @@ function ThreadOverlay({ thread, onClose }) {
   const root = thread.root || {};
   return (
     <>
-      <div className="drawer-scrim" style={{ zIndex: 860 }} onClick={onClose} />
+      <div className="drawer-scrim" style={{ zIndex: 860 }} {...clickable(onClose)} />
       <div className="thread-modal">
         <div className="tm-head">
           <div>
@@ -446,7 +460,7 @@ function ThreadOverlay({ thread, onClose }) {
             </div>
             <div className="tm-liners">{replies.length + 1} 条讨论</div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {I.x}
           </span>
         </div>
@@ -456,7 +470,7 @@ function ThreadOverlay({ thread, onClose }) {
             <div
               className={"ava" + (canProfile(root) ? " ava-link" : "")}
               style={{ background: root.color }}
-              onClick={canProfile(root) ? () => openProfile(root) : undefined}
+              {...(canProfile(root) ? clickable(() => openProfile(root)) : {})}
             >
               {(root.u || "读")[0]}
             </div>
@@ -464,7 +478,7 @@ function ThreadOverlay({ thread, onClose }) {
               <div className="nm">
                 <span
                   className={canProfile(root) ? "name-link" : ""}
-                  onClick={canProfile(root) ? () => openProfile(root) : undefined}
+                  {...(canProfile(root) ? clickable(() => openProfile(root)) : {})}
                 >
                   {root.u}
                 </span>{" "}
@@ -494,7 +508,7 @@ function ThreadOverlay({ thread, onClose }) {
                 <div
                   className={"ava" + (canProfile(r) ? " ava-link" : "")}
                   style={{ background: r.color }}
-                  onClick={canProfile(r) ? () => openProfile(r) : undefined}
+                  {...(canProfile(r) ? clickable(() => openProfile(r)) : {})}
                 >
                   {r.ai ? "AI" : (r.u || "读")[0]}
                 </div>
@@ -502,7 +516,7 @@ function ThreadOverlay({ thread, onClose }) {
                   <div className="nm">
                     <span
                       className={canProfile(r) ? "name-link" : ""}
-                      onClick={canProfile(r) ? () => openProfile(r) : undefined}
+                      {...(canProfile(r) ? clickable(() => openProfile(r)) : {})}
                     >
                       {r.u}
                     </span>
@@ -528,7 +542,7 @@ function ThreadOverlay({ thread, onClose }) {
               if (e.key === "Enter") add();
             }}
           />
-          <span className="send" onClick={add}>
+          <span className="send" {...clickable(add)}>
             {I.send}
           </span>
         </div>
@@ -618,7 +632,7 @@ function CommentsPanel({ targetType, targetId }) {
               <span
                 className={canProfile(cm) ? "ava-link" : ""}
                 style={av(cm.color || "#3a4fb0")}
-                onClick={canProfile(cm) ? () => openProfile(cm) : undefined}
+                {...(canProfile(cm) ? clickable(() => openProfile(cm)) : {})}
               >
                 {cm.seal || String(cm.u || "读")[0]}
               </span>
@@ -626,7 +640,7 @@ function CommentsPanel({ targetType, targetId }) {
                 <div style={{ fontSize: 12, opacity: 0.6 }}>
                   <span
                     className={canProfile(cm) ? "name-link" : ""}
-                    onClick={canProfile(cm) ? () => openProfile(cm) : undefined}
+                    {...(canProfile(cm) ? clickable(() => openProfile(cm)) : {})}
                   >
                     {cm.u}
                   </span>
@@ -649,7 +663,7 @@ function CommentsPanel({ targetType, targetId }) {
                     alignItems: "center",
                     gap: 3,
                   }}
-                  onClick={() => upvote(cm.id)}
+                  {...clickable(() => upvote(cm.id))}
                 >
                   {I.up} 赞同 {cm.up || 0}
                 </div>
@@ -675,7 +689,11 @@ function CommentsPanel({ targetType, targetId }) {
             if (e.key === "Enter") add();
           }}
         />
-        <span className="send" style={{ cursor: "pointer", padding: "6px 8px" }} onClick={add}>
+        <span
+          className="send"
+          style={{ cursor: "pointer", padding: "6px 8px" }}
+          {...clickable(add)}
+        >
           {I.send}
         </span>
       </div>

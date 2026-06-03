@@ -46,15 +46,9 @@
       },
       "a11y": {
         "noStaticElementInteractions": "warn",
-        "useButtonType": "warn",
-        "useKeyWithClickEvents": "warn",
-        "noSvgWithoutTitle": "warn",
         "useValidAnchor": "warn",
         "useSemanticElements": "warn",
-        "noAutofocus": "warn",
-        "useFocusableInteractive": "warn",
-        "useAriaPropsSupportedByRole": "warn",
-        "noNoninteractiveElementToInteractiveRole": "warn"
+        "noAutofocus": "warn"
       }
     }
   },

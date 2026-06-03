@@ -4,6 +4,7 @@ import api from "../lib/api.js";
 import { ECHOES as SEED_ECHOES } from "../data/product-data.js";
 import { findCatalogBook } from "../lib/catalog.js";
 import { layoutForce } from "../lib/force-graph.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-graph.jsx — "思维链接" knowledge-graph view.
    Renders the library's cross-book echoes as a force-directed constellation:
@@ -81,7 +82,7 @@ function GraphView({ onClose, onOpenBook }) {
 
   return (
     <>
-      <div className="drawer-scrim" style={{ zIndex: 845 }} onClick={onClose} />
+      <div className="drawer-scrim" style={{ zIndex: 845 }} {...clickable(onClose)} />
       <div className="graph-modal">
         <div className="graph-head">
           <div>
@@ -93,6 +94,7 @@ function GraphView({ onClose, onOpenBook }) {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.7"
+                aria-hidden="true"
               >
                 <circle cx="5" cy="6" r="2" />
                 <circle cx="19" cy="7" r="2" />
@@ -110,7 +112,7 @@ function GraphView({ onClose, onOpenBook }) {
                   : "加载中…"}
             </div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {I.x}
           </span>
         </div>
@@ -151,6 +153,7 @@ function GraphView({ onClose, onOpenBook }) {
                 return (
                   <g
                     key={p.id}
+                    role="option"
                     style={{
                       cursor: "pointer",
                       opacity: dim ? 0.32 : 1,
@@ -158,7 +161,7 @@ function GraphView({ onClose, onOpenBook }) {
                     }}
                     onMouseEnter={() => setHover(p.id)}
                     onMouseLeave={() => setHover(null)}
-                    onClick={() => onOpenBook && onOpenBook(p.id)}
+                    {...clickable(() => onOpenBook && onOpenBook(p.id), { role: "option" })}
                   >
                     <circle
                       cx={p.x}

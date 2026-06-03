@@ -1,6 +1,7 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
 import { getCatalogBooks } from "../lib/catalog.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-group.jsx — co-reading group detail + groups discovery list. */
 const { useState: useGrp, useEffect: useEffG } = React;
@@ -38,12 +39,14 @@ function GroupsList({ onOpenGroup, onBack }) {
               <div className="kicker">共读小组</div>
               <h1 className="gl-title">找一群人，一起读完一本书。</h1>
             </div>
-            <button className="btn btn-primary">＋ 发起共读</button>
+            <button type="button" className="btn btn-primary">
+              ＋ 发起共读
+            </button>
           </div>
           <div className="gl-grid">
             {groups.length ? (
               groups.map((g) => (
-                <div className="gl-card" key={g.id} onClick={() => onOpenGroup(g.id)}>
+                <div className="gl-card" key={g.id} {...clickable(() => onOpenGroup(g.id))}>
                   <div className="glc-top">
                     <span className="glc-seal" style={{ background: g.color }}>
                       {g.seal}
@@ -62,12 +65,12 @@ function GroupsList({ onOpenGroup, onBack }) {
                           key={i}
                           className={"ga" + (canProfile(a) ? " ava-link" : "")}
                           style={{ background: a.c, marginLeft: i ? -9 : 0, zIndex: 9 - i }}
-                          onClick={(e) => {
+                          {...clickable((e) => {
                             if (canProfile(a)) {
                               e.stopPropagation();
                               openProfile(a);
                             }
-                          }}
+                          })}
                         >
                           {a.n}
                         </span>
@@ -119,7 +122,7 @@ function Group({ groupId, onBack, onOpenReader }) {
       <div className="app-screen">
         <div className="grp-screen">
           <div className="grp-wrap" style={{ paddingTop: 40 }}>
-            <button className="btn btn-ghost" onClick={onBack}>
+            <button type="button" className="btn btn-ghost" onClick={onBack}>
               {I.left} 返回
             </button>
             <div className="pf-empty">没有找到这个共读小组。</div>
@@ -184,7 +187,7 @@ function Group({ groupId, onBack, onOpenReader }) {
                   key={i}
                   className={"ga" + (canProfile(a) ? " ava-link" : "")}
                   style={{ background: a.c, marginLeft: i ? -10 : 0, zIndex: 20 - i }}
-                  onClick={canProfile(a) ? () => openProfile(a) : undefined}
+                  {...(canProfile(a) ? clickable(() => openProfile(a)) : {})}
                 >
                   {a.n}
                 </span>
@@ -196,15 +199,19 @@ function Group({ groupId, onBack, onOpenReader }) {
             <div className="gbar-act">
               {joined ? (
                 <>
-                  <button className="btn btn-ghost" onClick={() => onOpenReader(g.book)}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => onOpenReader(g.book)}
+                  >
                     跟上进度 →
                   </button>
-                  <button className="btn btn-ghost" onClick={toggleJoin}>
+                  <button type="button" className="btn btn-ghost" onClick={toggleJoin}>
                     已加入 ✓
                   </button>
                 </>
               ) : (
-                <button className="btn btn-primary" onClick={toggleJoin}>
+                <button type="button" className="btn btn-primary" onClick={toggleJoin}>
                   加入共读
                 </button>
               )}
@@ -240,14 +247,14 @@ function Group({ groupId, onBack, onOpenReader }) {
                     <span
                       className={"ava" + (canProfile(g.topAnno) ? " ava-link" : "")}
                       style={{ background: g.topAnno.color }}
-                      onClick={canProfile(g.topAnno) ? () => openProfile(g.topAnno) : undefined}
+                      {...(canProfile(g.topAnno) ? clickable(() => openProfile(g.topAnno)) : {})}
                     >
                       {g.topAnno.u[0]}
                     </span>
                     <div>
                       <div
                         className={"nm" + (canProfile(g.topAnno) ? " name-link" : "")}
-                        onClick={canProfile(g.topAnno) ? () => openProfile(g.topAnno) : undefined}
+                        {...(canProfile(g.topAnno) ? clickable(() => openProfile(g.topAnno)) : {})}
                       >
                         {g.topAnno.u}
                       </div>
@@ -275,7 +282,7 @@ function Group({ groupId, onBack, onOpenReader }) {
                       if (e.key === "Enter") add();
                     }}
                   />
-                  <span className="send" onClick={add}>
+                  <span className="send" {...clickable(add)}>
                     {I.send}
                   </span>
                 </div>
@@ -285,7 +292,7 @@ function Group({ groupId, onBack, onOpenReader }) {
                       <span
                         className={"ava" + (canProfile(d) ? " ava-link" : "")}
                         style={{ background: d.color }}
-                        onClick={canProfile(d) ? () => openProfile(d) : undefined}
+                        {...(canProfile(d) ? clickable(() => openProfile(d)) : {})}
                       >
                         {d.u[0]}
                       </span>
@@ -293,7 +300,7 @@ function Group({ groupId, onBack, onOpenReader }) {
                         <div className="gd-top">
                           <span
                             className={"nm" + (canProfile(d) ? " name-link" : "")}
-                            onClick={canProfile(d) ? () => openProfile(d) : undefined}
+                            {...(canProfile(d) ? clickable(() => openProfile(d)) : {})}
                           >
                             {d.u}
                             {d.mine && " · 你"}
@@ -344,7 +351,7 @@ function Group({ groupId, onBack, onOpenReader }) {
                       <span
                         className={"ava" + (canProfile(a) ? " ava-link" : "")}
                         style={{ background: a.c }}
-                        onClick={canProfile(a) ? () => openProfile(a) : undefined}
+                        {...(canProfile(a) ? clickable(() => openProfile(a)) : {})}
                       >
                         {a.n}
                       </span>

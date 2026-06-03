@@ -67,13 +67,13 @@ function IOSStatusBar({ dark = false, time = "9:41" }) {
           paddingRight: 1,
         }}
       >
-        <svg width="19" height="12" viewBox="0 0 19 12">
+        <svg width="19" height="12" viewBox="0 0 19 12" aria-hidden="true">
           <rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill={c} />
           <rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill={c} />
           <rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill={c} />
           <rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill={c} />
         </svg>
-        <svg width="17" height="12" viewBox="0 0 17 12">
+        <svg width="17" height="12" viewBox="0 0 17 12" aria-hidden="true">
           <path
             d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5C5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z"
             fill={c}
@@ -84,7 +84,7 @@ function IOSStatusBar({ dark = false, time = "9:41" }) {
           />
           <circle cx="8.5" cy="10.5" r="1.5" fill={c} />
         </svg>
-        <svg width="27" height="13" viewBox="0 0 27 13">
+        <svg width="27" height="13" viewBox="0 0 27 13" aria-hidden="true">
           <rect
             x="0.5"
             y="0.5"
@@ -209,7 +209,14 @@ function IOSNavBar({ title = "Title", dark = false, trailingIcon = true }) {
       >
         {/* back chevron */}
         {pillIcon(
-          <svg width="12" height="20" viewBox="0 0 12 20" fill="none" style={{ marginLeft: -1 }}>
+          <svg
+            width="12"
+            height="20"
+            viewBox="0 0 12 20"
+            fill="none"
+            style={{ marginLeft: -1 }}
+            aria-hidden="true"
+          >
             <path
               d="M10 2L2 10l8 8"
               stroke={muted}
@@ -222,7 +229,7 @@ function IOSNavBar({ title = "Title", dark = false, trailingIcon = true }) {
         {/* trailing ellipsis */}
         {trailingIcon &&
           pillIcon(
-            <svg width="22" height="6" viewBox="0 0 22 6">
+            <svg width="22" height="6" viewBox="0 0 22 6" aria-hidden="true">
               <circle cx="3" cy="3" r="2.5" fill={muted} />
               <circle cx="11" cy="3" r="2.5" fill={muted} />
               <circle cx="19" cy="3" r="2.5" fill={muted} />
@@ -283,7 +290,7 @@ function IOSListRow({ title, detail, icon, chevron = true, isLast = false, dark 
       <div style={{ flex: 1, color: text }}>{title}</div>
       {detail && <span style={{ color: sec, marginRight: 6 }}>{detail}</span>}
       {chevron && (
-        <svg width="8" height="14" viewBox="0 0 8 14" style={{ flexShrink: 0 }}>
+        <svg width="8" height="14" viewBox="0 0 8 14" style={{ flexShrink: 0 }} aria-hidden="true">
           <path
             d="M1 1l6 6-6 6"
             stroke={ter}
@@ -425,12 +432,12 @@ function IOSKeyboard({ dark = false }) {
   // special-key icons
   const icons = {
     shift: (
-      <svg width="19" height="17" viewBox="0 0 19 17">
+      <svg width="19" height="17" viewBox="0 0 19 17" aria-hidden="true">
         <path d="M9.5 1L1 9.5h4.5V16h8V9.5H18L9.5 1z" fill={glyph} />
       </svg>
     ),
     del: (
-      <svg width="23" height="17" viewBox="0 0 23 17">
+      <svg width="23" height="17" viewBox="0 0 23 17" aria-hidden="true">
         <path
           d="M7 1h13a2 2 0 012 2v11a2 2 0 01-2 2H7l-6-7.5L7 1z"
           fill="none"
@@ -442,7 +449,7 @@ function IOSKeyboard({ dark = false }) {
       </svg>
     ),
     ret: (
-      <svg width="20" height="14" viewBox="0 0 20 14">
+      <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true">
         <path
           d="M18 1v6H4m0 0l4-4M4 7l4 4"
           fill="none"

@@ -1,4 +1,5 @@
 import React from "react";
+import { clickable } from "../lib/a11y.js";
 
 /* product-shared.jsx — Cover, icon set, AppBar. Exported to window. */
 const { useState, useEffect, useRef, useCallback } = React;
@@ -13,6 +14,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.2-3.2" />
@@ -26,6 +28,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="m3 7 9 6 9-6" />
@@ -39,6 +42,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
       <path d="M13.7 21a2 2 0 0 1-3.4 0" />
@@ -52,6 +56,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <circle cx="9" cy="8" r="4" />
       <path d="M2 21c0-3.9 3.1-7 7-7" />
@@ -66,6 +71,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M12 21s-7-4.5-9.5-9C1 9 2.5 5.5 6 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 16.5 12 21 12 21z" />
     </svg>
@@ -78,6 +84,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <circle cx="12" cy="12" r="4.4" />
       <path d="M12 2v2.6M12 19.4V22M4.2 4.2l1.9 1.9M17.9 17.9l1.9 1.9M2 12h2.6M19.4 12H22M4.2 19.8l1.9-1.9M17.9 6.1l1.9-1.9" />
@@ -91,6 +98,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
     </svg>
@@ -103,6 +111,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M4 6h16M4 12h16M4 18h10" />
     </svg>
@@ -115,6 +124,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M4 7V5h16v2M9 19h6M12 5v14" />
     </svg>
@@ -127,6 +137,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.6"
+      aria-hidden="true"
     >
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
     </svg>
@@ -139,6 +150,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M4 20h16M5 16l9-9 3 3-9 9H5v-3Z" />
     </svg>
@@ -151,6 +163,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M5 4h14v12l-4 4H5z" />
       <path d="M15 20v-4h4" />
@@ -164,6 +177,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <rect x="9" y="9" width="11" height="11" rx="2" />
       <path d="M5 15V5a2 2 0 0 1 2-2h8" />
@@ -177,6 +191,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M21 12a8 8 0 1 1-3.5-6.6L21 4v5h-5" />
     </svg>
@@ -189,6 +204,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="m6 6 12 12M18 6 6 18" />
     </svg>
@@ -201,6 +217,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      aria-hidden="true"
     >
       <path d="m15 5-7 7 7 7" />
     </svg>
@@ -213,6 +230,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      aria-hidden="true"
     >
       <path d="m9 5 7 7-7 7" />
     </svg>
@@ -225,6 +243,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
+      aria-hidden="true"
     >
       <path d="m6 14 6-6 6 6" />
     </svg>
@@ -237,6 +256,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      aria-hidden="true"
     >
       <path d="M5 12h13M12 5l7 7-7 7" />
     </svg>
@@ -249,6 +269,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
       <path d="M4 19a2 2 0 0 1 2-2h12" />
@@ -262,6 +283,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <rect x="5" y="11" width="14" height="9" rx="2" />
       <path d="M8 11V8a4 4 0 0 1 8 0v3" />
@@ -275,6 +297,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <circle cx="12" cy="12" r="2.6" />
       <circle cx="5" cy="6" r="1.5" />
@@ -291,6 +314,7 @@ const I = {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
+      aria-hidden="true"
     >
       <rect x="4" y="7" width="16" height="12" rx="2" />
       <path d="M12 7V4M9 12h.01M15 12h.01M9.5 16h5" />
@@ -365,7 +389,7 @@ function AppBar({
   const ava = user?.seal || user?.name?.slice(0, 1) || "读";
   return (
     <div className="appbar">
-      <div className="brand" onClick={onHome || (() => onNav("library"))} title="回到首页">
+      <div className="brand" {...clickable(onHome || (() => onNav("library")))} title="回到首页">
         <Mark size={26} />
         <span className="word">Liber</span>
       </div>
@@ -377,15 +401,21 @@ function AppBar({
         ))}
       </nav>
       <div className="spacer" />
-      <div className="search" onClick={onSearch} role="button">
+      <div className="search" {...clickable(onSearch)}>
         {I.search}
         <input placeholder="搜书名、作者、句子…" readOnly style={{ cursor: "pointer" }} />
         <kbd>/</kbd>
       </div>
-      <button className="icon-btn appbar-msearch" onClick={onSearch} aria-label="搜索">
+      <button
+        type="button"
+        className="icon-btn appbar-msearch"
+        onClick={onSearch}
+        aria-label="搜索"
+      >
         {I.search}
       </button>
       <button
+        type="button"
         className={"av-toggle" + (agentOn ? " on" : "")}
         onClick={onAgentView}
         title="Agent 视角：这一页 AI Agent 看到的样子"
@@ -394,29 +424,41 @@ function AppBar({
         <span>Agent 视角</span>
       </button>
       {user && onBell && (
-        <button className="icon-btn appbar-badge" onClick={onBell} aria-label="通知" title="通知">
+        <button
+          type="button"
+          className="icon-btn appbar-badge"
+          onClick={onBell}
+          aria-label="通知"
+          title="通知"
+        >
           {I.bell}
           {bellDot && <span className="appbar-dot" />}
         </button>
       )}
       {user && onMail && (
-        <button className="icon-btn appbar-badge" onClick={onMail} aria-label="私信" title="私信">
+        <button
+          type="button"
+          className="icon-btn appbar-badge"
+          onClick={onMail}
+          aria-label="私信"
+          title="私信"
+        >
           {I.mail}
           {mailDot && <span className="appbar-dot" />}
         </button>
       )}
-      <button className="icon-btn" onClick={onToggleTheme} aria-label="切换主题">
+      <button type="button" className="icon-btn" onClick={onToggleTheme} aria-label="切换主题">
         {isDark ? I.sun : I.moon}
       </button>
       {user && (
-        <button className="appbar-logout" onClick={onLogout}>
+        <button type="button" className="appbar-logout" onClick={onLogout}>
           退出
         </button>
       )}
       <div
         className={"avatar" + (active === "profile" ? " on" : "")}
         title={user ? `${user.name} · 我的` : "我的"}
-        onClick={onProfile}
+        {...clickable(onProfile)}
       >
         {ava}
       </div>
@@ -438,6 +480,7 @@ function MobileTabBar({ active, onNav }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="1.7"
+          aria-hidden="true"
         >
           <path d="M4 5a2 2 0 0 1 2-2h13v17H6a2 2 0 0 0-2 2z" />
           <path d="M4 19a2 2 0 0 1 2-2h13" />
@@ -454,6 +497,7 @@ function MobileTabBar({ active, onNav }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.7"
+        aria-hidden="true"
       >
         <path d="M4 4h4v16H4zM10 4h4v16h-4zM17 5l3.4 .9-3 14.7-3.3-.9z" />
       </svg>,
@@ -468,6 +512,7 @@ function MobileTabBar({ active, onNav }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.7"
+        aria-hidden="true"
       >
         <path d="M5 4h12l2 2v14H5z" />
         <path d="M9 9h7M9 13h7M9 17h4" />
@@ -483,6 +528,7 @@ function MobileTabBar({ active, onNav }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.7"
+        aria-hidden="true"
       >
         <circle cx="8" cy="9" r="3" />
         <circle cx="17" cy="10" r="2.4" />
@@ -499,6 +545,7 @@ function MobileTabBar({ active, onNav }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.7"
+        aria-hidden="true"
       >
         <path d="M4 5h12v14H6a2 2 0 0 1-2-2z" />
         <path d="M16 8h3a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2" />
@@ -515,6 +562,7 @@ function MobileTabBar({ active, onNav }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.7"
+        aria-hidden="true"
       >
         <circle cx="12" cy="8" r="4" />
         <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
@@ -524,7 +572,7 @@ function MobileTabBar({ active, onNav }) {
   return (
     <nav className="mobile-tabbar">
       {tabs.map(([k, label, icon]) => (
-        <button key={k} className={active === k ? "on" : ""} onClick={() => onNav(k)}>
+        <button type="button" key={k} className={active === k ? "on" : ""} onClick={() => onNav(k)}>
           {icon}
           <span>{label}</span>
         </button>

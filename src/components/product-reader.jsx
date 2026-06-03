@@ -6,6 +6,7 @@ import { EchoOverlay } from "./product-echo.jsx";
 import { catalogHasLiveBooks, findCatalogBook, getCatalogBooks } from "../lib/catalog.js";
 import { convertChineseText, isChineseScriptMode } from "../lib/zh-convert.js";
 import { api } from "../lib/api.js";
+import { clickable } from "../lib/a11y.js";
 import { passkeySignDigest } from "../lib/turnkey-passkey.js";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -60,7 +61,7 @@ function TocList({ tocRows, readMode, activeEpubHref, chN, tx, sameEpubHref, jum
                 transform: `translateY(${vi.start}px)`,
                 ...(t.depth ? { paddingLeft: 24 + t.depth * 14 } : {}),
               }}
-              onClick={() => (t.href ? jumpEpubTo(t.href) : t.has && jumpTo(t.n))}
+              {...clickable(() => (t.href ? jumpEpubTo(t.href) : t.has && jumpTo(t.n)))}
             >
               <span className="num">{String(t.n || idx + 1).padStart(2, "0")}</span>
               <span className="tt">{tx(t.title)}</span>
@@ -751,13 +752,13 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
             ? pinState[sid + ":err"] || "上链失败"
             : "把这条批注作为不可篡改的存证写上 Sui 链（默认只存数据库）"
         }
-        onClick={() => {
+        {...clickable(() => {
           if (st === "done" && pinState[sid + ":url"]) {
             window.open(pinState[sid + ":url"], "_blank");
             return;
           }
           if (st !== "working") pinOnChain(sid);
-        }}
+        })}
         style={{
           cursor: st === "working" ? "default" : "pointer",
           color: st === "done" ? "#2e7d57" : st === "error" ? "#c0432b" : "inherit",
@@ -1225,7 +1226,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
         key={s.id}
         className={cls.join(" ")}
         data-sid={s.id}
-        onClick={hasAnno ? (e) => openNotePop(s.id, e) : undefined}
+        {...(hasAnno ? clickable((e) => openNotePop(s.id, e)) : {})}
       >
         {tx(s.t)}
         {lineHeat > 0 && (
@@ -1237,10 +1238,10 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
         {hasAnno && cnt > 0 && (
           <span
             className="anno-marker"
-            onClick={(e) => {
+            {...clickable((e) => {
               e.stopPropagation();
               openNotePop(s.id, e);
-            }}
+            })}
           >
             {cnt}
           </span>
@@ -1306,7 +1307,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
             <div className="rce-h">读完这一章 · 顺着线索读下去</div>
             <div className="rce-cards">
               {nextChap && (
-                <div className="rce-card" onClick={() => go(1)}>
+                <div className="rce-card" {...clickable(() => go(1))}>
                   <span className="rce-seal" style={{ background: "#211b15", color: "#ece2cf" }}>
                     {book.seal}
                   </span>
@@ -1320,7 +1321,10 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                 </div>
               )}
               {crossRec && (
-                <div className="rce-card" onClick={() => onOpenBook && onOpenBook(crossRec.bookId)}>
+                <div
+                  className="rce-card"
+                  {...clickable(() => onOpenBook && onOpenBook(crossRec.bookId))}
+                >
                   <span className="rce-seal" style={{ background: crossRec.color }}>
                     {crossRec.seal}
                   </span>
@@ -1390,7 +1394,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
     >
       {/* top bar */}
       <div className="rd-bar">
-        <button className="icon-btn" onClick={onClose} title="返回 (Esc)">
+        <button type="button" className="icon-btn" onClick={onClose} title="返回 (Esc)">
           {I.left}
         </button>
         <div className="rd-title">
@@ -1403,6 +1407,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
         </div>
         <div className="spacer" />
         <button
+          type="button"
           className={`rd-tool ${tocOpen ? "on" : ""}`}
           onClick={() => {
             setTocOpen((v) => !v);
@@ -1411,8 +1416,9 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
         >
           {I.list} 目录
         </button>
-        <div className="rd-mode-toggle" role="group" aria-label="阅读模式">
+        <div className="rd-mode-toggle" role="toolbar" aria-label="阅读模式">
           <button
+            type="button"
             className={`rd-tool ${readMode === "text" ? "on" : ""}`}
             title="互动阅读版"
             onClick={() => setReadMode("text")}
@@ -1420,6 +1426,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
             {I.note} 互动
           </button>
           <button
+            type="button"
             className={`rd-tool ${readMode === "epub" ? "on" : ""}`}
             disabled={!hasEpub}
             title={hasEpub ? "EPUB 阅读版" : "暂无 EPUB 阅读版"}
@@ -1429,6 +1436,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
           </button>
         </div>
         <button
+          type="button"
           className={`rd-tool ${setOpen ? "on" : ""}`}
           id="rd-set-btn"
           onClick={() => {
@@ -1439,6 +1447,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
           {I.type} 显示
         </button>
         <button
+          type="button"
           className={`rd-tool ${aiOpen ? "on" : ""}`}
           onClick={() => {
             setAiOpen((v) => !v);
@@ -1480,10 +1489,14 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                 <>
                   <p className="rd-empty-p">这本书有原版 EPUB，可以直接打开阅读。</p>
                   <div className="rd-empty-actions">
-                    <button className="btn btn-primary" onClick={() => setReadMode("epub")}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setReadMode("epub")}
+                    >
                       {I.book} 打开 EPUB 阅读版
                     </button>
-                    <button className="btn btn-ghost" onClick={onClose}>
+                    <button type="button" className="btn btn-ghost" onClick={onClose}>
                       返回书库
                     </button>
                   </div>
@@ -1498,7 +1511,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                     AI。
                   </p>
                   <div className="rd-empty-actions">
-                    <button className="btn btn-primary" onClick={onClose}>
+                    <button type="button" className="btn btn-primary" onClick={onClose}>
                       返回书库
                     </button>
                   </div>
@@ -1512,6 +1525,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
               <div
                 className={"rd-col rd-paged-flow" + (fading ? " fading" : "")}
                 ref={flowRef}
+                role="document"
                 onMouseUp={onMouseUp}
                 style={{ transform: `translateX(${-page * step}px)`, opacity: fading ? 0 : 1 }}
               >
@@ -1538,6 +1552,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
             </div>
             <div className="rd-spine" aria-hidden="true" />
             <button
+              type="button"
               className="rd-pg-arrow left"
               onClick={() => advance(-1)}
               disabled={page === 0 && cIdx === 0}
@@ -1546,6 +1561,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
               {I.left}
             </button>
             <button
+              type="button"
               className="rd-pg-arrow right"
               onClick={() => advance(1)}
               disabled={page >= pageCount - 1 && cIdx === chapters.length - 1}
@@ -1559,7 +1575,12 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
           </div>
         ) : (
           <div className="rd-scroll" ref={scrollRef}>
-            <div className="rd-col" key={`${book.id}-${ch.n}`} onMouseUp={onMouseUp}>
+            <div
+              className="rd-col"
+              key={`${book.id}-${ch.n}`}
+              role="document"
+              onMouseUp={onMouseUp}
+            >
               {chapterBody}
             </div>
           </div>
@@ -1569,10 +1590,18 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
         {layout === "archive" && readMode === "text" && (
           <div className="rd-rail">
             <div className="rail-tabs">
-              <button className={railTab === "anno" ? "on" : ""} onClick={() => setRailTab("anno")}>
+              <button
+                type="button"
+                className={railTab === "anno" ? "on" : ""}
+                onClick={() => setRailTab("anno")}
+              >
                 本章批注
               </button>
-              <button className={railTab === "ai" ? "on" : ""} onClick={() => setRailTab("ai")}>
+              <button
+                type="button"
+                className={railTab === "ai" ? "on" : ""}
+                onClick={() => setRailTab("ai")}
+              >
                 AI 书友
               </button>
             </div>
@@ -1606,14 +1635,18 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
       {/* bottom progress */}
       <div className="rd-foot">
         <div className="pg-nav">
-          <button onClick={() => go(-1)} disabled={readMode === "text" && cIdx === 0}>
+          <button type="button" onClick={() => go(-1)} disabled={readMode === "text" && cIdx === 0}>
             {I.left}
           </button>
-          <button onClick={() => go(1)} disabled={readMode === "text" && cIdx === chapterCount - 1}>
+          <button
+            type="button"
+            onClick={() => go(1)}
+            disabled={readMode === "text" && cIdx === chapterCount - 1}
+          >
             {I.right}
           </button>
         </div>
-        <div className="pg-track" onClick={seekTextProgress}>
+        <div className="pg-track" {...clickable(seekTextProgress)}>
           <div
             className="pg-fill"
             style={{ width: readMode === "epub" ? "0%" : barProg * 100 + "%" }}
@@ -1633,37 +1666,52 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
         <div
           className="sel-pop"
           style={{ left: sel.x, top: sel.y }}
+          role="toolbar"
           onMouseDown={(e) => e.preventDefault()}
         >
           <span
             className="swatch"
             style={{ background: "var(--accent)" }}
             title="朱砂"
-            onClick={() => applyHl("hl-user")}
+            {...clickable(() => applyHl("hl-user"))}
           />
           <span
             className="swatch"
             style={{ background: "#e3b54a" }}
             title="赭黄"
-            onClick={() => applyHl("hl-yellow")}
+            {...clickable(() => applyHl("hl-yellow"))}
           />
           <span
             className="swatch"
             style={{ background: "#5aa36e" }}
             title="松绿"
-            onClick={() => applyHl("hl-green")}
+            {...clickable(() => applyHl("hl-green"))}
           />
           {sel.sids.some((id) => hls[id]) && (
-            <button className="clear-hl" title="取消划线" onClick={() => applyHl(null)}>
+            <button
+              type="button"
+              className="clear-hl"
+              title="取消划线"
+              onClick={() => applyHl(null)}
+            >
               {I.x} 取消
             </button>
           )}
           <span className="sep" />
-          <button onClick={startNote}>{I.note} 批注</button>
-          <button onClick={translateSelection}>{I.spark} 今译</button>
-          <button onClick={askAI}>{I.spark} 问 AI</button>
-          <button onClick={openEcho}>{I.echo} 回声</button>
+          <button type="button" onClick={startNote}>
+            {I.note} 批注
+          </button>
+          <button type="button" onClick={translateSelection}>
+            {I.spark} 今译
+          </button>
+          <button type="button" onClick={askAI}>
+            {I.spark} 问 AI
+          </button>
+          <button type="button" onClick={openEcho}>
+            {I.echo} 回声
+          </button>
           <button
+            type="button"
             onClick={() => {
               navigator.clipboard && navigator.clipboard.writeText(sel.text);
               setSel(null);
@@ -1685,7 +1733,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
               <div
                 className="drawer-scrim"
                 style={{ background: "transparent", zIndex: 835 }}
-                onClick={() => setNotePop(null)}
+                {...clickable(() => setNotePop(null))}
               />
               <div
                 className="note-pop"
@@ -1703,7 +1751,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                       {lineHeat} 人划线
                     </span>
                   )}
-                  <span className="x" onClick={() => setNotePop(null)}>
+                  <span className="x" {...clickable(() => setNotePop(null))}>
                     {I.x}
                   </span>
                 </div>
@@ -1718,7 +1766,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                           (!n.ai && canProfile(n) ? " ava-link" : "")
                         }
                         style={{ background: n.color }}
-                        onClick={!n.ai && canProfile(n) ? () => openProfile(n) : undefined}
+                        {...(!n.ai && canProfile(n) ? clickable(() => openProfile(n)) : {})}
                       >
                         {n.ai ? "AI" : n.u[0]}
                       </div>
@@ -1746,7 +1794,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                       if (e.key === "Enter") addNote(notePop.sid);
                     }}
                   />
-                  <span className="send" onClick={() => addNote(notePop.sid)}>
+                  <span className="send" {...clickable(() => addNote(notePop.sid))}>
                     {I.send}
                   </span>
                 </div>
@@ -1761,7 +1809,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
           <div
             className="drawer-scrim"
             style={{ background: "transparent" }}
-            onClick={() => setSetOpen(false)}
+            {...clickable(() => setSetOpen(false))}
           />
           <div className="set-pop" style={{ right: 22, top: 64 }}>
             <div className="set-row">
@@ -1769,6 +1817,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
               <div className="seg reader-layout-seg">
                 {READER_LAYOUT_OPTIONS.map(({ value, label }) => (
                   <button
+                    type="button"
                     key={value}
                     className={layout === value ? "on" : ""}
                     onClick={() => setReaderLayout(value)}
@@ -1800,6 +1849,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                   ["fade", "淡出"],
                 ].map(([k, l]) => (
                   <button
+                    type="button"
                     key={k}
                     className={pageMode === k ? "on" : ""}
                     onClick={() => setPageMode(k)}
@@ -1818,6 +1868,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                   ["hant", "繁体"],
                 ].map(([k, l]) => (
                   <button
+                    type="button"
                     key={k}
                     className={scriptMode === k ? "on" : ""}
                     onClick={() => setScriptMode(k)}
@@ -1836,7 +1887,12 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                   ["sepia", "羊皮"],
                   ["night", "夜读"],
                 ].map(([k, l]) => (
-                  <button key={k} className={rtheme === k ? "on" : ""} onClick={() => setRtheme(k)}>
+                  <button
+                    type="button"
+                    key={k}
+                    className={rtheme === k ? "on" : ""}
+                    onClick={() => setRtheme(k)}
+                  >
                     <span className={`sw ${k}`} />
                     {l}
                   </button>
@@ -1851,7 +1907,12 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                   ["kai", "楷 / 衬线"],
                   ["hei", "等宽"],
                 ].map(([k, l]) => (
-                  <button key={k} className={font === k ? "on" : ""} onClick={() => setFont(k)}>
+                  <button
+                    type="button"
+                    key={k}
+                    className={font === k ? "on" : ""}
+                    onClick={() => setFont(k)}
+                  >
                     {l}
                   </button>
                 ))}
@@ -1906,11 +1967,11 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
       {/* TOC drawer */}
       {tocOpen && (
         <>
-          <div className="drawer-scrim" onClick={() => setTocOpen(false)} />
+          <div className="drawer-scrim" {...clickable(() => setTocOpen(false))} />
           <div className="toc-drawer">
             <div className="dh">
               <span className="t">目录 · {tx(book.t)}</span>
-              <span className="x" onClick={() => setTocOpen(false)}>
+              <span className="x" {...clickable(() => setTocOpen(false))}>
                 {I.x}
               </span>
             </div>
@@ -1937,7 +1998,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
       {/* AI drawer (classic / immersive) */}
       {aiOpen && layout !== "archive" && (
         <>
-          <div className="drawer-scrim" onClick={() => setAiOpen(false)} />
+          <div className="drawer-scrim" {...clickable(() => setAiOpen(false))} />
           <div className="ai-drawer">
             <div className="dh">
               <span className="orb" />
@@ -1950,7 +2011,7 @@ function Reader({ bookId, startChapter, onClose, continueConvo, onOpenBook }) {
                   {(window.LENSES.find((l) => l.id === aiMode) || {}).name} 视角
                 </div>
               </div>
-              <span className="x" onClick={() => setAiOpen(false)}>
+              <span className="x" {...clickable(() => setAiOpen(false))}>
                 {I.x}
               </span>
             </div>
@@ -2112,14 +2173,14 @@ function ShareComposer({ book, ch, aiCtx, feed, continueConvo, onClose, onPublis
 
   return (
     <>
-      <div className="drawer-scrim" style={{ zIndex: 860 }} onClick={onClose} />
+      <div className="drawer-scrim" style={{ zIndex: 860 }} {...clickable(onClose)} />
       <div className="share-modal">
         <div className="sh-head">
           <div>
             <div className="sh-kick">{I.spark} 分享这段对话</div>
             <div className="sh-sub">弱化是谁问的，让问题和过程本身被看见</div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {I.x}
           </span>
         </div>
@@ -2130,10 +2191,15 @@ function ShareComposer({ book, ch, aiCtx, feed, continueConvo, onClose, onPublis
             <div className="sh-row">
               <div className="sh-lab">形态</div>
               <div className="seg">
-                <button className={form === "card" ? "on" : ""} onClick={() => setForm("card")}>
+                <button
+                  type="button"
+                  className={form === "card" ? "on" : ""}
+                  onClick={() => setForm("card")}
+                >
                   对话卡
                 </button>
                 <button
+                  type="button"
                   className={form === "insight" ? "on" : ""}
                   onClick={() => setForm("insight")}
                 >
@@ -2181,18 +2247,31 @@ function ShareComposer({ book, ch, aiCtx, feed, continueConvo, onClose, onPublis
             <div className="sh-row">
               <div className="sh-lab">谁能看到</div>
               <div className="seg">
-                <button className={vis === "public" ? "on" : ""} onClick={() => setVis("public")}>
+                <button
+                  type="button"
+                  className={vis === "public" ? "on" : ""}
+                  onClick={() => setVis("public")}
+                >
                   公开
                 </button>
-                <button className={vis === "group" ? "on" : ""} onClick={() => setVis("group")}>
+                <button
+                  type="button"
+                  className={vis === "group" ? "on" : ""}
+                  onClick={() => setVis("group")}
+                >
                   仅共读小组
                 </button>
-                <button className={vis === "private" ? "on" : ""} onClick={() => setVis("private")}>
+                <button
+                  type="button"
+                  className={vis === "private" ? "on" : ""}
+                  onClick={() => setVis("private")}
+                >
                   仅自己
                 </button>
               </div>
             </div>
             <button
+              type="button"
               className="btn btn-primary sh-publish"
               disabled={!msgs.length}
               onClick={publish}
@@ -2228,14 +2307,14 @@ function LensPicker({ active, summoned, onClose, onSummon }) {
   const official = lenses.filter((l) => l.tag === "official");
   return (
     <>
-      <div className="drawer-scrim" style={{ zIndex: 858 }} onClick={onClose} />
+      <div className="drawer-scrim" style={{ zIndex: 858 }} {...clickable(onClose)} />
       <div className="lens-modal">
         <div className="lens-head">
           <div>
             <div className="lens-kick">{I.spark} 召唤一个读书视角</div>
             <div className="lens-sub">同一本书，换一种眼光读。每个视角都是一个署名的 Agent。</div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {I.x}
           </span>
         </div>
@@ -2245,7 +2324,7 @@ function LensPicker({ active, summoned, onClose, onSummon }) {
             <div
               className={`lens-row ${active === l.id ? "on" : ""}`}
               key={l.id}
-              onClick={() => onSummon(l.id)}
+              {...clickable(() => onSummon(l.id))}
             >
               <span className="lens-av" style={{ background: l.color }}>
                 {l.seal}
@@ -2267,7 +2346,7 @@ function LensPicker({ active, summoned, onClose, onSummon }) {
               <div
                 className={`lens-row ${active === l.id ? "on" : ""}`}
                 key={l.id}
-                onClick={() => onSummon(l.id)}
+                {...clickable(() => onSummon(l.id))}
               >
                 <span className="lens-av" style={{ background: l.color }}>
                   {l.seal}
@@ -2334,7 +2413,7 @@ function AIPanel({
           <span
             key={l.id}
             className={`ai-mode ${aiMode === l.id ? "on" : ""} ${l.tag === "community" ? "comm" : ""}`}
-            onClick={() => setAiMode(l.id)}
+            {...clickable(() => setAiMode(l.id))}
           >
             {l.tag === "community" && (
               <i className="lens-seal" style={{ background: l.color }}>
@@ -2344,7 +2423,7 @@ function AIPanel({
             {l.name}
           </span>
         ))}
-        <span className="ai-mode summon" onClick={onSummon}>
+        <span className="ai-mode summon" {...clickable(onSummon)}>
           ＋ 召唤视角
         </span>
       </div>
@@ -2354,7 +2433,7 @@ function AIPanel({
             <div className="lab">就这一句提问</div>
             <div className="q">「{aiCtx.length > 30 ? aiCtx.slice(0, 30) + "…" : aiCtx}」</div>
           </div>
-          <span className="x" onClick={() => setAiCtx(null)}>
+          <span className="x" {...clickable(() => setAiCtx(null))}>
             {I.x}
           </span>
         </div>
@@ -2384,7 +2463,7 @@ function AIPanel({
         )}
       </div>
       {hasExchange && onShare && (
-        <div className="ai-share-bar" onClick={onShare}>
+        <div className="ai-share-bar" {...clickable(onShare)}>
           <span className="asb-l">
             {I.spark} 这段聊得不错？<b>分享出去</b>，让别人接着问
           </span>
@@ -2393,7 +2472,7 @@ function AIPanel({
       )}
       <div className="ai-suggest">
         {suggests.map((s, i) => (
-          <span key={i} className="ai-chip" onClick={() => sendAI(s)}>
+          <span key={i} className="ai-chip" {...clickable(() => sendAI(s))}>
             {s}
           </span>
         ))}
@@ -2407,7 +2486,7 @@ function AIPanel({
             if (e.key === "Enter") sendAI();
           }}
         />
-        <span className="send" onClick={() => sendAI()}>
+        <span className="send" {...clickable(() => sendAI())}>
           {I.send}
         </span>
       </div>

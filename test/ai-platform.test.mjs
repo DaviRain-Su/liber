@@ -30,7 +30,7 @@ test("classical Chinese translation is a first-class reader lens", () => {
   assert.match(aiPrompts, /temperature: translate \? 0\.2 : 0\.7/);
   assert.match(productData, /id:"translate", name:"古文今译"/);
   assert.match(readerSource, /translateSelection/);
-  assert.match(readerSource, />\{I\.spark\} 今译<\/button>/);
+  assert.match(readerSource, />\s*\{I\.spark\} 今译\s*<\/button>/);
   assert.match(readerSource, /翻译成现代白话/);
 });
 

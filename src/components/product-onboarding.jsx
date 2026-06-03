@@ -265,7 +265,7 @@ function Onboarding({ onFinish }) {
             ))}
           </div>
           {step > 0 && step < 4 && (
-            <button className="onb-skip" onClick={() => finish()}>
+            <button type="button" className="onb-skip" onClick={() => finish()}>
               跳过，先逛逛
             </button>
           )}
@@ -285,10 +285,14 @@ function Onboarding({ onFinish }) {
                 从这里开始，慢读一本好书。
               </p>
               <div className="onb-actions">
-                <button className="btn btn-primary onb-cta" onClick={() => setStep(1)}>
+                <button
+                  type="button"
+                  className="btn btn-primary onb-cta"
+                  onClick={() => setStep(1)}
+                >
                   开始 <span className="arr">→</span>
                 </button>
-                <button className="btn btn-ghost onb-cta" onClick={() => setStep(2)}>
+                <button type="button" className="btn btn-ghost onb-cta" onClick={() => setStep(2)}>
                   我已有账户，直接登录
                 </button>
               </div>
@@ -325,7 +329,11 @@ function Onboarding({ onFinish }) {
                 ))}
               </div>
               <div className="onb-actions">
-                <button className="btn btn-primary onb-cta" onClick={() => setStep(2)}>
+                <button
+                  type="button"
+                  className="btn btn-primary onb-cta"
+                  onClick={() => setStep(2)}
+                >
                   登录，开始阅读 <span className="arr">→</span>
                 </button>
               </div>
@@ -355,6 +363,7 @@ function Onboarding({ onFinish }) {
                 </div>
                 <div className="auth-list">
                   <button
+                    type="button"
                     className={`auth-row ${connecting === "passkey" ? "connecting" : ""}`}
                     disabled={!!connecting}
                     onClick={() => passkey("signin")}
@@ -377,6 +386,7 @@ function Onboarding({ onFinish }) {
                   </button>
                 </div>
                 <button
+                  type="button"
                   className={`passkey-create ${connecting === "passkey-create" ? "connecting" : ""}`}
                   disabled={!!connecting}
                   onClick={() => passkey("create")}
@@ -467,6 +477,7 @@ function Onboarding({ onFinish }) {
                 <div className="auth-list">
                   {WALLETS.map((w) => (
                     <button
+                      type="button"
                       className={`auth-row ${connecting === w.k ? "connecting" : ""}`}
                       key={w.k}
                       disabled={!!connecting}
@@ -507,6 +518,7 @@ function Onboarding({ onFinish }) {
                 私钥永不离开你的钱包 · 登录即同意以 CC0 协议共享你的公开批注。
               </div>
               <button
+                type="button"
                 className="btn-quiet signin-guest"
                 disabled={!!connecting}
                 onClick={() => finish()}
@@ -532,6 +544,7 @@ function Onboarding({ onFinish }) {
               <div className="int-grid">
                 {INTERESTS.map((it) => (
                   <button
+                    type="button"
                     className={`int-chip ${picks.includes(it.k) ? "on" : ""}`}
                     key={it.k}
                     onClick={() => togglePick(it.k)}
@@ -544,6 +557,7 @@ function Onboarding({ onFinish }) {
               </div>
               <div className="onb-actions">
                 <button
+                  type="button"
                   className="btn btn-primary onb-cta"
                   disabled={!picks.length}
                   onClick={() => setStep(4)}
@@ -565,7 +579,7 @@ function Onboarding({ onFinish }) {
                 和一位随时在旁的 AI 书友，等你翻开第一页。
               </p>
               <div className="onb-actions">
-                <button className="btn btn-primary onb-cta" onClick={() => finish()}>
+                <button type="button" className="btn btn-primary onb-cta" onClick={() => finish()}>
                   进入图书馆 <span className="arr">→</span>
                 </button>
               </div>

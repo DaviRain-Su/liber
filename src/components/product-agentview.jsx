@@ -1,6 +1,7 @@
 import React from "react";
 import { I } from "./product-shared.jsx";
 import { findCatalogBook, getCatalogTotal, licenseLabel } from "../lib/catalog.js";
+import { clickable } from "../lib/a11y.js";
 
 /* product-agentview.jsx — "Agent View": flip any page into the structured,
    addressable, MCP representation an AI Agent sees. Reuses .term styles. */
@@ -73,7 +74,7 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }) {
     const top = ranked.slice(0, 5);
     return (
       <>
-        <div className="drawer-scrim" onClick={onClose} />
+        <div className="drawer-scrim" {...clickable(onClose)} />
         <div className="agentview-drawer">
           <div className="av-head">
             <div className="av-orb">{I.agent}</div>
@@ -81,7 +82,7 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }) {
               <div className="av-t">Agent 视角 · 榜单</div>
               <div className="av-s">同一份榜单，Agent 调用到的样子</div>
             </div>
-            <span className="x" onClick={onClose}>
+            <span className="x" {...clickable(onClose)}>
               {I.x}
             </span>
           </div>
@@ -96,7 +97,9 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }) {
                   </code>
                   <span
                     className="copy"
-                    onClick={() => onCopy(`liber://charts/${ctxCharts.win}/${ctxCharts.metric}`)}
+                    {...clickable(() =>
+                      onCopy(`liber://charts/${ctxCharts.win}/${ctxCharts.metric}`),
+                    )}
                   >
                     {I.copy}
                   </span>
@@ -177,7 +180,7 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }) {
           </div>
           <div className="av-foot">
             榜单不是排他的产品功能，而是<b>一份谁都能读的公共信号</b> ·{" "}
-            <span className="av-square-link" onClick={onSquare}>
+            <span className="av-square-link" {...clickable(onSquare)}>
               看看哪些 Agent 在用它 →
             </span>
           </div>
@@ -188,7 +191,7 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }) {
 
   return (
     <>
-      <div className="drawer-scrim" onClick={onClose} />
+      <div className="drawer-scrim" {...clickable(onClose)} />
       <div className="agentview-drawer">
         <div className="av-head">
           <div className="av-orb">{I.agent}</div>
@@ -198,7 +201,7 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }) {
               {corpus ? "整座图书馆" : `《${book.t}》`} · AI Agent 看到的样子
             </div>
           </div>
-          <span className="x" onClick={onClose}>
+          <span className="x" {...clickable(onClose)}>
             {I.x}
           </span>
         </div>
@@ -211,7 +214,7 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }) {
               <div className="ar">
                 <span className="k">liber</span>
                 <code>{addr.uri}</code>
-                <span className="copy" onClick={() => onCopy(addr.uri)}>
+                <span className="copy" {...clickable(() => onCopy(addr.uri))}>
                   {I.copy}
                 </span>
               </div>
@@ -382,12 +385,12 @@ function AgentView({ context, onClose, onCopy, onSquare, onGraph }) {
           全部 CC0 · 无需鉴权 · 无抽成 · 无下架 — <b>内容即接口</b>
           <br />
           {onGraph && (
-            <span className="av-square-link" onClick={onGraph}>
+            <span className="av-square-link" {...clickable(onGraph)}>
               看全馆思维链接图谱 →
             </span>
           )}
           {onGraph && <br />}
-          <span className="av-square-link" onClick={onSquare}>
+          <span className="av-square-link" {...clickable(onSquare)}>
             浏览 Agent 广场 —谁在读这座图书馆 →
           </span>
         </div>

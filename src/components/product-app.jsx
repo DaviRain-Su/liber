@@ -7,6 +7,7 @@ import { Library } from "./product-library.jsx";
 import { Detail } from "./product-detail.jsx";
 import { SearchOverlay } from "./product-search.jsx";
 import { CliAuth } from "./cli-auth.jsx";
+import { clickable } from "../lib/a11y.js";
 import {
   createRootRoute,
   createRoute,
@@ -500,11 +501,13 @@ function RootLayout() {
       {phonePreview && (
         <div
           className="phone-preview-scrim"
-          onClick={() => {
+          {...clickable(() => {
             setPhonePreview(false);
             window.dispatchEvent(new CustomEvent("liber-device-reset"));
-          }}
+          })}
         >
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: click-containment, not a control */}
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: click-containment, not a control */}
           <div className="phone-preview-wrap" onClick={(e) => e.stopPropagation()}>
             <div className="phone-preview-cap">移动端预览 · 390pt</div>
             <IOSDevice>
@@ -517,6 +520,7 @@ function RootLayout() {
               </div>
             </IOSDevice>
             <button
+              type="button"
               className="phone-preview-close"
               onClick={() => {
                 setPhonePreview(false);
@@ -751,7 +755,7 @@ function Placeholder({ name, onBack }) {
             这一部分还在设计中。当前原型聚焦在{" "}
             <b style={{ color: "var(--accent)" }}>书库 → 详情 → 阅读器</b> 这条主线。
           </p>
-          <button className="btn btn-primary" onClick={onBack}>
+          <button type="button" className="btn btn-primary" onClick={onBack}>
             回到书库 <span className="arr">→</span>
           </button>
         </div>

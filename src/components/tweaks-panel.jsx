@@ -276,9 +276,10 @@ function TweaksPanel({ title = "Tweaks", children }) {
         data-omelette-chrome=""
         style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}
       >
-        <div className="twk-hd" onMouseDown={onDragStart}>
+        <div className="twk-hd" role="toolbar" onMouseDown={onDragStart}>
           <b>{title}</b>
           <button
+            type="button"
             className="twk-x"
             aria-label="Close tweaks"
             onMouseDown={(e) => e.stopPropagation()}
@@ -434,6 +435,7 @@ function TweakRadio({ label, value, options, onChange }) {
           }}
         />
         {opts.map((o) => (
+          // biome-ignore lint/a11y/useSemanticElements: styled segmented-control button with child label; native radio input cannot render it
           <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
             {o.label}
           </button>
@@ -580,6 +582,7 @@ function TweakColor({ label, value, options, onChange }) {
           const sup = rest.slice(0, 4);
           const on = key(o) === cur;
           return (
+            // biome-ignore lint/a11y/useSemanticElements: styled color-swatch button with nested spans; native radio input cannot render it
             <button
               key={i}
               type="button"
