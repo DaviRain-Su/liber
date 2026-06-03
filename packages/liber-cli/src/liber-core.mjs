@@ -24,7 +24,7 @@ function decodeXml(value) {
   return String(value || "")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, "\"")
+    .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&")
     .trim();
@@ -41,7 +41,10 @@ function escapeRegExp(value) {
 }
 
 function tagValues(xml, tag) {
-  const re = new RegExp(`<${escapeRegExp(tag)}\\b[^>]*>([\\s\\S]*?)<\\/${escapeRegExp(tag)}>`, "gi");
+  const re = new RegExp(
+    `<${escapeRegExp(tag)}\\b[^>]*>([\\s\\S]*?)<\\/${escapeRegExp(tag)}>`,
+    "gi",
+  );
   return [...xml.matchAll(re)].map((m) => decodeXml(m[1])).filter(Boolean);
 }
 
@@ -69,7 +72,8 @@ function findEndOfCentralDirectory(buffer) {
 }
 
 function readZipEntries(buffer) {
-  if (buffer.length < 22) throw new LiberCliError("EPUB_BAD_ZIP", "File is too small to be a ZIP archive.");
+  if (buffer.length < 22)
+    throw new LiberCliError("EPUB_BAD_ZIP", "File is too small to be a ZIP archive.");
   const eocd = findEndOfCentralDirectory(buffer);
   const count = buffer.readUInt16LE(eocd + 10);
   const centralSize = buffer.readUInt32LE(eocd + 12);
@@ -101,14 +105,22 @@ function readZipEntries(buffer) {
     const localExtraLen = buffer.readUInt16LE(localOffset + 28);
     const dataStart = localOffset + 30 + localNameLen + localExtraLen;
     const dataEnd = dataStart + compressedSize;
-    if (dataEnd > buffer.length) throw new LiberCliError("EPUB_BAD_ZIP", `ZIP entry ${name} points outside the file.`);
+    if (dataEnd > buffer.length)
+      throw new LiberCliError("EPUB_BAD_ZIP", `ZIP entry ${name} points outside the file.`);
     const compressed = buffer.slice(dataStart, dataEnd);
     let data;
     if (method === 0) data = compressed;
     else if (method === 8) data = inflateRawSync(compressed);
-    else throw new LiberCliError("EPUB_UNSUPPORTED_COMPRESSION", `ZIP entry ${name} uses unsupported compression method ${method}.`);
+    else
+      throw new LiberCliError(
+        "EPUB_UNSUPPORTED_COMPRESSION",
+        `ZIP entry ${name} uses unsupported compression method ${method}.`,
+      );
     if (data.length !== uncompressedSize) {
-      throw new LiberCliError("EPUB_BAD_ZIP", `ZIP entry ${name} has an unexpected uncompressed size.`);
+      throw new LiberCliError(
+        "EPUB_BAD_ZIP",
+        `ZIP entry ${name} has an unexpected uncompressed size.`,
+      );
     }
     entries.set(normalizeEpubPath(name), data);
   }
@@ -166,14 +178,20 @@ async function readEpubPackage(filePath) {
   const entries = readZipEntries(buffer);
   const mimetype = entryText(entries, "mimetype").trim();
   if (mimetype !== EPUB_MEDIA_TYPE) {
-    throw new LiberCliError("EPUB_BAD_MIMETYPE", `Expected EPUB mimetype ${EPUB_MEDIA_TYPE}, got ${mimetype || "missing"}.`);
+    throw new LiberCliError(
+      "EPUB_BAD_MIMETYPE",
+      `Expected EPUB mimetype ${EPUB_MEDIA_TYPE}, got ${mimetype || "missing"}.`,
+    );
   }
 
   const container = entryText(entries, "META-INF/container.xml");
-  if (!container) throw new LiberCliError("EPUB_NO_CONTAINER", "EPUB is missing META-INF/container.xml.");
-  const rootfile = container.match(/\bfull-path\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1]
-    || container.match(/\bfull-path\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[2];
-  if (!rootfile) throw new LiberCliError("EPUB_NO_OPF", "EPUB container does not declare an OPF rootfile.");
+  if (!container)
+    throw new LiberCliError("EPUB_NO_CONTAINER", "EPUB is missing META-INF/container.xml.");
+  const rootfile =
+    container.match(/\bfull-path\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1] ||
+    container.match(/\bfull-path\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[2];
+  if (!rootfile)
+    throw new LiberCliError("EPUB_NO_OPF", "EPUB container does not declare an OPF rootfile.");
 
   const opfPath = normalizeEpubPath(rootfile);
   const opf = entryText(entries, opfPath);
@@ -198,12 +216,14 @@ export async function inspectEpub(filePath) {
 }
 
 function stripHtmlInline(raw) {
-  return decodeEntities(String(raw || "")
-    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim());
+  return decodeEntities(
+    String(raw || "")
+      .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 function resolveEpubHref(baseFile, href) {
@@ -215,14 +235,16 @@ function resolveEpubHref(baseFile, href) {
 }
 
 function parseNcxNavigation(pkg) {
-  const toc = pkg.parsed.manifest.find((item) => item.mediaType === "application/x-dtbncx+xml")
-    || pkg.parsed.manifest.find((item) => /toc\.ncx$/i.test(item.href));
+  const toc =
+    pkg.parsed.manifest.find((item) => item.mediaType === "application/x-dtbncx+xml") ||
+    pkg.parsed.manifest.find((item) => /toc\.ncx$/i.test(item.href));
   if (!toc) return [];
   const xml = entryText(pkg.entries, toc.href);
   if (!xml) return [];
 
   const entries = [];
-  const navPointRe = /<navPoint\b[^>]*>[\s\S]*?<navLabel\b[^>]*>\s*<text\b[^>]*>([\s\S]*?)<\/text>\s*<\/navLabel>\s*<content\b([^>]*?)(?:\/>|>)/gi;
+  const navPointRe =
+    /<navPoint\b[^>]*>[\s\S]*?<navLabel\b[^>]*>\s*<text\b[^>]*>([\s\S]*?)<\/text>\s*<\/navLabel>\s*<content\b([^>]*?)(?:\/>|>)/gi;
   for (const point of xml.matchAll(navPointRe)) {
     const label = stripHtmlInline(point[1] || "");
     const src = attrs(point[2] || "").src;
@@ -241,28 +263,60 @@ function anchorIndex(raw, fragment) {
 }
 
 function englishChapterTitle(text) {
-  const value = String(text || "").replace(/\s+/g, " ").trim();
+  const value = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (/^[A-Z]\.\s*[A-Z]\.?$/u.test(value)) return null;
   if (/^[CDML]\.\s+[\p{Lu}\p{M}'’ -]{2,80}$/u.test(value)) return null;
-  const chapterStart = value.match(/^(CHAPTER|Chapter|chapter)\s*([IVXLCDM]+|\d+)(\.?)(?:\s+(.{1,140}))?$/u);
-  if (chapterStart) return `${chapterStart[1]} ${chapterStart[2]}${chapterStart[3] || ""}${chapterStart[4] ? ` ${chapterStart[4].trim()}` : ""}`.replace(/\s+/g, " ").trim();
-  const wordNumber = "(?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY(?:[-\\s](?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE))?|THIRTY(?:[-\\s](?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE))?|FORTY(?:[-\\s](?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE))?|FIFTY(?:[-\\s](?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE))?)";
-  const chapterWordStart = value.match(new RegExp(`^(CHAPTER|Chapter|chapter)\\s+(${wordNumber})(?:\\s+(.{1,180}))?$`, "u"));
-  if (chapterWordStart) return `${chapterWordStart[1]} ${chapterWordStart[2]}${chapterWordStart[3] ? ` ${chapterWordStart[3].trim()}` : ""}`.replace(/\s+/g, " ").trim();
-  const staveStart = value.match(new RegExp(`^(STAVE|Stave|stave)\\s+([IVXLCDM]+|${wordNumber})(\\.?)(?:\\s+(.{1,180}))?$`, "u"));
-  if (staveStart) return `${staveStart[1]} ${staveStart[2]}${staveStart[3] || ""}${staveStart[4] ? ` ${staveStart[4].trim()}` : ""}`.replace(/\s+/g, " ").trim();
-  const localizedStart = value.match(/^(CHAPITRE|Chapitre|chapitre|CAP[ÍI]TULO|Cap[íi]tulo|CAPITOLO|Capitolo|CANTO|Canto|LIVRE|Livre|ACTE|Acte)\s+(.{1,180})$/u);
-  if (localizedStart) return `${localizedStart[1]} ${localizedStart[2].trim()}`.replace(/\s+/g, " ").trim();
+  const chapterStart = value.match(
+    /^(CHAPTER|Chapter|chapter)\s*([IVXLCDM]+|\d+)(\.?)(?:\s+(.{1,140}))?$/u,
+  );
+  if (chapterStart)
+    return `${chapterStart[1]} ${chapterStart[2]}${chapterStart[3] || ""}${chapterStart[4] ? ` ${chapterStart[4].trim()}` : ""}`
+      .replace(/\s+/g, " ")
+      .trim();
+  const wordNumber =
+    "(?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY(?:[-\\s](?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE))?|THIRTY(?:[-\\s](?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE))?|FORTY(?:[-\\s](?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE))?|FIFTY(?:[-\\s](?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE))?)";
+  const chapterWordStart = value.match(
+    new RegExp(`^(CHAPTER|Chapter|chapter)\\s+(${wordNumber})(?:\\s+(.{1,180}))?$`, "u"),
+  );
+  if (chapterWordStart)
+    return `${chapterWordStart[1]} ${chapterWordStart[2]}${chapterWordStart[3] ? ` ${chapterWordStart[3].trim()}` : ""}`
+      .replace(/\s+/g, " ")
+      .trim();
+  const staveStart = value.match(
+    new RegExp(`^(STAVE|Stave|stave)\\s+([IVXLCDM]+|${wordNumber})(\\.?)(?:\\s+(.{1,180}))?$`, "u"),
+  );
+  if (staveStart)
+    return `${staveStart[1]} ${staveStart[2]}${staveStart[3] || ""}${staveStart[4] ? ` ${staveStart[4].trim()}` : ""}`
+      .replace(/\s+/g, " ")
+      .trim();
+  const localizedStart = value.match(
+    /^(CHAPITRE|Chapitre|chapitre|CAP[ÍI]TULO|Cap[íi]tulo|CAPITOLO|Capitolo|CANTO|Canto|LIVRE|Livre|ACTE|Acte)\s+(.{1,180})$/u,
+  );
+  if (localizedStart)
+    return `${localizedStart[1]} ${localizedStart[2].trim()}`.replace(/\s+/g, " ").trim();
   const latinBook = value.match(/^(LIBER)\s+([IVXLCDM]+)$/u);
   if (latinBook) return `${latinBook[1]} ${latinBook[2]}`;
-  if (/^(?:PREMIÈRE|PREMIERE|DEUXIÈME|DEUXIEME|TROISIÈME|TROISIEME|QUATRIÈME|QUATRIEME)\s+PARTIE$/iu.test(value)) return value;
+  if (
+    /^(?:PREMIÈRE|PREMIERE|DEUXIÈME|DEUXIEME|TROISIÈME|TROISIEME|QUATRIÈME|QUATRIEME)\s+PARTIE$/iu.test(
+      value,
+    )
+  )
+    return value;
   if (/^[IVXLCDM]+\.\s+.{2,260}$/u.test(value)) return value;
   if (/^[IVXLCDM]+\s+[\p{Lu}“"‘'({].{1,180}$/u.test(value)) return value;
   if (/^[IVXLCDM]+$/u.test(value)) return value;
   const letterStart = value.match(/^(LETTER|Letter|letter)\s+(\d+)(\.?)(?:\s+(.{1,140}))?$/u);
-  if (letterStart) return `${letterStart[1]} ${letterStart[2]}${letterStart[3] || ""}${letterStart[4] ? ` ${letterStart[4].trim()}` : ""}`.replace(/\s+/g, " ").trim();
+  if (letterStart)
+    return `${letterStart[1]} ${letterStart[2]}${letterStart[3] || ""}${letterStart[4] ? ` ${letterStart[4].trim()}` : ""}`
+      .replace(/\s+/g, " ")
+      .trim();
   const bookStart = value.match(/^(BOOK|Book|book)\s+([IVXLCDM]+|\d+)(\.?)(?:\s+(.{1,140}))?$/u);
-  if (bookStart) return `${bookStart[1]} ${bookStart[2]}${bookStart[3] || ""}${bookStart[4] ? ` ${bookStart[4].trim()}` : ""}`.replace(/\s+/g, " ").trim();
+  if (bookStart)
+    return `${bookStart[1]} ${bookStart[2]}${bookStart[3] || ""}${bookStart[4] ? ` ${bookStart[4].trim()}` : ""}`
+      .replace(/\s+/g, " ")
+      .trim();
   const embedded = value.match(/\bCHAPTER\s*([IVXLCDM]+|\d+)\.?/iu);
   if (embedded) return `CHAPTER ${embedded[1]}.`;
   const letter = value.match(/\bLetter\s+(\d+)\.?/iu);
@@ -273,21 +327,25 @@ function englishChapterTitle(text) {
 }
 
 function isNavigationNoiseTitle(title, bookTitle) {
-  return isNoiseTitle(title, bookTitle)
-    || /project gutenberg|full license|license$/i.test(title)
-    || /transcriber'?s notes?/i.test(title)
-    || /illustrated edition|may (?:be )?viewed at ebook/i.test(title)
-    || /^oeuvres$/i.test(title)
-    || /^contents?$/i.test(title)
-    || /^list of illustrations?$/i.test(title)
-    || /^cover$/i.test(title)
-    || /\|\s*Project Gutenberg$/i.test(title)
-    || /^and\s+.+\s+by\b/i.test(title)
-    || /^linked image$/i.test(title);
+  return (
+    isNoiseTitle(title, bookTitle) ||
+    /project gutenberg|full license|license$/i.test(title) ||
+    /transcriber'?s notes?/i.test(title) ||
+    /illustrated edition|may (?:be )?viewed at ebook/i.test(title) ||
+    /^oeuvres$/i.test(title) ||
+    /^contents?$/i.test(title) ||
+    /^list of illustrations?$/i.test(title) ||
+    /^cover$/i.test(title) ||
+    /\|\s*Project Gutenberg$/i.test(title) ||
+    /^and\s+.+\s+by\b/i.test(title) ||
+    /^linked image$/i.test(title)
+  );
 }
 
 function looksLikeConciseNavigationTitle(title) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!value || value.length > 90) return false;
   if (looksLikeProseTitle(value) || looksLikeCreditTitle(value)) return false;
   if (/[.!?。！？]["'”’)]?$/u.test(value)) return false;
@@ -307,7 +365,11 @@ function isNavigableChapterTitle(title, bookTitle) {
 function navigationTitle(label, text, fallback) {
   const fromLabel = englishChapterTitle(label);
   if (fromLabel) return fromLabel;
-  const firstLine = String(text || "").split("\n").map((line) => line.trim()).filter(Boolean)[0] || "";
+  const firstLine =
+    String(text || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)[0] || "";
   const fromText = englishChapterTitle(firstLine);
   if (fromText) return fromText;
   return label || fallback;
@@ -315,15 +377,24 @@ function navigationTitle(label, text, fallback) {
 
 function cleanExtractedChapterText(title, text) {
   const exactTitlePrefix = new RegExp(`^${escapeRegExp(String(title || "").trim())}\\s*[:：]`);
-  const exactTitle = String(title || "").replace(/\s+/g, " ").trim().toLowerCase();
+  const exactTitle = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
   const raw = String(text || "");
-  const titleMatch = title && englishChapterTitle(title) ? raw.slice(0, 260).search(new RegExp(escapeRegExp(String(title).trim()), "i")) : -1;
+  const titleMatch =
+    title && englishChapterTitle(title)
+      ? raw.slice(0, 260).search(new RegExp(escapeRegExp(String(title).trim()), "i"))
+      : -1;
   const trimmed = titleMatch > 0 ? raw.slice(titleMatch) : raw;
   const prepared = trimmed
     .replace(/\[[^\]\n]*(?:公元前|公元|BC|AD)[^\]\n]*\]\s*(?:相關資源|相关资源)?/giu, "")
     .replace(/(?:相關資源|相关资源)/gu, "")
     .replace(/([。！？?””』」])\s+(\d{1,3}\.\s+[\p{Script=Han}]{1,8}\s*[:：])/gu, "$1\n\n$2")
-    .replace(/(^|\s)\d+\s+卷[一二两三四五六七八九十百千〇○零\d]+[:：]\s*[\p{Script=Han}]{1,20}(?=\s|$)/gu, "$1");
+    .replace(
+      /(^|\s)\d+\s+卷[一二两三四五六七八九十百千〇○零\d]+[:：]\s*[\p{Script=Han}]{1,20}(?=\s|$)/gu,
+      "$1",
+    );
   const sectioned = splitInlineChineseClassicSections(prepared, title);
   const blocks = sectioned
     .replace(/屬於：\[[^\]]+\]/g, "")
@@ -336,7 +407,9 @@ function cleanExtractedChapterText(title, text) {
     .filter((block) => !/^(?:相關資源|相关资源)$/u.test(block))
     .filter((block) => !/^\[[^\]]*(?:公元前|公元|BC|AD)[^\]]*\]$/iu.test(block))
     .filter((block) => !(title && exactTitlePrefix.test(block)))
-    .filter((block) => !(exactTitle && block.replace(/\s+/g, " ").trim().toLowerCase() === exactTitle))
+    .filter(
+      (block) => !(exactTitle && block.replace(/\s+/g, " ").trim().toLowerCase() === exactTitle),
+    )
     .map((block) => stripRepeatedChineseChapterLabel(block, title));
   return normalizeTextBlocks(blocks.join("\n\n"));
 }
@@ -345,12 +418,16 @@ function stripRepeatedChineseChapterLabel(block, title) {
   const heading = String(title || "").replace(/\s+/g, "");
   if (!heading || heading.length > 24 || !/\p{Script=Han}/u.test(heading)) return block;
   const escaped = escapeRegExp(heading);
-  return String(block || "").replace(new RegExp(`^(\\d{1,3})\\s+${escaped}\\s*[:：]\\s*`, "u"), "$1. ");
+  return String(block || "").replace(
+    new RegExp(`^(\\d{1,3})\\s+${escaped}\\s*[:：]\\s*`, "u"),
+    "$1. ",
+  );
 }
 
 function splitInlineChineseClassicSections(text, title) {
   const heading = String(title || "").replace(/\s+/g, "");
-  if (!heading || heading.length > 24 || !/\p{Script=Han}/u.test(heading)) return String(text || "");
+  if (!heading || heading.length > 24 || !/\p{Script=Han}/u.test(heading))
+    return String(text || "");
   const escaped = escapeRegExp(heading);
   return String(text || "")
     .replace(new RegExp(`\\s+(\\d{1,3}\\s+${escaped}\\s*[:：])`, "gu"), "\n\n$1")
@@ -379,7 +456,12 @@ function chaptersFromNavigation(pkg, items, bookTitle) {
     if (start < 0) continue;
     const endpoints = [
       ...nav.slice(i + 1).filter((candidate) => candidate.href === entry.href),
-      ...allNav.slice(entry.index + 1).filter((candidate) => candidate.href === entry.href && isStandaloneGutenbergJunkTitle(candidate.label)),
+      ...allNav
+        .slice(entry.index + 1)
+        .filter(
+          (candidate) =>
+            candidate.href === entry.href && isStandaloneGutenbergJunkTitle(candidate.label),
+        ),
     ]
       .map((candidate) => anchorIndex(raw, candidate.fragment))
       .filter((candidateStart) => candidateStart > start)
@@ -406,18 +488,23 @@ function normalizeTextBlocks(text) {
   return String(text || "")
     .replace(/\r\n/g, "\n")
     .split(/\n{2,}/)
-    .map((block) => block
-      .split("\n")
-      .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
-      .filter(Boolean)
-      .join("\n"))
+    .map((block) =>
+      block
+        .split("\n")
+        .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
+        .filter(Boolean)
+        .join("\n"),
+    )
     .filter(Boolean)
     .join("\n\n")
     .trim();
 }
 
 export function garbledTextWarnings(text) {
-  const sample = String(text || "").replace(/\s+/g, " ").trim().slice(0, 6000);
+  const sample = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 6000);
   if (!sample) return [];
 
   const chars = [...sample];
@@ -455,20 +542,24 @@ function assertReadableChapters(chapters) {
 function htmlToText(raw) {
   const BR = "\uE001";
   const SEP = "\uE002";
-  return normalizeTextBlocks(decodeEntities(String(raw || "")
-    .replace(/<head\b[\s\S]*?<\/head>/gi, " ")
-    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-    .replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
-    .replace(/<br\s*\/?>/gi, BR)
-    .replace(/<(p|div|section|article|blockquote|li|tr|h[1-6])\b[^>]*>/gi, SEP)
-    .replace(/<\/(p|div|section|article|blockquote|li|tr|h[1-6])>/gi, SEP)
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\r\n/g, "\n")
-    .replace(/\n{2,}/g, SEP)
-    .replace(/\n/g, " ")
-    .replaceAll(BR, "\n")
-    .replaceAll(SEP, "\n\n")));
+  return normalizeTextBlocks(
+    decodeEntities(
+      String(raw || "")
+        .replace(/<head\b[\s\S]*?<\/head>/gi, " ")
+        .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+        .replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
+        .replace(/<br\s*\/?>/gi, BR)
+        .replace(/<(p|div|section|article|blockquote|li|tr|h[1-6])\b[^>]*>/gi, SEP)
+        .replace(/<\/(p|div|section|article|blockquote|li|tr|h[1-6])>/gi, SEP)
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\r\n/g, "\n")
+        .replace(/\n{2,}/g, SEP)
+        .replace(/\n/g, " ")
+        .replaceAll(BR, "\n")
+        .replaceAll(SEP, "\n\n"),
+    ),
+  );
 }
 
 function chapterTitleFromHtml(raw, fallback) {
@@ -495,42 +586,56 @@ function stripProjectGutenbergBoilerplate(text) {
 }
 
 function isProjectGutenbergBoilerplateBlock(block) {
-  const value = String(block || "").replace(/\s+/g, " ").trim();
-  return /^produced by\b/i.test(value)
-    || /^this (?:e-?text|e-?book) was prepared\b/i.test(value)
-    || /^the project gutenberg (?:e-?text|e-?book)\b/i.test(value)
-    || /^project gutenberg'?s/i.test(value)
-    || /^a note from the digitizer\b/i.test(value)
-    || /^title\s*:/i.test(value)
-    || /^author\s*:/i.test(value)
-    || /^release date\s*:/i.test(value)
-    || /^language\s*:/i.test(value)
-    || /^character set encoding\s*:/i.test(value)
-    || /^transcriber'?s notes?\b/i.test(value)
-    || /^end of (?:the )?project gutenberg\b/i.test(value)
-    || /^the full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(value)
-    || /^full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(value)
-    || /^["“]?linked image["”]?$/i.test(value)
-    || /^(?:back|next)$/i.test(value)
-    || /^shows ruby\b/i.test(value)
-    || /^｜ marks\b/i.test(value)
-    || /^［＃.*］ explains\b/i.test(value);
+  const value = String(block || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (
+    /^produced by\b/i.test(value) ||
+    /^this (?:e-?text|e-?book) was prepared\b/i.test(value) ||
+    /^the project gutenberg (?:e-?text|e-?book)\b/i.test(value) ||
+    /^project gutenberg'?s/i.test(value) ||
+    /^a note from the digitizer\b/i.test(value) ||
+    /^title\s*:/i.test(value) ||
+    /^author\s*:/i.test(value) ||
+    /^release date\s*:/i.test(value) ||
+    /^language\s*:/i.test(value) ||
+    /^character set encoding\s*:/i.test(value) ||
+    /^transcriber'?s notes?\b/i.test(value) ||
+    /^end of (?:the )?project gutenberg\b/i.test(value) ||
+    /^the full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(value) ||
+    /^full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(value) ||
+    /^["“]?linked image["”]?$/i.test(value) ||
+    /^(?:back|next)$/i.test(value) ||
+    /^shows ruby\b/i.test(value) ||
+    /^｜ marks\b/i.test(value) ||
+    /^［＃.*］ explains\b/i.test(value)
+  );
 }
 
 function isGeneratedEpubPageMarker(block) {
-  return /^[09]\d{3,5}m$/i.test(String(block || "").replace(/\s+/g, "").trim());
+  return /^[09]\d{3,5}m$/i.test(
+    String(block || "")
+      .replace(/\s+/g, "")
+      .trim(),
+  );
 }
 
 function looksLikePartHeading(value) {
-  return /^PART\s+(?:[IVXLCDM]+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\b(?:\s*[—-]\s*.+)?$/iu
-    .test(String(value || "").replace(/\s+/g, " ").trim());
+  return /^PART\s+(?:[IVXLCDM]+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\b(?:\s*[—-]\s*.+)?$/iu.test(
+    String(value || "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 function looksLikeProseBlock(value) {
-  const block = String(value || "").replace(/\s+/g, " ").trim();
+  const block = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!block || isGeneratedEpubPageMarker(block)) return false;
   if (block.length > 140) return true;
-  if (/\p{Script=Han}/u.test(block) && block.length >= 8 && /[。！？；：，、]/u.test(block)) return true;
+  if (/\p{Script=Han}/u.test(block) && block.length >= 8 && /[。！？；：，、]/u.test(block))
+    return true;
   const words = block.split(/\s+/).length;
   return words >= 5 && /[.!?。！？]["'”’)]?$/u.test(block);
 }
@@ -544,23 +649,28 @@ function looksLikeNavigationOnlyText(text, bookTitle) {
   if (blocks.length < 4) return false;
   const headingish = blocks.filter((block) => {
     const one = block.replace(/\s+/g, " ").trim();
-    return isSameBookTitle(one, bookTitle)
-      || looksLikePartHeading(one)
-      || Boolean(englishChapterTitle(one))
-      || Boolean(classifyLogicalHeading(one, bookTitle));
+    return (
+      isSameBookTitle(one, bookTitle) ||
+      looksLikePartHeading(one) ||
+      Boolean(englishChapterTitle(one)) ||
+      Boolean(classifyLogicalHeading(one, bookTitle))
+    );
   }).length;
   const prose = blocks.filter(looksLikeProseBlock).length;
   return prose === 0 && headingish >= 4 && headingish / blocks.length >= 0.6;
 }
 
 function looksLikeProseTitle(value) {
-  const title = String(value || "").replace(/\s+/g, " ").trim();
+  const title = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (englishChapterTitle(title)) return false;
   if (looksLikeShortChineseProseTitle(title)) return true;
   if (/^[.…]+$/.test(title)) return true;
   if (/\*\*\*\*/.test(title)) return true;
   if (/^\[[12]\d{3}\s+edition\]$/i.test(title)) return true;
-  if (title.length > 28 && /^["'“‘「『]/u.test(title) && /[.!?。！？]["'”’」』]?$/u.test(title)) return true;
+  if (title.length > 28 && /^["'“‘「『]/u.test(title) && /[.!?。！？]["'”’」』]?$/u.test(title))
+    return true;
   if (title.length > 180) return true;
   if (title.length > 90 && /[.!?。！？；;:：]/u.test(title)) return true;
   if (title.split(/\s+/).length > 18 && !englishChapterTitle(title)) return true;
@@ -568,29 +678,39 @@ function looksLikeProseTitle(value) {
 }
 
 function looksLikeCreditTitle(value) {
-  const title = String(value || "").replace(/\s+/g, " ").trim();
-  const initialCredit = /^[A-Z]\.\s*[\p{Lu}\p{M}'’ -]{2,48}$/u.test(title)
-    && !/^[IVX]\.\s+/u.test(title);
-  return initialCredit
-    || /^(?:edited|illustrated|translated|printed|published)\s+by\b/i.test(title);
+  const title = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const initialCredit =
+    /^[A-Z]\.\s*[\p{Lu}\p{M}'’ -]{2,48}$/u.test(title) && !/^[IVX]\.\s+/u.test(title);
+  return (
+    initialCredit || /^(?:edited|illustrated|translated|printed|published)\s+by\b/i.test(title)
+  );
 }
 
 function isUnusableChapterTitle(title, bookTitle) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   const undecorated = undecorateTitle(value);
   const wasBracketed = /^(?:《[^《》]{1,80}》|【[^【】]{1,80}】)$/.test(value);
   if (undecorated && looksLikeChapterTitle(undecorated, wasBracketed)) return false;
   if (/^\d{1,3}[.、]\s+/.test(value)) return false;
-  return !value
-    || isNoiseTitle(value, bookTitle)
-    || isProjectGutenbergBoilerplateBlock(value)
-    || looksLikeCreditTitle(value)
-    || looksLikeProseTitle(value)
-    || looksLikeProseBlock(value);
+  return (
+    !value ||
+    isNoiseTitle(value, bookTitle) ||
+    isProjectGutenbergBoilerplateBlock(value) ||
+    looksLikeCreditTitle(value) ||
+    looksLikeProseTitle(value) ||
+    looksLikeProseBlock(value)
+  );
 }
 
 function candidateTitleFromText(text, bookTitle, fallback) {
-  const lines = String(text || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  const lines = String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
   const headingLines = lines.slice(0, 80);
   for (const line of headingLines) {
     const oneLine = line.replace(/\s+/g, " ").trim();
@@ -598,7 +718,8 @@ function candidateTitleFromText(text, bookTitle, fallback) {
     const english = englishChapterTitle(oneLine);
     if (english && !isUnusableChapterTitle(english, bookTitle)) return english;
     const logical = classifyLogicalHeading(oneLine, bookTitle);
-    if (logical?.kind === "chapter" && !isUnusableChapterTitle(logical.title, bookTitle)) return logical.title;
+    if (logical?.kind === "chapter" && !isUnusableChapterTitle(logical.title, bookTitle))
+      return logical.title;
   }
   if (bookTitle && !isUnusableChapterTitle(bookTitle, "")) return bookTitle;
   for (const line of headingLines.slice(0, 16)) {
@@ -610,17 +731,24 @@ function candidateTitleFromText(text, bookTitle, fallback) {
 }
 
 function hasExplicitChapterHeading(text, bookTitle) {
-  return String(text || "").split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 80).some((line) => {
-    const oneLine = line.replace(/\s+/g, " ").trim();
-    if (englishChapterTitle(oneLine)) return true;
-    if (classifyLogicalHeading(oneLine, bookTitle)?.kind === "chapter") return true;
-    if (isUnusableChapterTitle(oneLine, bookTitle)) return false;
-    return false;
-  });
+  return String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 80)
+    .some((line) => {
+      const oneLine = line.replace(/\s+/g, " ").trim();
+      if (englishChapterTitle(oneLine)) return true;
+      if (classifyLogicalHeading(oneLine, bookTitle)?.kind === "chapter") return true;
+      if (isUnusableChapterTitle(oneLine, bookTitle)) return false;
+      return false;
+    });
 }
 
 function cleanChapterTitle(title, text, fallback, bookTitle = "") {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   const trimmed = trimChineseChapterTitleProseTail(value);
   if (!isUnusableChapterTitle(trimmed, bookTitle)) return trimmed;
   return candidateTitleFromText(text, bookTitle, fallback);
@@ -634,8 +762,14 @@ function comparableTitle(value) {
 
 const HAN_ORDINAL_CHARS = "一二两兩三四五六七八九十百千〇○零廿卄卅卌\\d０-９";
 const HAN_ORDINAL_RE = `[${HAN_ORDINAL_CHARS}]+`;
-const CHINESE_CHAPTER_PREFIX_RE = new RegExp(`^(?:第\\s*)?${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷)`, "u");
-const CHINESE_VOLUME_MARKER_RE = new RegExp(`^(?:卷第?${HAN_ORDINAL_RE}(?:補遺|补遗)?|卷之${HAN_ORDINAL_RE}(?:上|中|下)?|第${HAN_ORDINAL_RE}卷)$`, "u");
+const CHINESE_CHAPTER_PREFIX_RE = new RegExp(
+  `^(?:第\\s*)?${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷)`,
+  "u",
+);
+const CHINESE_VOLUME_MARKER_RE = new RegExp(
+  `^(?:卷第?${HAN_ORDINAL_RE}(?:補遺|补遗)?|卷之${HAN_ORDINAL_RE}(?:上|中|下)?|第${HAN_ORDINAL_RE}卷)$`,
+  "u",
+);
 const HAN_NUMBER_DIGITS = new Map([
   ["〇", 0],
   ["○", 0],
@@ -691,14 +825,19 @@ function parseHanOrdinalNumber(value) {
 }
 
 function chineseOrdinalFromTitle(title) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
-  const chapter = value.match(new RegExp(`^第\\s*(${HAN_ORDINAL_RE})\\s*(回|章|節|节|篇|卦|卷)`, "u"));
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const chapter = value.match(
+    new RegExp(`^第\\s*(${HAN_ORDINAL_RE})\\s*(回|章|節|节|篇|卦|卷)`, "u"),
+  );
   if (chapter) {
     const n = parseHanOrdinalNumber(chapter[1]);
     return n ? { kind: chapter[2], n } : null;
   }
-  const volume = value.match(new RegExp(`^卷第?\\s*(${HAN_ORDINAL_RE})`, "u"))
-    || value.match(new RegExp(`^卷之\\s*(${HAN_ORDINAL_RE})`, "u"));
+  const volume =
+    value.match(new RegExp(`^卷第?\\s*(${HAN_ORDINAL_RE})`, "u")) ||
+    value.match(new RegExp(`^卷之\\s*(${HAN_ORDINAL_RE})`, "u"));
   if (volume) {
     const n = parseHanOrdinalNumber(volume[1]);
     return n ? { kind: "卷", n } : null;
@@ -707,7 +846,9 @@ function chineseOrdinalFromTitle(title) {
 }
 
 function trimChineseChapterTitleProseTail(title) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   const recitationStart = value.search(/\s+(?:詩曰|诗曰|詞曰|词曰)[:：]/u);
   if (recitationStart > 0 && CHINESE_CHAPTER_PREFIX_RE.test(value)) {
     return value.slice(0, recitationStart).trim();
@@ -727,7 +868,9 @@ function trimChineseChapterTitleProseTail(title) {
 }
 
 function looksLikeShortChineseProseTitle(title) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!value || !/\p{Script=Han}/u.test(value)) return false;
   if (CHINESE_CHAPTER_PREFIX_RE.test(value) || isVolumeMarker(value)) return false;
   if (/^\d{1,3}[.、]\s+[\p{Script=Han}]{1,16}$/u.test(value)) return false;
@@ -735,12 +878,23 @@ function looksLikeShortChineseProseTitle(title) {
 }
 
 function chineseBookPrefixedChapterTitle(title, bookTitle) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
-  const book = String(bookTitle || "").replace(/\s+/g, " ").trim();
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const book = String(bookTitle || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!value || !book || !/\p{Script=Han}/u.test(book)) return null;
-  const dotted = value.match(new RegExp(`^${escapeRegExp(book)}\\s*[‧·・．.]\\s*([\\p{Script=Han}]{1,24})$`, "u"));
+  const dotted = value.match(
+    new RegExp(`^${escapeRegExp(book)}\\s*[‧·・．.]\\s*([\\p{Script=Han}]{1,24})$`, "u"),
+  );
   if (dotted) return dotted[1];
-  const match = value.match(new RegExp(`^${escapeRegExp(book)}\\s+([\\p{Script=Han}]{1,24}(?:本紀|世家|列傳|列传|書|书|表|志|傳|传))$`, "u"));
+  const match = value.match(
+    new RegExp(
+      `^${escapeRegExp(book)}\\s+([\\p{Script=Han}]{1,24}(?:本紀|世家|列傳|列传|書|书|表|志|傳|传))$`,
+      "u",
+    ),
+  );
   return match?.[1] || null;
 }
 
@@ -751,7 +905,10 @@ function isSameBookTitle(title, bookTitle) {
 }
 
 function undecorateTitle(block) {
-  const lines = String(block || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  const lines = String(block || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
   if (lines.length !== 1) return null;
   let title = lines[0].replace(/\s+/g, " ").trim();
   const bracketed = title.match(/^[《〈「『【]([^《》〈〉「」『』【】]{1,80})[》〉」』】]$/u);
@@ -764,38 +921,46 @@ function isVolumeMarker(title) {
 }
 
 function isChineseVolumeMarkerTitle(title) {
-  return isVolumeMarker(String(title || "").replace(/\s+/g, " ").trim());
+  return isVolumeMarker(
+    String(title || "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 function isNoiseTitle(title, bookTitle) {
-  return isProjectGutenbergBoilerplateBlock(title)
-    || /^produced by\b/i.test(title)
-    || /^title\s*:/i.test(title)
-    || /^author\s*:/i.test(title)
-    || /^the project gutenberg ebook\b/i.test(title)
-    || /^the project gutenberg e-?text\b/i.test(title)
-    || /^this etext was prepared\b/i.test(title)
-    || /^full project gutenberg/i.test(title)
-    || /^the full project gutenberg/i.test(title)
-    || /^transcriber'?s notes?\b/i.test(title)
-    || /^linked image$/i.test(title)
-    || isSameBookTitle(title, bookTitle);
+  return (
+    isProjectGutenbergBoilerplateBlock(title) ||
+    /^produced by\b/i.test(title) ||
+    /^title\s*:/i.test(title) ||
+    /^author\s*:/i.test(title) ||
+    /^the project gutenberg ebook\b/i.test(title) ||
+    /^the project gutenberg e-?text\b/i.test(title) ||
+    /^this etext was prepared\b/i.test(title) ||
+    /^full project gutenberg/i.test(title) ||
+    /^the full project gutenberg/i.test(title) ||
+    /^transcriber'?s notes?\b/i.test(title) ||
+    /^linked image$/i.test(title) ||
+    isSameBookTitle(title, bookTitle)
+  );
 }
 
 function looksLikeChapterTitle(title, wasBracketed) {
   if (wasBracketed && title.length <= 40 && /[\p{L}\p{N}]/u.test(title)) return true;
-  return Boolean(englishChapterTitle(title))
-    || /^(?:preface|prologue|epilogue)\.?$/i.test(title)
-    || /^LIBER\s+[IVXLCDM]+$/u.test(title)
-    || /^[\p{L}]+ runo$/iu.test(title)
-    || /^KSIĘGA\s+[\p{L}]+\.?$/iu.test(title)
-    || new RegExp(`^第\\s*${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷).{0,80}$`, "u").test(title)
-    || new RegExp(`^卷第?${HAN_ORDINAL_RE}\\s+.{1,40}$`, "u").test(title)
-    || new RegExp(`^卷之${HAN_ORDINAL_RE}[\\p{Script=Han}]{1,16}(?:上|中|下)?$`, "u").test(title)
-    || new RegExp(`^[\\p{Script=Han}]{1,16}篇${HAN_ORDINAL_RE}$`, "u").test(title)
-    || new RegExp(`^[\\p{Script=Han}]{1,16}(?:上|中|下)?第${HAN_ORDINAL_RE}$`, "u").test(title)
-    || /^\d{1,3}[.、]\s+[\p{Script=Han}]{1,12}$/u.test(title)
-    || /^\d{3}[.、\s]+[\p{Script=Han}][^\n:：。！？；「」“”]{1,80}$/u.test(title);
+  return (
+    Boolean(englishChapterTitle(title)) ||
+    /^(?:preface|prologue|epilogue)\.?$/i.test(title) ||
+    /^LIBER\s+[IVXLCDM]+$/u.test(title) ||
+    /^[\p{L}]+ runo$/iu.test(title) ||
+    /^KSIĘGA\s+[\p{L}]+\.?$/iu.test(title) ||
+    new RegExp(`^第\\s*${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷).{0,80}$`, "u").test(title) ||
+    new RegExp(`^卷第?${HAN_ORDINAL_RE}\\s+.{1,40}$`, "u").test(title) ||
+    new RegExp(`^卷之${HAN_ORDINAL_RE}[\\p{Script=Han}]{1,16}(?:上|中|下)?$`, "u").test(title) ||
+    new RegExp(`^[\\p{Script=Han}]{1,16}篇${HAN_ORDINAL_RE}$`, "u").test(title) ||
+    new RegExp(`^[\\p{Script=Han}]{1,16}(?:上|中|下)?第${HAN_ORDINAL_RE}$`, "u").test(title) ||
+    /^\d{1,3}[.、]\s+[\p{Script=Han}]{1,12}$/u.test(title) ||
+    /^\d{3}[.、\s]+[\p{Script=Han}][^\n:：。！？；「」“”]{1,80}$/u.test(title)
+  );
 }
 
 function classifyLogicalHeading(block, bookTitle) {
@@ -822,7 +987,8 @@ function splitAnthologyBlock(block) {
   const parts = [];
   const first = matches[0];
   const preface = text.slice(0, first.index).trim();
-  if (preface && !/^(?:唐詩三百首|唐诗三百首|Title\s*:|Author\s*:)/i.test(preface)) parts.push(preface);
+  if (preface && !/^(?:唐詩三百首|唐诗三百首|Title\s*:|Author\s*:)/i.test(preface))
+    parts.push(preface);
 
   for (let i = 0; i < matches.length; i += 1) {
     const m = matches[i];
@@ -859,7 +1025,10 @@ function splitNumberedPoemBlock(block) {
 
 function splitInlineChineseChapterBlock(block) {
   const text = String(block || "").trim();
-  const re = new RegExp(`(^|[\\s。！？；;])((?:第\\s*${HAN_ORDINAL_RE}\\s*回\\s*[:：]?\\s*[\\p{Script=Han}][^\\n。！？；;，、]{1,80})|(?:第\\s*${HAN_ORDINAL_RE}\\s*回)|(?:第\\s*${HAN_ORDINAL_RE}\\s*(?:章|節|节|篇|卦|卷)))(?=\\s|　|$|[。！？；;:：])`, "gu");
+  const re = new RegExp(
+    `(^|[\\s。！？；;])((?:第\\s*${HAN_ORDINAL_RE}\\s*回\\s*[:：]?\\s*[\\p{Script=Han}][^\\n。！？；;，、]{1,80})|(?:第\\s*${HAN_ORDINAL_RE}\\s*回)|(?:第\\s*${HAN_ORDINAL_RE}\\s*(?:章|節|节|篇|卦|卷)))(?=\\s|　|$|[。！？；;:：])`,
+    "gu",
+  );
   const matches = [...text.matchAll(re)];
   if (!matches.length) return null;
   if (matches.length === 1 && matches[0].index === 0 && !matches[0][1]) {
@@ -890,7 +1059,10 @@ function splitInlineChineseChapterBlock(block) {
 
 function splitInlineVolumeBlock(block) {
   const text = String(block || "").trim();
-  const re = new RegExp(`(?:^|\\s)((?:卷之${HAN_ORDINAL_RE}(?:[\\p{Script=Han}]{1,16}(?:上|中|下)?)?)|(?:卷第?${HAN_ORDINAL_RE}(?:補遺|补遗)?))(?=\\s|　|$)`, "gu");
+  const re = new RegExp(
+    `(?:^|\\s)((?:卷之${HAN_ORDINAL_RE}(?:[\\p{Script=Han}]{1,16}(?:上|中|下)?)?)|(?:卷第?${HAN_ORDINAL_RE}(?:補遺|补遗)?))(?=\\s|　|$)`,
+    "gu",
+  );
   const matches = [...text.matchAll(re)];
   if (!matches.length) return null;
 
@@ -912,20 +1084,28 @@ function splitInlineVolumeBlock(block) {
 function splitTrailingChineseHeadingBlock(block) {
   const text = String(block || "").trim();
   if (!text || classifyLogicalHeading(text, "")?.kind === "chapter") return null;
-  const re = new RegExp(`((?:卷${HAN_ORDINAL_RE})|[\\p{Script=Han}]{2,18}(?:篇)?第${HAN_ORDINAL_RE}|[\\p{Script=Han}]{2,18}篇${HAN_ORDINAL_RE})$`, "u");
+  const re = new RegExp(
+    `((?:卷${HAN_ORDINAL_RE})|[\\p{Script=Han}]{2,18}(?:篇)?第${HAN_ORDINAL_RE}|[\\p{Script=Han}]{2,18}篇${HAN_ORDINAL_RE})$`,
+    "u",
+  );
   const match = text.match(re);
   if (!match || match.index == null) return null;
   const title = match[1].trim();
   if (!classifyLogicalHeading(title, "") || looksLikeProseTitle(title)) return null;
   const body = text.slice(0, match.index).trim();
   if (match.index < 80 && !/[。！？」』”"]$/u.test(body)) return null;
-  if (!body || (!/[。！？」』”"]$/u.test(body) && !(body.length > 120 && /\p{Script=Han}$/u.test(body)))) return null;
+  if (
+    !body ||
+    (!/[。！？」』”"]$/u.test(body) && !(body.length > 120 && /\p{Script=Han}$/u.test(body)))
+  )
+    return null;
   return [body, title];
 }
 
 function splitInlineEnglishChapterBlock(block) {
   const text = String(block || "").trim();
-  const re = /\b(?:CHAPTER\s*(?:[IVXLCDM]+|\d+)\.?|Chapter\s+(?:[IVXLCDM]+|\d+)\.?|LETTER\s+\d+\.?|Letter\s+\d+\.?|BOOK\s+(?:[IVXLCDM]+|\d+)\.?|Book\s+(?:[IVXLCDM]+|\d+)\.?|Epilogue|EPILOGUE)\b/gu;
+  const re =
+    /\b(?:CHAPTER\s*(?:[IVXLCDM]+|\d+)\.?|Chapter\s+(?:[IVXLCDM]+|\d+)\.?|LETTER\s+\d+\.?|Letter\s+\d+\.?|BOOK\s+(?:[IVXLCDM]+|\d+)\.?|Book\s+(?:[IVXLCDM]+|\d+)\.?|Epilogue|EPILOGUE)\b/gu;
   const matches = [...text.matchAll(re)].filter((m) => {
     const before = text.slice(Math.max(0, m.index - 16), m.index);
     return !/chapter\s*:\s*$/i.test(before);
@@ -934,15 +1114,24 @@ function splitInlineEnglishChapterBlock(block) {
 
   const parts = [];
   const preface = text.slice(0, matches[0].index).trim();
-  if (preface && !/^(?:contents?|list of illustrations?|cover|linked image)$/i.test(preface)) parts.push(preface);
+  if (preface && !/^(?:contents?|list of illustrations?|cover|linked image)$/i.test(preface))
+    parts.push(preface);
 
   for (let i = 0; i < matches.length; i += 1) {
     const m = matches[i];
     const next = matches[i + 1];
     const headingStart = m.index;
     const after = text.slice(headingStart, next?.index ?? text.length).trim();
-    const lines = after.split("\n").map((line) => line.trim()).filter(Boolean);
-    const title = englishChapterTitle(lines[0]) || m[0].replace(/^CHAPTER/i, "CHAPTER ").replace(/\s+/g, " ").trim();
+    const lines = after
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const title =
+      englishChapterTitle(lines[0]) ||
+      m[0]
+        .replace(/^CHAPTER/i, "CHAPTER ")
+        .replace(/\s+/g, " ")
+        .trim();
     const body = after.slice(lines[0]?.length || m[0].length).trim();
     parts.push(title);
     if (body) parts.push(body);
@@ -989,7 +1178,9 @@ function expandLogicalBlocks(blocks) {
       continue;
     }
 
-    const bracketed = block.match(/^([《〈「『【][^《》〈〉「」『』【】]{1,80}[》〉」』】])\s+([\s\S]+)$/u);
+    const bracketed = block.match(
+      /^([《〈「『【][^《》〈〉「」『』【】]{1,80}[》〉」』】])\s+([\s\S]+)$/u,
+    );
     if (bracketed) {
       out.push(bracketed[1].trim());
       out.push(bracketed[2].trim());
@@ -997,12 +1188,22 @@ function expandLogicalBlocks(blocks) {
     }
 
     const standaloneChapterWithTitle = block.replace(/\s+/g, " ").trim();
-    if (new RegExp(`^第\\s*${HAN_ORDINAL_RE}\\s*回(?:\\s+[\\p{Script=Han}][^。！？；;，、]{1,80})?$`, "u").test(standaloneChapterWithTitle)) {
+    if (
+      new RegExp(
+        `^第\\s*${HAN_ORDINAL_RE}\\s*回(?:\\s+[\\p{Script=Han}][^。！？；;，、]{1,80})?$`,
+        "u",
+      ).test(standaloneChapterWithTitle)
+    ) {
       out.push(standaloneChapterWithTitle);
       continue;
     }
 
-    const numbered = block.match(new RegExp(`^(第\\s*${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷).{0,80})\\s+([\\s\\S]+)$`, "u"));
+    const numbered = block.match(
+      new RegExp(
+        `^(第\\s*${HAN_ORDINAL_RE}\\s*(?:章|回|節|节|篇|卦|卷).{0,80})\\s+([\\s\\S]+)$`,
+        "u",
+      ),
+    );
     if (numbered) {
       out.push(numbered[1].trim());
       out.push(numbered[2].trim());
@@ -1015,7 +1216,12 @@ function expandLogicalBlocks(blocks) {
 }
 
 function splitLogicalChapters(text, bookTitle, leadingTitle = null) {
-  const blocks = expandLogicalBlocks(String(text || "").split(/\n{2,}/).map((block) => block.trim()).filter(Boolean));
+  const blocks = expandLogicalBlocks(
+    String(text || "")
+      .split(/\n{2,}/)
+      .map((block) => block.trim())
+      .filter(Boolean),
+  );
   const build = (volumesAsChapters = false) => {
     const chapters = [];
     let current = leadingTitle ? { title: leadingTitle, blocks: [] } : null;
@@ -1066,7 +1272,8 @@ function splitLogicalChapters(text, bookTitle, leadingTitle = null) {
         continue;
       }
       if (current) current.blocks.push(block);
-      else if (!leadingTitle && !isProjectGutenbergBoilerplateBlock(block)) leadingBlocks.push(block);
+      else if (!leadingTitle && !isProjectGutenbergBoilerplateBlock(block))
+        leadingBlocks.push(block);
     }
 
     finish(true);
@@ -1075,44 +1282,71 @@ function splitLogicalChapters(text, bookTitle, leadingTitle = null) {
 
   const chapters = build(false);
   const volumeChapters = build(true);
-  if (shouldPreferVolumeLogicalChapters(chapters, volumeChapters, leadingTitle)) return volumeChapters;
+  if (shouldPreferVolumeLogicalChapters(chapters, volumeChapters, leadingTitle))
+    return volumeChapters;
   return chapters.length ? chapters : volumeChapters;
 }
 
 function shouldPreferVolumeLogicalChapters(chapters, volumeChapters, leadingTitle = null) {
   if (!volumeChapters.length) return false;
-  const volumeCount = volumeChapters.filter((chapter) => isChineseVolumeMarkerTitle(chapter.title)).length;
+  const volumeCount = volumeChapters.filter((chapter) =>
+    isChineseVolumeMarkerTitle(chapter.title),
+  ).length;
   if (!volumeCount) return false;
   if (!chapters.length) return true;
-  const volumeTextLength = volumeChapters.reduce((sum, chapter) => sum + String(chapter.text || "").length, 0);
-  const chapterTextLength = chapters.reduce((sum, chapter) => sum + String(chapter.text || "").length, 0);
-  if (leadingTitle && volumeChapters.length > chapters.length && volumeTextLength >= chapterTextLength) return true;
-  return volumeCount >= 2
-    && volumeChapters.length > chapters.length
-    && volumeTextLength >= chapterTextLength;
+  const volumeTextLength = volumeChapters.reduce(
+    (sum, chapter) => sum + String(chapter.text || "").length,
+    0,
+  );
+  const chapterTextLength = chapters.reduce(
+    (sum, chapter) => sum + String(chapter.text || "").length,
+    0,
+  );
+  if (
+    leadingTitle &&
+    volumeChapters.length > chapters.length &&
+    volumeTextLength >= chapterTextLength
+  )
+    return true;
+  return (
+    volumeCount >= 2 &&
+    volumeChapters.length > chapters.length &&
+    volumeTextLength >= chapterTextLength
+  );
 }
 
 function isMoziCanonTitle(title) {
-  return /^(?:經|经)[上下]$/u.test(String(title || "").replace(/\s+/g, "").trim());
+  return /^(?:經|经)[上下]$/u.test(
+    String(title || "")
+      .replace(/\s+/g, "")
+      .trim(),
+  );
 }
 
 function moziCommentaryTitle(title) {
-  const compact = String(title || "").replace(/\s+/g, "").trim();
+  const compact = String(title || "")
+    .replace(/\s+/g, "")
+    .trim();
   if (/^(?:經|经)上$/u.test(compact)) return "經說上";
   if (/^(?:經|经)下$/u.test(compact)) return "經說下";
   return null;
 }
 
 function moziCommentaryMarker(title) {
-  const compact = String(title || "").replace(/\s+/g, "").trim();
+  const compact = String(title || "")
+    .replace(/\s+/g, "")
+    .trim();
   if (/^(?:經|经)上$/u.test(compact)) return /^(?:經|经)[說说説]上\s*[:：]\s*/u;
   if (/^(?:經|经)下$/u.test(compact)) return /^(?:經|经)[說说説]下\s*[:：]\s*/u;
   return null;
 }
 
 function isMoziFootnoteBlock(block) {
-  return /^\d{1,3}\.\s*.{1,28}\s*[:：]\s*(?:原錯|原错|舊脫|旧脱|自|刪除|删除|衍文|移到|由王校改|孫|孙|吳|吴|清)/u
-    .test(String(block || "").replace(/\s+/g, " ").trim());
+  return /^\d{1,3}\.\s*.{1,28}\s*[:：]\s*(?:原錯|原错|舊脫|旧脱|自|刪除|删除|衍文|移到|由王校改|孫|孙|吳|吴|清)/u.test(
+    String(block || "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 function splitInterleavedMoziCanonChapter(chapter) {
@@ -1121,7 +1355,10 @@ function splitInterleavedMoziCanonChapter(chapter) {
   const commentaryTitle = moziCommentaryTitle(chapter.title);
   if (!marker || !commentaryTitle) return [chapter];
 
-  const blocks = String(chapter.text || "").split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+  const blocks = String(chapter.text || "")
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
   if (!blocks.some((block) => marker.test(block))) return [chapter];
   const canonBlocks = [];
   const commentaryBlocks = [];
@@ -1151,15 +1388,19 @@ function splitInterleavedMoziCanonChapter(chapter) {
 
 function shouldMergeProseTitleContinuation(chapter, index) {
   if (index <= 0) return false;
-  const title = String(chapter?.title || "").replace(/\s+/g, " ").trim();
+  const title = String(chapter?.title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!title) return false;
   if (englishChapterTitle(title)) return false;
   if (classifyLogicalHeading(title, "")?.kind === "chapter") return false;
   if (CHINESE_CHAPTER_PREFIX_RE.test(title)) return false;
   if (/^\d{1,3}[.、]\s+[\p{Script=Han}]{1,16}$/u.test(title)) return false;
-  return looksLikeProseTitle(title)
-    || looksLikeProseBlock(title)
-    || (/\p{Script=Han}/u.test(title) && title.length > 24 && /[，。、；：？！“”"「」]/u.test(title));
+  return (
+    looksLikeProseTitle(title) ||
+    looksLikeProseBlock(title) ||
+    (/\p{Script=Han}/u.test(title) && title.length > 24 && /[，。、；：？！“”"「」]/u.test(title))
+  );
 }
 
 function shouldMergeDuplicateTitleContinuation(previous, chapter) {
@@ -1170,32 +1411,45 @@ function shouldMergeDuplicateTitleContinuation(previous, chapter) {
 }
 
 function shouldMergeShortChineseReviewContinuation(chapter) {
-  const title = String(chapter?.title || "").replace(/\s+/g, " ").trim();
+  const title = String(chapter?.title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   const text = String(chapter?.text || "").trim();
   return /^(?:評|评)$/u.test(title) && text.length <= 600;
 }
 
 function isShortChineseInterludeTitle(title) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
-  return /^[\p{Script=Han}]{2,6}$/u.test(value)
-    && !isChineseOrdinalChapterTitle(value)
-    && !isVolumeMarker(value)
-    && !/^(?:評|评|序|跋|自序|序言|例言|目錄|目录|附錄|附录|附記|附记|後記|后记)$/u.test(value);
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (
+    /^[\p{Script=Han}]{2,6}$/u.test(value) &&
+    !isChineseOrdinalChapterTitle(value) &&
+    !isVolumeMarker(value) &&
+    !/^(?:評|评|序|跋|自序|序言|例言|目錄|目录|附錄|附录|附記|附记|後記|后记)$/u.test(value)
+  );
 }
 
 function shouldMergeShortChineseInterludes(chapters) {
-  const ordinalCount = chapters.filter((chapter) => isChineseOrdinalChapterTitle(chapter.title)).length;
-  const interludeCount = chapters.filter((chapter) => isShortChineseInterludeTitle(chapter.title)).length;
-  return ordinalCount >= 5
-    && interludeCount >= 1
-    && ordinalCount / Math.max(1, chapters.length) >= 0.45;
+  const ordinalCount = chapters.filter((chapter) =>
+    isChineseOrdinalChapterTitle(chapter.title),
+  ).length;
+  const interludeCount = chapters.filter((chapter) =>
+    isShortChineseInterludeTitle(chapter.title),
+  ).length;
+  return (
+    ordinalCount >= 5 && interludeCount >= 1 && ordinalCount / Math.max(1, chapters.length) >= 0.45
+  );
 }
 
 function shouldMergeChineseOrdinalRunInterruption(chapters, index, previous) {
-  const title = String(chapters[index]?.title || "").replace(/\s+/g, " ").trim();
+  const title = String(chapters[index]?.title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!previous || !title || !/\p{Script=Han}/u.test(title)) return false;
   if (chineseOrdinalFromTitle(title) || isVolumeMarker(title)) return false;
-  if (/^(?:評|评|序|跋|自序|序言|例言|目錄|目录|附錄|附录|附記|附记|後記|后记)$/u.test(title)) return false;
+  if (/^(?:評|评|序|跋|自序|序言|例言|目錄|目录|附錄|附录|附記|附记|後記|后记)$/u.test(title))
+    return false;
   if ([...title].length > 24) return false;
   const previousOrdinal = chineseOrdinalFromTitle(previous.title);
   const nextOrdinal = chineseOrdinalFromTitle(chapters[index + 1]?.title);
@@ -1211,11 +1465,11 @@ function mergeProseTitleContinuations(chapters, bookTitle = "") {
   for (let index = 0; index < chapters.length; index += 1) {
     const chapter = chapters[index];
     if (
-      !out.length
-      && index === 0
-      && chapters[index + 1]
-      && isSameBookTitle(chapter.title, bookTitle)
-      && String(chapter.text || "").length < 1600
+      !out.length &&
+      index === 0 &&
+      chapters[index + 1] &&
+      isSameBookTitle(chapter.title, bookTitle) &&
+      String(chapter.text || "").length < 1600
     ) {
       const next = chapters[index + 1];
       out.push({
@@ -1225,39 +1479,62 @@ function mergeProseTitleContinuations(chapters, bookTitle = "") {
       index += 1;
       continue;
     }
-    if (!out.length && index === 0 && chapters[index + 1] && shouldMergeProseTitleContinuation(chapter, 1)) {
+    if (
+      !out.length &&
+      index === 0 &&
+      chapters[index + 1] &&
+      shouldMergeProseTitleContinuation(chapter, 1)
+    ) {
       const next = chapters[index + 1];
       out.push({
         ...next,
-        text: cleanExtractedChapterText(next.title, `${chapter.title}\n\n${chapter.text}\n\n${next.text}`),
+        text: cleanExtractedChapterText(
+          next.title,
+          `${chapter.title}\n\n${chapter.text}\n\n${next.text}`,
+        ),
       });
       index += 1;
       continue;
     }
     const previous = out[out.length - 1];
     if (out.length && shouldMergeDuplicateTitleContinuation(previous, chapter)) {
-      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.text}`);
+      previous.text = cleanExtractedChapterText(
+        previous.title,
+        `${previous.text}\n\n${chapter.text}`,
+      );
       continue;
     }
     if (out.length && shouldMergeShortChineseReviewContinuation(chapter)) {
-      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`);
+      previous.text = cleanExtractedChapterText(
+        previous.title,
+        `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`,
+      );
       continue;
     }
     if (
-      mergeShortInterludes
-      && out.length
-      && isChineseOrdinalChapterTitle(previous.title)
-      && isShortChineseInterludeTitle(chapter.title)
+      mergeShortInterludes &&
+      out.length &&
+      isChineseOrdinalChapterTitle(previous.title) &&
+      isShortChineseInterludeTitle(chapter.title)
     ) {
-      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`);
+      previous.text = cleanExtractedChapterText(
+        previous.title,
+        `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`,
+      );
       continue;
     }
     if (out.length && shouldMergeChineseOrdinalRunInterruption(chapters, index, previous)) {
-      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`);
+      previous.text = cleanExtractedChapterText(
+        previous.title,
+        `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`,
+      );
       continue;
     }
     if (out.length && shouldMergeProseTitleContinuation(chapter, index)) {
-      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`);
+      previous.text = cleanExtractedChapterText(
+        previous.title,
+        `${previous.text}\n\n${chapter.title}\n\n${chapter.text}`,
+      );
       continue;
     }
     out.push({ ...chapter });
@@ -1274,61 +1551,97 @@ function finalizeExtractedChapters(chapters, bookTitle = "") {
 
 function isProjectGutenbergOnlyChapter(title, text) {
   const haystack = `${title}\n${text}`.toLowerCase();
-  return /preface to the project gutenberg etext/.test(haystack)
-    || /project gutenberg etext of/.test(haystack)
-    || isProjectGutenbergBoilerplateBlock(title)
-    || /^the full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(String(title || "").trim());
+  return (
+    /preface to the project gutenberg etext/.test(haystack) ||
+    /project gutenberg etext of/.test(haystack) ||
+    isProjectGutenbergBoilerplateBlock(title) ||
+    /^the full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(String(title || "").trim())
+  );
 }
 
 function isStandaloneGutenbergJunkTitle(title) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
-  return /^preface to the project gutenberg e-?text\b/i.test(value)
-    || /^the full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(value)
-    || /^full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(value)
-    || /^transcriber'?s notes?\b/i.test(value)
-    || /^linked image$/i.test(value);
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (
+    /^preface to the project gutenberg e-?text\b/i.test(value) ||
+    /^the full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(value) ||
+    /^full project gutenberg(?:™|\(tm\))?\s+license\b/i.test(value) ||
+    /^transcriber'?s notes?\b/i.test(value) ||
+    /^linked image$/i.test(value)
+  );
 }
 
 function isTitlePageOnlyChapter(rawTitle, text) {
-  const title = String(rawTitle || "").replace(/\s+/g, " ").trim();
-  const body = String(text || "").replace(/\s+/g, " ").trim();
-  const creditTitle = looksLikeCreditTitle(title) || /^[A-Z]\.\s*[\p{Lu}\p{M}'’ -]{2,48}$/u.test(title);
+  const title = String(rawTitle || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const body = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const creditTitle =
+    looksLikeCreditTitle(title) || /^[A-Z]\.\s*[\p{Lu}\p{M}'’ -]{2,48}$/u.test(title);
   if (!creditTitle) return false;
-  const frontMatterSignal = /(illustrat|incisioni|nuova edizione|editori|letteraria|copyright|all rights reserved)/i.test(body);
+  const frontMatterSignal =
+    /(illustrat|incisioni|nuova edizione|editori|letteraria|copyright|all rights reserved)/i.test(
+      body,
+    );
   if (!frontMatterSignal) return false;
-  const firstBodyLine = body.split(/\s{2,}|\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .find((line) => line.replace(/\s+/g, " ") !== title) || "";
-  return body.length < 1600
-    && !englishChapterTitle(firstBodyLine);
+  const firstBodyLine =
+    body
+      .split(/\s{2,}|\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .find((line) => line.replace(/\s+/g, " ") !== title) || "";
+  return body.length < 1600 && !englishChapterTitle(firstBodyLine);
 }
 
 function isBookTitleFrontMatter(rawTitle, text, bookTitle) {
-  const title = String(rawTitle || "").replace(/\s+/g, " ").trim();
+  const title = String(rawTitle || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!isSameBookTitle(title, bookTitle)) return false;
-  const blocks = String(text || "").split(/\n{2,}/).map((block) => block.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const blocks = String(text || "")
+    .split(/\n{2,}/)
+    .map((block) => block.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
   const first = blocks.find((block) => !isGeneratedEpubPageMarker(block)) || "";
   if (/^(?:to\b|dedicat|contents?|part\s+)/i.test(first)) return true;
   if (looksLikeNavigationOnlyText(text, bookTitle)) return true;
   const prose = blocks.filter(looksLikeProseBlock).length;
-  return blocks.join(" ").length < 1800 && prose <= 1 && !hasExplicitChapterHeading(text, bookTitle);
+  return (
+    blocks.join(" ").length < 1800 && prose <= 1 && !hasExplicitChapterHeading(text, bookTitle)
+  );
 }
 
 function isContentsOnlyChapter(rawTitle, text) {
-  const title = String(rawTitle || "").replace(/\s+/g, " ").trim();
-  const blocks = String(text || "").split(/\n{2,}/).map((block) => block.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const title = String(rawTitle || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const blocks = String(text || "")
+    .split(/\n{2,}/)
+    .map((block) => block.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
   const body = blocks.join(" ");
   if (/^contents?$/i.test(title)) return true;
   const tocSignals = [...body.matchAll(/\b(?:STAVE|CHAPTER|BOOK|PART)\b/gi)].length;
-  return /^[A-Z]\.\s*[A-Z]\.?$/u.test(title)
-    && /\bcontents?\b/i.test(body)
-    && (tocSignals >= 3 || blocks.filter(looksLikeProseBlock).length === 0);
+  return (
+    /^[A-Z]\.\s*[A-Z]\.?$/u.test(title) &&
+    /\bcontents?\b/i.test(body) &&
+    (tocSignals >= 3 || blocks.filter(looksLikeProseBlock).length === 0)
+  );
 }
 
 function looksLikeCreditFrontMatterText(text, bookTitle) {
-  const body = String(text || "").replace(/\s+/g, " ").trim();
-  if (!body || body.length >= 1600 || !/(illustrat|nuova edizione|editori|letteraria|copyright|all rights reserved)/i.test(body)) return false;
+  const body = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (
+    !body ||
+    body.length >= 1600 ||
+    !/(illustrat|nuova edizione|editori|letteraria|copyright|all rights reserved)/i.test(body)
+  )
+    return false;
   return !hasExplicitChapterHeading(text, bookTitle);
 }
 
@@ -1344,13 +1657,19 @@ function isChineseOrdinalChapterTitle(title) {
 
 function navigationLosesChineseCoverage(navigationChapters, spineChapters) {
   if (!spineChapters.length || navigationChapters.length >= spineChapters.length) return false;
-  const spineChinese = spineChapters.filter((chapter) => isChineseOrdinalChapterTitle(chapter.title)).length;
-  const navigationChinese = navigationChapters.filter((chapter) => isChineseOrdinalChapterTitle(chapter.title)).length;
+  const spineChinese = spineChapters.filter((chapter) =>
+    isChineseOrdinalChapterTitle(chapter.title),
+  ).length;
+  const navigationChinese = navigationChapters.filter((chapter) =>
+    isChineseOrdinalChapterTitle(chapter.title),
+  ).length;
   return spineChinese >= 8 && navigationChinese >= 8 && spineChinese > navigationChinese;
 }
 
 function looksLikeChineseProseNavigationTitle(title) {
-  const value = String(title || "").replace(/\s+/g, " ").trim();
+  const value = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!value || isChineseOrdinalChapterTitle(value)) return false;
   if (!/\p{Script=Han}/u.test(value)) return false;
   return [...value].length >= 8 && /[。！？；;﹗﹖]$/u.test(value);
@@ -1389,20 +1708,21 @@ export async function extractEpubChapters(filePath) {
     if (isTitlePageOnlyChapter(rawTitle, text)) continue;
     if (!pendingLogicalTitle && isBookTitleFrontMatter(rawTitle, text, bookTitle)) continue;
     if (isContentsOnlyChapter(rawTitle, text)) continue;
-    let title = cleanChapterTitle(
-      rawTitle,
-      text,
-      `Chapter ${chapters.length + 1}`,
-      bookTitle,
-    );
+    let title = cleanChapterTitle(rawTitle, text, `Chapter ${chapters.length + 1}`, bookTitle);
     if (
-      chapters.length
-      && isSameBookTitle(title, bookTitle)
-      && shouldMergeProseTitleContinuation({ title: rawTitle }, 1)
+      chapters.length &&
+      isSameBookTitle(title, bookTitle) &&
+      shouldMergeProseTitleContinuation({ title: rawTitle }, 1)
     ) {
-      title = String(rawTitle || "").replace(/\s+/g, " ").trim();
+      title = String(rawTitle || "")
+        .replace(/\s+/g, " ")
+        .trim();
     }
-    if (/^[A-Z]\.\s*[\p{Lu}\p{M}'’ -]{2,80}$/u.test(title) && /(illustrat|nuova edizione|editori|letteraria)/i.test(text)) continue;
+    if (
+      /^[A-Z]\.\s*[\p{Lu}\p{M}'’ -]{2,80}$/u.test(title) &&
+      /(illustrat|nuova edizione|editori|letteraria)/i.test(text)
+    )
+      continue;
     if (isTitlePageOnlyChapter(title, text)) continue;
     if (isProjectGutenbergOnlyChapter(title, text)) continue;
     const logical = splitLogicalChapters(text, bookTitle, pendingLogicalTitle);
@@ -1421,14 +1741,20 @@ export async function extractEpubChapters(filePath) {
       const chapter = makeChapter(chapters.length + 1, pendingLogicalTitle, text);
       if (chapter.text) chapters.push(chapter);
       pendingLogicalTitle = null;
-    } else if (isNavigationNoiseTitle(title, bookTitle) && !(isSameBookTitle(title, bookTitle) && !chapters.length)) {
+    } else if (
+      isNavigationNoiseTitle(title, bookTitle) &&
+      !(isSameBookTitle(title, bookTitle) && !chapters.length)
+    ) {
       continue;
     } else if (isSameBookTitle(title, bookTitle) && chapters.length) {
       const previous = chapters[chapters.length - 1];
       previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${text}`);
     } else if (chapters.length && isSpineContinuation(title, bookTitle)) {
       const previous = chapters[chapters.length - 1];
-      previous.text = cleanExtractedChapterText(previous.title, `${previous.text}\n\n${title}\n\n${text}`);
+      previous.text = cleanExtractedChapterText(
+        previous.title,
+        `${previous.text}\n\n${title}\n\n${text}`,
+      );
     } else {
       const chapter = makeChapter(chapters.length + 1, title, text);
       if (chapter.text) chapters.push(chapter);
@@ -1436,12 +1762,18 @@ export async function extractEpubChapters(filePath) {
   }
 
   if (navigationChapters.length) {
-    const enoughCoverage = !chapters.length
-      || navigationChapters.length >= chapters.length * 0.7
-      || navigationChapters.length >= 20;
-    const notOversegmented = !chapters.length
-      || navigationChapters.length <= Math.max(chapters.length * 1.8, chapters.length + 8);
-    if (enoughCoverage && notOversegmented && !navigationLosesChineseCoverage(navigationChapters, chapters)) {
+    const enoughCoverage =
+      !chapters.length ||
+      navigationChapters.length >= chapters.length * 0.7 ||
+      navigationChapters.length >= 20;
+    const notOversegmented =
+      !chapters.length ||
+      navigationChapters.length <= Math.max(chapters.length * 1.8, chapters.length + 8);
+    if (
+      enoughCoverage &&
+      notOversegmented &&
+      !navigationLosesChineseCoverage(navigationChapters, chapters)
+    ) {
       const finalized = finalizeExtractedChapters(navigationChapters, bookTitle);
       if (!finalized.some((chapter) => looksLikeChineseProseNavigationTitle(chapter.title))) {
         assertReadableChapters(finalized);
@@ -1449,7 +1781,8 @@ export async function extractEpubChapters(filePath) {
       }
     }
   }
-  if (!chapters.length) throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
+  if (!chapters.length)
+    throw new LiberCliError("EPUB_NO_TEXT", "EPUB spine has no readable XHTML/HTML text chapters.");
   const finalized = finalizeExtractedChapters(chapters, bookTitle);
   assertReadableChapters(finalized);
   return finalized;
@@ -1460,14 +1793,18 @@ export function normalizePublishLicense(raw) {
   if (!text) return null;
   const compact = text.toLowerCase().replace(/[_\s]+/g, "-");
   if (/\bcc0\b|\bcc0[-\s]?1\.0\b|creative-commons-zero/.test(compact)) return "CC0-1.0";
-  if (/public[-\s]?domain|public-domain-mark|project-gutenberg|wikisource/.test(compact)) return "PUBLIC-DOMAIN";
+  if (/public[-\s]?domain|public-domain-mark|project-gutenberg|wikisource/.test(compact))
+    return "PUBLIC-DOMAIN";
   return null;
 }
 
 function rejectedLicenseSignals(text) {
   const haystack = String(text || "");
   const rules = [
-    ["CC-BY-NC", /\bcc[-\s]?by[-\s]?nc\b|attribution[-\s]?noncommercial|non[-\s]?commercial|\bNC\b/i],
+    [
+      "CC-BY-NC",
+      /\bcc[-\s]?by[-\s]?nc\b|attribution[-\s]?noncommercial|non[-\s]?commercial|\bNC\b/i,
+    ],
     ["CC-BY-SA", /\bcc[-\s]?by[-\s]?sa\b|attribution[-\s]?sharealike/i],
     ["CC-BY-ND", /\bcc[-\s]?by[-\s]?nd\b|attribution[-\s]?noderivatives/i],
     ["CC-BY", /\bcc[-\s]?by\b|creative commons attribution/i],
@@ -1480,7 +1817,11 @@ function rejectedLicenseSignals(text) {
 function evidenceCorpusSource(source) {
   try {
     const host = new URL(source).hostname.toLowerCase();
-    if (host.endsWith("gutenberg.org") || host.endsWith("standardebooks.org") || host.endsWith("wikisource.org")) {
+    if (
+      host.endsWith("gutenberg.org") ||
+      host.endsWith("standardebooks.org") ||
+      host.endsWith("wikisource.org")
+    ) {
       return "PUBLIC-DOMAIN";
     }
   } catch {
@@ -1491,7 +1832,9 @@ function evidenceCorpusSource(source) {
 
 export function verifyPublishLicense(info, options = {}) {
   const rights = Array.isArray(info?.metadata?.rights) ? info.metadata.rights : [];
-  const evidence = [options.license, ...rights, options.evidence, options.source].filter(Boolean).join("\n");
+  const evidence = [options.license, ...rights, options.evidence, options.source]
+    .filter(Boolean)
+    .join("\n");
   const rejected = rejectedLicenseSignals(evidence);
   if (rejected.length) {
     return {
@@ -1503,10 +1846,11 @@ export function verifyPublishLicense(info, options = {}) {
     };
   }
 
-  const accepted = normalizePublishLicense(options.license)
-    || rights.map(normalizePublishLicense).find(Boolean)
-    || normalizePublishLicense(options.evidence)
-    || evidenceCorpusSource(options.source);
+  const accepted =
+    normalizePublishLicense(options.license) ||
+    rights.map(normalizePublishLicense).find(Boolean) ||
+    normalizePublishLicense(options.evidence) ||
+    evidenceCorpusSource(options.source);
 
   if (accepted && ACCEPTED_LICENSES.has(accepted)) {
     return {
@@ -1529,7 +1873,10 @@ export function verifyPublishLicense(info, options = {}) {
 
 function requireSource(source) {
   if (!source || !String(source).trim()) {
-    throw new LiberCliError("SOURCE_REQUIRED", "A source URL is required for packaging and license verification.");
+    throw new LiberCliError(
+      "SOURCE_REQUIRED",
+      "A source URL is required for packaging and license verification.",
+    );
   }
   return String(source).trim();
 }
@@ -1592,12 +1939,16 @@ export async function createIngestPayload(manifest, options = {}) {
   const epubBytes = await readFile(manifest.assets?.epub?.path);
   const actualSha256 = sha256(epubBytes);
   if (manifest.assets?.epub?.sha256 && actualSha256 !== manifest.assets.epub.sha256) {
-    throw new LiberCliError("EPUB_HASH_MISMATCH", "EPUB file no longer matches the packaged manifest hash.");
+    throw new LiberCliError(
+      "EPUB_HASH_MISMATCH",
+      "EPUB file no longer matches the packaged manifest hash.",
+    );
   }
   const includeSource = options.includeSource !== false;
-  const chapters = Array.isArray(options.chapters) && options.chapters.length
-    ? options.chapters
-    : await extractEpubChapters(manifest.assets?.epub?.path);
+  const chapters =
+    Array.isArray(options.chapters) && options.chapters.length
+      ? options.chapters
+      : await extractEpubChapters(manifest.assets?.epub?.path);
   return {
     ...(options.id ? { id: options.id } : {}),
     title: options.title || manifest.book?.title || "Untitled",
@@ -1656,7 +2007,10 @@ export function defaultConfigPath() {
 }
 
 function defaultApiUrl(config = {}) {
-  return (process.env.LIBER_API_URL || config.apiUrl || "https://liber.davirain.xyz").replace(/\/+$/, "");
+  return (process.env.LIBER_API_URL || config.apiUrl || "https://liber.davirain.xyz").replace(
+    /\/+$/,
+    "",
+  );
 }
 
 export async function loadCliConfig(options = {}) {
@@ -1691,7 +2045,9 @@ export function publicConfigStatus(config = {}, options = {}) {
   return {
     apiUrl: config.apiUrl || "",
     wallet: config.wallet || "",
-    adminTokenConfigured: Boolean(config.adminToken || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN),
+    adminTokenConfigured: Boolean(
+      config.adminToken || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN,
+    ),
     configPath: options.configPath || defaultConfigPath(),
     updatedAt: config.updatedAt || "",
   };
@@ -1700,7 +2056,12 @@ export function publicConfigStatus(config = {}, options = {}) {
 function resolvePublishOptions(options = {}, config = {}) {
   return {
     apiUrl: (options.apiUrl || defaultApiUrl(config)).replace(/\/+$/, ""),
-    adminToken: options.adminToken || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN || config.adminToken || "",
+    adminToken:
+      options.adminToken ||
+      process.env.LIBER_ADMIN_TOKEN ||
+      process.env.ADMIN_TOKEN ||
+      config.adminToken ||
+      "",
   };
 }
 
@@ -1719,10 +2080,13 @@ async function readJsonResponse(res, failureCode) {
 }
 
 export async function startBrowserAuth(options = {}) {
-  const config = options.config || await loadCliConfig({ configPath: options.configPath });
+  const config = options.config || (await loadCliConfig({ configPath: options.configPath }));
   const apiUrl = (options.apiUrl || defaultApiUrl(config)).replace(/\/+$/, "");
   const fetcher = options.fetchImpl || fetch;
-  const res = await fetcher(`${apiUrl}/api/auth/cli/start`, { method: "POST", headers: { "content-type": "application/json" } });
+  const res = await fetcher(`${apiUrl}/api/auth/cli/start`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
   const body = await readJsonResponse(res, "CLI_AUTH_START_FAILED");
   return { ...body, apiUrl };
 }
@@ -1736,20 +2100,28 @@ export async function pollBrowserAuth(deviceCode, options = {}) {
 
 export async function waitForBrowserAuth(start, options = {}) {
   const timeoutMs = Number(options.timeoutMs || 120000);
-  const intervalMs = Number(options.intervalMs || Math.max(1000, Number(start.interval || 2) * 1000));
+  const intervalMs = Number(
+    options.intervalMs || Math.max(1000, Number(start.interval || 2) * 1000),
+  );
   const sleep = options.sleep || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const state = await pollBrowserAuth(start.deviceCode, { apiUrl: start.apiUrl, fetchImpl: options.fetchImpl });
+    const state = await pollBrowserAuth(start.deviceCode, {
+      apiUrl: start.apiUrl,
+      fetchImpl: options.fetchImpl,
+    });
     if (state.status === "approved") return state;
-    if (state.status === "expired") throw new LiberCliError("CLI_AUTH_EXPIRED", "Browser authorization expired.");
+    if (state.status === "expired")
+      throw new LiberCliError("CLI_AUTH_EXPIRED", "Browser authorization expired.");
     await sleep(intervalMs);
   }
   throw new LiberCliError("CLI_AUTH_TIMEOUT", "Timed out waiting for browser authorization.");
 }
 
 function hexToBytes(value) {
-  const hex = String(value || "").trim().replace(/^0x/i, "");
+  const hex = String(value || "")
+    .trim()
+    .replace(/^0x/i, "");
   if (!/^[0-9a-f]{64}$/i.test(hex)) return null;
   return Uint8Array.from(hex.match(/.{2}/g).map((byte) => Number.parseInt(byte, 16)));
 }
@@ -1772,7 +2144,10 @@ async function loadSuiKeypair(secret, scheme) {
   const schemes = scheme ? [scheme] : ["ed25519", "secp256k1", "secp256r1"];
   const rawBytes = hexToBytes(secret);
   if (rawBytes && !scheme) {
-    throw new LiberCliError("SUI_KEY_SCHEME_REQUIRED", "Raw hex Sui private keys require --scheme.");
+    throw new LiberCliError(
+      "SUI_KEY_SCHEME_REQUIRED",
+      "Raw hex Sui private keys require --scheme.",
+    );
   }
   let lastError = null;
   for (const name of schemes) {
@@ -1783,51 +2158,78 @@ async function loadSuiKeypair(secret, scheme) {
       lastError = error;
     }
   }
-  throw new LiberCliError("SUI_PRIVATE_KEY_INVALID", lastError?.message || "Could not load Sui private key.");
+  throw new LiberCliError(
+    "SUI_PRIVATE_KEY_INVALID",
+    lastError?.message || "Could not load Sui private key.",
+  );
 }
 
 export async function signInWithSuiPrivateKey(options = {}) {
-  const config = options.config || await loadCliConfig({ configPath: options.configPath });
+  const config = options.config || (await loadCliConfig({ configPath: options.configPath }));
   const apiUrl = (options.apiUrl || defaultApiUrl(config)).replace(/\/+$/, "");
   const fetcher = options.fetchImpl || fetch;
   const secret = String(
-    options.privateKey
-      || process.env.LIBER_SUI_PRIVATE_KEY
-      || (options.keyFile ? await readFile(path.resolve(options.keyFile), "utf8") : "")
-      || "",
+    options.privateKey ||
+      process.env.LIBER_SUI_PRIVATE_KEY ||
+      (options.keyFile ? await readFile(path.resolve(options.keyFile), "utf8") : "") ||
+      "",
   ).trim();
   if (!secret && !options.keypair) {
-    throw new LiberCliError("SUI_PRIVATE_KEY_REQUIRED", "Provide --key-file, --private-key, or LIBER_SUI_PRIVATE_KEY.");
+    throw new LiberCliError(
+      "SUI_PRIVATE_KEY_REQUIRED",
+      "Provide --key-file, --private-key, or LIBER_SUI_PRIVATE_KEY.",
+    );
   }
-  const keypair = options.keypair || await loadSuiKeypair(secret, normalizeKeyScheme(options.scheme));
+  const keypair =
+    options.keypair || (await loadSuiKeypair(secret, normalizeKeyScheme(options.scheme)));
   const address = keypair.toSuiAddress();
 
-  const nonceRes = await fetcher(`${apiUrl}/api/auth/nonce`, { method: "POST", headers: { "content-type": "application/json" } });
+  const nonceRes = await fetcher(`${apiUrl}/api/auth/nonce`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
   const nonce = await readJsonResponse(nonceRes, "SUI_AUTH_NONCE_FAILED");
   const signed = await keypair.signPersonalMessage(new TextEncoder().encode(nonce.message));
   const verifyRes = await fetcher(`${apiUrl}/api/auth/verify`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ address, message: nonce.message, signature: signed.signature, nonce: nonce.nonce }),
+    body: JSON.stringify({
+      address,
+      message: nonce.message,
+      signature: signed.signature,
+      nonce: nonce.nonce,
+    }),
   });
   const session = await readJsonResponse(verifyRes, "SUI_AUTH_VERIFY_FAILED");
-  if (!session.token) throw new LiberCliError("SUI_AUTH_VERIFY_FAILED", "Wallet verification did not return a session token.");
+  if (!session.token)
+    throw new LiberCliError(
+      "SUI_AUTH_VERIFY_FAILED",
+      "Wallet verification did not return a session token.",
+    );
 
   const tokenRes = await fetcher(`${apiUrl}/api/auth/cli/token`, {
     method: "POST",
     headers: { authorization: `Bearer ${session.token}`, "content-type": "application/json" },
   });
   const publish = await readJsonResponse(tokenRes, "CLI_TOKEN_MINT_FAILED");
-  return { apiUrl, token: publish.token, wallet: publish.wallet || address, expiresIn: publish.expiresIn };
+  return {
+    apiUrl,
+    token: publish.token,
+    wallet: publish.wallet || address,
+    expiresIn: publish.expiresIn,
+  };
 }
 
 export async function publishBookManifest(manifest, options = {}) {
-  const config = options.config || await loadCliConfig({ configPath: options.configPath });
+  const config = options.config || (await loadCliConfig({ configPath: options.configPath }));
   const resolved = resolvePublishOptions(options, config);
   if (!resolved.adminToken) {
-    throw new LiberCliError("AUTH_REQUIRED", "Publish token is required. Run `liber auth browser --api-url <url>` or configure ADMIN_TOKEN for headless admin use.");
+    throw new LiberCliError(
+      "AUTH_REQUIRED",
+      "Publish token is required. Run `liber auth browser --api-url <url>` or configure ADMIN_TOKEN for headless admin use.",
+    );
   }
-  const payload = options.ingestPayload || await createIngestPayload(manifest, options);
+  const payload = options.ingestPayload || (await createIngestPayload(manifest, options));
   const fetcher = options.fetchImpl || fetch;
   const ingestUrl = `${resolved.apiUrl}/api/books/ingest`;
   let res;
@@ -1841,7 +2243,10 @@ export async function publishBookManifest(manifest, options = {}) {
       body: JSON.stringify(payload),
     });
   } catch (error) {
-    throw new LiberCliError("PUBLISH_NETWORK_FAILED", `Publish request failed for ${ingestUrl}: ${describeFetchError(error)}`);
+    throw new LiberCliError(
+      "PUBLISH_NETWORK_FAILED",
+      `Publish request failed for ${ingestUrl}: ${describeFetchError(error)}`,
+    );
   }
   const text = await res.text();
   let body;
@@ -1866,7 +2271,7 @@ function describeFetchError(error) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function retryDelayMs(attempt) {
-  return Math.min(5000, 350 * (2 ** attempt));
+  return Math.min(5000, 350 * 2 ** attempt);
 }
 
 async function postPublishJson(fetcher, url, token, payload, options = {}) {
@@ -1886,7 +2291,10 @@ async function postPublishJson(fetcher, url, token, payload, options = {}) {
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
-      lastError = new LiberCliError("PUBLISH_NETWORK_FAILED", `Publish request failed for ${url}: ${describeFetchError(error)}`);
+      lastError = new LiberCliError(
+        "PUBLISH_NETWORK_FAILED",
+        `Publish request failed for ${url}: ${describeFetchError(error)}`,
+      );
       if (attempt < attempts - 1) {
         await sleep(retryDelayMs(attempt));
         continue;
@@ -1901,7 +2309,10 @@ async function postPublishJson(fetcher, url, token, payload, options = {}) {
       body = { text };
     }
     if (res.ok) return body;
-    lastError = new LiberCliError("PUBLISH_FAILED", `Publish failed with HTTP ${res.status}: ${text}`);
+    lastError = new LiberCliError(
+      "PUBLISH_FAILED",
+      `Publish failed with HTTP ${res.status}: ${text}`,
+    );
     if ((res.status === 429 || res.status >= 500) && attempt < attempts - 1) {
       await sleep(retryDelayMs(attempt));
       continue;
@@ -1917,17 +2328,23 @@ function withoutLargeBookFields(payload) {
 }
 
 export async function publishBookManifestChunked(manifest, options = {}) {
-  const config = options.config || await loadCliConfig({ configPath: options.configPath });
+  const config = options.config || (await loadCliConfig({ configPath: options.configPath }));
   const resolved = resolvePublishOptions(options, config);
   if (!resolved.adminToken) {
-    throw new LiberCliError("AUTH_REQUIRED", "Publish token is required. Run `liber auth browser --api-url <url>` or configure ADMIN_TOKEN for headless admin use.");
+    throw new LiberCliError(
+      "AUTH_REQUIRED",
+      "Publish token is required. Run `liber auth browser --api-url <url>` or configure ADMIN_TOKEN for headless admin use.",
+    );
   }
-  const payload = options.ingestPayload || await createIngestPayload(manifest, options);
+  const payload = options.ingestPayload || (await createIngestPayload(manifest, options));
   const fetcher = options.fetchImpl || fetch;
   const base = resolved.apiUrl;
   const meta = withoutLargeBookFields(payload);
   const total = payload.chapters.length;
-  const words = payload.chapters.reduce((sum, ch) => sum + String(ch.text || "").replace(/\s+/g, "").length, 0);
+  const words = payload.chapters.reduce(
+    (sum, ch) => sum + String(ch.text || "").replace(/\s+/g, "").length,
+    0,
+  );
   const concurrency = Math.max(1, Math.min(12, Number(options.concurrency || 1) || 1));
   const requestOptions = {
     attempts: options.attempts,
@@ -1935,10 +2352,16 @@ export async function publishBookManifestChunked(manifest, options = {}) {
   };
 
   options.onProgress?.({ stage: "begin", current: 0, total });
-  const begin = await postPublishJson(fetcher, `${base}/api/books/ingest/begin`, resolved.adminToken, {
-    ...meta,
-    epubBase64: payload.epubBase64,
-  }, requestOptions);
+  const begin = await postPublishJson(
+    fetcher,
+    `${base}/api/books/ingest/begin`,
+    resolved.adminToken,
+    {
+      ...meta,
+      epubBase64: payload.epubBase64,
+    },
+    requestOptions,
+  );
 
   const chapters = new Array(total);
   let next = 0;
@@ -1948,20 +2371,32 @@ export async function publishBookManifestChunked(manifest, options = {}) {
       next += 1;
       const chapter = payload.chapters[i];
       options.onProgress?.({ stage: "chapter", current: i + 1, total, chapter });
-      chapters[i] = await postPublishJson(fetcher, `${base}/api/books/ingest/chapter`, resolved.adminToken, {
-        ...meta,
-        index: i,
-        chapter,
-      }, requestOptions);
+      chapters[i] = await postPublishJson(
+        fetcher,
+        `${base}/api/books/ingest/chapter`,
+        resolved.adminToken,
+        {
+          ...meta,
+          index: i,
+          chapter,
+        },
+        requestOptions,
+      );
     }
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, total) }, publishNext));
 
   options.onProgress?.({ stage: "finalize", current: total, total });
-  const finalize = await postPublishJson(fetcher, `${base}/api/books/ingest/finalize`, resolved.adminToken, {
-    ...meta,
-    chapterNumbers: payload.chapters.map((ch) => ch.n).filter(Boolean),
-    words,
-  }, requestOptions);
+  const finalize = await postPublishJson(
+    fetcher,
+    `${base}/api/books/ingest/finalize`,
+    resolved.adminToken,
+    {
+      ...meta,
+      chapterNumbers: payload.chapters.map((ch) => ch.n).filter(Boolean),
+      words,
+    },
+    requestOptions,
+  );
   return { ok: true, begin, chapters, finalize, book: finalize.book, manifest: finalize.manifest };
 }

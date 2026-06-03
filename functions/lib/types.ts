@@ -2,7 +2,11 @@
 
 // Workers AI binding — typed minimally so we don't depend on SDK internals.
 export interface WorkersAI {
-  run(model: string, input: Record<string, unknown>, options?: Record<string, unknown>): Promise<any>;
+  run(
+    model: string,
+    input: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ): Promise<any>;
 }
 
 export interface PlatformQueueMessage {
@@ -33,13 +37,13 @@ export interface Env {
   // Solana JSON-RPC (read-only liveness for the Solana login adapter; optional).
   SOLANA_RPC?: string;
   // Sui on-chain registration (write). All required together; secret key.
-  SUI_SIGNER_KEY?: string;   // suiprivkey1… bech32 secret (Pages secret)
-  SUI_PACKAGE?: string;      // published Move package id
-  SUI_MODULE?: string;       // module name (default: "registry")
+  SUI_SIGNER_KEY?: string; // suiprivkey1… bech32 secret (Pages secret)
+  SUI_PACKAGE?: string; // published Move package id
+  SUI_MODULE?: string; // module name (default: "registry")
   // EVM adapter (read works with just EVM_RPC; write needs the two below).
   EVM_RPC?: string;
-  EVM_SIGNER_KEY?: string;   // server signer (Pages secret)
-  EVM_REGISTRY?: string;     // deployed registry contract address
+  EVM_SIGNER_KEY?: string; // server signer (Pages secret)
+  EVM_REGISTRY?: string; // deployed registry contract address
   // Bearer secret enabling the admin-only book-text ingest endpoint (optional).
   ADMIN_TOKEN?: string;
   // Google OAuth client id for "Sign in with Google" (public; the ID-token `aud`
@@ -64,8 +68,8 @@ export interface Env {
   // API private key is a secret (P-256, used to "stamp"/sign every Turnkey request).
   // Unset = the Turnkey prototype route is inert.
   TURNKEY_ORG_ID?: string;
-  TURNKEY_API_PUBLIC_KEY?: string;   // P-256 compressed pubkey hex (~66 chars)
-  TURNKEY_API_PRIVATE_KEY?: string;  // P-256 private scalar hex (Pages secret)
+  TURNKEY_API_PUBLIC_KEY?: string; // P-256 compressed pubkey hex (~66 chars)
+  TURNKEY_API_PRIVATE_KEY?: string; // P-256 private scalar hex (Pages secret)
   // Comma-separated Sui addresses whose CLI publish token also counts as a
   // platform/graph admin (in addition to ADMIN_TOKEN). A self-minted CLI token
   // from a non-listed wallet is NOT admin. Unset = only ADMIN_TOKEN is admin.
@@ -104,23 +108,23 @@ export interface Env {
   // Free-tier monthly AI request quota (default 60); 'pro' subscribers unlimited.
   AI_FREE_MONTHLY?: string;
   // Agentic book companion (functions/lib/agent.ts); needs a tool-capable provider.
-  AGENT_ENABLED?: string;     // "true" to enable
-  AGENT_MAX_TURNS?: string;   // default 6, max 12
+  AGENT_ENABLED?: string; // "true" to enable
+  AGENT_MAX_TURNS?: string; // default 6, max 12
   // Living knowledge graph (functions/lib/graph/*). All optional; with GRAPH_ENABLED
   // unset the pipeline is inert and get_echoes returns the seed dictionary as today.
-  VECTORIZE?: VectorizeIndex;     // vector index binding ([[vectorize]] in wrangler.toml)
-  EMBED_QUEUE?: Queue;            // producer binding ([[queues.producers]])
-  GRAPH_ENABLED?: string;         // "true" to enqueue embeddings + read live echoes
-  GRAPH_EMBED_MODEL?: string;     // default @cf/baai/bge-m3 (1024-d, multilingual)
-  GRAPH_MIN_SCORE?: string;       // edge cosine threshold, default 0.78 (tune via spike)
-  GRAPH_TOPK?: string;            // neighbours queried per sentence, default 8
+  VECTORIZE?: VectorizeIndex; // vector index binding ([[vectorize]] in wrangler.toml)
+  EMBED_QUEUE?: Queue; // producer binding ([[queues.producers]])
+  GRAPH_ENABLED?: string; // "true" to enqueue embeddings + read live echoes
+  GRAPH_EMBED_MODEL?: string; // default @cf/baai/bge-m3 (1024-d, multilingual)
+  GRAPH_MIN_SCORE?: string; // edge cosine threshold, default 0.78 (tune via spike)
+  GRAPH_TOPK?: string; // neighbours queried per sentence, default 8
   // Stablecoin subscription checkout on Sui. Leave treasury/coin unset to disable.
-  PAYMENT_CHAIN?: string;          // default "sui:testnet"
-  PAYMENT_TREASURY?: string;       // receiving wallet address
-  PAYMENT_COIN_TYPE?: string;      // e.g. a Sui USDC coin type
+  PAYMENT_CHAIN?: string; // default "sui:testnet"
+  PAYMENT_TREASURY?: string; // receiving wallet address
+  PAYMENT_COIN_TYPE?: string; // e.g. a Sui USDC coin type
   PAYMENT_MONTHLY_AMOUNT?: string; // atomic units, e.g. "5000000" for 5 USDC @ 6 decimals
-  PAYMENT_AMOUNT_LABEL?: string;   // display label, e.g. "5 USDC"
-  PAYMENT_PLAN_DAYS?: string;      // default 31
+  PAYMENT_AMOUNT_LABEL?: string; // display label, e.g. "5 USDC"
+  PAYMENT_PLAN_DAYS?: string; // default 31
   // Optional Stripe-compatible checkout. Not the primary Web3 path.
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;

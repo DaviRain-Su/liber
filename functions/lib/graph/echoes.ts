@@ -21,7 +21,10 @@ interface EdgeRow {
 }
 
 // Look a sentence's text + chapter title up from the catalogue (seed or live).
-async function sentenceInfo(env: Env, sid: string): Promise<{ quote: string; chap: string; bookT: string } | null> {
+async function sentenceInfo(
+  env: Env,
+  sid: string,
+): Promise<{ quote: string; chap: string; bookT: string } | null> {
   const p = parseSid(sid);
   if (!p) return null;
   const book = S.bookById(p.bookId);
@@ -31,31 +34,67 @@ async function sentenceInfo(env: Env, sid: string): Promise<{ quote: string; cha
   if (ch) {
     for (const para of ch.paras || []) {
       const hit = para.find((s: any) => s.id === sid);
-      if (hit) { quote = hit.t; break; }
+      if (hit) {
+        quote = hit.t;
+        break;
+      }
     }
   }
-  return { quote, chap: ch ? `第${ch.n}章 · ${ch.title}` : `第${p.n}章`, bookT: book?.t || p.bookId };
+  return {
+    quote,
+    chap: ch ? `第${ch.n}章 · ${ch.title}` : `第${p.n}章`,
+    bookT: book?.t || p.bookId,
+  };
 }
 
 // Generate (and persist) the "why these connect" line for an edge, lazily — only
 // when an edge is first surfaced — to avoid paying for edges nobody reads.
-async function ensureWhy(env: Env, edge: EdgeRow, srcQuote: string, dstQuote: string, srcBookT: string, dstBookT: string): Promise<string> {
+async function ensureWhy(
+  env: Env,
+  edge: EdgeRow,
+  srcQuote: string,
+  dstQuote: string,
+  srcBookT: string,
+  dstBookT: string,
+): Promise<string> {
   if (edge.why) return edge.why;
   let why = "";
   try {
-    const sys = "你是 Liber 的跨书呼应编辑。给你两本书里的两句话，请用一句话点出它们在思想层面如何相通，" +
+    const sys =
+      "你是 Liber 的跨书呼应编辑。给你两本书里的两句话，请用一句话点出它们在思想层面如何相通，" +
       "克制、具体、有洞察，不要空泛，不要复述原文，直接给那句话本身。";
     const user = `《${srcBookT}》：「${srcQuote}」\n《${dstBookT}》：「${dstQuote}」\n它们如何相通？`;
-    why = (await aiChat(env, [{ role: "system", content: sys }, { role: "user", content: user }], { maxTokens: 120, temperature: 0.5 })).trim();
-  } catch { /* leave empty; caller still renders the pairing */ }
+    why = (
+      await aiChat(
+        env,
+        [
+          { role: "system", content: sys },
+          { role: "user", content: user },
+        ],
+        { maxTokens: 120, temperature: 0.5 },
+      )
+    ).trim();
+  } catch {
+    /* leave empty; caller still renders the pairing */
+  }
   if (why) {
-    await run(env.DB, `UPDATE echo_edges SET why = ?, updated_at = ? WHERE id = ?`, why, now(), edge.id).catch(() => {});
+    await run(
+      env.DB,
+      `UPDATE echo_edges SET why = ?, updated_at = ? WHERE id = ?`,
+      why,
+      now(),
+      edge.id,
+    ).catch(() => {});
   }
   return why;
 }
 
 // Live echoes for a sentence, or null when none in D1. Shape matches seed ECHOES.
-export async function liveEchoes(env: Env, sid: string, limit = 5): Promise<{ theme: string; items: any[] } | null> {
+export async function liveEchoes(
+  env: Env,
+  sid: string,
+  limit = 5,
+): Promise<{ theme: string; items: any[] } | null> {
   if (!graphEnabled(env)) return null;
   const full = toFullSid(sid);
   const rows = await all<EdgeRow>(
@@ -68,7 +107,11 @@ export async function liveEchoes(env: Env, sid: string, limit = 5): Promise<{ th
       WHERE (src_sid = ? OR dst_sid = ?) AND status != 'hidden'
       ORDER BY CASE status WHEN 'curated' THEN 0 ELSE 1 END, score DESC
       LIMIT ?`,
-    full, full, full, full, limit,
+    full,
+    full,
+    full,
+    full,
+    limit,
   ).catch(() => [] as EdgeRow[]);
   if (!rows.length) return null;
 
@@ -78,7 +121,14 @@ export async function liveEchoes(env: Env, sid: string, limit = 5): Promise<{ th
     const info = await sentenceInfo(env, edge.other_sid);
     if (!info) continue;
     const book = S.bookById(edge.other_book);
-    const why = await ensureWhy(env, edge, src?.quote || "", info.quote, src?.bookT || "", info.bookT);
+    const why = await ensureWhy(
+      env,
+      edge,
+      src?.quote || "",
+      info.quote,
+      src?.bookT || "",
+      info.bookT,
+    );
     items.push({
       bookT: info.bookT,
       bookId: edge.other_book,
@@ -89,7 +139,9 @@ export async function liveEchoes(env: Env, sid: string, limit = 5): Promise<{ th
       inLib: !!book,
     });
     // count a surface hit (heat / decay signal); best-effort
-    await run(env.DB, `UPDATE echo_edges SET hits = hits + 1 WHERE id = ?`, edge.id).catch(() => {});
+    await run(env.DB, `UPDATE echo_edges SET hits = hits + 1 WHERE id = ?`, edge.id).catch(
+      () => {},
+    );
   }
   if (!items.length) return null;
   const theme = rows.find((r) => r.theme)?.theme || "跨书呼应";

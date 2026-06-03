@@ -54,7 +54,14 @@ const CHINESE_HISTORY_SERIES = [
       82: ["82上", "82下"],
     },
   },
-  { slug: "nanqishu", title: "南齊書", author: "蕭子顯", year: "南梁", volumes: 59, sourcePadding: 0 },
+  {
+    slug: "nanqishu",
+    title: "南齊書",
+    author: "蕭子顯",
+    year: "南梁",
+    volumes: 59,
+    sourcePadding: 0,
+  },
   { slug: "liangshu", title: "梁書", author: "姚思廉", year: "唐", volumes: 56, sourcePadding: 2 },
   { slug: "chenshu", title: "陳書", author: "姚思廉", year: "唐", volumes: 36, sourcePadding: 0 },
   {
@@ -77,8 +84,22 @@ const CHINESE_HISTORY_SERIES = [
       112: ["112上", "112下"],
     },
   },
-  { slug: "beiqishu", title: "北齊書", author: "李百藥", year: "唐", volumes: 50, sourcePadding: 0 },
-  { slug: "zhoushu", title: "周書", author: "令狐德棻等", year: "唐", volumes: 50, sourcePadding: 2 },
+  {
+    slug: "beiqishu",
+    title: "北齊書",
+    author: "李百藥",
+    year: "唐",
+    volumes: 50,
+    sourcePadding: 0,
+  },
+  {
+    slug: "zhoushu",
+    title: "周書",
+    author: "令狐德棻等",
+    year: "唐",
+    volumes: 50,
+    sourcePadding: 2,
+  },
   { slug: "suishu", title: "隋書", author: "魏徵等", year: "唐", volumes: 85, sourcePadding: 2 },
   { slug: "nanshi", title: "南史", author: "李延壽", year: "唐", volumes: 80, sourcePadding: 2 },
   { slug: "beishi", title: "北史", author: "李延壽", year: "唐", volumes: 100, sourcePadding: 3 },
@@ -135,20 +156,70 @@ const CHINESE_HISTORY_SERIES = [
       225: ["225上", "225中", "225下"],
     },
   },
-  { slug: "jiuwudaishi", title: "舊五代史", author: "薛居正等", year: "北宋", volumes: 150, sourcePadding: 0 },
-  { slug: "xinwudaishi", title: "新五代史", author: "歐陽修", year: "北宋", volumes: 74, sourcePadding: 2 },
+  {
+    slug: "jiuwudaishi",
+    title: "舊五代史",
+    author: "薛居正等",
+    year: "北宋",
+    volumes: 150,
+    sourcePadding: 0,
+  },
+  {
+    slug: "xinwudaishi",
+    title: "新五代史",
+    author: "歐陽修",
+    year: "北宋",
+    volumes: 74,
+    sourcePadding: 2,
+  },
   { slug: "songshi", title: "宋史", author: "脫脫等", year: "元", volumes: 496, sourcePadding: 3 },
   { slug: "liaoshi", title: "遼史", author: "脫脫等", year: "元", volumes: 116, sourcePadding: 0 },
   { slug: "jinshi", title: "金史", author: "脫脫等", year: "元", volumes: 135, sourcePadding: 0 },
   { slug: "yuanshi", title: "元史", author: "宋濂等", year: "明", volumes: 210, sourcePadding: 3 },
-  { slug: "mingshi", title: "明史", author: "張廷玉等", year: "清", volumes: 332, sourcePadding: 0 },
+  {
+    slug: "mingshi",
+    title: "明史",
+    author: "張廷玉等",
+    year: "清",
+    volumes: 332,
+    sourcePadding: 0,
+  },
 ];
 
 const CHINESE_VOLUME_SERIES = [
-  { slug: "zizhi-tongjian", title: "資治通鑑", author: "司馬光", year: "北宋", volumes: 294, sourcePadding: 3 },
-  { slug: "xu-zizhi-tongjian", title: "續資治通鑑", author: "畢沅", year: "清", volumes: 220, sourcePadding: 3 },
-  { slug: "ming-tongjian", title: "明通鑑", author: "夏燮", year: "清", volumes: 90, sourcePadding: 3 },
-  { slug: "tongdian", title: "通典", author: "杜佑", year: "唐", volumes: 200, sourcePadding: 3, category: "中文 · 政書" },
+  {
+    slug: "zizhi-tongjian",
+    title: "資治通鑑",
+    author: "司馬光",
+    year: "北宋",
+    volumes: 294,
+    sourcePadding: 3,
+  },
+  {
+    slug: "xu-zizhi-tongjian",
+    title: "續資治通鑑",
+    author: "畢沅",
+    year: "清",
+    volumes: 220,
+    sourcePadding: 3,
+  },
+  {
+    slug: "ming-tongjian",
+    title: "明通鑑",
+    author: "夏燮",
+    year: "清",
+    volumes: 90,
+    sourcePadding: 3,
+  },
+  {
+    slug: "tongdian",
+    title: "通典",
+    author: "杜佑",
+    year: "唐",
+    volumes: 200,
+    sourcePadding: 3,
+    category: "中文 · 政書",
+  },
   {
     slug: "quantangshi",
     title: "全唐詩",
@@ -185,13 +256,10 @@ const CHINESE_VOLUME_SERIES = [
     author: "王欽若、楊億等",
     year: "北宋",
     volumeNumbers: [
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-      11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-      21, 22, 23, 32, 78, 101, 109, 163, 180, 181,
-      182, 219, 220, 234, 235, 262, 274, 300, 329, 381,
-      438, 457, 490, 502, 542, 578, 650, 710, 716, 751,
-      763, 816, 875, 936, 956, 963, 964, 966, 967, 995,
-      996, 997, 998, 999, 1000,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 32, 78,
+      101, 109, 163, 180, 181, 182, 219, 220, 234, 235, 262, 274, 300, 329, 381, 438, 457, 490, 502,
+      542, 578, 650, 710, 716, 751, 763, 816, 875, 936, 956, 963, 964, 966, 967, 995, 996, 997, 998,
+      999, 1000,
     ],
     sourcePadding: 4,
     category: "中文 · 類書",
@@ -268,26 +336,106 @@ const CHINESE_VOLUME_SERIES = [
     sourceVolumeSuffix: "卷",
     category: "中文 · 詩歌",
     volumeLabels: [
-      "郊廟歌辭一", "郊廟歌辭二", "郊廟歌辭三", "郊廟歌辭四", "郊廟歌辭五",
-      "郊廟歌辭六", "郊廟歌辭七", "郊廟歌辭八", "郊廟歌辭九", "郊廟歌辭十",
-      "郊廟歌辭十一", "郊廟歌辭十二", "燕射歌辭一", "燕射歌辭二", "燕射歌辭三",
-      "鼓吹曲辭一", "鼓吹曲辭二", "鼓吹曲辭三", "鼓吹曲辭四", "鼓吹曲辭五",
-      "橫吹曲辭一", "橫吹曲辭二", "橫吹曲辭三", "橫吹曲辭四", "橫吹曲辭五",
-      "相和歌辭一", "相和歌辭二", "相和歌辭三", "相和歌辭四", "相和歌辭五",
-      "相和歌辭六", "相和歌辭七", "相和歌辭八", "相和歌辭九", "相和歌辭十",
-      "相和歌辭十一", "相和歌辭十二", "相和歌辭十三", "相和歌辭十四", "相和歌辭十五",
-      "相和歌辭十六", "相和歌辭十七", "相和歌辭十八", "清商曲辭一", "清商曲辭二",
-      "清商曲辭三", "清商曲辭四", "清商曲辭五", "清商曲辭六", "清商曲辭七",
-      "清商曲辭八", "舞曲歌辭一", "舞曲歌辭二", "舞曲歌辭三", "舞曲歌辭四",
-      "舞曲歌辭五", "琴曲歌辭一", "琴曲歌辭二", "琴曲歌辭三", "琴曲歌辭四",
-      "雜曲歌辭一", "雜曲歌辭二", "雜曲歌辭三", "雜曲歌辭四", "雜曲歌辭五",
-      "雜曲歌辭六", "雜曲歌辭七", "雜曲歌辭八", "雜曲歌辭九", "雜曲歌辭十",
-      "雜曲歌辭十一", "雜曲歌辭十二", "雜曲歌辭十三", "雜曲歌辭十四", "雜曲歌辭十五",
-      "雜曲歌辭十六", "雜曲歌辭十七", "雜曲歌辭十八", "近代曲辭一", "近代曲辭二",
-      "近代曲辭三", "近代曲辭四", "雜歌謠辭一", "雜歌謠辭二", "雜歌謠辭三",
-      "雜歌謠辭四", "雜歌謠辭五", "雜歌謠辭六", "雜歌謠辭七", "新樂府辭一",
-      "新樂府辭二", "新樂府辭三", "新樂府辭四", "新樂府辭五", "新樂府辭六",
-      "新樂府辭七", "新樂府辭八", "新樂府辭九", "新樂府辭十", "新樂府辭十一",
+      "郊廟歌辭一",
+      "郊廟歌辭二",
+      "郊廟歌辭三",
+      "郊廟歌辭四",
+      "郊廟歌辭五",
+      "郊廟歌辭六",
+      "郊廟歌辭七",
+      "郊廟歌辭八",
+      "郊廟歌辭九",
+      "郊廟歌辭十",
+      "郊廟歌辭十一",
+      "郊廟歌辭十二",
+      "燕射歌辭一",
+      "燕射歌辭二",
+      "燕射歌辭三",
+      "鼓吹曲辭一",
+      "鼓吹曲辭二",
+      "鼓吹曲辭三",
+      "鼓吹曲辭四",
+      "鼓吹曲辭五",
+      "橫吹曲辭一",
+      "橫吹曲辭二",
+      "橫吹曲辭三",
+      "橫吹曲辭四",
+      "橫吹曲辭五",
+      "相和歌辭一",
+      "相和歌辭二",
+      "相和歌辭三",
+      "相和歌辭四",
+      "相和歌辭五",
+      "相和歌辭六",
+      "相和歌辭七",
+      "相和歌辭八",
+      "相和歌辭九",
+      "相和歌辭十",
+      "相和歌辭十一",
+      "相和歌辭十二",
+      "相和歌辭十三",
+      "相和歌辭十四",
+      "相和歌辭十五",
+      "相和歌辭十六",
+      "相和歌辭十七",
+      "相和歌辭十八",
+      "清商曲辭一",
+      "清商曲辭二",
+      "清商曲辭三",
+      "清商曲辭四",
+      "清商曲辭五",
+      "清商曲辭六",
+      "清商曲辭七",
+      "清商曲辭八",
+      "舞曲歌辭一",
+      "舞曲歌辭二",
+      "舞曲歌辭三",
+      "舞曲歌辭四",
+      "舞曲歌辭五",
+      "琴曲歌辭一",
+      "琴曲歌辭二",
+      "琴曲歌辭三",
+      "琴曲歌辭四",
+      "雜曲歌辭一",
+      "雜曲歌辭二",
+      "雜曲歌辭三",
+      "雜曲歌辭四",
+      "雜曲歌辭五",
+      "雜曲歌辭六",
+      "雜曲歌辭七",
+      "雜曲歌辭八",
+      "雜曲歌辭九",
+      "雜曲歌辭十",
+      "雜曲歌辭十一",
+      "雜曲歌辭十二",
+      "雜曲歌辭十三",
+      "雜曲歌辭十四",
+      "雜曲歌辭十五",
+      "雜曲歌辭十六",
+      "雜曲歌辭十七",
+      "雜曲歌辭十八",
+      "近代曲辭一",
+      "近代曲辭二",
+      "近代曲辭三",
+      "近代曲辭四",
+      "雜歌謠辭一",
+      "雜歌謠辭二",
+      "雜歌謠辭三",
+      "雜歌謠辭四",
+      "雜歌謠辭五",
+      "雜歌謠辭六",
+      "雜歌謠辭七",
+      "新樂府辭一",
+      "新樂府辭二",
+      "新樂府辭三",
+      "新樂府辭四",
+      "新樂府辭五",
+      "新樂府辭六",
+      "新樂府辭七",
+      "新樂府辭八",
+      "新樂府辭九",
+      "新樂府辭十",
+      "新樂府辭十一",
     ],
   },
 ];
@@ -300,12 +448,53 @@ const CHINESE_CANON_SECTION_SERIES = [
     year: "西漢",
     category: "中文 · 禮學",
     sections: [
-      "曲禮上", "曲禮下", "檀弓上", "檀弓下", "王制", "月令", "曾子問", "文王世子",
-      "禮運", "禮器", "郊特牲", "內則", "玉藻", "明堂位", "喪服小記", "大傳",
-      "少儀", "學記", "樂記", "雜記上", "雜記下", "喪大記", "祭法", "祭義",
-      "祭統", "經解", "哀公問", "仲尼燕居", "孔子閒居", "坊記", "表記", "緇衣",
-      "奔喪", "問喪", "服問", "間傳", "三年問", "深衣", "投壺", "儒行",
-      "冠義", "昏義", "鄉飲酒義", "射義", "燕義", "聘義", "喪服四制",
+      "曲禮上",
+      "曲禮下",
+      "檀弓上",
+      "檀弓下",
+      "王制",
+      "月令",
+      "曾子問",
+      "文王世子",
+      "禮運",
+      "禮器",
+      "郊特牲",
+      "內則",
+      "玉藻",
+      "明堂位",
+      "喪服小記",
+      "大傳",
+      "少儀",
+      "學記",
+      "樂記",
+      "雜記上",
+      "雜記下",
+      "喪大記",
+      "祭法",
+      "祭義",
+      "祭統",
+      "經解",
+      "哀公問",
+      "仲尼燕居",
+      "孔子閒居",
+      "坊記",
+      "表記",
+      "緇衣",
+      "奔喪",
+      "問喪",
+      "服問",
+      "間傳",
+      "三年問",
+      "深衣",
+      "投壺",
+      "儒行",
+      "冠義",
+      "昏義",
+      "鄉飲酒義",
+      "射義",
+      "燕義",
+      "聘義",
+      "喪服四制",
     ],
     blurb: (section) => `《禮記》${section}篇。`,
   },
@@ -316,13 +505,64 @@ const CHINESE_CANON_SECTION_SERIES = [
     year: "先秦",
     category: "中文 · 儒家",
     sections: [
-      "堯典", "舜典", "大禹謨", "皐陶謨", "益稷", "禹貢", "甘誓", "五子之歌", "胤征",
-      "湯誓", "仲虺之誥", "湯誥", "伊訓", "太甲上", "太甲中", "太甲下", "咸有一德",
-      "盤庚上", "盤庚中", "盤庚下", "說命上", "說命中", "說命下", "高宗肜日", "西伯戡黎", "微子",
-      "泰誓上", "泰誓中", "泰誓下", "牧誓", "武成", "洪範", "旅獒", "金縢", "大誥",
-      "微子之命", "康誥", "酒誥", "梓材", "召誥", "洛誥", "多士", "無逸", "君奭",
-      "蔡仲之命", "多方", "立政", "周官", "君陳", "顧命", "康王之誥", "畢命", "君牙",
-      "冏命", "呂刑", "文侯之命", "費誓", "秦誓",
+      "堯典",
+      "舜典",
+      "大禹謨",
+      "皐陶謨",
+      "益稷",
+      "禹貢",
+      "甘誓",
+      "五子之歌",
+      "胤征",
+      "湯誓",
+      "仲虺之誥",
+      "湯誥",
+      "伊訓",
+      "太甲上",
+      "太甲中",
+      "太甲下",
+      "咸有一德",
+      "盤庚上",
+      "盤庚中",
+      "盤庚下",
+      "說命上",
+      "說命中",
+      "說命下",
+      "高宗肜日",
+      "西伯戡黎",
+      "微子",
+      "泰誓上",
+      "泰誓中",
+      "泰誓下",
+      "牧誓",
+      "武成",
+      "洪範",
+      "旅獒",
+      "金縢",
+      "大誥",
+      "微子之命",
+      "康誥",
+      "酒誥",
+      "梓材",
+      "召誥",
+      "洛誥",
+      "多士",
+      "無逸",
+      "君奭",
+      "蔡仲之命",
+      "多方",
+      "立政",
+      "周官",
+      "君陳",
+      "顧命",
+      "康王之誥",
+      "畢命",
+      "君牙",
+      "冏命",
+      "呂刑",
+      "文侯之命",
+      "費誓",
+      "秦誓",
     ],
     blurb: (section) => `《尚書》${section}篇。`,
   },
@@ -342,8 +582,23 @@ const CHINESE_CANON_SECTION_SERIES = [
     year: "先秦",
     category: "中文 · 禮學",
     sections: [
-      "士冠禮", "士昬禮", "士相見禮", "鄉飲酒禮", "鄉射禮", "燕禮", "大射", "聘禮",
-      "公食大夫禮", "覲禮", "喪服", "士喪禮", "既夕禮", "士虞禮", "特牲饋食禮", "少牢饋食禮", "有司",
+      "士冠禮",
+      "士昬禮",
+      "士相見禮",
+      "鄉飲酒禮",
+      "鄉射禮",
+      "燕禮",
+      "大射",
+      "聘禮",
+      "公食大夫禮",
+      "覲禮",
+      "喪服",
+      "士喪禮",
+      "既夕禮",
+      "士虞禮",
+      "特牲饋食禮",
+      "少牢饋食禮",
+      "有司",
     ],
     blurb: (section) => `《儀禮》${section}篇。`,
   },
@@ -353,7 +608,20 @@ const CHINESE_CANON_SECTION_SERIES = [
     author: "左丘明傳",
     year: "春秋",
     category: "中文 · 春秋",
-    sections: ["隱公", "桓公", "莊公", "閔公", "僖公", "文公", "宣公", "成公", "襄公", "昭公", "定公", "哀公"],
+    sections: [
+      "隱公",
+      "桓公",
+      "莊公",
+      "閔公",
+      "僖公",
+      "文公",
+      "宣公",
+      "成公",
+      "襄公",
+      "昭公",
+      "定公",
+      "哀公",
+    ],
     blurb: (section) => `《春秋左氏傳》${section}篇。`,
   },
   {
@@ -362,7 +630,20 @@ const CHINESE_CANON_SECTION_SERIES = [
     author: "公羊高傳",
     year: "戰國",
     category: "中文 · 春秋",
-    sections: ["隱公", "桓公", "莊公", "閔公", "僖公", "文公", "宣公", "成公", "襄公", "昭公", "定公", "哀公"],
+    sections: [
+      "隱公",
+      "桓公",
+      "莊公",
+      "閔公",
+      "僖公",
+      "文公",
+      "宣公",
+      "成公",
+      "襄公",
+      "昭公",
+      "定公",
+      "哀公",
+    ],
     blurb: (section) => `《春秋公羊傳》${section}篇。`,
   },
   {
@@ -371,7 +652,20 @@ const CHINESE_CANON_SECTION_SERIES = [
     author: "穀梁赤傳",
     year: "戰國",
     category: "中文 · 春秋",
-    sections: ["隱公", "桓公", "莊公", "閔公", "僖公", "文公", "宣公", "成公", "襄公", "昭公", "定公", "哀公"],
+    sections: [
+      "隱公",
+      "桓公",
+      "莊公",
+      "閔公",
+      "僖公",
+      "文公",
+      "宣公",
+      "成公",
+      "襄公",
+      "昭公",
+      "定公",
+      "哀公",
+    ],
     blurb: (section) => `《春秋穀梁傳》${section}篇。`,
   },
   {
@@ -380,7 +674,20 @@ const CHINESE_CANON_SECTION_SERIES = [
     author: "魯國史官",
     year: "春秋",
     category: "中文 · 春秋",
-    sections: ["隱公", "桓公", "莊公", "閔公", "僖公", "文公", "宣公", "成公", "襄公", "昭公", "定公", "哀公"],
+    sections: [
+      "隱公",
+      "桓公",
+      "莊公",
+      "閔公",
+      "僖公",
+      "文公",
+      "宣公",
+      "成公",
+      "襄公",
+      "昭公",
+      "定公",
+      "哀公",
+    ],
     blurb: (section) => `《春秋經》${section}篇。`,
   },
   {
@@ -390,13 +697,70 @@ const CHINESE_CANON_SECTION_SERIES = [
     year: "先秦",
     category: "中文 · 易學",
     sections: [
-      "乾", "坤", "屯", "蒙", "需", "訟", "師", "比", "小畜", "履",
-      "泰", "否", "同人", "大有", "謙", "豫", "隨", "蠱", "臨", "觀",
-      "噬嗑", "賁", "剝", "復", "无妄", "大畜", "頤", "大過", "坎", "離",
-      "咸", "恒", "遯", "大壯", "晉", "明夷", "家人", "睽", "蹇", "解",
-      "損", "益", "夬", "姤", "萃", "升", "困", "井", "革", "鼎",
-      "震", "艮", "漸", "歸妹", "豐", "旅", "巽", "兌", "渙", "節",
-      "中孚", "小過", "既濟", "未濟",
+      "乾",
+      "坤",
+      "屯",
+      "蒙",
+      "需",
+      "訟",
+      "師",
+      "比",
+      "小畜",
+      "履",
+      "泰",
+      "否",
+      "同人",
+      "大有",
+      "謙",
+      "豫",
+      "隨",
+      "蠱",
+      "臨",
+      "觀",
+      "噬嗑",
+      "賁",
+      "剝",
+      "復",
+      "无妄",
+      "大畜",
+      "頤",
+      "大過",
+      "坎",
+      "離",
+      "咸",
+      "恒",
+      "遯",
+      "大壯",
+      "晉",
+      "明夷",
+      "家人",
+      "睽",
+      "蹇",
+      "解",
+      "損",
+      "益",
+      "夬",
+      "姤",
+      "萃",
+      "升",
+      "困",
+      "井",
+      "革",
+      "鼎",
+      "震",
+      "艮",
+      "漸",
+      "歸妹",
+      "豐",
+      "旅",
+      "巽",
+      "兌",
+      "渙",
+      "節",
+      "中孚",
+      "小過",
+      "既濟",
+      "未濟",
     ],
     blurb: (section) => `《周易》${section}卦。`,
   },
@@ -407,10 +771,24 @@ const CHINESE_CANON_SECTION_SERIES = [
     year: "先秦至漢",
     category: "中文 · 地理",
     sections: [
-      "南山經", "西山經", "北山經", "東山經", "中山經",
-      "海外南經", "海外西經", "海外北經", "海外東經",
-      "海內南經", "海內西經", "海內北經", "海內東經",
-      "大荒東經", "大荒南經", "大荒西經", "大荒北經", "海內經",
+      "南山經",
+      "西山經",
+      "北山經",
+      "東山經",
+      "中山經",
+      "海外南經",
+      "海外西經",
+      "海外北經",
+      "海外東經",
+      "海內南經",
+      "海內西經",
+      "海內北經",
+      "海內東經",
+      "大荒東經",
+      "大荒南經",
+      "大荒西經",
+      "大荒北經",
+      "海內經",
     ],
     blurb: (section) => `《山海經》${section}。`,
   },
@@ -421,11 +799,56 @@ const CHINESE_CANON_SECTION_SERIES = [
     year: "南梁",
     category: "中文 · 文論",
     sections: [
-      "原道", "徵聖", "宗經", "正緯", "辨騷", "明詩", "樂府", "詮賦", "頌讚", "祝盟",
-      "銘箴", "誄碑", "哀弔", "雜文", "諧讔", "史傳", "諸子", "論說", "詔策", "檄移",
-      "封禪", "章表", "奏啟", "議對", "書記", "神思", "體性", "風骨", "通變", "定勢",
-      "情采", "鎔裁", "聲律", "章句", "麗辭", "比興", "夸飾", "事類", "練字", "隱秀",
-      "指瑕", "養氣", "附會", "總術", "時序", "物色", "才略", "知音", "程器", "序志",
+      "原道",
+      "徵聖",
+      "宗經",
+      "正緯",
+      "辨騷",
+      "明詩",
+      "樂府",
+      "詮賦",
+      "頌讚",
+      "祝盟",
+      "銘箴",
+      "誄碑",
+      "哀弔",
+      "雜文",
+      "諧讔",
+      "史傳",
+      "諸子",
+      "論說",
+      "詔策",
+      "檄移",
+      "封禪",
+      "章表",
+      "奏啟",
+      "議對",
+      "書記",
+      "神思",
+      "體性",
+      "風骨",
+      "通變",
+      "定勢",
+      "情采",
+      "鎔裁",
+      "聲律",
+      "章句",
+      "麗辭",
+      "比興",
+      "夸飾",
+      "事類",
+      "練字",
+      "隱秀",
+      "指瑕",
+      "養氣",
+      "附會",
+      "總術",
+      "時序",
+      "物色",
+      "才略",
+      "知音",
+      "程器",
+      "序志",
     ],
     blurb: (section, index) => `《文心雕龍》${section}第${cnOrdinal(index + 1)}。`,
   },
@@ -449,10 +872,25 @@ const CHINESE_PAGE_SECTION_SERIES = [
     category: "中文 · 小學",
     sourceTitle: "爾雅",
     sections: [
-      "釋詁 第一", "釋言 第二", "釋訓 第三", "釋親 第四", "釋宮 第五", "釋器 第六",
-      "釋樂 第七", "釋天 第八", "釋地 第九", "釋丘 第十", "釋山 第十一", "釋水 第十二",
-      "釋草 第十三", "釋木 第十四", "釋蟲 第十五", "釋魚 第十六", "釋鳥 第十七",
-      "釋獸 第十八", "釋畜 第十九",
+      "釋詁 第一",
+      "釋言 第二",
+      "釋訓 第三",
+      "釋親 第四",
+      "釋宮 第五",
+      "釋器 第六",
+      "釋樂 第七",
+      "釋天 第八",
+      "釋地 第九",
+      "釋丘 第十",
+      "釋山 第十一",
+      "釋水 第十二",
+      "釋草 第十三",
+      "釋木 第十四",
+      "釋蟲 第十五",
+      "釋魚 第十六",
+      "釋鳥 第十七",
+      "釋獸 第十八",
+      "釋畜 第十九",
     ],
     blurb: (section) => `《爾雅》${section.replace(/\s+/g, "")}。`,
   },
@@ -464,25 +902,110 @@ const CHINESE_PAGE_SECTION_SERIES = [
     category: "中文 · 儒家",
     sourceTitle: "今文孝經",
     sections: [
-      "開宗明義章·第一", "天子章·第二", "諸侯章·第三", "卿大夫章·第四", "士章·第五", "庶人章·第六",
-      "三才章·第七", "孝治章·第八", "聖治章·第九", "紀孝行章·第十", "五刑章·第十一", "廣要道章·第十二",
-      "廣至德章·第十三", "廣揚名章·第十四", "諫諍章·第十五", "感應章·第十六", "事君章·第十七", "喪親章·第十八",
+      "開宗明義章·第一",
+      "天子章·第二",
+      "諸侯章·第三",
+      "卿大夫章·第四",
+      "士章·第五",
+      "庶人章·第六",
+      "三才章·第七",
+      "孝治章·第八",
+      "聖治章·第九",
+      "紀孝行章·第十",
+      "五刑章·第十一",
+      "廣要道章·第十二",
+      "廣至德章·第十三",
+      "廣揚名章·第十四",
+      "諫諍章·第十五",
+      "感應章·第十六",
+      "事君章·第十七",
+      "喪親章·第十八",
     ],
     blurb: (section) => `《孝經》${section}。`,
   },
 ];
 
 const CHUCI_SUPPLEMENT_BOOKS = [
-  { id: "chuci-buju-wikisource-zh", title: "卜居", author: "屈原", year: "戰國", sourceTitle: "卜居 (屈原)", blurb: "屈原既放，三年不得復見。" },
-  { id: "chuci-jiubian-wikisource-zh", title: "九辯", author: "宋玉", year: "戰國", sourceTitle: "九辯", blurb: "悲哉秋之為氣也。" },
-  { id: "chuci-zhaohun-wikisource-zh", title: "招魂", author: "宋玉", year: "戰國", sourceTitle: "楚辭/招䰟", blurb: "朕幼清以廉潔兮，身服義而未沫。" },
-  { id: "chuci-xishi-wikisource-zh", title: "惜誓", author: "賈誼", year: "西漢", sourceTitle: "楚辭/惜誓", blurb: "惜余年老而日衰兮，歲忽忽而不反。" },
-  { id: "chuci-zhaoyinshi-wikisource-zh", title: "招隱士", author: "淮南小山", year: "西漢", sourceTitle: "招隱士", blurb: "桂樹叢生兮山之幽。" },
-  { id: "chuci-qijian-wikisource-zh", title: "七諫", author: "東方朔", year: "西漢", sourceTitle: "楚辭/七諫", blurb: "平生於國兮，長於原野。" },
-  { id: "chuci-aishiming-wikisource-zh", title: "哀時命", author: "嚴忌", year: "西漢", sourceTitle: "楚辭/哀時命", blurb: "哀時命之不及古人兮，夫何予生之不遘時。" },
-  { id: "chuci-jiuhuai-wikisource-zh", title: "九懷", author: "王褒", year: "西漢", sourceTitle: "九懷", blurb: "極運兮不中，來將屈兮困窮。" },
-  { id: "chuci-jiutan-wikisource-zh", title: "九歎", author: "劉向", year: "西漢", sourceTitle: "九歎", blurb: "伊伯庸之末胄兮，諒皇直之屈原。" },
-  { id: "chuci-jiusi-wikisource-zh", title: "九思", author: "王逸", year: "東漢", sourceTitle: "九思", blurb: "悲時俗之迫阨兮，願輕舉而遠遊。" },
+  {
+    id: "chuci-buju-wikisource-zh",
+    title: "卜居",
+    author: "屈原",
+    year: "戰國",
+    sourceTitle: "卜居 (屈原)",
+    blurb: "屈原既放，三年不得復見。",
+  },
+  {
+    id: "chuci-jiubian-wikisource-zh",
+    title: "九辯",
+    author: "宋玉",
+    year: "戰國",
+    sourceTitle: "九辯",
+    blurb: "悲哉秋之為氣也。",
+  },
+  {
+    id: "chuci-zhaohun-wikisource-zh",
+    title: "招魂",
+    author: "宋玉",
+    year: "戰國",
+    sourceTitle: "楚辭/招䰟",
+    blurb: "朕幼清以廉潔兮，身服義而未沫。",
+  },
+  {
+    id: "chuci-xishi-wikisource-zh",
+    title: "惜誓",
+    author: "賈誼",
+    year: "西漢",
+    sourceTitle: "楚辭/惜誓",
+    blurb: "惜余年老而日衰兮，歲忽忽而不反。",
+  },
+  {
+    id: "chuci-zhaoyinshi-wikisource-zh",
+    title: "招隱士",
+    author: "淮南小山",
+    year: "西漢",
+    sourceTitle: "招隱士",
+    blurb: "桂樹叢生兮山之幽。",
+  },
+  {
+    id: "chuci-qijian-wikisource-zh",
+    title: "七諫",
+    author: "東方朔",
+    year: "西漢",
+    sourceTitle: "楚辭/七諫",
+    blurb: "平生於國兮，長於原野。",
+  },
+  {
+    id: "chuci-aishiming-wikisource-zh",
+    title: "哀時命",
+    author: "嚴忌",
+    year: "西漢",
+    sourceTitle: "楚辭/哀時命",
+    blurb: "哀時命之不及古人兮，夫何予生之不遘時。",
+  },
+  {
+    id: "chuci-jiuhuai-wikisource-zh",
+    title: "九懷",
+    author: "王褒",
+    year: "西漢",
+    sourceTitle: "九懷",
+    blurb: "極運兮不中，來將屈兮困窮。",
+  },
+  {
+    id: "chuci-jiutan-wikisource-zh",
+    title: "九歎",
+    author: "劉向",
+    year: "西漢",
+    sourceTitle: "九歎",
+    blurb: "伊伯庸之末胄兮，諒皇直之屈原。",
+  },
+  {
+    id: "chuci-jiusi-wikisource-zh",
+    title: "九思",
+    author: "王逸",
+    year: "東漢",
+    sourceTitle: "九思",
+    blurb: "悲時俗之迫阨兮，願輕舉而遠遊。",
+  },
 ].map((book) => ({
   ...book,
   category: "中文 · 楚辭",
@@ -490,10 +1013,13 @@ const CHUCI_SUPPLEMENT_BOOKS = [
 }));
 
 function sourceEntries(text) {
-  return String(text).trim().split(/\n+/u).map((line) => {
-    const [sourceTitle, label = sourceTitle] = line.split("|");
-    return { sourceTitle: sourceTitle.trim(), label: label.trim() };
-  });
+  return String(text)
+    .trim()
+    .split(/\n+/u)
+    .map((line) => {
+      const [sourceTitle, label = sourceTitle] = line.split("|");
+      return { sourceTitle: sourceTitle.trim(), label: label.trim() };
+    });
 }
 
 function cleanSourceSectionLabel(section) {
@@ -512,7 +1038,9 @@ function cleanSourceSectionAuthor(section) {
   const text = String(section);
   const authorLink = text.match(/\[\[(?:Author|作者):[^\]|]+(?:\|([^\]]+))?\]\]/u);
   if (authorLink) {
-    const author = (authorLink[1] || "").replace(/-\{([^{}]+)\}-/gu, (_, body) => chooseVariant(body)).trim();
+    const author = (authorLink[1] || "")
+      .replace(/-\{([^{}]+)\}-/gu, (_, body) => chooseVariant(body))
+      .trim();
     if (author) return author;
   }
   const label = cleanSourceSectionLabel(text);
@@ -521,10 +1049,17 @@ function cleanSourceSectionAuthor(section) {
 }
 
 function sectionEntries(text) {
-  return String(text).trim().split(/\n+/u).map((line) => {
-    const sourceSection = line.trim();
-    return { sourceSection, label: cleanSourceSectionLabel(sourceSection), author: cleanSourceSectionAuthor(sourceSection) };
-  });
+  return String(text)
+    .trim()
+    .split(/\n+/u)
+    .map((line) => {
+      const sourceSection = line.trim();
+      return {
+        sourceSection,
+        label: cleanSourceSectionLabel(sourceSection),
+        author: cleanSourceSectionAuthor(sourceSection),
+      };
+    });
 }
 
 function sourceSectionDataEntries(data) {
@@ -1923,7 +2458,9 @@ const SHIJING_SOURCE_TITLES = `
   天作 昊天有成命 我將 時邁 執競 思文 臣工 噫嘻 振鷺 豐年 有瞽 潛
   雝 載見 有客 武 閔予小子 訪落 敬之 小毖 載芟 良耜 絲衣 酌
   桓 賚 般 駉 有駜 泮水 閟宮 那 烈祖 玄鳥 長發 殷武
-`.trim().split(/\s+/u);
+`
+  .trim()
+  .split(/\s+/u);
 
 function historySourceVolume(volume, series) {
   if (series.sourceVolumeStyle === "cn") return cnOrdinal(volume);
@@ -1931,15 +2468,22 @@ function historySourceVolume(volume, series) {
 }
 
 function historyVolumeBooks(series) {
-  const volumes = series.volumeNumbers || Array.from({ length: series.volumes }, (_, index) => index + 1);
+  const volumes =
+    series.volumeNumbers || Array.from({ length: series.volumes }, (_, index) => index + 1);
   return volumes.map((volume) => {
     const idVolume = String(volume).padStart(3, "0");
-    const sourceVolumes = series.sourceVolumeOverrides?.[volume] || [historySourceVolume(volume, series)];
+    const sourceVolumes = series.sourceVolumeOverrides?.[volume] || [
+      historySourceVolume(volume, series),
+    ];
     const sourceVolumePrefix = series.sourceVolumePrefix ?? "卷";
     const sourceVolumeSuffix = series.sourceVolumeSuffix ?? "";
     const sourceTitleBase = series.sourceTitleBase || series.title;
-    const sourceTitles = sourceVolumes.map((sourceVolume) => `${sourceTitleBase}/${sourceVolumePrefix}${sourceVolume}${sourceVolumeSuffix}`);
-    const volumeLabel = series.volumeLabels?.[volume - 1] || series.volumeLabelsByNumber?.[volume] || "";
+    const sourceTitles = sourceVolumes.map(
+      (sourceVolume) =>
+        `${sourceTitleBase}/${sourceVolumePrefix}${sourceVolume}${sourceVolumeSuffix}`,
+    );
+    const volumeLabel =
+      series.volumeLabels?.[volume - 1] || series.volumeLabelsByNumber?.[volume] || "";
     const displayVolume = `卷${cnOrdinal(volume)}${volumeLabel ? `·${volumeLabel}` : ""}`;
     return {
       id: `${series.slug}-${idVolume}-wikisource-zh`,
@@ -1968,7 +2512,10 @@ function canonSectionBooks(series) {
     sourceTitle: `${sourceTitleBase}/${section}`,
     singleVolumeChapter: true,
     evidence: `Wikisource Chinese text from the public-domain ${series.title}; section ${section}.`,
-    blurb: typeof series.blurb === "function" ? series.blurb(section, index) : `《${series.title}》${section}。`,
+    blurb:
+      typeof series.blurb === "function"
+        ? series.blurb(section, index)
+        : `《${series.title}》${section}。`,
     description: `《${series.title}》${section}，依中文維基文庫公版文本整理為 EPUB。`,
   }));
 }
@@ -1985,7 +2532,10 @@ function pageSectionBooks(series) {
     sourceSection: section,
     singleVolumeChapter: true,
     evidence: `Wikisource Chinese text from the public-domain ${series.title}; section ${section}.`,
-    blurb: typeof series.blurb === "function" ? series.blurb(section, index) : `《${series.title}》${section}。`,
+    blurb:
+      typeof series.blurb === "function"
+        ? series.blurb(section, index)
+        : `《${series.title}》${section}。`,
     description: `《${series.title}》${section.replace(/\s+/g, "")}，依中文維基文庫公版文本整理為 EPUB。`,
   }));
 }
@@ -2023,7 +2573,10 @@ function sourceEntryBooks(series) {
       sourceTitle: entry.sourceTitle,
       singleVolumeChapter: true,
       evidence: `Wikisource Chinese text from the public-domain ${series.title}; source page ${entry.sourceTitle}.`,
-      blurb: typeof series.blurb === "function" ? series.blurb(entry, index) : `《${series.title}》${displayTitle}。`,
+      blurb:
+        typeof series.blurb === "function"
+          ? series.blurb(entry, index)
+          : `《${series.title}》${displayTitle}。`,
       description: `《${series.title}》${displayTitle}，依中文維基文庫公版文本整理為 EPUB。`,
     };
   });
@@ -2043,7 +2596,8 @@ function sourceSectionEntryBooks(series) {
     const sourceSectionKey = `${sourceTitle}\n${entry.sourceSection}`;
     const sourceSectionOccurrence = (seenSections.get(sourceSectionKey) || 0) + 1;
     seenSections.set(sourceSectionKey, sourceSectionOccurrence);
-    const displayTitle = labelCounts.get(entry.label) > 1 ? `${entry.label}·其${cnOrdinal(seen)}` : entry.label;
+    const displayTitle =
+      labelCounts.get(entry.label) > 1 ? `${entry.label}·其${cnOrdinal(seen)}` : entry.label;
     return {
       id: `${series.slug}-${String(index + 1).padStart(3, "0")}-wikisource-zh`,
       title: `${series.title}·${displayTitle}`,
@@ -2056,7 +2610,10 @@ function sourceSectionEntryBooks(series) {
       sourceSectionOccurrence,
       singleVolumeChapter: true,
       evidence: `Wikisource Chinese text from the public-domain ${series.title}; section ${entry.label}.`,
-      blurb: typeof series.blurb === "function" ? series.blurb(entry, index) : `《${series.title}》${displayTitle}。`,
+      blurb:
+        typeof series.blurb === "function"
+          ? series.blurb(entry, index)
+          : `《${series.title}》${displayTitle}。`,
       description: `《${series.title}》${displayTitle}，依中文維基文庫公版文本整理為 EPUB。`,
     };
   });
@@ -2688,92 +3245,630 @@ const BOOKS = [
     description: "宗臣《報劉一丈書》，依中文維基文庫公版文本整理為 EPUB。",
   },
   ...[
-    { id: "jinxue-jie-wikisource-zh", title: "進學解", author: "韓愈", year: "唐", blurb: "業精於勤，荒於嬉；行成於思，毀於隨。" },
-    { id: "song-meng-dongye-xu-wikisource-zh", title: "送孟東野序", author: "韓愈", year: "唐", blurb: "大凡物不得其平則鳴。" },
-    { id: "liu-zihou-muzhiming-wikisource-zh", title: "柳子厚墓誌銘", author: "韓愈", year: "唐", blurb: "子厚諱宗元。" },
-    { id: "hui-bian-wikisource-zh", title: "諱辯", author: "韓愈", year: "唐", blurb: "愈與李賀書，勸賀舉進士。" },
-    { id: "zhengchen-lun-wikisource-zh", title: "爭臣論", author: "韓愈", year: "唐", blurb: "或問諫議大夫陽城於愈。" },
-    { id: "ji-eyu-wen-wikisource-zh", title: "祭鱷魚文", author: "韓愈", year: "唐", blurb: "潮州刺史韓愈，使軍事衙推秦濟。" },
-    { id: "lantian-xiancheng-tingbi-ji-wikisource-zh", title: "藍田縣丞廳壁記", author: "韓愈", year: "唐", blurb: "丞之職，所以貳令。" },
-    { id: "song-dong-shaonan-xu-wikisource-zh", title: "送董邵南序", author: "韓愈", year: "唐", blurb: "燕趙古稱多感慨悲歌之士。" },
-    { id: "zhongshu-guotuotuo-zhuan-wikisource-zh", title: "種樹郭橐駝傳", author: "柳宗元", year: "唐", blurb: "郭橐駝，不知始自何名。" },
-    { id: "xiaoshitan-ji-wikisource-zh", title: "小石潭記", author: "柳宗元", year: "唐", sourceTitle: "至小丘西小石潭記", blurb: "從小丘西行百二十步，隔篁竹，聞水聲。" },
-    { id: "gumu-tan-ji-wikisource-zh", title: "鈷鉧潭記", author: "柳宗元", year: "唐", blurb: "鈷鉧潭在西山西。" },
-    { id: "gumu-tan-xixiaoqiu-ji-wikisource-zh", title: "鈷鉧潭西小丘記", author: "柳宗元", year: "唐", blurb: "得西山後八日，又得鈷鉧潭。" },
-    { id: "xiaoshichengshan-ji-wikisource-zh", title: "小石城山記", author: "柳宗元", year: "唐", blurb: "自西山道口徑北，逾黃茅嶺而下。" },
-    { id: "yuanjia-ke-ji-wikisource-zh", title: "袁家渴記", author: "柳宗元", year: "唐", blurb: "由冉溪西南水行十里。" },
-    { id: "shiqu-ji-wikisource-zh", title: "石渠記", author: "柳宗元", year: "唐", blurb: "自渴西南行，不能百步，得石渠。" },
-    { id: "shijian-ji-wikisource-zh", title: "石澗記", author: "柳宗元", year: "唐", blurb: "石渠之事既窮。" },
-    { id: "fuban-zhuan-wikisource-zh", title: "蝜蝂傳", author: "柳宗元", year: "唐", blurb: "蝜蝂小蟲也。" },
-    { id: "ziren-zhuan-wikisource-zh", title: "梓人傳", author: "柳宗元", year: "唐", blurb: "裴封叔之第在光德里。" },
-    { id: "duan-taiwei-yishi-zhuang-wikisource-zh", title: "段太尉逸事狀", author: "柳宗元", year: "唐", blurb: "太尉始為涇州刺史時。" },
-    { id: "yuxi-shi-xu-wikisource-zh", title: "愚溪詩序", author: "柳宗元", year: "唐", blurb: "灌水之陽有溪焉。" },
-    { id: "song-xue-cunyi-xu-wikisource-zh", title: "送薛存義序", author: "柳宗元", year: "唐", blurb: "河東薛存義將行。" },
-    { id: "tongye-fengdi-bian-wikisource-zh", title: "桐葉封弟辯", author: "柳宗元", year: "唐", blurb: "古之傳者，有言成王以桐葉與小弱弟戲。" },
-    { id: "fengjian-lun-wikisource-zh", title: "封建論", author: "柳宗元", year: "唐", blurb: "天地果無初乎？吾不得而知之也。" },
-    { id: "jizi-bei-wikisource-zh", title: "箕子碑", author: "柳宗元", year: "唐", blurb: "凡大人之道有三。" },
-    { id: "tian-shuo-wikisource-zh", title: "天說", author: "柳宗元", year: "唐", blurb: "韓愈謂柳子曰：若知天之說乎？" },
-    { id: "da-wei-zhongli-lunshidao-shu-wikisource-zh", title: "答韋中立論師道書", author: "柳宗元", year: "唐", blurb: "辱書云：欲相師。" },
-    { id: "bo-fuchou-yi-wikisource-zh", title: "駁復讎議", author: "柳宗元", year: "唐", blurb: "臣伏見天后時，有同州下邽人徐元慶者。" },
-    { id: "zhelong-shuo-wikisource-zh", title: "謫龍說", author: "柳宗元", year: "唐", blurb: "扶風馬孺子言。" },
-    { id: "tong-ouji-zhuan-wikisource-zh", title: "童區寄傳", author: "柳宗元", year: "唐", blurb: "柳先生曰：越人少恩。" },
-    { id: "pi-shuo-wikisource-zh", title: "羆說", author: "柳宗元", year: "唐", blurb: "鹿畏貙，貙畏虎，虎畏羆。" },
-    { id: "qian-zhi-lu-wikisource-zh", title: "黔之驢", author: "柳宗元", year: "唐", blurb: "黔無驢，有好事者，船載以入。" },
-    { id: "tonglu-jun-yan-xiansheng-citang-ji-wikisource-zh", title: "桐廬郡嚴先生祠堂記", author: "范仲淹", year: "北宋", blurb: "先生，漢光武之故人也。" },
-    { id: "zongqiu-lun-wikisource-zh", title: "縱囚論", author: "歐陽脩", year: "北宋", blurb: "信義行於君子，而刑戮施於小人。" },
-    { id: "longgang-qianbiao-wikisource-zh", title: "瀧岡阡表", author: "歐陽脩", year: "北宋", blurb: "惟我皇考崇公，卜吉於瀧岡。" },
-    { id: "mei-shengyu-shiji-xu-wikisource-zh", title: "梅聖俞詩集序", author: "歐陽脩", year: "北宋", blurb: "予聞世謂詩人，少達而多窮。" },
-    { id: "shi-miyan-shiji-xu-wikisource-zh", title: "釋祕演詩集序", author: "歐陽脩", year: "北宋", blurb: "予少以進士遊京師。" },
-    { id: "yu-gao-sijian-shu-wikisource-zh", title: "與高司諫書", author: "歐陽脩", year: "北宋", blurb: "修頓首再拜白司諫足下。" },
-    { id: "xiyu-ting-ji-wikisource-zh", title: "喜雨亭記", author: "蘇軾", year: "北宋", blurb: "亭以雨名，誌喜也。" },
-    { id: "chaoran-tai-ji-wikisource-zh", title: "超然臺記", author: "蘇軾", year: "北宋", blurb: "凡物，皆有可觀。" },
-    { id: "fangshanzi-zhuan-wikisource-zh", title: "方山子傳", author: "蘇軾", year: "北宋", blurb: "方山子，光黃間隱人也。" },
-    { id: "liuhou-lun-sushi-wikisource-zh", title: "留侯論", author: "蘇軾", year: "北宋", sourceTitle: "留侯論 (蘇軾)", blurb: "古之所謂豪傑之士者，必有過人之節。" },
-    { id: "jiayi-lun-wikisource-zh", title: "賈誼論", author: "蘇軾", year: "北宋", blurb: "非才之難，所以自用者實難。" },
-    { id: "jiaozhanshou-ce-wikisource-zh", title: "教戰守策", author: "蘇軾", year: "北宋", blurb: "夫當今生民之患，果安在哉？" },
-    { id: "riyu-wikisource-zh", title: "日喻", author: "蘇軾", year: "北宋", blurb: "生而眇者不識日。" },
-    { id: "lingxu-tai-ji-wikisource-zh", title: "凌虛臺記", author: "蘇軾", year: "北宋", blurb: "國於南山之下。" },
-    { id: "fanzeng-lun-wikisource-zh", title: "范增論", author: "蘇軾", year: "北宋", blurb: "漢用陳平計，閒疏楚君臣。" },
-    { id: "shang-mei-zhijiang-shu-wikisource-zh", title: "上梅直講書", author: "蘇軾", year: "北宋", blurb: "軾每讀詩至鴟鴞。" },
-    { id: "shang-shumi-han-taiwei-shu-wikisource-zh", title: "上樞密韓太尉書", author: "蘇轍", year: "北宋", sourceTitle: "上樞密韓太尉書 (蘇轍)", blurb: "轍生好為文，思之至深。" },
-    { id: "liuguo-lun-suzhe-wikisource-zh", title: "六國論（蘇轍）", author: "蘇轍", year: "北宋", sourceTitle: "六國論 (蘇轍)", blurb: "嘗讀六國世家，竊怪天下之諸侯。" },
-    { id: "mochi-ji-wikisource-zh", title: "墨池記", author: "曾鞏", year: "北宋", blurb: "臨川之城東，有地隱然而高。" },
-    { id: "ji-ouyang-sheren-shu-wikisource-zh", title: "寄歐陽舍人書", author: "曾鞏", year: "北宋", blurb: "去秋人還，蒙賜書及所撰先大父墓碑銘。" },
-    { id: "xingxin-ting-ji-wikisource-zh", title: "醒心亭記", author: "曾鞏", year: "北宋", blurb: "滁州之西南，泉水之涯。" },
-    { id: "yuezhou-zhaogong-jiuzai-ji-wikisource-zh", title: "越州趙公救災記", author: "曾鞏", year: "北宋", blurb: "熙寧八年夏，吳越大旱。" },
-    { id: "shang-zhongyong-wikisource-zh", title: "傷仲永", author: "王安石", year: "北宋", blurb: "金溪民方仲永，世隸耕。" },
-    { id: "du-mengchangjun-zhuan-wikisource-zh", title: "讀孟嘗君傳", author: "王安石", year: "北宋", blurb: "世皆稱孟嘗君能得士。" },
-    { id: "da-sima-jianyi-shu-wikisource-zh", title: "答司馬諫議書", author: "王安石", year: "北宋", blurb: "昨日蒙教，竊以為與君實遊處相好之日久。" },
-    { id: "huqiu-ji-wikisource-zh", title: "虎丘記", author: "袁宏道", year: "明", blurb: "虎丘去城可七八里。" },
-    { id: "xihu-qiyueban-wikisource-zh", title: "西湖七月半", author: "張岱", year: "明", blurb: "西湖七月半，一無可看。" },
-    { id: "yuzhong-zaji-wikisource-zh", title: "獄中雜記", author: "方苞", year: "清", blurb: "康熙五十一年三月，余在刑部獄。" },
-    { id: "deng-taishan-ji-wikisource-zh", title: "登泰山記", author: "姚鼐", year: "清", blurb: "泰山之陽，汶水西流。" },
-    { id: "da-tiezhui-zhuan-wikisource-zh", title: "大鐵椎傳", author: "魏禧", year: "清", blurb: "大鐵椎，不知何許人。" },
-    { id: "wu-ren-mubei-ji-wikisource-zh", title: "五人墓碑記", author: "張溥", year: "明", blurb: "五人者，蓋當蓼洲周公之被逮。" },
-    { id: "guiqulai-ci-bingxu-wikisource-zh", title: "歸去來辭並序", author: "陶淵明", year: "東晉", blurb: "余家貧，耕植不足以自給。" },
-    { id: "zhi-an-ce-wikisource-zh", title: "治安策", author: "賈誼", year: "西漢", blurb: "臣竊惟事勢，可為痛哭者一。" },
-    { id: "lun-jizhu-shu-wikisource-zh", title: "論積貯疏", author: "賈誼", year: "西漢", blurb: "倉廩實而知禮節。" },
-    { id: "longzhong-dui-wikisource-zh", title: "隆中對", author: "陳壽", year: "西晉", blurb: "自董卓已來，豪傑並起。" },
-    { id: "baoren-shaoqing-shu-wikisource-zh", title: "報任少卿書", author: "司馬遷", year: "西漢", blurb: "少卿足下：曩者辱賜書。" },
-    { id: "youxia-liezhuan-xu-wikisource-zh", title: "游俠列傳序", author: "司馬遷", year: "西漢", blurb: "儒以文亂法，而俠以武犯禁。" },
-    { id: "xiaoyao-you-wikisource-zh", title: "逍遙遊", author: "莊周", year: "先秦", category: "中文 · 諸子", sourceTitle: "莊子/逍遙遊", blurb: "北冥有魚，其名爲鯤。" },
-    { id: "yangsheng-zhu-wikisource-zh", title: "養生主", author: "莊周", year: "先秦", category: "中文 · 諸子", sourceTitle: "莊子/養生主", blurb: "吾生也有涯，而知也无涯。" },
-    { id: "qiushui-zhuangzi-wikisource-zh", title: "秋水", author: "莊周", year: "先秦", category: "中文 · 諸子", sourceTitle: "莊子/秋水", blurb: "秋水時至，百川灌河。" },
-    { id: "pipa-xing-wikisource-zh", title: "琵琶行", author: "白居易", year: "唐", category: "中文 · 詩歌", blurb: "潯陽江頭夜送客，楓葉荻花秋索索。" },
-    { id: "mengyou-tianmu-yin-liubie-wikisource-zh", title: "夢遊天姥吟留別", author: "李白", year: "唐", category: "中文 · 詩歌", blurb: "海客談瀛洲，煙濤微茫信難求。" },
-    { id: "chunjiang-huayueye-wikisource-zh", title: "春江花月夜", author: "張若虛", year: "唐", category: "中文 · 詩歌", sourceTitle: "春江花月夜 (張若虛)", blurb: "春江潮水連海平，海上明月共潮生。" },
-    { id: "jiangjinjiu-libai-wikisource-zh", title: "將進酒", author: "李白", year: "唐", category: "中文 · 詩歌", sourceTitle: "將進酒 (李白)", blurb: "君不見，黃河之水天上來。" },
-    { id: "shudao-nan-libai-wikisource-zh", title: "蜀道難", author: "李白", year: "唐", category: "中文 · 詩歌", sourceTitle: "蜀道難 (李白)", blurb: "蜀道之難，難於上青天。" },
-    { id: "guan-canghai-wikisource-zh", title: "觀滄海", author: "曹操", year: "東漢", category: "中文 · 詩歌", blurb: "東臨碣石，以觀滄海。" },
-    { id: "dengtuzi-haose-fu-wikisource-zh", title: "登徒子好色賦", author: "宋玉", year: "先秦", category: "中文 · 辭賦", blurb: "大夫登徒子侍於楚王。" },
-    { id: "gaotang-fu-wikisource-zh", title: "高唐賦", author: "宋玉", year: "先秦", category: "中文 · 辭賦", blurb: "昔者楚襄王與宋玉遊於雲夢之臺。" },
-    { id: "qifa-wikisource-zh", title: "七發", author: "枚乘", year: "西漢", category: "中文 · 辭賦", blurb: "楚太子有疾，而吳客往問之。" },
-    { id: "jianyuan-timing-ji-wikisource-zh", title: "諫院題名記", author: "司馬光", year: "北宋", blurb: "古者諫無官。" },
-    { id: "dailou-yuan-ji-wikisource-zh", title: "待漏院記", author: "王禹偁", year: "北宋", blurb: "天道不言，而品物亨。" },
-    { id: "yitian-ji-wikisource-zh", title: "義田記", author: "錢公輔", year: "北宋", blurb: "范文正公，蘇人也，平生好施與。" },
-    { id: "yuanzhou-zhouxue-ji-wikisource-zh", title: "袁州州學記", author: "李覯", year: "北宋", blurb: "皇帝二十有三年，制詔州縣立學。" },
-    { id: "xinshu-suxun-wikisource-zh", title: "心術", author: "蘇洵", year: "北宋", blurb: "為將之道，當先治心。" },
-    { id: "zhang-yizhou-huaxiang-ji-wikisource-zh", title: "張益州畫像記", author: "蘇洵", year: "北宋", blurb: "至和元年秋，蜀人傳言，有寇至邊。" },
+    {
+      id: "jinxue-jie-wikisource-zh",
+      title: "進學解",
+      author: "韓愈",
+      year: "唐",
+      blurb: "業精於勤，荒於嬉；行成於思，毀於隨。",
+    },
+    {
+      id: "song-meng-dongye-xu-wikisource-zh",
+      title: "送孟東野序",
+      author: "韓愈",
+      year: "唐",
+      blurb: "大凡物不得其平則鳴。",
+    },
+    {
+      id: "liu-zihou-muzhiming-wikisource-zh",
+      title: "柳子厚墓誌銘",
+      author: "韓愈",
+      year: "唐",
+      blurb: "子厚諱宗元。",
+    },
+    {
+      id: "hui-bian-wikisource-zh",
+      title: "諱辯",
+      author: "韓愈",
+      year: "唐",
+      blurb: "愈與李賀書，勸賀舉進士。",
+    },
+    {
+      id: "zhengchen-lun-wikisource-zh",
+      title: "爭臣論",
+      author: "韓愈",
+      year: "唐",
+      blurb: "或問諫議大夫陽城於愈。",
+    },
+    {
+      id: "ji-eyu-wen-wikisource-zh",
+      title: "祭鱷魚文",
+      author: "韓愈",
+      year: "唐",
+      blurb: "潮州刺史韓愈，使軍事衙推秦濟。",
+    },
+    {
+      id: "lantian-xiancheng-tingbi-ji-wikisource-zh",
+      title: "藍田縣丞廳壁記",
+      author: "韓愈",
+      year: "唐",
+      blurb: "丞之職，所以貳令。",
+    },
+    {
+      id: "song-dong-shaonan-xu-wikisource-zh",
+      title: "送董邵南序",
+      author: "韓愈",
+      year: "唐",
+      blurb: "燕趙古稱多感慨悲歌之士。",
+    },
+    {
+      id: "zhongshu-guotuotuo-zhuan-wikisource-zh",
+      title: "種樹郭橐駝傳",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "郭橐駝，不知始自何名。",
+    },
+    {
+      id: "xiaoshitan-ji-wikisource-zh",
+      title: "小石潭記",
+      author: "柳宗元",
+      year: "唐",
+      sourceTitle: "至小丘西小石潭記",
+      blurb: "從小丘西行百二十步，隔篁竹，聞水聲。",
+    },
+    {
+      id: "gumu-tan-ji-wikisource-zh",
+      title: "鈷鉧潭記",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "鈷鉧潭在西山西。",
+    },
+    {
+      id: "gumu-tan-xixiaoqiu-ji-wikisource-zh",
+      title: "鈷鉧潭西小丘記",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "得西山後八日，又得鈷鉧潭。",
+    },
+    {
+      id: "xiaoshichengshan-ji-wikisource-zh",
+      title: "小石城山記",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "自西山道口徑北，逾黃茅嶺而下。",
+    },
+    {
+      id: "yuanjia-ke-ji-wikisource-zh",
+      title: "袁家渴記",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "由冉溪西南水行十里。",
+    },
+    {
+      id: "shiqu-ji-wikisource-zh",
+      title: "石渠記",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "自渴西南行，不能百步，得石渠。",
+    },
+    {
+      id: "shijian-ji-wikisource-zh",
+      title: "石澗記",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "石渠之事既窮。",
+    },
+    {
+      id: "fuban-zhuan-wikisource-zh",
+      title: "蝜蝂傳",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "蝜蝂小蟲也。",
+    },
+    {
+      id: "ziren-zhuan-wikisource-zh",
+      title: "梓人傳",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "裴封叔之第在光德里。",
+    },
+    {
+      id: "duan-taiwei-yishi-zhuang-wikisource-zh",
+      title: "段太尉逸事狀",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "太尉始為涇州刺史時。",
+    },
+    {
+      id: "yuxi-shi-xu-wikisource-zh",
+      title: "愚溪詩序",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "灌水之陽有溪焉。",
+    },
+    {
+      id: "song-xue-cunyi-xu-wikisource-zh",
+      title: "送薛存義序",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "河東薛存義將行。",
+    },
+    {
+      id: "tongye-fengdi-bian-wikisource-zh",
+      title: "桐葉封弟辯",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "古之傳者，有言成王以桐葉與小弱弟戲。",
+    },
+    {
+      id: "fengjian-lun-wikisource-zh",
+      title: "封建論",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "天地果無初乎？吾不得而知之也。",
+    },
+    {
+      id: "jizi-bei-wikisource-zh",
+      title: "箕子碑",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "凡大人之道有三。",
+    },
+    {
+      id: "tian-shuo-wikisource-zh",
+      title: "天說",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "韓愈謂柳子曰：若知天之說乎？",
+    },
+    {
+      id: "da-wei-zhongli-lunshidao-shu-wikisource-zh",
+      title: "答韋中立論師道書",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "辱書云：欲相師。",
+    },
+    {
+      id: "bo-fuchou-yi-wikisource-zh",
+      title: "駁復讎議",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "臣伏見天后時，有同州下邽人徐元慶者。",
+    },
+    {
+      id: "zhelong-shuo-wikisource-zh",
+      title: "謫龍說",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "扶風馬孺子言。",
+    },
+    {
+      id: "tong-ouji-zhuan-wikisource-zh",
+      title: "童區寄傳",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "柳先生曰：越人少恩。",
+    },
+    {
+      id: "pi-shuo-wikisource-zh",
+      title: "羆說",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "鹿畏貙，貙畏虎，虎畏羆。",
+    },
+    {
+      id: "qian-zhi-lu-wikisource-zh",
+      title: "黔之驢",
+      author: "柳宗元",
+      year: "唐",
+      blurb: "黔無驢，有好事者，船載以入。",
+    },
+    {
+      id: "tonglu-jun-yan-xiansheng-citang-ji-wikisource-zh",
+      title: "桐廬郡嚴先生祠堂記",
+      author: "范仲淹",
+      year: "北宋",
+      blurb: "先生，漢光武之故人也。",
+    },
+    {
+      id: "zongqiu-lun-wikisource-zh",
+      title: "縱囚論",
+      author: "歐陽脩",
+      year: "北宋",
+      blurb: "信義行於君子，而刑戮施於小人。",
+    },
+    {
+      id: "longgang-qianbiao-wikisource-zh",
+      title: "瀧岡阡表",
+      author: "歐陽脩",
+      year: "北宋",
+      blurb: "惟我皇考崇公，卜吉於瀧岡。",
+    },
+    {
+      id: "mei-shengyu-shiji-xu-wikisource-zh",
+      title: "梅聖俞詩集序",
+      author: "歐陽脩",
+      year: "北宋",
+      blurb: "予聞世謂詩人，少達而多窮。",
+    },
+    {
+      id: "shi-miyan-shiji-xu-wikisource-zh",
+      title: "釋祕演詩集序",
+      author: "歐陽脩",
+      year: "北宋",
+      blurb: "予少以進士遊京師。",
+    },
+    {
+      id: "yu-gao-sijian-shu-wikisource-zh",
+      title: "與高司諫書",
+      author: "歐陽脩",
+      year: "北宋",
+      blurb: "修頓首再拜白司諫足下。",
+    },
+    {
+      id: "xiyu-ting-ji-wikisource-zh",
+      title: "喜雨亭記",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "亭以雨名，誌喜也。",
+    },
+    {
+      id: "chaoran-tai-ji-wikisource-zh",
+      title: "超然臺記",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "凡物，皆有可觀。",
+    },
+    {
+      id: "fangshanzi-zhuan-wikisource-zh",
+      title: "方山子傳",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "方山子，光黃間隱人也。",
+    },
+    {
+      id: "liuhou-lun-sushi-wikisource-zh",
+      title: "留侯論",
+      author: "蘇軾",
+      year: "北宋",
+      sourceTitle: "留侯論 (蘇軾)",
+      blurb: "古之所謂豪傑之士者，必有過人之節。",
+    },
+    {
+      id: "jiayi-lun-wikisource-zh",
+      title: "賈誼論",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "非才之難，所以自用者實難。",
+    },
+    {
+      id: "jiaozhanshou-ce-wikisource-zh",
+      title: "教戰守策",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "夫當今生民之患，果安在哉？",
+    },
+    {
+      id: "riyu-wikisource-zh",
+      title: "日喻",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "生而眇者不識日。",
+    },
+    {
+      id: "lingxu-tai-ji-wikisource-zh",
+      title: "凌虛臺記",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "國於南山之下。",
+    },
+    {
+      id: "fanzeng-lun-wikisource-zh",
+      title: "范增論",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "漢用陳平計，閒疏楚君臣。",
+    },
+    {
+      id: "shang-mei-zhijiang-shu-wikisource-zh",
+      title: "上梅直講書",
+      author: "蘇軾",
+      year: "北宋",
+      blurb: "軾每讀詩至鴟鴞。",
+    },
+    {
+      id: "shang-shumi-han-taiwei-shu-wikisource-zh",
+      title: "上樞密韓太尉書",
+      author: "蘇轍",
+      year: "北宋",
+      sourceTitle: "上樞密韓太尉書 (蘇轍)",
+      blurb: "轍生好為文，思之至深。",
+    },
+    {
+      id: "liuguo-lun-suzhe-wikisource-zh",
+      title: "六國論（蘇轍）",
+      author: "蘇轍",
+      year: "北宋",
+      sourceTitle: "六國論 (蘇轍)",
+      blurb: "嘗讀六國世家，竊怪天下之諸侯。",
+    },
+    {
+      id: "mochi-ji-wikisource-zh",
+      title: "墨池記",
+      author: "曾鞏",
+      year: "北宋",
+      blurb: "臨川之城東，有地隱然而高。",
+    },
+    {
+      id: "ji-ouyang-sheren-shu-wikisource-zh",
+      title: "寄歐陽舍人書",
+      author: "曾鞏",
+      year: "北宋",
+      blurb: "去秋人還，蒙賜書及所撰先大父墓碑銘。",
+    },
+    {
+      id: "xingxin-ting-ji-wikisource-zh",
+      title: "醒心亭記",
+      author: "曾鞏",
+      year: "北宋",
+      blurb: "滁州之西南，泉水之涯。",
+    },
+    {
+      id: "yuezhou-zhaogong-jiuzai-ji-wikisource-zh",
+      title: "越州趙公救災記",
+      author: "曾鞏",
+      year: "北宋",
+      blurb: "熙寧八年夏，吳越大旱。",
+    },
+    {
+      id: "shang-zhongyong-wikisource-zh",
+      title: "傷仲永",
+      author: "王安石",
+      year: "北宋",
+      blurb: "金溪民方仲永，世隸耕。",
+    },
+    {
+      id: "du-mengchangjun-zhuan-wikisource-zh",
+      title: "讀孟嘗君傳",
+      author: "王安石",
+      year: "北宋",
+      blurb: "世皆稱孟嘗君能得士。",
+    },
+    {
+      id: "da-sima-jianyi-shu-wikisource-zh",
+      title: "答司馬諫議書",
+      author: "王安石",
+      year: "北宋",
+      blurb: "昨日蒙教，竊以為與君實遊處相好之日久。",
+    },
+    {
+      id: "huqiu-ji-wikisource-zh",
+      title: "虎丘記",
+      author: "袁宏道",
+      year: "明",
+      blurb: "虎丘去城可七八里。",
+    },
+    {
+      id: "xihu-qiyueban-wikisource-zh",
+      title: "西湖七月半",
+      author: "張岱",
+      year: "明",
+      blurb: "西湖七月半，一無可看。",
+    },
+    {
+      id: "yuzhong-zaji-wikisource-zh",
+      title: "獄中雜記",
+      author: "方苞",
+      year: "清",
+      blurb: "康熙五十一年三月，余在刑部獄。",
+    },
+    {
+      id: "deng-taishan-ji-wikisource-zh",
+      title: "登泰山記",
+      author: "姚鼐",
+      year: "清",
+      blurb: "泰山之陽，汶水西流。",
+    },
+    {
+      id: "da-tiezhui-zhuan-wikisource-zh",
+      title: "大鐵椎傳",
+      author: "魏禧",
+      year: "清",
+      blurb: "大鐵椎，不知何許人。",
+    },
+    {
+      id: "wu-ren-mubei-ji-wikisource-zh",
+      title: "五人墓碑記",
+      author: "張溥",
+      year: "明",
+      blurb: "五人者，蓋當蓼洲周公之被逮。",
+    },
+    {
+      id: "guiqulai-ci-bingxu-wikisource-zh",
+      title: "歸去來辭並序",
+      author: "陶淵明",
+      year: "東晉",
+      blurb: "余家貧，耕植不足以自給。",
+    },
+    {
+      id: "zhi-an-ce-wikisource-zh",
+      title: "治安策",
+      author: "賈誼",
+      year: "西漢",
+      blurb: "臣竊惟事勢，可為痛哭者一。",
+    },
+    {
+      id: "lun-jizhu-shu-wikisource-zh",
+      title: "論積貯疏",
+      author: "賈誼",
+      year: "西漢",
+      blurb: "倉廩實而知禮節。",
+    },
+    {
+      id: "longzhong-dui-wikisource-zh",
+      title: "隆中對",
+      author: "陳壽",
+      year: "西晉",
+      blurb: "自董卓已來，豪傑並起。",
+    },
+    {
+      id: "baoren-shaoqing-shu-wikisource-zh",
+      title: "報任少卿書",
+      author: "司馬遷",
+      year: "西漢",
+      blurb: "少卿足下：曩者辱賜書。",
+    },
+    {
+      id: "youxia-liezhuan-xu-wikisource-zh",
+      title: "游俠列傳序",
+      author: "司馬遷",
+      year: "西漢",
+      blurb: "儒以文亂法，而俠以武犯禁。",
+    },
+    {
+      id: "xiaoyao-you-wikisource-zh",
+      title: "逍遙遊",
+      author: "莊周",
+      year: "先秦",
+      category: "中文 · 諸子",
+      sourceTitle: "莊子/逍遙遊",
+      blurb: "北冥有魚，其名爲鯤。",
+    },
+    {
+      id: "yangsheng-zhu-wikisource-zh",
+      title: "養生主",
+      author: "莊周",
+      year: "先秦",
+      category: "中文 · 諸子",
+      sourceTitle: "莊子/養生主",
+      blurb: "吾生也有涯，而知也无涯。",
+    },
+    {
+      id: "qiushui-zhuangzi-wikisource-zh",
+      title: "秋水",
+      author: "莊周",
+      year: "先秦",
+      category: "中文 · 諸子",
+      sourceTitle: "莊子/秋水",
+      blurb: "秋水時至，百川灌河。",
+    },
+    {
+      id: "pipa-xing-wikisource-zh",
+      title: "琵琶行",
+      author: "白居易",
+      year: "唐",
+      category: "中文 · 詩歌",
+      blurb: "潯陽江頭夜送客，楓葉荻花秋索索。",
+    },
+    {
+      id: "mengyou-tianmu-yin-liubie-wikisource-zh",
+      title: "夢遊天姥吟留別",
+      author: "李白",
+      year: "唐",
+      category: "中文 · 詩歌",
+      blurb: "海客談瀛洲，煙濤微茫信難求。",
+    },
+    {
+      id: "chunjiang-huayueye-wikisource-zh",
+      title: "春江花月夜",
+      author: "張若虛",
+      year: "唐",
+      category: "中文 · 詩歌",
+      sourceTitle: "春江花月夜 (張若虛)",
+      blurb: "春江潮水連海平，海上明月共潮生。",
+    },
+    {
+      id: "jiangjinjiu-libai-wikisource-zh",
+      title: "將進酒",
+      author: "李白",
+      year: "唐",
+      category: "中文 · 詩歌",
+      sourceTitle: "將進酒 (李白)",
+      blurb: "君不見，黃河之水天上來。",
+    },
+    {
+      id: "shudao-nan-libai-wikisource-zh",
+      title: "蜀道難",
+      author: "李白",
+      year: "唐",
+      category: "中文 · 詩歌",
+      sourceTitle: "蜀道難 (李白)",
+      blurb: "蜀道之難，難於上青天。",
+    },
+    {
+      id: "guan-canghai-wikisource-zh",
+      title: "觀滄海",
+      author: "曹操",
+      year: "東漢",
+      category: "中文 · 詩歌",
+      blurb: "東臨碣石，以觀滄海。",
+    },
+    {
+      id: "dengtuzi-haose-fu-wikisource-zh",
+      title: "登徒子好色賦",
+      author: "宋玉",
+      year: "先秦",
+      category: "中文 · 辭賦",
+      blurb: "大夫登徒子侍於楚王。",
+    },
+    {
+      id: "gaotang-fu-wikisource-zh",
+      title: "高唐賦",
+      author: "宋玉",
+      year: "先秦",
+      category: "中文 · 辭賦",
+      blurb: "昔者楚襄王與宋玉遊於雲夢之臺。",
+    },
+    {
+      id: "qifa-wikisource-zh",
+      title: "七發",
+      author: "枚乘",
+      year: "西漢",
+      category: "中文 · 辭賦",
+      blurb: "楚太子有疾，而吳客往問之。",
+    },
+    {
+      id: "jianyuan-timing-ji-wikisource-zh",
+      title: "諫院題名記",
+      author: "司馬光",
+      year: "北宋",
+      blurb: "古者諫無官。",
+    },
+    {
+      id: "dailou-yuan-ji-wikisource-zh",
+      title: "待漏院記",
+      author: "王禹偁",
+      year: "北宋",
+      blurb: "天道不言，而品物亨。",
+    },
+    {
+      id: "yitian-ji-wikisource-zh",
+      title: "義田記",
+      author: "錢公輔",
+      year: "北宋",
+      blurb: "范文正公，蘇人也，平生好施與。",
+    },
+    {
+      id: "yuanzhou-zhouxue-ji-wikisource-zh",
+      title: "袁州州學記",
+      author: "李覯",
+      year: "北宋",
+      blurb: "皇帝二十有三年，制詔州縣立學。",
+    },
+    {
+      id: "xinshu-suxun-wikisource-zh",
+      title: "心術",
+      author: "蘇洵",
+      year: "北宋",
+      blurb: "為將之道，當先治心。",
+    },
+    {
+      id: "zhang-yizhou-huaxiang-ji-wikisource-zh",
+      title: "張益州畫像記",
+      author: "蘇洵",
+      year: "北宋",
+      blurb: "至和元年秋，蜀人傳言，有寇至邊。",
+    },
   ].map((book) => ({
     id: book.id,
     title: book.title,
@@ -2783,91 +3878,654 @@ const BOOKS = [
     year: book.year,
     sourceTitle: book.sourceTitle || book.title,
     ...(book.sourceTitles ? { sourceTitles: book.sourceTitles } : {}),
-    evidence: book.evidence || `Wikisource Chinese text of a public-domain ${book.year} work by ${book.author}.`,
+    evidence:
+      book.evidence ||
+      `Wikisource Chinese text of a public-domain ${book.year} work by ${book.author}.`,
     blurb: book.blurb,
-    description: book.description || `${book.author}《${book.title}》，依中文維基文庫公版文本整理為 EPUB。`,
+    description:
+      book.description || `${book.author}《${book.title}》，依中文維基文庫公版文本整理為 EPUB。`,
   })),
   ...[
-    ["guwen-guanzhi-001-wikisource-zh", "鄭伯克段于鄢", "左傳", "古文觀止/卷1", "鄭伯克段于鄢", "初，鄭武公娶于申，曰武姜。生莊公及共叔段。莊公寤生，驚姜"],
-    ["guwen-guanzhi-002-wikisource-zh", "周鄭交質", "左傳", "古文觀止/卷1", "周鄭交質", "鄭武公、莊公爲平王卿士。王貳于虢。鄭伯怨王。王曰：「無之"],
-    ["guwen-guanzhi-003-wikisource-zh", "石碏諫寵州吁", "左傳", "古文觀止/卷1", "石碏諫寵州吁", "衛莊公娶于齊東宮得臣之妹，曰莊姜。美而無子，衛人所爲賦《"],
-    ["guwen-guanzhi-004-wikisource-zh", "臧僖伯諫觀魚", "左傳", "古文觀止/卷1", "臧僖伯諫觀魚", "春，公將如棠觀魚者。臧僖伯諫曰：「凡物不足以講大事，其材"],
-    ["guwen-guanzhi-005-wikisource-zh", "鄭莊公戒飭守臣", "左傳", "古文觀止/卷1", "鄭莊公戒飭守臣", "秋七月，公會齊侯、鄭伯伐許。庚辰，傅於許。潁考叔取鄭伯之"],
-    ["guwen-guanzhi-006-wikisource-zh", "臧哀伯諫納郜鼎", "左傳", "古文觀止/卷1", "臧哀伯諫納郜鼎", "夏四月，取郜大鼎于宋。納於大廟。非禮也。臧哀伯諫曰：「君"],
-    ["guwen-guanzhi-007-wikisource-zh", "季梁諫追楚師", "左傳", "古文觀止/卷1", "季梁諫追楚師", "楚武王侵隨，使薳章求成焉。軍於瑕以待之。隨人使少師董成。"],
-    ["guwen-guanzhi-008-wikisource-zh", "齊桓公伐楚盟屈完", "左傳", "古文觀止/卷1", "齊桓公伐楚盟屈完", "春，齊侯以諸侯之師侵蔡。蔡潰。遂伐楚。楚子使與師言曰：「"],
-    ["guwen-guanzhi-009-wikisource-zh", "宮之奇諫假道", "左傳", "古文觀止/卷1", "宮之奇諫假道", "晉侯復假道於虞以伐虢。宮之奇諫曰：「虢，虞之表也；虢亡，"],
-    ["guwen-guanzhi-010-wikisource-zh", "齊桓下拜受胙", "左傳", "古文觀止/卷1", "齊桓下拜受胙", "會于葵丘，尋盟且修好，禮也。王使宰孔賜齊侯胙。曰：「天子"],
-    ["guwen-guanzhi-011-wikisource-zh", "陰飴甥對秦伯", "左傳", "古文觀止/卷1", "陰飴甥對秦伯", "十月，晉陰飴甥會秦伯，盟于王城。秦伯曰：「晉國和乎？」對"],
-    ["guwen-guanzhi-012-wikisource-zh", "子魚論戰", "左傳", "古文觀止/卷1", "子魚論戰", "楚人伐宋以救鄭。宋公將戰。大司馬固諫曰：「天之棄商久矣。"],
-    ["guwen-guanzhi-013-wikisource-zh", "寺人披見文公", "左傳", "古文觀止/卷1", "寺人披見文公", "呂，郤畏偪，將焚公宮而弒晉侯。寺人披請見。公使讓之。且辭"],
-    ["guwen-guanzhi-014-wikisource-zh", "介之推不言祿", "左傳", "古文觀止/卷1", "介之推不言祿", "晉侯賞從亡者。介之推不言祿，祿亦弗及。推曰：「獻公之子九"],
-    ["guwen-guanzhi-015-wikisource-zh", "展喜犒師", "左傳", "古文觀止/卷1", "展喜犒師", "齊孝公伐我北鄙，公使展喜犒師，使受命于展禽。齊侯未入竟，"],
-    ["guwen-guanzhi-016-wikisource-zh", "燭之武退秦師", "左傳", "古文觀止/卷1", "燭之武退秦師", "晉侯，秦伯圍鄭。以其無禮於晉，且貳於楚也。晉軍函陵，秦軍"],
-    ["guwen-guanzhi-017-wikisource-zh", "蹇叔哭師", "左傳", "古文觀止/卷1", "蹇叔哭師", "杞子自鄭使告于秦曰：「鄭人使我掌其北門之管。若潛師以來，"],
-    ["guwen-guanzhi-018-wikisource-zh", "鄭子家告趙宣子", "左傳", "古文觀止/卷2", "鄭子家告趙宣子", "晉侯合諸侯于扈，平宋也。於是晉侯不見鄭伯，以爲貳於楚也。"],
-    ["guwen-guanzhi-019-wikisource-zh", "王孫滿對楚子", "左傳", "古文觀止/卷2", "王孫滿對楚子", "楚子伐陸渾之戎，遂至于雒。觀兵于周疆。定王使王孫滿勞楚子"],
-    ["guwen-guanzhi-020-wikisource-zh", "齊國佐不辱命", "左傳", "古文觀止/卷2", "齊國佐不辱命", "晉師從齊師，入自丘輿，擊馬陘。齊侯使賓媚人賂以紀甗、玉磬"],
-    ["guwen-guanzhi-021-wikisource-zh", "楚歸晉知罃", "左傳", "古文觀止/卷2", "楚歸晉知罃", "晉人歸楚公子穀臣與連尹襄老之尸於楚，以求知罃。於是荀首佐"],
-    ["guwen-guanzhi-022-wikisource-zh", "呂相絕秦", "左傳", "古文觀止/卷2", "呂相絕秦", "晉侯使呂相絕秦。曰：「昔逮我獻公及穆公相好，戮力同心，申"],
-    ["guwen-guanzhi-023-wikisource-zh", "祁奚請免叔向", "左傳", "古文觀止/卷2", "祁奚請免叔向", "欒盈出奔楚。宣子殺羊舌虎，囚叔向。人謂叔向曰：「子離於罪"],
-    ["guwen-guanzhi-024-wikisource-zh", "子產告范宣子輕幣", "左傳", "古文觀止/卷2", "子產告范宣子輕幣", "范宣子爲政，諸侯之幣重。鄭人病之。二月，鄭伯如晉。子產寓"],
-    ["guwen-guanzhi-025-wikisource-zh", "晏子不死君難", "左傳", "古文觀止/卷2", "晏子不死君難", "崔武子見棠姜而美之，遂取之。莊公通焉。崔子弒之。晏子立於"],
-    ["guwen-guanzhi-026-wikisource-zh", "季札觀周樂", "左傳", "古文觀止/卷2", "季札觀周樂", "吳公子札來聘。請觀於周樂。使工爲之歌《周南》、《召南》，"],
-    ["guwen-guanzhi-027-wikisource-zh", "子產壞晉館垣", "左傳", "古文觀止/卷2", "子產壞晉館垣", "子產相鄭伯以如晉。晉侯以我喪故，未之見也。子產使盡壞其館"],
-    ["guwen-guanzhi-028-wikisource-zh", "子產論尹何爲邑", "左傳", "古文觀止/卷2", "子產論尹何爲邑", "子皮欲使尹何爲邑。子產曰：「少，未知可否。」子皮曰：「愿"],
-    ["guwen-guanzhi-029-wikisource-zh", "子產卻楚逆女以兵", "左傳", "古文觀止/卷2", "子產卻楚逆女以兵", "楚公子圍聘于鄭，且娶于公孫段氏。伍舉爲介。將入館，鄭人惡"],
-    ["guwen-guanzhi-030-wikisource-zh", "子革對靈王", "左傳", "古文觀止/卷2", "子革對靈王", "楚子狩於州來，次于潁尾。使蕩侯、潘子、司馬督、囂尹午、陵"],
-    ["guwen-guanzhi-031-wikisource-zh", "子產論政寬猛", "左傳", "古文觀止/卷2", "子產論政寬猛", "鄭子產有疾，謂子大叔曰：「我死，子必爲政。唯有德者能以寬"],
-    ["guwen-guanzhi-032-wikisource-zh", "吳許越成", "左傳", "古文觀止/卷2", "吳許越成", "吳王夫差，敗越于夫椒，報檇李也。遂入越。越子以甲楯五千，"],
-    ["guwen-guanzhi-033-wikisource-zh", "祭公諫征犬戎", "國語", "古文觀止/卷3", "祭公諫征犬戎", "穆王將征犬戎，祭公謀父諫曰：「不可。先王耀德不觀兵。夫兵"],
-    ["guwen-guanzhi-034-wikisource-zh", "召公諫厲王止謗", "國語", "古文觀止/卷3", "召公諫厲王止謗", "厲王虐、國人謗王。召公告曰、民不堪命矣。王怒、得衛巫、使"],
-    ["guwen-guanzhi-035-wikisource-zh", "襄王不許請隧", "國語", "古文觀止/卷3", "襄王不許請隧", "晉文公旣定襄王于郟、王勞之以地。辭、請隧焉。王弗許、曰、"],
-    ["guwen-guanzhi-036-wikisource-zh", "單子知陳必亡", "國語", "古文觀止/卷3", "單子知陳必亡", "定王使單襄公聘于宋。遂假道于陳、以聘于楚。火朝覿矣、道茀"],
-    ["guwen-guanzhi-037-wikisource-zh", "展禽論祀爰居", "國語", "古文觀止/卷3", "展禽論祀爰居", "海鳥曰爰居。止於魯東門之外二日。臧文仲使國人祭之。展禽曰"],
-    ["guwen-guanzhi-038-wikisource-zh", "里革斷罟匡君", "國語", "古文觀止/卷3", "里革斷罟匡君", "宣公夏濫於泗淵、里革斷其罟而棄之。曰、古者大寒降、土蟄發"],
-    ["guwen-guanzhi-039-wikisource-zh", "敬姜論勞逸", "國語", "古文觀止/卷3", "敬姜論勞逸", "公父文伯退朝、朝其母、其母方績。文伯曰、以歜之家、而主猶"],
-    ["guwen-guanzhi-040-wikisource-zh", "叔向賀貧", "國語", "古文觀止/卷3", "叔向賀貧", "叔向見韓宣子、宣子憂貧、叔向賀之。宣子曰、吾有卿之名、而"],
-    ["guwen-guanzhi-041-wikisource-zh", "王孫圉論楚寶", "國語", "古文觀止/卷3", "王孫圉論楚寶", "王孫圉聘於晉、定公饗之。趙簡子鳴玉以相。問於王孫圉曰、楚"],
-    ["guwen-guanzhi-042-wikisource-zh", "申胥諫許越成", "國語", "古文觀止/卷3", "申胥諫許越成", "吳王夫差乃告諸大夫曰、孤將有大志于齊、吾將許越成、而無拂"],
-    ["guwen-guanzhi-043-wikisource-zh", "春王正月", "公羊傳", "古文觀止/卷3", "春王正月", "元年者何、君之始年也。春者何、歲之始也。王者孰謂、謂文王"],
-    ["guwen-guanzhi-044-wikisource-zh", "宋人及楚人平", "公羊傳", "古文觀止/卷3", "宋人及楚人平", "外平不書、此何以書、大其平乎己也。何大其平乎己。莊王圍宋"],
-    ["guwen-guanzhi-045-wikisource-zh", "吳子使札來聘", "公羊傳", "古文觀止/卷3", "吳子使札來聘", "吳無君無大夫、此何以有君有大夫、賢季子也。何賢乎季子、讓"],
-    ["guwen-guanzhi-046-wikisource-zh", "虞師晉師滅夏陽", "穀梁傳", "古文觀止/卷3", "虞師晉師滅夏陽", "非國而曰滅、重夏陽也。虞無師、其曰師、何也。以其先晉、不"],
-    ["guwen-guanzhi-047-wikisource-zh", "晉獻公殺世子申生", "禮記", "古文觀止/卷3", "晉獻公殺世子申生", "晉獻公將殺其世子申生、公子重耳謂之曰、子蓋言子之志於公乎"],
-    ["guwen-guanzhi-048-wikisource-zh", "曾子易簀", "禮記", "古文觀止/卷3", "曾子易簀", "曾子寢疾、病。樂正子春坐於牀下、曾元、曾申坐於足、童子隅"],
-    ["guwen-guanzhi-049-wikisource-zh", "有子之言似夫子", "禮記", "古文觀止/卷3", "有子之言似夫子", "有子問于曾子曰、問喪於夫子乎。曰、聞之矣。喪欲速貧、死欲"],
-    ["guwen-guanzhi-050-wikisource-zh", "公子重耳對秦客", "禮記", "古文觀止/卷3", "公子重耳對秦客", "晉獻公之喪、秦穆公使人弔公子重耳。且曰、寡人聞之、亡國恆"],
-    ["guwen-guanzhi-051-wikisource-zh", "杜蕢揚觶", "禮記", "古文觀止/卷3", "杜蕢揚觶", "知悼子卒、未葬。平公飲酒、師曠、李調侍。鼓鐘。杜蕢自外來"],
-    ["guwen-guanzhi-052-wikisource-zh", "晉獻文子成室", "禮記", "古文觀止/卷3", "晉獻文子成室", "晉獻文子成室、晉大夫發焉。張老曰、美哉輪焉、美哉奐焉。歌"],
-    ["guwen-guanzhi-053-wikisource-zh", "蘇秦以連橫說秦", "戰國策", "古文觀止/卷4", "蘇秦以連橫說秦", "蘇秦始將連橫說秦惠王曰、大王之國、西有巴蜀漢中之利、北有"],
-    ["guwen-guanzhi-054-wikisource-zh", "司馬錯論伐蜀", "戰國策", "古文觀止/卷4", "司馬錯論伐蜀", "司馬錯與張儀爭論於秦惠王前。司馬錯欲伐蜀、張儀曰、不如伐"],
-    ["guwen-guanzhi-055-wikisource-zh", "范雎說秦王", "戰國策", "古文觀止/卷4", "范雎說秦王", "范雎至、秦王庭迎范雎、敬執賓主之禮、范雎辭讓。是日見范雎"],
-    ["guwen-guanzhi-056-wikisource-zh", "顏斶說齊王", "戰國策", "古文觀止/卷4", "顏斶說齊王", "齊宣王見顏斶曰、斶前。斶亦曰、王前。宣王不說。左右曰、王"],
-    ["guwen-guanzhi-057-wikisource-zh", "馮煖客孟嘗君", "戰國策", "古文觀止/卷4", "馮煖客孟嘗君", "齊人有馮煖者、貧乏不能自存、使人屬孟嘗君、願寄食門下。孟"],
-    ["guwen-guanzhi-058-wikisource-zh", "趙威后問齊使", "戰國策", "古文觀止/卷4", "趙威后問齊使", "齊王使使者問趙威后。書未發。威后問使者曰、歲亦無恙耶、民"],
-    ["guwen-guanzhi-059-wikisource-zh", "莊辛論幸臣", "戰國策", "古文觀止/卷4", "莊辛論幸臣", "臣聞鄙語曰、見兔而顧犬、未爲晚也、亡羊而補牢、未爲遲也。"],
-    ["guwen-guanzhi-060-wikisource-zh", "觸讋說趙太后", "戰國策", "古文觀止/卷4", "觸讋說趙太后", "趙太后新用事、秦急攻之。趙氏求救於齊、齊曰、必以長安君爲"],
-    ["guwen-guanzhi-061-wikisource-zh", "魯仲連義不帝秦", "戰國策", "古文觀止/卷4", "魯仲連義不帝秦", "秦圍趙之邯鄲、魏安釐王使將軍晉鄙救趙。畏秦、止於蕩陰、不"],
-    ["guwen-guanzhi-062-wikisource-zh", "魯共公擇言", "戰國策", "古文觀止/卷4", "魯共公擇言", "梁王魏嬰觴諸侯於范臺、酒酣、請魯君舉觴。魯君興、避席擇言"],
-    ["guwen-guanzhi-063-wikisource-zh", "唐雎說信陵君", "戰國策", "古文觀止/卷4", "唐雎說信陵君", "信陵君殺晉鄙、救邯鄲、破秦人、存趙國、趙王自郊迎。唐雎謂"],
-    ["guwen-guanzhi-064-wikisource-zh", "樂毅報燕王書", "戰國策", "古文觀止/卷4", "樂毅報燕王書", "昌國君樂毅、爲燕昭王合五國之兵而攻齊、下七十餘城、盡郡縣"],
-    ["guwen-guanzhi-065-wikisource-zh", "卜居", "楚辭", "古文觀止/卷4", "卜居", "屈原旣放、三年不得復見。竭知盡忠、而蔽障於讒。心煩慮亂、"],
-    ["guwen-guanzhi-066-wikisource-zh", "宋玉對楚王問", "楚辭", "古文觀止/卷4", "宋玉對楚王問", "楚襄王問於宋玉曰、先生其有遺行與、何士民衆庶不譽之甚也。"],
-    ["guwen-guanzhi-067-wikisource-zh", "五帝本紀贊", "史記", "古文觀止/卷5", "五帝本紀贊", "太史公曰、學者多稱五帝、尚矣。然尚書獨載堯以來、而百家言"],
-    ["guwen-guanzhi-068-wikisource-zh", "項羽本紀贊", "史記", "古文觀止/卷5", "項羽本紀贊", "太史公曰、吾聞之周生曰、舜目蓋重瞳子。又聞項羽亦重瞳子。"],
-    ["guwen-guanzhi-069-wikisource-zh", "秦楚之際月表", "史記", "古文觀止/卷5", "秦楚之際月表", "太史公讀秦楚之際曰、初作難、發於陳涉、虐戾滅秦自項氏。撥"],
-    ["guwen-guanzhi-070-wikisource-zh", "高祖功臣侯年表", "史記", "古文觀止/卷5", "高祖功臣侯年表", "太史公曰、古者人臣功有五品、以德立宗廟定社稷曰勳、以言曰"],
-    ["guwen-guanzhi-071-wikisource-zh", "孔子世家贊", "史記", "古文觀止/卷5", "孔子世家贊", "太史公曰、詩有之、高山仰止。景行行止。雖不能至、然心鄉往"],
-    ["guwen-guanzhi-072-wikisource-zh", "外戚世家序", "史記", "古文觀止/卷5", "外戚世家序", "自古受命帝王、及繼體守文之君、非獨內德茂也、蓋亦有外戚之"],
-    ["guwen-guanzhi-073-wikisource-zh", "伯夷列傳", "史記", "古文觀止/卷5", "伯夷列傳", "夫學者載籍極博、猶考信於六蓺、詩書雖缺、然虞夏之文可知也"],
-    ["guwen-guanzhi-074-wikisource-zh", "管晏列傳", "史記", "古文觀止/卷5", "管晏列傳", "管仲夷吾者、潁上人也。少時常與鮑叔牙游、鮑叔知其賢。管仲"],
-    ["guwen-guanzhi-075-wikisource-zh", "屈原列傳", "史記", "古文觀止/卷5", "屈原列傳", "屈原者、名平、楚之同姓也。爲楚懷王左徒、博聞彊志、明於治"],
-    ["guwen-guanzhi-076-wikisource-zh", "酷吏列傳序", "史記", "古文觀止/卷5", "酷吏列傳序", "孔子曰、道之以政、齊之以刑、民免而無恥、道之以德、齊之以"],
-    ["guwen-guanzhi-077-wikisource-zh", "滑稽列傳", "史記", "古文觀止/卷5", "滑稽列傳", "孔子曰、六藝於治一也、禮以節人、樂以發和、書以導事、詩以"],
-    ["guwen-guanzhi-078-wikisource-zh", "貨殖列傳序", "史記", "古文觀止/卷5", "貨殖列傳序", "老子曰、至治之極、鄰國相望、雞狗之聲相聞、民各甘其食、美"],
-    ["guwen-guanzhi-079-wikisource-zh", "太史公自序", "史記", "古文觀止/卷5", "太史公自序", "太史公曰、先人有言、自周公卒、五百歲而生孔子、孔子卒後、"],
-    ["guwen-guanzhi-080-wikisource-zh", "報任安書", "司馬遷", "古文觀止/卷5", "報任安書", "太史公牛馬走司馬遷再拜言、少卿足下、曩者辱賜書、教以慎於"],
+    [
+      "guwen-guanzhi-001-wikisource-zh",
+      "鄭伯克段于鄢",
+      "左傳",
+      "古文觀止/卷1",
+      "鄭伯克段于鄢",
+      "初，鄭武公娶于申，曰武姜。生莊公及共叔段。莊公寤生，驚姜",
+    ],
+    [
+      "guwen-guanzhi-002-wikisource-zh",
+      "周鄭交質",
+      "左傳",
+      "古文觀止/卷1",
+      "周鄭交質",
+      "鄭武公、莊公爲平王卿士。王貳于虢。鄭伯怨王。王曰：「無之",
+    ],
+    [
+      "guwen-guanzhi-003-wikisource-zh",
+      "石碏諫寵州吁",
+      "左傳",
+      "古文觀止/卷1",
+      "石碏諫寵州吁",
+      "衛莊公娶于齊東宮得臣之妹，曰莊姜。美而無子，衛人所爲賦《",
+    ],
+    [
+      "guwen-guanzhi-004-wikisource-zh",
+      "臧僖伯諫觀魚",
+      "左傳",
+      "古文觀止/卷1",
+      "臧僖伯諫觀魚",
+      "春，公將如棠觀魚者。臧僖伯諫曰：「凡物不足以講大事，其材",
+    ],
+    [
+      "guwen-guanzhi-005-wikisource-zh",
+      "鄭莊公戒飭守臣",
+      "左傳",
+      "古文觀止/卷1",
+      "鄭莊公戒飭守臣",
+      "秋七月，公會齊侯、鄭伯伐許。庚辰，傅於許。潁考叔取鄭伯之",
+    ],
+    [
+      "guwen-guanzhi-006-wikisource-zh",
+      "臧哀伯諫納郜鼎",
+      "左傳",
+      "古文觀止/卷1",
+      "臧哀伯諫納郜鼎",
+      "夏四月，取郜大鼎于宋。納於大廟。非禮也。臧哀伯諫曰：「君",
+    ],
+    [
+      "guwen-guanzhi-007-wikisource-zh",
+      "季梁諫追楚師",
+      "左傳",
+      "古文觀止/卷1",
+      "季梁諫追楚師",
+      "楚武王侵隨，使薳章求成焉。軍於瑕以待之。隨人使少師董成。",
+    ],
+    [
+      "guwen-guanzhi-008-wikisource-zh",
+      "齊桓公伐楚盟屈完",
+      "左傳",
+      "古文觀止/卷1",
+      "齊桓公伐楚盟屈完",
+      "春，齊侯以諸侯之師侵蔡。蔡潰。遂伐楚。楚子使與師言曰：「",
+    ],
+    [
+      "guwen-guanzhi-009-wikisource-zh",
+      "宮之奇諫假道",
+      "左傳",
+      "古文觀止/卷1",
+      "宮之奇諫假道",
+      "晉侯復假道於虞以伐虢。宮之奇諫曰：「虢，虞之表也；虢亡，",
+    ],
+    [
+      "guwen-guanzhi-010-wikisource-zh",
+      "齊桓下拜受胙",
+      "左傳",
+      "古文觀止/卷1",
+      "齊桓下拜受胙",
+      "會于葵丘，尋盟且修好，禮也。王使宰孔賜齊侯胙。曰：「天子",
+    ],
+    [
+      "guwen-guanzhi-011-wikisource-zh",
+      "陰飴甥對秦伯",
+      "左傳",
+      "古文觀止/卷1",
+      "陰飴甥對秦伯",
+      "十月，晉陰飴甥會秦伯，盟于王城。秦伯曰：「晉國和乎？」對",
+    ],
+    [
+      "guwen-guanzhi-012-wikisource-zh",
+      "子魚論戰",
+      "左傳",
+      "古文觀止/卷1",
+      "子魚論戰",
+      "楚人伐宋以救鄭。宋公將戰。大司馬固諫曰：「天之棄商久矣。",
+    ],
+    [
+      "guwen-guanzhi-013-wikisource-zh",
+      "寺人披見文公",
+      "左傳",
+      "古文觀止/卷1",
+      "寺人披見文公",
+      "呂，郤畏偪，將焚公宮而弒晉侯。寺人披請見。公使讓之。且辭",
+    ],
+    [
+      "guwen-guanzhi-014-wikisource-zh",
+      "介之推不言祿",
+      "左傳",
+      "古文觀止/卷1",
+      "介之推不言祿",
+      "晉侯賞從亡者。介之推不言祿，祿亦弗及。推曰：「獻公之子九",
+    ],
+    [
+      "guwen-guanzhi-015-wikisource-zh",
+      "展喜犒師",
+      "左傳",
+      "古文觀止/卷1",
+      "展喜犒師",
+      "齊孝公伐我北鄙，公使展喜犒師，使受命于展禽。齊侯未入竟，",
+    ],
+    [
+      "guwen-guanzhi-016-wikisource-zh",
+      "燭之武退秦師",
+      "左傳",
+      "古文觀止/卷1",
+      "燭之武退秦師",
+      "晉侯，秦伯圍鄭。以其無禮於晉，且貳於楚也。晉軍函陵，秦軍",
+    ],
+    [
+      "guwen-guanzhi-017-wikisource-zh",
+      "蹇叔哭師",
+      "左傳",
+      "古文觀止/卷1",
+      "蹇叔哭師",
+      "杞子自鄭使告于秦曰：「鄭人使我掌其北門之管。若潛師以來，",
+    ],
+    [
+      "guwen-guanzhi-018-wikisource-zh",
+      "鄭子家告趙宣子",
+      "左傳",
+      "古文觀止/卷2",
+      "鄭子家告趙宣子",
+      "晉侯合諸侯于扈，平宋也。於是晉侯不見鄭伯，以爲貳於楚也。",
+    ],
+    [
+      "guwen-guanzhi-019-wikisource-zh",
+      "王孫滿對楚子",
+      "左傳",
+      "古文觀止/卷2",
+      "王孫滿對楚子",
+      "楚子伐陸渾之戎，遂至于雒。觀兵于周疆。定王使王孫滿勞楚子",
+    ],
+    [
+      "guwen-guanzhi-020-wikisource-zh",
+      "齊國佐不辱命",
+      "左傳",
+      "古文觀止/卷2",
+      "齊國佐不辱命",
+      "晉師從齊師，入自丘輿，擊馬陘。齊侯使賓媚人賂以紀甗、玉磬",
+    ],
+    [
+      "guwen-guanzhi-021-wikisource-zh",
+      "楚歸晉知罃",
+      "左傳",
+      "古文觀止/卷2",
+      "楚歸晉知罃",
+      "晉人歸楚公子穀臣與連尹襄老之尸於楚，以求知罃。於是荀首佐",
+    ],
+    [
+      "guwen-guanzhi-022-wikisource-zh",
+      "呂相絕秦",
+      "左傳",
+      "古文觀止/卷2",
+      "呂相絕秦",
+      "晉侯使呂相絕秦。曰：「昔逮我獻公及穆公相好，戮力同心，申",
+    ],
+    [
+      "guwen-guanzhi-023-wikisource-zh",
+      "祁奚請免叔向",
+      "左傳",
+      "古文觀止/卷2",
+      "祁奚請免叔向",
+      "欒盈出奔楚。宣子殺羊舌虎，囚叔向。人謂叔向曰：「子離於罪",
+    ],
+    [
+      "guwen-guanzhi-024-wikisource-zh",
+      "子產告范宣子輕幣",
+      "左傳",
+      "古文觀止/卷2",
+      "子產告范宣子輕幣",
+      "范宣子爲政，諸侯之幣重。鄭人病之。二月，鄭伯如晉。子產寓",
+    ],
+    [
+      "guwen-guanzhi-025-wikisource-zh",
+      "晏子不死君難",
+      "左傳",
+      "古文觀止/卷2",
+      "晏子不死君難",
+      "崔武子見棠姜而美之，遂取之。莊公通焉。崔子弒之。晏子立於",
+    ],
+    [
+      "guwen-guanzhi-026-wikisource-zh",
+      "季札觀周樂",
+      "左傳",
+      "古文觀止/卷2",
+      "季札觀周樂",
+      "吳公子札來聘。請觀於周樂。使工爲之歌《周南》、《召南》，",
+    ],
+    [
+      "guwen-guanzhi-027-wikisource-zh",
+      "子產壞晉館垣",
+      "左傳",
+      "古文觀止/卷2",
+      "子產壞晉館垣",
+      "子產相鄭伯以如晉。晉侯以我喪故，未之見也。子產使盡壞其館",
+    ],
+    [
+      "guwen-guanzhi-028-wikisource-zh",
+      "子產論尹何爲邑",
+      "左傳",
+      "古文觀止/卷2",
+      "子產論尹何爲邑",
+      "子皮欲使尹何爲邑。子產曰：「少，未知可否。」子皮曰：「愿",
+    ],
+    [
+      "guwen-guanzhi-029-wikisource-zh",
+      "子產卻楚逆女以兵",
+      "左傳",
+      "古文觀止/卷2",
+      "子產卻楚逆女以兵",
+      "楚公子圍聘于鄭，且娶于公孫段氏。伍舉爲介。將入館，鄭人惡",
+    ],
+    [
+      "guwen-guanzhi-030-wikisource-zh",
+      "子革對靈王",
+      "左傳",
+      "古文觀止/卷2",
+      "子革對靈王",
+      "楚子狩於州來，次于潁尾。使蕩侯、潘子、司馬督、囂尹午、陵",
+    ],
+    [
+      "guwen-guanzhi-031-wikisource-zh",
+      "子產論政寬猛",
+      "左傳",
+      "古文觀止/卷2",
+      "子產論政寬猛",
+      "鄭子產有疾，謂子大叔曰：「我死，子必爲政。唯有德者能以寬",
+    ],
+    [
+      "guwen-guanzhi-032-wikisource-zh",
+      "吳許越成",
+      "左傳",
+      "古文觀止/卷2",
+      "吳許越成",
+      "吳王夫差，敗越于夫椒，報檇李也。遂入越。越子以甲楯五千，",
+    ],
+    [
+      "guwen-guanzhi-033-wikisource-zh",
+      "祭公諫征犬戎",
+      "國語",
+      "古文觀止/卷3",
+      "祭公諫征犬戎",
+      "穆王將征犬戎，祭公謀父諫曰：「不可。先王耀德不觀兵。夫兵",
+    ],
+    [
+      "guwen-guanzhi-034-wikisource-zh",
+      "召公諫厲王止謗",
+      "國語",
+      "古文觀止/卷3",
+      "召公諫厲王止謗",
+      "厲王虐、國人謗王。召公告曰、民不堪命矣。王怒、得衛巫、使",
+    ],
+    [
+      "guwen-guanzhi-035-wikisource-zh",
+      "襄王不許請隧",
+      "國語",
+      "古文觀止/卷3",
+      "襄王不許請隧",
+      "晉文公旣定襄王于郟、王勞之以地。辭、請隧焉。王弗許、曰、",
+    ],
+    [
+      "guwen-guanzhi-036-wikisource-zh",
+      "單子知陳必亡",
+      "國語",
+      "古文觀止/卷3",
+      "單子知陳必亡",
+      "定王使單襄公聘于宋。遂假道于陳、以聘于楚。火朝覿矣、道茀",
+    ],
+    [
+      "guwen-guanzhi-037-wikisource-zh",
+      "展禽論祀爰居",
+      "國語",
+      "古文觀止/卷3",
+      "展禽論祀爰居",
+      "海鳥曰爰居。止於魯東門之外二日。臧文仲使國人祭之。展禽曰",
+    ],
+    [
+      "guwen-guanzhi-038-wikisource-zh",
+      "里革斷罟匡君",
+      "國語",
+      "古文觀止/卷3",
+      "里革斷罟匡君",
+      "宣公夏濫於泗淵、里革斷其罟而棄之。曰、古者大寒降、土蟄發",
+    ],
+    [
+      "guwen-guanzhi-039-wikisource-zh",
+      "敬姜論勞逸",
+      "國語",
+      "古文觀止/卷3",
+      "敬姜論勞逸",
+      "公父文伯退朝、朝其母、其母方績。文伯曰、以歜之家、而主猶",
+    ],
+    [
+      "guwen-guanzhi-040-wikisource-zh",
+      "叔向賀貧",
+      "國語",
+      "古文觀止/卷3",
+      "叔向賀貧",
+      "叔向見韓宣子、宣子憂貧、叔向賀之。宣子曰、吾有卿之名、而",
+    ],
+    [
+      "guwen-guanzhi-041-wikisource-zh",
+      "王孫圉論楚寶",
+      "國語",
+      "古文觀止/卷3",
+      "王孫圉論楚寶",
+      "王孫圉聘於晉、定公饗之。趙簡子鳴玉以相。問於王孫圉曰、楚",
+    ],
+    [
+      "guwen-guanzhi-042-wikisource-zh",
+      "申胥諫許越成",
+      "國語",
+      "古文觀止/卷3",
+      "申胥諫許越成",
+      "吳王夫差乃告諸大夫曰、孤將有大志于齊、吾將許越成、而無拂",
+    ],
+    [
+      "guwen-guanzhi-043-wikisource-zh",
+      "春王正月",
+      "公羊傳",
+      "古文觀止/卷3",
+      "春王正月",
+      "元年者何、君之始年也。春者何、歲之始也。王者孰謂、謂文王",
+    ],
+    [
+      "guwen-guanzhi-044-wikisource-zh",
+      "宋人及楚人平",
+      "公羊傳",
+      "古文觀止/卷3",
+      "宋人及楚人平",
+      "外平不書、此何以書、大其平乎己也。何大其平乎己。莊王圍宋",
+    ],
+    [
+      "guwen-guanzhi-045-wikisource-zh",
+      "吳子使札來聘",
+      "公羊傳",
+      "古文觀止/卷3",
+      "吳子使札來聘",
+      "吳無君無大夫、此何以有君有大夫、賢季子也。何賢乎季子、讓",
+    ],
+    [
+      "guwen-guanzhi-046-wikisource-zh",
+      "虞師晉師滅夏陽",
+      "穀梁傳",
+      "古文觀止/卷3",
+      "虞師晉師滅夏陽",
+      "非國而曰滅、重夏陽也。虞無師、其曰師、何也。以其先晉、不",
+    ],
+    [
+      "guwen-guanzhi-047-wikisource-zh",
+      "晉獻公殺世子申生",
+      "禮記",
+      "古文觀止/卷3",
+      "晉獻公殺世子申生",
+      "晉獻公將殺其世子申生、公子重耳謂之曰、子蓋言子之志於公乎",
+    ],
+    [
+      "guwen-guanzhi-048-wikisource-zh",
+      "曾子易簀",
+      "禮記",
+      "古文觀止/卷3",
+      "曾子易簀",
+      "曾子寢疾、病。樂正子春坐於牀下、曾元、曾申坐於足、童子隅",
+    ],
+    [
+      "guwen-guanzhi-049-wikisource-zh",
+      "有子之言似夫子",
+      "禮記",
+      "古文觀止/卷3",
+      "有子之言似夫子",
+      "有子問于曾子曰、問喪於夫子乎。曰、聞之矣。喪欲速貧、死欲",
+    ],
+    [
+      "guwen-guanzhi-050-wikisource-zh",
+      "公子重耳對秦客",
+      "禮記",
+      "古文觀止/卷3",
+      "公子重耳對秦客",
+      "晉獻公之喪、秦穆公使人弔公子重耳。且曰、寡人聞之、亡國恆",
+    ],
+    [
+      "guwen-guanzhi-051-wikisource-zh",
+      "杜蕢揚觶",
+      "禮記",
+      "古文觀止/卷3",
+      "杜蕢揚觶",
+      "知悼子卒、未葬。平公飲酒、師曠、李調侍。鼓鐘。杜蕢自外來",
+    ],
+    [
+      "guwen-guanzhi-052-wikisource-zh",
+      "晉獻文子成室",
+      "禮記",
+      "古文觀止/卷3",
+      "晉獻文子成室",
+      "晉獻文子成室、晉大夫發焉。張老曰、美哉輪焉、美哉奐焉。歌",
+    ],
+    [
+      "guwen-guanzhi-053-wikisource-zh",
+      "蘇秦以連橫說秦",
+      "戰國策",
+      "古文觀止/卷4",
+      "蘇秦以連橫說秦",
+      "蘇秦始將連橫說秦惠王曰、大王之國、西有巴蜀漢中之利、北有",
+    ],
+    [
+      "guwen-guanzhi-054-wikisource-zh",
+      "司馬錯論伐蜀",
+      "戰國策",
+      "古文觀止/卷4",
+      "司馬錯論伐蜀",
+      "司馬錯與張儀爭論於秦惠王前。司馬錯欲伐蜀、張儀曰、不如伐",
+    ],
+    [
+      "guwen-guanzhi-055-wikisource-zh",
+      "范雎說秦王",
+      "戰國策",
+      "古文觀止/卷4",
+      "范雎說秦王",
+      "范雎至、秦王庭迎范雎、敬執賓主之禮、范雎辭讓。是日見范雎",
+    ],
+    [
+      "guwen-guanzhi-056-wikisource-zh",
+      "顏斶說齊王",
+      "戰國策",
+      "古文觀止/卷4",
+      "顏斶說齊王",
+      "齊宣王見顏斶曰、斶前。斶亦曰、王前。宣王不說。左右曰、王",
+    ],
+    [
+      "guwen-guanzhi-057-wikisource-zh",
+      "馮煖客孟嘗君",
+      "戰國策",
+      "古文觀止/卷4",
+      "馮煖客孟嘗君",
+      "齊人有馮煖者、貧乏不能自存、使人屬孟嘗君、願寄食門下。孟",
+    ],
+    [
+      "guwen-guanzhi-058-wikisource-zh",
+      "趙威后問齊使",
+      "戰國策",
+      "古文觀止/卷4",
+      "趙威后問齊使",
+      "齊王使使者問趙威后。書未發。威后問使者曰、歲亦無恙耶、民",
+    ],
+    [
+      "guwen-guanzhi-059-wikisource-zh",
+      "莊辛論幸臣",
+      "戰國策",
+      "古文觀止/卷4",
+      "莊辛論幸臣",
+      "臣聞鄙語曰、見兔而顧犬、未爲晚也、亡羊而補牢、未爲遲也。",
+    ],
+    [
+      "guwen-guanzhi-060-wikisource-zh",
+      "觸讋說趙太后",
+      "戰國策",
+      "古文觀止/卷4",
+      "觸讋說趙太后",
+      "趙太后新用事、秦急攻之。趙氏求救於齊、齊曰、必以長安君爲",
+    ],
+    [
+      "guwen-guanzhi-061-wikisource-zh",
+      "魯仲連義不帝秦",
+      "戰國策",
+      "古文觀止/卷4",
+      "魯仲連義不帝秦",
+      "秦圍趙之邯鄲、魏安釐王使將軍晉鄙救趙。畏秦、止於蕩陰、不",
+    ],
+    [
+      "guwen-guanzhi-062-wikisource-zh",
+      "魯共公擇言",
+      "戰國策",
+      "古文觀止/卷4",
+      "魯共公擇言",
+      "梁王魏嬰觴諸侯於范臺、酒酣、請魯君舉觴。魯君興、避席擇言",
+    ],
+    [
+      "guwen-guanzhi-063-wikisource-zh",
+      "唐雎說信陵君",
+      "戰國策",
+      "古文觀止/卷4",
+      "唐雎說信陵君",
+      "信陵君殺晉鄙、救邯鄲、破秦人、存趙國、趙王自郊迎。唐雎謂",
+    ],
+    [
+      "guwen-guanzhi-064-wikisource-zh",
+      "樂毅報燕王書",
+      "戰國策",
+      "古文觀止/卷4",
+      "樂毅報燕王書",
+      "昌國君樂毅、爲燕昭王合五國之兵而攻齊、下七十餘城、盡郡縣",
+    ],
+    [
+      "guwen-guanzhi-065-wikisource-zh",
+      "卜居",
+      "楚辭",
+      "古文觀止/卷4",
+      "卜居",
+      "屈原旣放、三年不得復見。竭知盡忠、而蔽障於讒。心煩慮亂、",
+    ],
+    [
+      "guwen-guanzhi-066-wikisource-zh",
+      "宋玉對楚王問",
+      "楚辭",
+      "古文觀止/卷4",
+      "宋玉對楚王問",
+      "楚襄王問於宋玉曰、先生其有遺行與、何士民衆庶不譽之甚也。",
+    ],
+    [
+      "guwen-guanzhi-067-wikisource-zh",
+      "五帝本紀贊",
+      "史記",
+      "古文觀止/卷5",
+      "五帝本紀贊",
+      "太史公曰、學者多稱五帝、尚矣。然尚書獨載堯以來、而百家言",
+    ],
+    [
+      "guwen-guanzhi-068-wikisource-zh",
+      "項羽本紀贊",
+      "史記",
+      "古文觀止/卷5",
+      "項羽本紀贊",
+      "太史公曰、吾聞之周生曰、舜目蓋重瞳子。又聞項羽亦重瞳子。",
+    ],
+    [
+      "guwen-guanzhi-069-wikisource-zh",
+      "秦楚之際月表",
+      "史記",
+      "古文觀止/卷5",
+      "秦楚之際月表",
+      "太史公讀秦楚之際曰、初作難、發於陳涉、虐戾滅秦自項氏。撥",
+    ],
+    [
+      "guwen-guanzhi-070-wikisource-zh",
+      "高祖功臣侯年表",
+      "史記",
+      "古文觀止/卷5",
+      "高祖功臣侯年表",
+      "太史公曰、古者人臣功有五品、以德立宗廟定社稷曰勳、以言曰",
+    ],
+    [
+      "guwen-guanzhi-071-wikisource-zh",
+      "孔子世家贊",
+      "史記",
+      "古文觀止/卷5",
+      "孔子世家贊",
+      "太史公曰、詩有之、高山仰止。景行行止。雖不能至、然心鄉往",
+    ],
+    [
+      "guwen-guanzhi-072-wikisource-zh",
+      "外戚世家序",
+      "史記",
+      "古文觀止/卷5",
+      "外戚世家序",
+      "自古受命帝王、及繼體守文之君、非獨內德茂也、蓋亦有外戚之",
+    ],
+    [
+      "guwen-guanzhi-073-wikisource-zh",
+      "伯夷列傳",
+      "史記",
+      "古文觀止/卷5",
+      "伯夷列傳",
+      "夫學者載籍極博、猶考信於六蓺、詩書雖缺、然虞夏之文可知也",
+    ],
+    [
+      "guwen-guanzhi-074-wikisource-zh",
+      "管晏列傳",
+      "史記",
+      "古文觀止/卷5",
+      "管晏列傳",
+      "管仲夷吾者、潁上人也。少時常與鮑叔牙游、鮑叔知其賢。管仲",
+    ],
+    [
+      "guwen-guanzhi-075-wikisource-zh",
+      "屈原列傳",
+      "史記",
+      "古文觀止/卷5",
+      "屈原列傳",
+      "屈原者、名平、楚之同姓也。爲楚懷王左徒、博聞彊志、明於治",
+    ],
+    [
+      "guwen-guanzhi-076-wikisource-zh",
+      "酷吏列傳序",
+      "史記",
+      "古文觀止/卷5",
+      "酷吏列傳序",
+      "孔子曰、道之以政、齊之以刑、民免而無恥、道之以德、齊之以",
+    ],
+    [
+      "guwen-guanzhi-077-wikisource-zh",
+      "滑稽列傳",
+      "史記",
+      "古文觀止/卷5",
+      "滑稽列傳",
+      "孔子曰、六藝於治一也、禮以節人、樂以發和、書以導事、詩以",
+    ],
+    [
+      "guwen-guanzhi-078-wikisource-zh",
+      "貨殖列傳序",
+      "史記",
+      "古文觀止/卷5",
+      "貨殖列傳序",
+      "老子曰、至治之極、鄰國相望、雞狗之聲相聞、民各甘其食、美",
+    ],
+    [
+      "guwen-guanzhi-079-wikisource-zh",
+      "太史公自序",
+      "史記",
+      "古文觀止/卷5",
+      "太史公自序",
+      "太史公曰、先人有言、自周公卒、五百歲而生孔子、孔子卒後、",
+    ],
+    [
+      "guwen-guanzhi-080-wikisource-zh",
+      "報任安書",
+      "司馬遷",
+      "古文觀止/卷5",
+      "報任安書",
+      "太史公牛馬走司馬遷再拜言、少卿足下、曩者辱賜書、教以慎於",
+    ],
   ].map(([id, title, author, sourceTitle, sourceSection, blurb]) => ({
     id,
     title,
@@ -2882,147 +4540,852 @@ const BOOKS = [
     description: `《古文觀止》所選《${title}》，依中文維基文庫公版文本整理為 EPUB。`,
   })),
   ...[
-    ["曹劌論戰", "古文觀止/卷1", "曹劌論戰", "齊師伐我。公將戰。曹劌請見。其鄉人曰：「肉食者謀之，又何間焉？」劌曰：「肉食者鄙"],
-    ["駒支不屈于晉", "古文觀止/卷2", "駒支不屈于晉", "會于向。將執戎子駒支。范宣子親數諸朝。曰：「來！姜戎氏。昔秦人迫逐乃祖吾離於瓜州"],
-    ["諸稽郢行成于吳", "古文觀止/卷3", "諸稽郢行成于吳", "吳王夫差起師伐越、越王句踐起師逆之江。大夫種乃獻謀曰、夫吳之與越、唯天所授、王其"],
-    ["鄒忌諷齊王納諫", "古文觀止/卷4", "鄒忌諷齊王納諫", "鄒忌脩八尺有餘、而形䫉昳麗。朝服衣冠、窺鏡謂其妻曰、我孰與城北徐公美。其妻曰、君"],
-    ["唐雎不辱使命", "古文觀止/卷4", "唐雎不辱使命", "秦王使人謂安陵君曰、寡人欲以五百里之地易安陵、安陵君其許寡人。安陵君曰、大王加惠"],
-    ["李斯諫逐客書", "古文觀止/卷4", "李斯諫逐客書", "秦宗室大臣皆言秦王曰、諸侯人來事秦者、大抵爲其主游閒於秦耳、請一切逐客。李斯議亦"],
-    ["游俠列傳序", "古文觀止/卷5", "游俠列傳序", "韓子曰、儒以文亂法、而俠以武犯禁。二者皆譏、而學士多稱於世云。至如以術取宰相卿大"],
-    ["高帝求賢詔", "古文觀止/卷6", "高帝求賢詔", "蓋聞王者莫高於周文、伯者莫高於齊桓、皆待賢人而成名。今天下賢者智能、豈特古之人乎"],
-    ["文帝議佐百姓詔", "古文觀止/卷6", "文帝議佐百姓詔", "間者數年比不登、又有水旱疾疫之災、朕甚憂之。愚而不明、未達其咎。意者、朕之政有所"],
-    ["景帝令二千石修職詔", "古文觀止/卷6", "景帝令二千石修職詔", "雕文刻鏤、傷農事者也、錦繡纂組、害女紅者也。農事傷、則飢之本也、女紅害、則寒之原"],
-    ["武帝求茂材異等詔", "古文觀止/卷6", "武帝求茂材異等詔", "蓋有非常之功、必待非常之人、故馬或奔踶而致千里、士或有負俗之累而立功名。夫泛駕之"],
-    ["賈誼過秦論上", "古文觀止/卷6", "賈誼過秦論上", "秦孝公據殽函之固、擁雍州之地、君臣固守、以窺周室。有席卷天下包舉宇內囊括四海之意"],
-    ["賈誼治安策一", "古文觀止/卷6", "賈誼治安策一", "夫樹國固、必相疑之勢、下數被其殃、上數爽其憂、甚非所以安上而全下也。今或親弟謀爲"],
-    ["鼂錯論貴粟疏", "古文觀止/卷6", "鼂錯論貴粟疏", "聖王在上、而民不凍饑者、非能耕而食之、織而衣之也、爲開其資財之道也。故堯禹有九年"],
-    ["鄒陽獄中上梁王書", "古文觀止/卷6", "鄒陽獄中上梁王書", "鄒陽從梁孝王游。陽爲人有智略、忼慨不苟合、介於羊勝公孫詭之間。勝等疾陽、惡之孝王"],
-    ["司馬相如上書諫獵", "古文觀止/卷6", "司馬相如上書諫獵", "相如從上至長楊獵、是時天子方好自擊熊豕、馳逐壄獸。相如因上疏諫曰、臣聞物有同類而"],
-    ["李陵答蘇武書", "古文觀止/卷6", "李陵答蘇武書", "子卿足下、勤宣令德、策名清時、榮問休暢、幸甚幸甚。遠託異國、昔人所悲、望風懷想、"],
-    ["路溫舒尚德緩刑書", "古文觀止/卷6", "路溫舒尚德緩刑書", "昭帝崩、昌邑王賀廢、宣帝初卽位。路溫舒上書、言宜尚德緩刑。其辭曰、臣聞齊有無知之"],
-    ["楊惲報孫會宗書", "古文觀止/卷6", "楊惲報孫會宗書", "惲旣失爵位家居、治產業、起室宅、以財自娛。歲餘、其友人安定太守西河孫會宗、知略士"],
-    ["光武帝臨淄勞耿弇", "古文觀止/卷6", "光武帝臨淄勞耿弇", "車駕至臨淄、自勞軍、羣臣大會。帝謂弇曰、昔韓信破歷下以開基、今將軍攻祝阿以發迹、"],
-    ["馬援戒兄子嚴敦書", "古文觀止/卷6", "馬援戒兄子嚴敦書", "援兄子嚴敦、並喜譏議、而通輕俠客。援前在交趾、還書誡之曰、吾欲汝曹聞人過失、如聞"],
-    ["諸葛亮前出師表", "古文觀止/卷6", "諸葛亮前出師表", "臣亮言、先帝創業未半、而中道崩殂。今天下三分、。益州疲敝、此誠危急存亡之秋也。然"],
-    ["諸葛亮後出師表", "古文觀止/卷6", "諸葛亮後出師表", "先帝慮漢賊不兩立、王業不偏安、故託臣以討賊也。以先帝之明、量臣之才、故知臣伐賊、"],
-    ["陳情表", "古文觀止/卷7", "陳情表", "臣密言、臣以險釁、夙遭閔凶。生孩六月、慈父見背。行年四歲、舅奪母志。祖母劉、愍臣"],
-    ["蘭亭集序", "古文觀止/卷7", "蘭亭集序", "永和九年、歲在癸丑、暮春之初、會於會稽山陰之蘭亭、修禊事也。羣賢畢至、少長咸集。"],
-    ["歸去來辭", "古文觀止/卷7", "歸去來辭", "歸去來兮、田園將蕪、胡不歸。旣自以心爲形役、奚惆悵而獨悲。悟已往之不諫、知來者之"],
-    ["桃花源記", "古文觀止/卷7", "桃花源記", "晉太元中、武陵人捕魚爲業。緣溪行、忘路之遠近。忽逢桃花林。夾岸數百步、中無雜樹、"],
-    ["五柳先生傳", "古文觀止/卷7", "五柳先生傳", "先生不知何許人也、亦不詳其姓字。宅邊有五柳樹、因以爲號焉。閑靜少言、不慕榮利。好"],
-    ["北山移文", "古文觀止/卷7", "北山移文", "鍾山之英、草堂之靈、馳煙驛路、勒移山庭。夫以耿介拔俗之標、瀟灑出塵之想。度白雪以"],
-    ["諫太宗十思疏", "古文觀止/卷7", "諫太宗十思疏", "臣聞求木之長者、必固其根本。欲流之遠者、必浚其泉源。思國之安者、必積其德義。源不"],
-    ["爲徐敬業討武曌檄", "古文觀止/卷7", "爲徐敬業討武曌檄{{*|曌音照}}", "僞臨朝武氏者、性非和順、地實寒微。昔充太宗下陳、曾以更衣入侍。洎乎晚節、穢亂春宮"],
-    ["滕王閣序", "古文觀止/卷7", "滕王閣序", "南昌故郡、洪都新府。星分翼軫、地接衡廬。襟三江而帶五湖、控蠻荊而引甌越。物華天寶"],
-    ["與韓荊州書", "古文觀止/卷7", "與韓荊州書", "白聞天下談士相聚而言曰、生不用封萬戶侯、但願一識韓荊州。何令人之景慕一至於此。豈"],
-    ["春夜宴桃李園序", "古文觀止/卷7", "春夜宴桃李園序", "夫天地者、萬物之逆旅。光陰者、百代之過客。而浮生若夢、爲懽幾何。古人秉燭夜遊、良"],
-    ["弔古戰場文", "古文觀止/卷7", "弔古戰場文", "浩浩乎平沙無垠、敻不見人。河水縈帶、羣山糾紛。黯兮慘悴、風悲日曛。蓬斷草枯、凜若"],
-    ["陋室銘", "古文觀止/卷7", "陋室銘", "山不在高、有仙則名。水不在深、有龍則靈。斯是陋室、惟吾德馨。苔痕上堦綠、草色入簾"],
-    ["阿房宮賦", "古文觀止/卷7", "阿房宮賦", "六王畢、四海一。蜀山兀、阿房出。覆壓三百餘里、隔離天日。驪山北構而西折、直走咸陽"],
-    ["原道", "古文觀止/卷7", "原道", "博愛之謂仁、行而宜之之謂義、由是而之焉之謂道、足乎己無待於外之謂德。仁與義爲定名"],
-    ["原毀", "古文觀止/卷7", "原毀", "古之君子、其責己也重以周、其待人也輕以約。重以周、故不怠。輕以約、故人樂爲善。聞"],
-    ["獲麟解", "古文觀止/卷7", "獲麟解", "麟之爲靈昭昭也。詠於詩、書於春秋、雜出於傳記百家之書、雖婦人小子、皆知其爲祥也。"],
-    ["雜說一", "古文觀止/卷7", "雜說一", "龍噓氣成雲、雲固弗靈於龍也。然龍乘是氣、茫洋窮乎玄間、薄日月、伏光景、感震電、神"],
-    ["雜說四", "古文觀止/卷7", "雜說四", "世有伯樂、然後有千里馬。千里馬常有、而伯樂不常有。故雖有名馬、祇辱於奴隸人之手、"],
-    ["師說", "古文觀止/卷8", "師說", "古之學者必有師。師者、所以傳道受業解惑也。人非生而知之者、孰能無惑。惑而不從師、"],
-    ["進學解", "古文觀止/卷8", "進學解", "國子先生、晨入太學。招諸生立館下、誨之曰、業精於勤、荒於嬉。行成於思、毀於隨。方"],
-    ["圬者王承福傳", "古文觀止/卷8", "圬者王承福傳", "圬之爲技、賤且勞者也。有業之、其色若自得者。聽其言、約而盡。問之、王其姓、承福其"],
-    ["諱辯", "古文觀止/卷8", "諱辯", "愈與李賀書、勸賀舉進士。賀舉進士有名、與賀爭名者毀之。曰、賀父名晉肅、賀不舉進士"],
-    ["爭臣論", "古文觀止/卷8", "爭臣論", "或問諫議大夫陽城於愈、可以爲有道之士乎哉。學廣而聞多、不求聞於人也。行古人之道、"],
-    ["後十九日復上宰相書", "古文觀止/卷8", "後十九日復上宰相書", "二月十六日、前鄉貢進士韓愈、謹再拜言相公閤下。向上書及所著文、後待命凡十有九日、"],
-    ["後廿九日復上宰相書", "古文觀止/卷8", "後廿九日復上宰相書", "三月十六日、前鄉貢進士韓愈、謹再拜言相公閤下、愈聞周公之爲輔相、其急於見賢也、方"],
-    ["與于襄陽書", "古文觀止/卷8", "與于襄陽書", "七月三日、將仕郎守國子四門博士韓愈、謹奉書尚書閤下。士之能享大名、顯當世者、莫不"],
-    ["與陳給事書", "古文觀止/卷8", "與陳給事書", "愈再拜。愈之獲見於閤下有年矣。始者亦嘗辱一言之譽。貧賤也、衣食於奔走、不得朝夕繼"],
-    ["應科目時與人書", "古文觀止/卷8", "應科目時與人書", "月日、愈再拜。天池之濱、大江之濆、曰有怪物焉。蓋非常鱗凡介之品彙匹儔也。其得水、"],
-    ["送孟東野序", "古文觀止/卷8", "送孟東野序", "大凡物不得其平則鳴。草木之無聲、風撓之鳴。水之無聲、風蕩之鳴。其躍也或激之、其趨"],
-    ["送李愿歸盤谷序", "古文觀止/卷8", "送李愿歸盤谷序", "太行之陽有盤谷。盤谷之閒、泉甘而土肥。草木藂茂、居民鮮少。或曰、謂其環兩山之閒、"],
-    ["送董邵南序", "古文觀止/卷8", "送董邵南序", "燕趙古稱多感慨悲歌之士。董生舉進士、連不得志於有司。懷抱利器、鬱鬱適茲土。吾知其"],
-    ["送楊少尹序", "古文觀止/卷8", "送楊少尹序", "昔疏廣、受二子、以年老、一朝辭位而去。於時公卿設供張、祖道都門外、車數百兩。道路"],
-    ["送石處士序", "古文觀止/卷8", "送石處士序", "河陽軍節度御史大夫烏公、爲節度之三月、求士於從事之賢者。有薦石先生者。公曰、先生"],
-    ["送溫處士赴河陽軍序", "古文觀止/卷8", "送溫處士赴河陽軍序", "伯樂一過冀北之野、而馬羣遂空。夫冀北馬多天下、伯樂雖善知馬、安能空其羣邪。解之者"],
-    ["祭十二郎文", "古文觀止/卷8", "祭十二郎文", "年月日、季父愈、聞汝喪之七日、乃能銜哀致誠、使建中遠具時羞之奠、告汝十二郎之靈。"],
-    ["祭鱷魚文", "古文觀止/卷8", "祭鱷魚文", "維年月日、潮州刺史韓愈、使軍事衙推秦濟、以羊一、豬一、投惡谿之潭水、以與鱷魚食、"],
-    ["柳子厚墓誌銘", "古文觀止/卷8", "柳子厚墓誌銘", "子厚諱宗元。七世祖慶、爲拓跋魏侍中、封濟陰公。曾伯祖奭、爲唐宰相、與褚遂良、韓瑗"],
-    ["駁復讎議", "古文觀止/卷9", "駁復讎議", "臣伏見天后時、有同州下邽人徐元慶者。父爽、爲縣尉趙師韞所殺。卒能手刃父讎、束身歸"],
-    ["桐葉封弟辨", "古文觀止/卷9", "桐葉封弟辨", "古之傳者有言、成王以桐葉與小弱弟戲、曰、以封汝。周公入賀。王曰、戲也。周公曰、天"],
-    ["箕子碑", "古文觀止/卷9", "箕子碑", "凡大人之道有三、一曰正蒙難、二曰法授聖、三曰化及民。殷有仁人曰箕子、實具茲道以立"],
-    ["捕蛇者說", "古文觀止/卷9", "捕蛇者說", "永州之野產異蛇、黑質而白章、觸草木盡死。以齧人、無禦之者。然得而腊之以爲餌、可以"],
-    ["種樹郭橐駝傳", "古文觀止/卷9", "種樹郭橐駝傳", "郭橐駝不知始何名、病僂、隆然伏行、有類橐駝者、故鄉人號之駝。駝聞之曰、甚善、名我"],
-    ["梓人傳", "古文觀止/卷9", "梓人傳", "裴封叔之第、在光德里。有梓人款其門、願傭隟宇而處焉。所職尋引規矩繩墨、家不居礱斲"],
-    ["愚溪詩序", "古文觀止/卷9", "愚溪詩序", "灌水之陽有溪焉、東流入於瀟水。或曰、冉氏嘗居也、故姓是溪爲冉溪。或曰、可以染也、"],
-    ["永州韋使君新堂記", "古文觀止/卷9", "永州韋使君新堂記", "將爲穹谷嵁巖淵池於郊邑之中、則必輦山石、溝澗壑、陵絕險阻、疲極人力、乃可以有爲也"],
-    ["鈷鉧潭西小丘記", "古文觀止/卷9", "鈷鉧潭西小丘記", "得西山後八日、尋山口西北道二百步、又得鈷鉧潭。西二十五步、當湍而浚者爲魚梁。梁之"],
-    ["小石城山記", "古文觀止/卷9", "小石城山記", "自西山道口徑北、踰黃茅嶺而下、有二道。其一西出、尋之無所得。其一少北而東、不過四"],
-    ["賀進士王參元失火書", "古文觀止/卷9", "賀進士王參元失火書", "得楊八書、知足下遇火災、家無餘儲。僕始聞而駭、中而疑、終乃大喜。蓋將弔而更以賀也"],
-    ["待漏院記", "古文觀止/卷9", "待漏院記", "天道不言、而品物亨、歲功成者、何謂也。四時之吏、五行之佐、宣其氣矣。聖人不言、而"],
-    ["黃岡竹樓記", "古文觀止/卷9", "黃岡竹樓記", "黃岡之地多竹、大者如椽、竹工破之、刳去其節、用代陶瓦、比屋皆然、以其價廉而工省也"],
-    ["書洛陽名園記後", "古文觀止/卷9", "書洛陽名園記後", "洛陽處天下之中、挾殽黽之阻、當秦隴之襟喉、而趙魏之走集、蓋四方必爭之地也。天下當"],
-    ["嚴先生祠堂記", "古文觀止/卷9", "嚴先生祠堂記", "先生、光武之故人也。相尚以道。及帝握赤符、乘六龍、得聖人之時。臣妾億兆、天下孰加"],
-    ["岳陽樓記", "古文觀止/卷9", "岳陽樓記", "慶曆四年春、滕子京、謫守巴陵郡。越明年、政通人和、百廢具興。乃重修岳陽樓、增其舊"],
-    ["諫院題名記", "古文觀止/卷9", "諫院題名記", "古者諫無官。自公卿大夫至於工商、無不得諫者。漢興以來、始置官。夫以天下之政、四海"],
-    ["義田記", "古文觀止/卷9", "義田記", "范文正公、蘇人也。平生好施與、擇其親而貧、疎而賢者、咸施之。方貴顯時、置負郭常稔"],
-    ["袁州州學記", "古文觀止/卷9", "袁州州學記", "皇帝二十有三年、制詔州縣立學。惟時守令、有哲有愚、有屈力殫慮、祗順德意。有假官借"],
-    ["朋黨論", "古文觀止/卷9", "朋黨論", "臣聞朋黨之說、自古有之、惟幸人君辨其君子小人而已。大凡君子與君子、以同道爲朋。小"],
-    ["縱囚論", "古文觀止/卷9", "縱囚論", "信義行於君子、而刑戮施於小人。刑入於死者、乃罪大惡極、此又小人之尤甚者也。寧以義"],
-    ["釋祕演詩集序", "古文觀止/卷9", "釋祕演詩集序", "予少以進士遊京師、因得盡交當世之賢豪。然猶以謂國家臣一四海、休兵革、養息天下以無"],
-    ["梅聖俞詩集序", "古文觀止/卷10", "梅聖俞詩集序", "予聞世謂詩人少達而多窮，夫豈然哉？蓋世所傳詩者，多出於古窮人之辭也。凡士之蘊其所"],
-    ["送楊寘序", "古文觀止/卷10", "送楊寘序", "予嘗有幽憂之疾。退而閒居，不能治也。旣而學琴於友人孫道滋，受宮聲數引，久而樂之，"],
-    ["五代史伶官傳序", "古文觀止/卷10", "五代史伶官傳序", "嗚呼！盛衰之理，雖曰天命，豈非人事哉。原莊宗之所以得天下，與其所以失之者，可以知"],
-    ["五代史宦者傳論", "古文觀止/卷10", "五代史宦者傳論", "自古宦者亂人之國、其源深於女禍。女、色而已。宦者之害、非一端也。蓋其用事也近而習"],
-    ["相州晝錦堂記", "古文觀止/卷10", "相州晝錦堂記", "仕宦而至將相、富貴而歸故鄉、此人情之所榮、而今昔之所同也。蓋士方窮時、困阨閭里、"],
-    ["豐樂亭記", "古文觀止/卷10", "豐樂亭記", "修旣治滁之明年夏，始飲滁水而甘。問諸滁人，得於州南百步之近。其上則豐山，聳然而特"],
-    ["醉翁亭記", "古文觀止/卷10", "醉翁亭記", "環滁皆山也。其西南諸峯、林壑尤美。望之蔚然而深秀者、琅琊也。山行六七里、漸聞水聲"],
-    ["秋聲賦", "古文觀止/卷10", "秋聲賦", "歐陽子方夜讀書、聞有聲自西南來者、悚然而聽之。曰、異哉、初淅瀝以瀟颯、忽奔騰而砰"],
-    ["祭石曼卿文", "古文觀止/卷10", "祭石曼卿文", "維治平四年、七月日、具官歐陽修、謹遣尚書都省令史李敡、至於太清。以清酌庶羞之奠、"],
-    ["瀧岡阡表", "古文觀止/卷10", "瀧岡阡表", "嗚呼、惟我皇考崇公、卜吉於瀧岡之六十年、其子修、始克表於其阡。非敢緩也、蓋有待也"],
-    ["管仲論", "古文觀止/卷10", "管仲論", "管仲相威公，霸諸侯，攘戎狄，終其身齊國富強，諸侯不敢叛。管仲死，豎刁易牙開方用，"],
-    ["辨奸論", "古文觀止/卷10", "辨奸論", "事有必至，理有固然。惟天下之静者，乃能见微而知著。月晕而风，础润而雨，人人知之。"],
-    ["心術", "古文觀止/卷10", "心術", "为将之道，当先治心。泰山崩于前而色不变，麋鹿兴于左而目不瞬，然后可以制利害，可以"],
-    ["張益州畫像記", "古文觀止/卷10", "張益州畫像記", "至和元年秋，蜀人傳言有寇至邊。邊軍夜呼，野無居人。妖言流聞，京師震驚。方命擇帥，"],
-    ["刑賞忠厚之至論", "古文觀止/卷10", "刑賞忠厚之至論", "堯、舜、禹、湯、文、武、成、康之際，何其愛民之深，憂民之切，而待天下以君子長者之"],
-    ["范增論", "古文觀止/卷10", "范增論", "汉用陈平计，间疏楚君臣。项羽疑范增与汉有私，稍夺其权。增大怒曰：“天下事大定矣，"],
-    ["留侯論", "古文觀止/卷10", "留侯論", "古之所谓豪杰之士，必有过人之节，人情有所不能忍者。匹夫见辱，拔剑而起，挺身而斗，"],
-    ["賈誼論", "古文觀止/卷10", "賈誼論", "非才之难，所以自用者实难。惜乎！贾生，王者之佐，而不能自用其才也。夫君子之所取者"],
-    ["鼂錯論", "古文觀止/卷10", "鼂錯論", "天下之患，最不可为者，名为治平无事，而其实有不测之忧。坐观其变，而不为之所，则恐"],
-    ["上梅直講書", "古文觀止/卷11", "上梅直講書", "軾每讀《詩》至《鴟鴞》，讀《書》至《君奭》，常竊悲周公之不遇。及觀《史》，見孔子"],
-    ["喜雨亭記", "古文觀止/卷11", "喜雨亭記", "亭以雨名，志喜也。古者有喜，則以名物，示不忘也。周公得禾，以名其書；漢武得鼎，以"],
-    ["凌虛臺記", "古文觀止/卷11", "凌虛臺記", "國於南山之下，宜若起居飲食與山接也。四方之山，莫高於終南，而都邑之麗山者，莫近於"],
-    ["超然臺記", "古文觀止/卷11", "超然臺記", "凡物皆有可觀。苟有可觀，皆有可樂。非必怪奇偉麗者也。餔糟啜醨，皆可以醉；果蔬草木"],
-    ["放鶴亭記", "古文觀止/卷11", "放鶴亭記", "熙寧十年秋，彭城大水。雲龍山人張君之草堂，水及其半扉。明年春，水落，遷於故居之東"],
-    ["石鐘山記", "古文觀止/卷11", "石鐘山記", "《水经》云：“彭蠡之口有石钟山焉。”郦元以为下临深潭，微风鼓浪，水石相搏，声如洪"],
-    ["潮州韓文公廟碑", "古文觀止/卷11", "潮州韓文公廟碑", "匹夫而爲百世師，一言而爲天下法。是皆有以參天地之化，關盛衰之運。其生也，有自來；"],
-    ["乞校正陸贄奏議進御劄子", "古文觀止/卷11", "乞校正陸贄奏議進御劄子", "臣等猥以空疎，備員講讀。聖明天縱，學問日新。臣等才有限而道無窮，心欲言而口不逮，"],
-    ["前赤壁賦", "古文觀止/卷11", "前赤壁賦", "壬戌之秋，七月既望，蘇子與客泛舟遊於赤壁之下。清風徐來，水波不興。舉酒屬客，誦《"],
-    ["後赤壁賦", "古文觀止/卷11", "後赤壁賦", "是歲十月之望，步自雪堂，將歸於臨皋。二客從予，過黃泥之阪。霜露既降，木葉盡脫，人"],
-    ["三槐堂銘", "古文觀止/卷11", "三槐堂銘", "天可必乎？賢者不必貴，仁者不必壽。天不可必乎？仁者必有後。二者將安取衷哉？吾聞之"],
-    ["方山子傳", "古文觀止/卷11", "方山子傳", "方山子，光黃間隱人也。少時，慕朱家、郭解爲人，閭里之俠皆宗之。稍壯，折節讀書，欲"],
-    ["六國論", "古文觀止/卷11", "六國論", "嘗讀六國世家，竊怪天下之諸侯，以五倍之地，十倍之衆，發憤西向，以攻山西千里之秦，"],
-    ["上樞密韓太尉書", "古文觀止/卷11", "上樞密韓太尉書", "太尉執事：轍生好為文，思之至深，以為文者，氣之所形。然文不可以學而能，氣可以養而"],
-    ["黃州快哉亭記", "古文觀止/卷11", "黃州快哉亭記", "江出西陵，始得平地，其流奔放肆大；南合湘、沅，北合漢、沔，其勢益張；至於赤壁之下"],
-    ["寄歐陽舍人書", "古文觀止/卷11", "寄歐陽舍人書", "去秋人還，蒙賜書及所撰先大父墓碑銘，反覆觀誦，感與慚并。夫銘誌之著於世，義近於史"],
-    ["贈黎安二生序", "古文觀止/卷11", "贈黎安二生序", "趙郡蘇軾，予之同年友也。自蜀以書至京師遺予，稱蜀之士曰黎生、安生者。既而黎生攜其"],
-    ["讀孟嘗君傳", "古文觀止/卷11", "讀孟嘗君傳", "世皆稱孟嘗君能得士，士以故歸之，而卒賴其力，以脫於虎豹之秦。嗟乎！孟嘗君特雞鳴狗"],
-    ["同學一首別子固", "古文觀止/卷11", "同學一首別子固", "江之南有賢人焉，字子固，非今所謂賢人者，予慕而友之。淮之南有賢人焉，字正之，非今"],
-    ["遊褒禪山記", "古文觀止/卷11", "遊褒禪山記", "襃禪山亦謂之華山。唐浮圖慧褒始舍於其址，而卒葬之，以故其後名之曰褒禪。今所謂慧空"],
-    ["泰州海陵縣主簿許君墓誌銘", "古文觀止/卷11", "泰州海陵縣主簿許君墓誌銘", "君諱平，字秉之，姓許氏。余嘗譜其世家，所謂今泰州海陵縣主簿者也。君既與兄元相友愛"],
-    ["送天台陳庭學序", "古文觀止/卷12", "送天台陳庭學序", "西南山水，惟川蜀最奇。然去中州萬里，陸有劍閣棧道之險，水有瞿唐灩澦之虞。跨馬行，"],
-    ["閱江樓記", "古文觀止/卷12", "閱江樓記", "金陵爲帝王之州，自六朝迄於南唐，類皆偏據一方，無以應山川之王氣。逮我皇帝，定鼎於"],
-    ["司馬季主論卜", "古文觀止/卷12", "司馬季主論卜", "東陵侯旣廢，過司馬季主而卜焉。季主曰：「君侯何卜也？」東陵侯曰：「久臥者思起，久"],
-    ["賣柑者言", "古文觀止/卷12", "賣柑者言", "杭有賣果者，善藏柑，涉寒暑不潰。出之燁然，玉質而金色。剖其中，乾若敗絮。予怪而問"],
-    ["深慮論", "古文觀止/卷12", "深慮論", "慮天下者，常圖其所難，而忽其所易；備其所可畏，而遺其所不疑。然而禍常發於所忽之中"],
-    ["豫讓論", "古文觀止/卷12", "豫讓論", "士君子立身事主，旣名知己，則當竭盡智謀，忠告善道，銷患於未形，保治於未然，俾身全"],
-    ["親政篇", "古文觀止/卷12", "親政篇", "《易》之《泰》曰：「上下交而其志同。」其《否》曰：「上下不交而天下無邦。」蓋上之"],
-    ["尊經閣記", "古文觀止/卷12", "尊經閣記", "經，常道也。其在於天謂之「命」，其賦於人謂之「性」，其主於身謂之「心」。心也，性"],
-    ["象祠記", "古文觀止/卷12", "象祠記", "靈博之山，有象祠焉。其下諸苗夷之居者，鹹神而祠之。宣尉安君，因諸苗夷之請，新其祠"],
-    ["瘞旅文", "古文觀止/卷12", "瘞旅文", "維正德四年秋月三日，有吏目云自京來者，不知其名氏，攜一子一僕，將之任，過龍場，投"],
-    ["信陵君救趙論", "古文觀止/卷12", "信陵君救趙論", "論者以竊符爲信陵君之罪，余以爲此未足以罪信陵也。夫彊秦之暴亟矣，今悉兵以臨趙，趙"],
-    ["報劉一丈書", "古文觀止/卷12", "報劉一丈書", "數千里外，得長者時賜一書，以慰長想，即亦甚幸矣；何至更辱饋遺，則不才益將何以報焉"],
-    ["吳山圖記", "古文觀止/卷12", "吳山圖記", "吳、長洲二縣，在郡治所，分境而治。而郡西諸山，皆在吳縣。其最高者，穹窿、陽山、鄧"],
-    ["滄浪亭記", "古文觀止/卷12", "滄浪亭記", "浮圖文瑛，居大雲庵，環水，即蘇子美滄浪亭之地也。亟求余作《滄浪亭記》，曰：「昔子"],
-    ["青霞先生文集序", "古文觀止/卷12", "青霞先生文集序", "青霞沈君，由錦衣經歷上書詆宰執。宰執深疾之，方力構其罪，賴天子仁聖，特薄其譴，徙"],
-    ["藺相如完璧歸趙論", "古文觀止/卷12", "藺相如完璧歸趙論", "藺相如之完璧，人皆稱之，予未敢以爲信也。夫秦以十五城之空名，詐趙而脅其璧，是時言"],
-    ["徐文長傳", "古文觀止/卷12", "徐文長傳", "徐渭，字文長，爲山陰諸生，聲名籍甚。薛公蕙校越時，奇其才，有國士之目。然數奇屢試"],
-    ["五人墓碑記", "古文觀止/卷12", "五人墓碑記", "五人者，蓋當蓼洲周公之被逮，激於義而死焉者也。至於今，郡之賢士大夫請於當道，卽除"],
+    [
+      "曹劌論戰",
+      "古文觀止/卷1",
+      "曹劌論戰",
+      "齊師伐我。公將戰。曹劌請見。其鄉人曰：「肉食者謀之，又何間焉？」劌曰：「肉食者鄙",
+    ],
+    [
+      "駒支不屈于晉",
+      "古文觀止/卷2",
+      "駒支不屈于晉",
+      "會于向。將執戎子駒支。范宣子親數諸朝。曰：「來！姜戎氏。昔秦人迫逐乃祖吾離於瓜州",
+    ],
+    [
+      "諸稽郢行成于吳",
+      "古文觀止/卷3",
+      "諸稽郢行成于吳",
+      "吳王夫差起師伐越、越王句踐起師逆之江。大夫種乃獻謀曰、夫吳之與越、唯天所授、王其",
+    ],
+    [
+      "鄒忌諷齊王納諫",
+      "古文觀止/卷4",
+      "鄒忌諷齊王納諫",
+      "鄒忌脩八尺有餘、而形䫉昳麗。朝服衣冠、窺鏡謂其妻曰、我孰與城北徐公美。其妻曰、君",
+    ],
+    [
+      "唐雎不辱使命",
+      "古文觀止/卷4",
+      "唐雎不辱使命",
+      "秦王使人謂安陵君曰、寡人欲以五百里之地易安陵、安陵君其許寡人。安陵君曰、大王加惠",
+    ],
+    [
+      "李斯諫逐客書",
+      "古文觀止/卷4",
+      "李斯諫逐客書",
+      "秦宗室大臣皆言秦王曰、諸侯人來事秦者、大抵爲其主游閒於秦耳、請一切逐客。李斯議亦",
+    ],
+    [
+      "游俠列傳序",
+      "古文觀止/卷5",
+      "游俠列傳序",
+      "韓子曰、儒以文亂法、而俠以武犯禁。二者皆譏、而學士多稱於世云。至如以術取宰相卿大",
+    ],
+    [
+      "高帝求賢詔",
+      "古文觀止/卷6",
+      "高帝求賢詔",
+      "蓋聞王者莫高於周文、伯者莫高於齊桓、皆待賢人而成名。今天下賢者智能、豈特古之人乎",
+    ],
+    [
+      "文帝議佐百姓詔",
+      "古文觀止/卷6",
+      "文帝議佐百姓詔",
+      "間者數年比不登、又有水旱疾疫之災、朕甚憂之。愚而不明、未達其咎。意者、朕之政有所",
+    ],
+    [
+      "景帝令二千石修職詔",
+      "古文觀止/卷6",
+      "景帝令二千石修職詔",
+      "雕文刻鏤、傷農事者也、錦繡纂組、害女紅者也。農事傷、則飢之本也、女紅害、則寒之原",
+    ],
+    [
+      "武帝求茂材異等詔",
+      "古文觀止/卷6",
+      "武帝求茂材異等詔",
+      "蓋有非常之功、必待非常之人、故馬或奔踶而致千里、士或有負俗之累而立功名。夫泛駕之",
+    ],
+    [
+      "賈誼過秦論上",
+      "古文觀止/卷6",
+      "賈誼過秦論上",
+      "秦孝公據殽函之固、擁雍州之地、君臣固守、以窺周室。有席卷天下包舉宇內囊括四海之意",
+    ],
+    [
+      "賈誼治安策一",
+      "古文觀止/卷6",
+      "賈誼治安策一",
+      "夫樹國固、必相疑之勢、下數被其殃、上數爽其憂、甚非所以安上而全下也。今或親弟謀爲",
+    ],
+    [
+      "鼂錯論貴粟疏",
+      "古文觀止/卷6",
+      "鼂錯論貴粟疏",
+      "聖王在上、而民不凍饑者、非能耕而食之、織而衣之也、爲開其資財之道也。故堯禹有九年",
+    ],
+    [
+      "鄒陽獄中上梁王書",
+      "古文觀止/卷6",
+      "鄒陽獄中上梁王書",
+      "鄒陽從梁孝王游。陽爲人有智略、忼慨不苟合、介於羊勝公孫詭之間。勝等疾陽、惡之孝王",
+    ],
+    [
+      "司馬相如上書諫獵",
+      "古文觀止/卷6",
+      "司馬相如上書諫獵",
+      "相如從上至長楊獵、是時天子方好自擊熊豕、馳逐壄獸。相如因上疏諫曰、臣聞物有同類而",
+    ],
+    [
+      "李陵答蘇武書",
+      "古文觀止/卷6",
+      "李陵答蘇武書",
+      "子卿足下、勤宣令德、策名清時、榮問休暢、幸甚幸甚。遠託異國、昔人所悲、望風懷想、",
+    ],
+    [
+      "路溫舒尚德緩刑書",
+      "古文觀止/卷6",
+      "路溫舒尚德緩刑書",
+      "昭帝崩、昌邑王賀廢、宣帝初卽位。路溫舒上書、言宜尚德緩刑。其辭曰、臣聞齊有無知之",
+    ],
+    [
+      "楊惲報孫會宗書",
+      "古文觀止/卷6",
+      "楊惲報孫會宗書",
+      "惲旣失爵位家居、治產業、起室宅、以財自娛。歲餘、其友人安定太守西河孫會宗、知略士",
+    ],
+    [
+      "光武帝臨淄勞耿弇",
+      "古文觀止/卷6",
+      "光武帝臨淄勞耿弇",
+      "車駕至臨淄、自勞軍、羣臣大會。帝謂弇曰、昔韓信破歷下以開基、今將軍攻祝阿以發迹、",
+    ],
+    [
+      "馬援戒兄子嚴敦書",
+      "古文觀止/卷6",
+      "馬援戒兄子嚴敦書",
+      "援兄子嚴敦、並喜譏議、而通輕俠客。援前在交趾、還書誡之曰、吾欲汝曹聞人過失、如聞",
+    ],
+    [
+      "諸葛亮前出師表",
+      "古文觀止/卷6",
+      "諸葛亮前出師表",
+      "臣亮言、先帝創業未半、而中道崩殂。今天下三分、。益州疲敝、此誠危急存亡之秋也。然",
+    ],
+    [
+      "諸葛亮後出師表",
+      "古文觀止/卷6",
+      "諸葛亮後出師表",
+      "先帝慮漢賊不兩立、王業不偏安、故託臣以討賊也。以先帝之明、量臣之才、故知臣伐賊、",
+    ],
+    [
+      "陳情表",
+      "古文觀止/卷7",
+      "陳情表",
+      "臣密言、臣以險釁、夙遭閔凶。生孩六月、慈父見背。行年四歲、舅奪母志。祖母劉、愍臣",
+    ],
+    [
+      "蘭亭集序",
+      "古文觀止/卷7",
+      "蘭亭集序",
+      "永和九年、歲在癸丑、暮春之初、會於會稽山陰之蘭亭、修禊事也。羣賢畢至、少長咸集。",
+    ],
+    [
+      "歸去來辭",
+      "古文觀止/卷7",
+      "歸去來辭",
+      "歸去來兮、田園將蕪、胡不歸。旣自以心爲形役、奚惆悵而獨悲。悟已往之不諫、知來者之",
+    ],
+    [
+      "桃花源記",
+      "古文觀止/卷7",
+      "桃花源記",
+      "晉太元中、武陵人捕魚爲業。緣溪行、忘路之遠近。忽逢桃花林。夾岸數百步、中無雜樹、",
+    ],
+    [
+      "五柳先生傳",
+      "古文觀止/卷7",
+      "五柳先生傳",
+      "先生不知何許人也、亦不詳其姓字。宅邊有五柳樹、因以爲號焉。閑靜少言、不慕榮利。好",
+    ],
+    [
+      "北山移文",
+      "古文觀止/卷7",
+      "北山移文",
+      "鍾山之英、草堂之靈、馳煙驛路、勒移山庭。夫以耿介拔俗之標、瀟灑出塵之想。度白雪以",
+    ],
+    [
+      "諫太宗十思疏",
+      "古文觀止/卷7",
+      "諫太宗十思疏",
+      "臣聞求木之長者、必固其根本。欲流之遠者、必浚其泉源。思國之安者、必積其德義。源不",
+    ],
+    [
+      "爲徐敬業討武曌檄",
+      "古文觀止/卷7",
+      "爲徐敬業討武曌檄{{*|曌音照}}",
+      "僞臨朝武氏者、性非和順、地實寒微。昔充太宗下陳、曾以更衣入侍。洎乎晚節、穢亂春宮",
+    ],
+    [
+      "滕王閣序",
+      "古文觀止/卷7",
+      "滕王閣序",
+      "南昌故郡、洪都新府。星分翼軫、地接衡廬。襟三江而帶五湖、控蠻荊而引甌越。物華天寶",
+    ],
+    [
+      "與韓荊州書",
+      "古文觀止/卷7",
+      "與韓荊州書",
+      "白聞天下談士相聚而言曰、生不用封萬戶侯、但願一識韓荊州。何令人之景慕一至於此。豈",
+    ],
+    [
+      "春夜宴桃李園序",
+      "古文觀止/卷7",
+      "春夜宴桃李園序",
+      "夫天地者、萬物之逆旅。光陰者、百代之過客。而浮生若夢、爲懽幾何。古人秉燭夜遊、良",
+    ],
+    [
+      "弔古戰場文",
+      "古文觀止/卷7",
+      "弔古戰場文",
+      "浩浩乎平沙無垠、敻不見人。河水縈帶、羣山糾紛。黯兮慘悴、風悲日曛。蓬斷草枯、凜若",
+    ],
+    [
+      "陋室銘",
+      "古文觀止/卷7",
+      "陋室銘",
+      "山不在高、有仙則名。水不在深、有龍則靈。斯是陋室、惟吾德馨。苔痕上堦綠、草色入簾",
+    ],
+    [
+      "阿房宮賦",
+      "古文觀止/卷7",
+      "阿房宮賦",
+      "六王畢、四海一。蜀山兀、阿房出。覆壓三百餘里、隔離天日。驪山北構而西折、直走咸陽",
+    ],
+    [
+      "原道",
+      "古文觀止/卷7",
+      "原道",
+      "博愛之謂仁、行而宜之之謂義、由是而之焉之謂道、足乎己無待於外之謂德。仁與義爲定名",
+    ],
+    [
+      "原毀",
+      "古文觀止/卷7",
+      "原毀",
+      "古之君子、其責己也重以周、其待人也輕以約。重以周、故不怠。輕以約、故人樂爲善。聞",
+    ],
+    [
+      "獲麟解",
+      "古文觀止/卷7",
+      "獲麟解",
+      "麟之爲靈昭昭也。詠於詩、書於春秋、雜出於傳記百家之書、雖婦人小子、皆知其爲祥也。",
+    ],
+    [
+      "雜說一",
+      "古文觀止/卷7",
+      "雜說一",
+      "龍噓氣成雲、雲固弗靈於龍也。然龍乘是氣、茫洋窮乎玄間、薄日月、伏光景、感震電、神",
+    ],
+    [
+      "雜說四",
+      "古文觀止/卷7",
+      "雜說四",
+      "世有伯樂、然後有千里馬。千里馬常有、而伯樂不常有。故雖有名馬、祇辱於奴隸人之手、",
+    ],
+    [
+      "師說",
+      "古文觀止/卷8",
+      "師說",
+      "古之學者必有師。師者、所以傳道受業解惑也。人非生而知之者、孰能無惑。惑而不從師、",
+    ],
+    [
+      "進學解",
+      "古文觀止/卷8",
+      "進學解",
+      "國子先生、晨入太學。招諸生立館下、誨之曰、業精於勤、荒於嬉。行成於思、毀於隨。方",
+    ],
+    [
+      "圬者王承福傳",
+      "古文觀止/卷8",
+      "圬者王承福傳",
+      "圬之爲技、賤且勞者也。有業之、其色若自得者。聽其言、約而盡。問之、王其姓、承福其",
+    ],
+    [
+      "諱辯",
+      "古文觀止/卷8",
+      "諱辯",
+      "愈與李賀書、勸賀舉進士。賀舉進士有名、與賀爭名者毀之。曰、賀父名晉肅、賀不舉進士",
+    ],
+    [
+      "爭臣論",
+      "古文觀止/卷8",
+      "爭臣論",
+      "或問諫議大夫陽城於愈、可以爲有道之士乎哉。學廣而聞多、不求聞於人也。行古人之道、",
+    ],
+    [
+      "後十九日復上宰相書",
+      "古文觀止/卷8",
+      "後十九日復上宰相書",
+      "二月十六日、前鄉貢進士韓愈、謹再拜言相公閤下。向上書及所著文、後待命凡十有九日、",
+    ],
+    [
+      "後廿九日復上宰相書",
+      "古文觀止/卷8",
+      "後廿九日復上宰相書",
+      "三月十六日、前鄉貢進士韓愈、謹再拜言相公閤下、愈聞周公之爲輔相、其急於見賢也、方",
+    ],
+    [
+      "與于襄陽書",
+      "古文觀止/卷8",
+      "與于襄陽書",
+      "七月三日、將仕郎守國子四門博士韓愈、謹奉書尚書閤下。士之能享大名、顯當世者、莫不",
+    ],
+    [
+      "與陳給事書",
+      "古文觀止/卷8",
+      "與陳給事書",
+      "愈再拜。愈之獲見於閤下有年矣。始者亦嘗辱一言之譽。貧賤也、衣食於奔走、不得朝夕繼",
+    ],
+    [
+      "應科目時與人書",
+      "古文觀止/卷8",
+      "應科目時與人書",
+      "月日、愈再拜。天池之濱、大江之濆、曰有怪物焉。蓋非常鱗凡介之品彙匹儔也。其得水、",
+    ],
+    [
+      "送孟東野序",
+      "古文觀止/卷8",
+      "送孟東野序",
+      "大凡物不得其平則鳴。草木之無聲、風撓之鳴。水之無聲、風蕩之鳴。其躍也或激之、其趨",
+    ],
+    [
+      "送李愿歸盤谷序",
+      "古文觀止/卷8",
+      "送李愿歸盤谷序",
+      "太行之陽有盤谷。盤谷之閒、泉甘而土肥。草木藂茂、居民鮮少。或曰、謂其環兩山之閒、",
+    ],
+    [
+      "送董邵南序",
+      "古文觀止/卷8",
+      "送董邵南序",
+      "燕趙古稱多感慨悲歌之士。董生舉進士、連不得志於有司。懷抱利器、鬱鬱適茲土。吾知其",
+    ],
+    [
+      "送楊少尹序",
+      "古文觀止/卷8",
+      "送楊少尹序",
+      "昔疏廣、受二子、以年老、一朝辭位而去。於時公卿設供張、祖道都門外、車數百兩。道路",
+    ],
+    [
+      "送石處士序",
+      "古文觀止/卷8",
+      "送石處士序",
+      "河陽軍節度御史大夫烏公、爲節度之三月、求士於從事之賢者。有薦石先生者。公曰、先生",
+    ],
+    [
+      "送溫處士赴河陽軍序",
+      "古文觀止/卷8",
+      "送溫處士赴河陽軍序",
+      "伯樂一過冀北之野、而馬羣遂空。夫冀北馬多天下、伯樂雖善知馬、安能空其羣邪。解之者",
+    ],
+    [
+      "祭十二郎文",
+      "古文觀止/卷8",
+      "祭十二郎文",
+      "年月日、季父愈、聞汝喪之七日、乃能銜哀致誠、使建中遠具時羞之奠、告汝十二郎之靈。",
+    ],
+    [
+      "祭鱷魚文",
+      "古文觀止/卷8",
+      "祭鱷魚文",
+      "維年月日、潮州刺史韓愈、使軍事衙推秦濟、以羊一、豬一、投惡谿之潭水、以與鱷魚食、",
+    ],
+    [
+      "柳子厚墓誌銘",
+      "古文觀止/卷8",
+      "柳子厚墓誌銘",
+      "子厚諱宗元。七世祖慶、爲拓跋魏侍中、封濟陰公。曾伯祖奭、爲唐宰相、與褚遂良、韓瑗",
+    ],
+    [
+      "駁復讎議",
+      "古文觀止/卷9",
+      "駁復讎議",
+      "臣伏見天后時、有同州下邽人徐元慶者。父爽、爲縣尉趙師韞所殺。卒能手刃父讎、束身歸",
+    ],
+    [
+      "桐葉封弟辨",
+      "古文觀止/卷9",
+      "桐葉封弟辨",
+      "古之傳者有言、成王以桐葉與小弱弟戲、曰、以封汝。周公入賀。王曰、戲也。周公曰、天",
+    ],
+    [
+      "箕子碑",
+      "古文觀止/卷9",
+      "箕子碑",
+      "凡大人之道有三、一曰正蒙難、二曰法授聖、三曰化及民。殷有仁人曰箕子、實具茲道以立",
+    ],
+    [
+      "捕蛇者說",
+      "古文觀止/卷9",
+      "捕蛇者說",
+      "永州之野產異蛇、黑質而白章、觸草木盡死。以齧人、無禦之者。然得而腊之以爲餌、可以",
+    ],
+    [
+      "種樹郭橐駝傳",
+      "古文觀止/卷9",
+      "種樹郭橐駝傳",
+      "郭橐駝不知始何名、病僂、隆然伏行、有類橐駝者、故鄉人號之駝。駝聞之曰、甚善、名我",
+    ],
+    [
+      "梓人傳",
+      "古文觀止/卷9",
+      "梓人傳",
+      "裴封叔之第、在光德里。有梓人款其門、願傭隟宇而處焉。所職尋引規矩繩墨、家不居礱斲",
+    ],
+    [
+      "愚溪詩序",
+      "古文觀止/卷9",
+      "愚溪詩序",
+      "灌水之陽有溪焉、東流入於瀟水。或曰、冉氏嘗居也、故姓是溪爲冉溪。或曰、可以染也、",
+    ],
+    [
+      "永州韋使君新堂記",
+      "古文觀止/卷9",
+      "永州韋使君新堂記",
+      "將爲穹谷嵁巖淵池於郊邑之中、則必輦山石、溝澗壑、陵絕險阻、疲極人力、乃可以有爲也",
+    ],
+    [
+      "鈷鉧潭西小丘記",
+      "古文觀止/卷9",
+      "鈷鉧潭西小丘記",
+      "得西山後八日、尋山口西北道二百步、又得鈷鉧潭。西二十五步、當湍而浚者爲魚梁。梁之",
+    ],
+    [
+      "小石城山記",
+      "古文觀止/卷9",
+      "小石城山記",
+      "自西山道口徑北、踰黃茅嶺而下、有二道。其一西出、尋之無所得。其一少北而東、不過四",
+    ],
+    [
+      "賀進士王參元失火書",
+      "古文觀止/卷9",
+      "賀進士王參元失火書",
+      "得楊八書、知足下遇火災、家無餘儲。僕始聞而駭、中而疑、終乃大喜。蓋將弔而更以賀也",
+    ],
+    [
+      "待漏院記",
+      "古文觀止/卷9",
+      "待漏院記",
+      "天道不言、而品物亨、歲功成者、何謂也。四時之吏、五行之佐、宣其氣矣。聖人不言、而",
+    ],
+    [
+      "黃岡竹樓記",
+      "古文觀止/卷9",
+      "黃岡竹樓記",
+      "黃岡之地多竹、大者如椽、竹工破之、刳去其節、用代陶瓦、比屋皆然、以其價廉而工省也",
+    ],
+    [
+      "書洛陽名園記後",
+      "古文觀止/卷9",
+      "書洛陽名園記後",
+      "洛陽處天下之中、挾殽黽之阻、當秦隴之襟喉、而趙魏之走集、蓋四方必爭之地也。天下當",
+    ],
+    [
+      "嚴先生祠堂記",
+      "古文觀止/卷9",
+      "嚴先生祠堂記",
+      "先生、光武之故人也。相尚以道。及帝握赤符、乘六龍、得聖人之時。臣妾億兆、天下孰加",
+    ],
+    [
+      "岳陽樓記",
+      "古文觀止/卷9",
+      "岳陽樓記",
+      "慶曆四年春、滕子京、謫守巴陵郡。越明年、政通人和、百廢具興。乃重修岳陽樓、增其舊",
+    ],
+    [
+      "諫院題名記",
+      "古文觀止/卷9",
+      "諫院題名記",
+      "古者諫無官。自公卿大夫至於工商、無不得諫者。漢興以來、始置官。夫以天下之政、四海",
+    ],
+    [
+      "義田記",
+      "古文觀止/卷9",
+      "義田記",
+      "范文正公、蘇人也。平生好施與、擇其親而貧、疎而賢者、咸施之。方貴顯時、置負郭常稔",
+    ],
+    [
+      "袁州州學記",
+      "古文觀止/卷9",
+      "袁州州學記",
+      "皇帝二十有三年、制詔州縣立學。惟時守令、有哲有愚、有屈力殫慮、祗順德意。有假官借",
+    ],
+    [
+      "朋黨論",
+      "古文觀止/卷9",
+      "朋黨論",
+      "臣聞朋黨之說、自古有之、惟幸人君辨其君子小人而已。大凡君子與君子、以同道爲朋。小",
+    ],
+    [
+      "縱囚論",
+      "古文觀止/卷9",
+      "縱囚論",
+      "信義行於君子、而刑戮施於小人。刑入於死者、乃罪大惡極、此又小人之尤甚者也。寧以義",
+    ],
+    [
+      "釋祕演詩集序",
+      "古文觀止/卷9",
+      "釋祕演詩集序",
+      "予少以進士遊京師、因得盡交當世之賢豪。然猶以謂國家臣一四海、休兵革、養息天下以無",
+    ],
+    [
+      "梅聖俞詩集序",
+      "古文觀止/卷10",
+      "梅聖俞詩集序",
+      "予聞世謂詩人少達而多窮，夫豈然哉？蓋世所傳詩者，多出於古窮人之辭也。凡士之蘊其所",
+    ],
+    [
+      "送楊寘序",
+      "古文觀止/卷10",
+      "送楊寘序",
+      "予嘗有幽憂之疾。退而閒居，不能治也。旣而學琴於友人孫道滋，受宮聲數引，久而樂之，",
+    ],
+    [
+      "五代史伶官傳序",
+      "古文觀止/卷10",
+      "五代史伶官傳序",
+      "嗚呼！盛衰之理，雖曰天命，豈非人事哉。原莊宗之所以得天下，與其所以失之者，可以知",
+    ],
+    [
+      "五代史宦者傳論",
+      "古文觀止/卷10",
+      "五代史宦者傳論",
+      "自古宦者亂人之國、其源深於女禍。女、色而已。宦者之害、非一端也。蓋其用事也近而習",
+    ],
+    [
+      "相州晝錦堂記",
+      "古文觀止/卷10",
+      "相州晝錦堂記",
+      "仕宦而至將相、富貴而歸故鄉、此人情之所榮、而今昔之所同也。蓋士方窮時、困阨閭里、",
+    ],
+    [
+      "豐樂亭記",
+      "古文觀止/卷10",
+      "豐樂亭記",
+      "修旣治滁之明年夏，始飲滁水而甘。問諸滁人，得於州南百步之近。其上則豐山，聳然而特",
+    ],
+    [
+      "醉翁亭記",
+      "古文觀止/卷10",
+      "醉翁亭記",
+      "環滁皆山也。其西南諸峯、林壑尤美。望之蔚然而深秀者、琅琊也。山行六七里、漸聞水聲",
+    ],
+    [
+      "秋聲賦",
+      "古文觀止/卷10",
+      "秋聲賦",
+      "歐陽子方夜讀書、聞有聲自西南來者、悚然而聽之。曰、異哉、初淅瀝以瀟颯、忽奔騰而砰",
+    ],
+    [
+      "祭石曼卿文",
+      "古文觀止/卷10",
+      "祭石曼卿文",
+      "維治平四年、七月日、具官歐陽修、謹遣尚書都省令史李敡、至於太清。以清酌庶羞之奠、",
+    ],
+    [
+      "瀧岡阡表",
+      "古文觀止/卷10",
+      "瀧岡阡表",
+      "嗚呼、惟我皇考崇公、卜吉於瀧岡之六十年、其子修、始克表於其阡。非敢緩也、蓋有待也",
+    ],
+    [
+      "管仲論",
+      "古文觀止/卷10",
+      "管仲論",
+      "管仲相威公，霸諸侯，攘戎狄，終其身齊國富強，諸侯不敢叛。管仲死，豎刁易牙開方用，",
+    ],
+    [
+      "辨奸論",
+      "古文觀止/卷10",
+      "辨奸論",
+      "事有必至，理有固然。惟天下之静者，乃能见微而知著。月晕而风，础润而雨，人人知之。",
+    ],
+    [
+      "心術",
+      "古文觀止/卷10",
+      "心術",
+      "为将之道，当先治心。泰山崩于前而色不变，麋鹿兴于左而目不瞬，然后可以制利害，可以",
+    ],
+    [
+      "張益州畫像記",
+      "古文觀止/卷10",
+      "張益州畫像記",
+      "至和元年秋，蜀人傳言有寇至邊。邊軍夜呼，野無居人。妖言流聞，京師震驚。方命擇帥，",
+    ],
+    [
+      "刑賞忠厚之至論",
+      "古文觀止/卷10",
+      "刑賞忠厚之至論",
+      "堯、舜、禹、湯、文、武、成、康之際，何其愛民之深，憂民之切，而待天下以君子長者之",
+    ],
+    [
+      "范增論",
+      "古文觀止/卷10",
+      "范增論",
+      "汉用陈平计，间疏楚君臣。项羽疑范增与汉有私，稍夺其权。增大怒曰：“天下事大定矣，",
+    ],
+    [
+      "留侯論",
+      "古文觀止/卷10",
+      "留侯論",
+      "古之所谓豪杰之士，必有过人之节，人情有所不能忍者。匹夫见辱，拔剑而起，挺身而斗，",
+    ],
+    [
+      "賈誼論",
+      "古文觀止/卷10",
+      "賈誼論",
+      "非才之难，所以自用者实难。惜乎！贾生，王者之佐，而不能自用其才也。夫君子之所取者",
+    ],
+    [
+      "鼂錯論",
+      "古文觀止/卷10",
+      "鼂錯論",
+      "天下之患，最不可为者，名为治平无事，而其实有不测之忧。坐观其变，而不为之所，则恐",
+    ],
+    [
+      "上梅直講書",
+      "古文觀止/卷11",
+      "上梅直講書",
+      "軾每讀《詩》至《鴟鴞》，讀《書》至《君奭》，常竊悲周公之不遇。及觀《史》，見孔子",
+    ],
+    [
+      "喜雨亭記",
+      "古文觀止/卷11",
+      "喜雨亭記",
+      "亭以雨名，志喜也。古者有喜，則以名物，示不忘也。周公得禾，以名其書；漢武得鼎，以",
+    ],
+    [
+      "凌虛臺記",
+      "古文觀止/卷11",
+      "凌虛臺記",
+      "國於南山之下，宜若起居飲食與山接也。四方之山，莫高於終南，而都邑之麗山者，莫近於",
+    ],
+    [
+      "超然臺記",
+      "古文觀止/卷11",
+      "超然臺記",
+      "凡物皆有可觀。苟有可觀，皆有可樂。非必怪奇偉麗者也。餔糟啜醨，皆可以醉；果蔬草木",
+    ],
+    [
+      "放鶴亭記",
+      "古文觀止/卷11",
+      "放鶴亭記",
+      "熙寧十年秋，彭城大水。雲龍山人張君之草堂，水及其半扉。明年春，水落，遷於故居之東",
+    ],
+    [
+      "石鐘山記",
+      "古文觀止/卷11",
+      "石鐘山記",
+      "《水经》云：“彭蠡之口有石钟山焉。”郦元以为下临深潭，微风鼓浪，水石相搏，声如洪",
+    ],
+    [
+      "潮州韓文公廟碑",
+      "古文觀止/卷11",
+      "潮州韓文公廟碑",
+      "匹夫而爲百世師，一言而爲天下法。是皆有以參天地之化，關盛衰之運。其生也，有自來；",
+    ],
+    [
+      "乞校正陸贄奏議進御劄子",
+      "古文觀止/卷11",
+      "乞校正陸贄奏議進御劄子",
+      "臣等猥以空疎，備員講讀。聖明天縱，學問日新。臣等才有限而道無窮，心欲言而口不逮，",
+    ],
+    [
+      "前赤壁賦",
+      "古文觀止/卷11",
+      "前赤壁賦",
+      "壬戌之秋，七月既望，蘇子與客泛舟遊於赤壁之下。清風徐來，水波不興。舉酒屬客，誦《",
+    ],
+    [
+      "後赤壁賦",
+      "古文觀止/卷11",
+      "後赤壁賦",
+      "是歲十月之望，步自雪堂，將歸於臨皋。二客從予，過黃泥之阪。霜露既降，木葉盡脫，人",
+    ],
+    [
+      "三槐堂銘",
+      "古文觀止/卷11",
+      "三槐堂銘",
+      "天可必乎？賢者不必貴，仁者不必壽。天不可必乎？仁者必有後。二者將安取衷哉？吾聞之",
+    ],
+    [
+      "方山子傳",
+      "古文觀止/卷11",
+      "方山子傳",
+      "方山子，光黃間隱人也。少時，慕朱家、郭解爲人，閭里之俠皆宗之。稍壯，折節讀書，欲",
+    ],
+    [
+      "六國論",
+      "古文觀止/卷11",
+      "六國論",
+      "嘗讀六國世家，竊怪天下之諸侯，以五倍之地，十倍之衆，發憤西向，以攻山西千里之秦，",
+    ],
+    [
+      "上樞密韓太尉書",
+      "古文觀止/卷11",
+      "上樞密韓太尉書",
+      "太尉執事：轍生好為文，思之至深，以為文者，氣之所形。然文不可以學而能，氣可以養而",
+    ],
+    [
+      "黃州快哉亭記",
+      "古文觀止/卷11",
+      "黃州快哉亭記",
+      "江出西陵，始得平地，其流奔放肆大；南合湘、沅，北合漢、沔，其勢益張；至於赤壁之下",
+    ],
+    [
+      "寄歐陽舍人書",
+      "古文觀止/卷11",
+      "寄歐陽舍人書",
+      "去秋人還，蒙賜書及所撰先大父墓碑銘，反覆觀誦，感與慚并。夫銘誌之著於世，義近於史",
+    ],
+    [
+      "贈黎安二生序",
+      "古文觀止/卷11",
+      "贈黎安二生序",
+      "趙郡蘇軾，予之同年友也。自蜀以書至京師遺予，稱蜀之士曰黎生、安生者。既而黎生攜其",
+    ],
+    [
+      "讀孟嘗君傳",
+      "古文觀止/卷11",
+      "讀孟嘗君傳",
+      "世皆稱孟嘗君能得士，士以故歸之，而卒賴其力，以脫於虎豹之秦。嗟乎！孟嘗君特雞鳴狗",
+    ],
+    [
+      "同學一首別子固",
+      "古文觀止/卷11",
+      "同學一首別子固",
+      "江之南有賢人焉，字子固，非今所謂賢人者，予慕而友之。淮之南有賢人焉，字正之，非今",
+    ],
+    [
+      "遊褒禪山記",
+      "古文觀止/卷11",
+      "遊褒禪山記",
+      "襃禪山亦謂之華山。唐浮圖慧褒始舍於其址，而卒葬之，以故其後名之曰褒禪。今所謂慧空",
+    ],
+    [
+      "泰州海陵縣主簿許君墓誌銘",
+      "古文觀止/卷11",
+      "泰州海陵縣主簿許君墓誌銘",
+      "君諱平，字秉之，姓許氏。余嘗譜其世家，所謂今泰州海陵縣主簿者也。君既與兄元相友愛",
+    ],
+    [
+      "送天台陳庭學序",
+      "古文觀止/卷12",
+      "送天台陳庭學序",
+      "西南山水，惟川蜀最奇。然去中州萬里，陸有劍閣棧道之險，水有瞿唐灩澦之虞。跨馬行，",
+    ],
+    [
+      "閱江樓記",
+      "古文觀止/卷12",
+      "閱江樓記",
+      "金陵爲帝王之州，自六朝迄於南唐，類皆偏據一方，無以應山川之王氣。逮我皇帝，定鼎於",
+    ],
+    [
+      "司馬季主論卜",
+      "古文觀止/卷12",
+      "司馬季主論卜",
+      "東陵侯旣廢，過司馬季主而卜焉。季主曰：「君侯何卜也？」東陵侯曰：「久臥者思起，久",
+    ],
+    [
+      "賣柑者言",
+      "古文觀止/卷12",
+      "賣柑者言",
+      "杭有賣果者，善藏柑，涉寒暑不潰。出之燁然，玉質而金色。剖其中，乾若敗絮。予怪而問",
+    ],
+    [
+      "深慮論",
+      "古文觀止/卷12",
+      "深慮論",
+      "慮天下者，常圖其所難，而忽其所易；備其所可畏，而遺其所不疑。然而禍常發於所忽之中",
+    ],
+    [
+      "豫讓論",
+      "古文觀止/卷12",
+      "豫讓論",
+      "士君子立身事主，旣名知己，則當竭盡智謀，忠告善道，銷患於未形，保治於未然，俾身全",
+    ],
+    [
+      "親政篇",
+      "古文觀止/卷12",
+      "親政篇",
+      "《易》之《泰》曰：「上下交而其志同。」其《否》曰：「上下不交而天下無邦。」蓋上之",
+    ],
+    [
+      "尊經閣記",
+      "古文觀止/卷12",
+      "尊經閣記",
+      "經，常道也。其在於天謂之「命」，其賦於人謂之「性」，其主於身謂之「心」。心也，性",
+    ],
+    [
+      "象祠記",
+      "古文觀止/卷12",
+      "象祠記",
+      "靈博之山，有象祠焉。其下諸苗夷之居者，鹹神而祠之。宣尉安君，因諸苗夷之請，新其祠",
+    ],
+    [
+      "瘞旅文",
+      "古文觀止/卷12",
+      "瘞旅文",
+      "維正德四年秋月三日，有吏目云自京來者，不知其名氏，攜一子一僕，將之任，過龍場，投",
+    ],
+    [
+      "信陵君救趙論",
+      "古文觀止/卷12",
+      "信陵君救趙論",
+      "論者以竊符爲信陵君之罪，余以爲此未足以罪信陵也。夫彊秦之暴亟矣，今悉兵以臨趙，趙",
+    ],
+    [
+      "報劉一丈書",
+      "古文觀止/卷12",
+      "報劉一丈書",
+      "數千里外，得長者時賜一書，以慰長想，即亦甚幸矣；何至更辱饋遺，則不才益將何以報焉",
+    ],
+    [
+      "吳山圖記",
+      "古文觀止/卷12",
+      "吳山圖記",
+      "吳、長洲二縣，在郡治所，分境而治。而郡西諸山，皆在吳縣。其最高者，穹窿、陽山、鄧",
+    ],
+    [
+      "滄浪亭記",
+      "古文觀止/卷12",
+      "滄浪亭記",
+      "浮圖文瑛，居大雲庵，環水，即蘇子美滄浪亭之地也。亟求余作《滄浪亭記》，曰：「昔子",
+    ],
+    [
+      "青霞先生文集序",
+      "古文觀止/卷12",
+      "青霞先生文集序",
+      "青霞沈君，由錦衣經歷上書詆宰執。宰執深疾之，方力構其罪，賴天子仁聖，特薄其譴，徙",
+    ],
+    [
+      "藺相如完璧歸趙論",
+      "古文觀止/卷12",
+      "藺相如完璧歸趙論",
+      "藺相如之完璧，人皆稱之，予未敢以爲信也。夫秦以十五城之空名，詐趙而脅其璧，是時言",
+    ],
+    [
+      "徐文長傳",
+      "古文觀止/卷12",
+      "徐文長傳",
+      "徐渭，字文長，爲山陰諸生，聲名籍甚。薛公蕙校越時，奇其才，有國士之目。然數奇屢試",
+    ],
+    [
+      "五人墓碑記",
+      "古文觀止/卷12",
+      "五人墓碑記",
+      "五人者，蓋當蓼洲周公之被逮，激於義而死焉者也。至於今，郡之賢士大夫請於當道，卽除",
+    ],
   ].map(([title, sourceTitle, sourceSection, blurb], index) => ({
     id: `guwen-guanzhi-${String(index + 81).padStart(3, "0")}-wikisource-zh`,
     title,
@@ -3360,25 +5723,120 @@ const BOOKS = [
       blurb: "裁翦冰綃，輕疊數重，淡著燕脂勻注。",
     },
     ...[
-      { id: "lunyu-weizheng-wikisource-zh", title: "論語·為政", sourceTitle: "論語/爲政第二", blurb: "為政以德，譬如北辰，居其所，而眾星共之。" },
-      { id: "lunyu-bayi-wikisource-zh", title: "論語·八佾", sourceTitle: "論語/八佾第三", blurb: "是可忍也，孰不可忍也。" },
-      { id: "lunyu-liren-wikisource-zh", title: "論語·里仁", sourceTitle: "論語/里仁第四", blurb: "里仁為美。擇不處仁，焉得知？" },
-      { id: "lunyu-gongyechang-wikisource-zh", title: "論語·公冶長", sourceTitle: "論語/公冶長第五", blurb: "敏而好學，不恥下問，是以謂之文也。" },
-      { id: "lunyu-yongye-wikisource-zh", title: "論語·雍也", sourceTitle: "論語/雍也第六", blurb: "知之者不如好之者，好之者不如樂之者。" },
-      { id: "lunyu-shuer-wikisource-zh", title: "論語·述而", sourceTitle: "論語/述而第七", blurb: "述而不作，信而好古。" },
-      { id: "lunyu-taibo-wikisource-zh", title: "論語·泰伯", sourceTitle: "論語/泰伯第八", blurb: "士不可以不弘毅，任重而道遠。" },
-      { id: "lunyu-zihan-wikisource-zh", title: "論語·子罕", sourceTitle: "論語/子罕第九", blurb: "後生可畏，焉知來者之不如今也。" },
-      { id: "lunyu-xiangdang-wikisource-zh", title: "論語·鄉黨", sourceTitle: "論語/鄉黨第十", blurb: "食不語，寢不言。" },
-      { id: "lunyu-xianjin-wikisource-zh", title: "論語·先進", sourceTitle: "論語/先進第十一", blurb: "未能事人，焉能事鬼。" },
-      { id: "lunyu-yanyuan-wikisource-zh", title: "論語·顏淵", sourceTitle: "論語/顏淵第十二", blurb: "克己復禮為仁。" },
-      { id: "lunyu-zilu-wikisource-zh", title: "論語·子路", sourceTitle: "論語/子路第十三", blurb: "名不正，則言不順。" },
-      { id: "lunyu-xianwen-wikisource-zh", title: "論語·憲問", sourceTitle: "論語/憲問第十四", blurb: "不患人之不己知，患其不能也。" },
-      { id: "lunyu-weilinggong-wikisource-zh", title: "論語·衛靈公", sourceTitle: "論語/衞靈公第十五", blurb: "人無遠慮，必有近憂。" },
-      { id: "lunyu-jishi-wikisource-zh", title: "論語·季氏", sourceTitle: "論語/季氏第十六", blurb: "益者三友，損者三友。" },
-      { id: "lunyu-yanghuo-wikisource-zh", title: "論語·陽貨", sourceTitle: "論語/陽貨第十七", blurb: "性相近也，習相遠也。" },
-      { id: "lunyu-weizi-wikisource-zh", title: "論語·微子", sourceTitle: "論語/微子第十八", blurb: "往者不可諫，來者猶可追。" },
-      { id: "lunyu-zizhang-wikisource-zh", title: "論語·子張", sourceTitle: "論語/子張第十九", blurb: "士見危致命，見得思義。" },
-      { id: "lunyu-yaoyue-wikisource-zh", title: "論語·堯曰", sourceTitle: "論語/堯曰第二十", blurb: "不知命，無以為君子也。" },
+      {
+        id: "lunyu-weizheng-wikisource-zh",
+        title: "論語·為政",
+        sourceTitle: "論語/爲政第二",
+        blurb: "為政以德，譬如北辰，居其所，而眾星共之。",
+      },
+      {
+        id: "lunyu-bayi-wikisource-zh",
+        title: "論語·八佾",
+        sourceTitle: "論語/八佾第三",
+        blurb: "是可忍也，孰不可忍也。",
+      },
+      {
+        id: "lunyu-liren-wikisource-zh",
+        title: "論語·里仁",
+        sourceTitle: "論語/里仁第四",
+        blurb: "里仁為美。擇不處仁，焉得知？",
+      },
+      {
+        id: "lunyu-gongyechang-wikisource-zh",
+        title: "論語·公冶長",
+        sourceTitle: "論語/公冶長第五",
+        blurb: "敏而好學，不恥下問，是以謂之文也。",
+      },
+      {
+        id: "lunyu-yongye-wikisource-zh",
+        title: "論語·雍也",
+        sourceTitle: "論語/雍也第六",
+        blurb: "知之者不如好之者，好之者不如樂之者。",
+      },
+      {
+        id: "lunyu-shuer-wikisource-zh",
+        title: "論語·述而",
+        sourceTitle: "論語/述而第七",
+        blurb: "述而不作，信而好古。",
+      },
+      {
+        id: "lunyu-taibo-wikisource-zh",
+        title: "論語·泰伯",
+        sourceTitle: "論語/泰伯第八",
+        blurb: "士不可以不弘毅，任重而道遠。",
+      },
+      {
+        id: "lunyu-zihan-wikisource-zh",
+        title: "論語·子罕",
+        sourceTitle: "論語/子罕第九",
+        blurb: "後生可畏，焉知來者之不如今也。",
+      },
+      {
+        id: "lunyu-xiangdang-wikisource-zh",
+        title: "論語·鄉黨",
+        sourceTitle: "論語/鄉黨第十",
+        blurb: "食不語，寢不言。",
+      },
+      {
+        id: "lunyu-xianjin-wikisource-zh",
+        title: "論語·先進",
+        sourceTitle: "論語/先進第十一",
+        blurb: "未能事人，焉能事鬼。",
+      },
+      {
+        id: "lunyu-yanyuan-wikisource-zh",
+        title: "論語·顏淵",
+        sourceTitle: "論語/顏淵第十二",
+        blurb: "克己復禮為仁。",
+      },
+      {
+        id: "lunyu-zilu-wikisource-zh",
+        title: "論語·子路",
+        sourceTitle: "論語/子路第十三",
+        blurb: "名不正，則言不順。",
+      },
+      {
+        id: "lunyu-xianwen-wikisource-zh",
+        title: "論語·憲問",
+        sourceTitle: "論語/憲問第十四",
+        blurb: "不患人之不己知，患其不能也。",
+      },
+      {
+        id: "lunyu-weilinggong-wikisource-zh",
+        title: "論語·衛靈公",
+        sourceTitle: "論語/衞靈公第十五",
+        blurb: "人無遠慮，必有近憂。",
+      },
+      {
+        id: "lunyu-jishi-wikisource-zh",
+        title: "論語·季氏",
+        sourceTitle: "論語/季氏第十六",
+        blurb: "益者三友，損者三友。",
+      },
+      {
+        id: "lunyu-yanghuo-wikisource-zh",
+        title: "論語·陽貨",
+        sourceTitle: "論語/陽貨第十七",
+        blurb: "性相近也，習相遠也。",
+      },
+      {
+        id: "lunyu-weizi-wikisource-zh",
+        title: "論語·微子",
+        sourceTitle: "論語/微子第十八",
+        blurb: "往者不可諫，來者猶可追。",
+      },
+      {
+        id: "lunyu-zizhang-wikisource-zh",
+        title: "論語·子張",
+        sourceTitle: "論語/子張第十九",
+        blurb: "士見危致命，見得思義。",
+      },
+      {
+        id: "lunyu-yaoyue-wikisource-zh",
+        title: "論語·堯曰",
+        sourceTitle: "論語/堯曰第二十",
+        blurb: "不知命，無以為君子也。",
+      },
     ].map((book) => ({
       author: "孔子弟子及再傳弟子",
       year: "春秋",
@@ -3386,19 +5844,84 @@ const BOOKS = [
       ...book,
     })),
     ...[
-      { id: "mengzi-lianghuiwang-xia-wikisource-zh", title: "孟子·梁惠王下", sourceTitle: "孟子/梁惠王下", blurb: "與民同樂也。" },
-      { id: "mengzi-gongsunchou-shang-wikisource-zh", title: "孟子·公孫丑上", sourceTitle: "孟子/公孫丑上", blurb: "我善養吾浩然之氣。" },
-      { id: "mengzi-gongsunchou-xia-wikisource-zh", title: "孟子·公孫丑下", sourceTitle: "孟子/公孫丑下", blurb: "天時不如地利，地利不如人和。" },
-      { id: "mengzi-tengwengong-shang-wikisource-zh", title: "孟子·滕文公上", sourceTitle: "孟子/滕文公上", blurb: "民事不可緩也。" },
-      { id: "mengzi-tengwengong-xia-wikisource-zh", title: "孟子·滕文公下", sourceTitle: "孟子/滕文公下", blurb: "富貴不能淫，貧賤不能移，威武不能屈。" },
-      { id: "mengzi-lilou-shang-wikisource-zh", title: "孟子·離婁上", sourceTitle: "孟子/離婁上", blurb: "不以規矩，不能成方員。" },
-      { id: "mengzi-lilou-xia-wikisource-zh", title: "孟子·離婁下", sourceTitle: "孟子/離婁下", blurb: "大人者，不失其赤子之心者也。" },
-      { id: "mengzi-wanzhang-shang-wikisource-zh", title: "孟子·萬章上", sourceTitle: "孟子/萬章上", blurb: "莫之為而為者，天也。" },
-      { id: "mengzi-wanzhang-xia-wikisource-zh", title: "孟子·萬章下", sourceTitle: "孟子/萬章下", blurb: "友也者，友其德也。" },
-      { id: "mengzi-gaozi-shang-wikisource-zh", title: "孟子·告子上", sourceTitle: "孟子/告子上", blurb: "生，亦我所欲也；義，亦我所欲也。" },
-      { id: "mengzi-gaozi-xia-wikisource-zh", title: "孟子·告子下", sourceTitle: "孟子/告子下", blurb: "人皆可以為堯舜。" },
-      { id: "mengzi-jinxin-shang-wikisource-zh", title: "孟子·盡心上", sourceTitle: "孟子/盡心上", blurb: "盡其心者，知其性也。" },
-      { id: "mengzi-jinxin-xia-wikisource-zh", title: "孟子·盡心下", sourceTitle: "孟子/盡心下", blurb: "民為貴，社稷次之，君為輕。" },
+      {
+        id: "mengzi-lianghuiwang-xia-wikisource-zh",
+        title: "孟子·梁惠王下",
+        sourceTitle: "孟子/梁惠王下",
+        blurb: "與民同樂也。",
+      },
+      {
+        id: "mengzi-gongsunchou-shang-wikisource-zh",
+        title: "孟子·公孫丑上",
+        sourceTitle: "孟子/公孫丑上",
+        blurb: "我善養吾浩然之氣。",
+      },
+      {
+        id: "mengzi-gongsunchou-xia-wikisource-zh",
+        title: "孟子·公孫丑下",
+        sourceTitle: "孟子/公孫丑下",
+        blurb: "天時不如地利，地利不如人和。",
+      },
+      {
+        id: "mengzi-tengwengong-shang-wikisource-zh",
+        title: "孟子·滕文公上",
+        sourceTitle: "孟子/滕文公上",
+        blurb: "民事不可緩也。",
+      },
+      {
+        id: "mengzi-tengwengong-xia-wikisource-zh",
+        title: "孟子·滕文公下",
+        sourceTitle: "孟子/滕文公下",
+        blurb: "富貴不能淫，貧賤不能移，威武不能屈。",
+      },
+      {
+        id: "mengzi-lilou-shang-wikisource-zh",
+        title: "孟子·離婁上",
+        sourceTitle: "孟子/離婁上",
+        blurb: "不以規矩，不能成方員。",
+      },
+      {
+        id: "mengzi-lilou-xia-wikisource-zh",
+        title: "孟子·離婁下",
+        sourceTitle: "孟子/離婁下",
+        blurb: "大人者，不失其赤子之心者也。",
+      },
+      {
+        id: "mengzi-wanzhang-shang-wikisource-zh",
+        title: "孟子·萬章上",
+        sourceTitle: "孟子/萬章上",
+        blurb: "莫之為而為者，天也。",
+      },
+      {
+        id: "mengzi-wanzhang-xia-wikisource-zh",
+        title: "孟子·萬章下",
+        sourceTitle: "孟子/萬章下",
+        blurb: "友也者，友其德也。",
+      },
+      {
+        id: "mengzi-gaozi-shang-wikisource-zh",
+        title: "孟子·告子上",
+        sourceTitle: "孟子/告子上",
+        blurb: "生，亦我所欲也；義，亦我所欲也。",
+      },
+      {
+        id: "mengzi-gaozi-xia-wikisource-zh",
+        title: "孟子·告子下",
+        sourceTitle: "孟子/告子下",
+        blurb: "人皆可以為堯舜。",
+      },
+      {
+        id: "mengzi-jinxin-shang-wikisource-zh",
+        title: "孟子·盡心上",
+        sourceTitle: "孟子/盡心上",
+        blurb: "盡其心者，知其性也。",
+      },
+      {
+        id: "mengzi-jinxin-xia-wikisource-zh",
+        title: "孟子·盡心下",
+        sourceTitle: "孟子/盡心下",
+        blurb: "民為貴，社稷次之，君為輕。",
+      },
     ].map((book) => ({
       author: "孟子及其弟子",
       year: "戰國",
@@ -3480,10 +6003,30 @@ const BOOKS = [
       blurb: "卑弱第一，夫婦第二，敬慎第三。",
     },
     ...[
-      { id: "youxue-qionglin-juan1-wikisource-zh", title: "幼學瓊林·卷一", sourceTitle: "幼學瓊林/卷一", blurb: "混沌初開，乾坤始奠。" },
-      { id: "youxue-qionglin-juan2-wikisource-zh", title: "幼學瓊林·卷二", sourceTitle: "幼學瓊林/卷二", blurb: "何謂五倫，君臣、父子、兄弟、夫婦、朋友。" },
-      { id: "youxue-qionglin-juan3-wikisource-zh", title: "幼學瓊林·卷三", sourceTitle: "幼學瓊林/卷三", blurb: "《大學》首重夫明新。" },
-      { id: "youxue-qionglin-juan4-wikisource-zh", title: "幼學瓊林·卷四", sourceTitle: "幼學瓊林/卷四", blurb: "多才之士，才儲八斗。" },
+      {
+        id: "youxue-qionglin-juan1-wikisource-zh",
+        title: "幼學瓊林·卷一",
+        sourceTitle: "幼學瓊林/卷一",
+        blurb: "混沌初開，乾坤始奠。",
+      },
+      {
+        id: "youxue-qionglin-juan2-wikisource-zh",
+        title: "幼學瓊林·卷二",
+        sourceTitle: "幼學瓊林/卷二",
+        blurb: "何謂五倫，君臣、父子、兄弟、夫婦、朋友。",
+      },
+      {
+        id: "youxue-qionglin-juan3-wikisource-zh",
+        title: "幼學瓊林·卷三",
+        sourceTitle: "幼學瓊林/卷三",
+        blurb: "《大學》首重夫明新。",
+      },
+      {
+        id: "youxue-qionglin-juan4-wikisource-zh",
+        title: "幼學瓊林·卷四",
+        sourceTitle: "幼學瓊林/卷四",
+        blurb: "多才之士，才儲八斗。",
+      },
     ].map((book) => ({
       author: "程登吉",
       year: "明",
@@ -4336,17 +6879,25 @@ const BOOKS = [
     sourceTitle: book.sourceTitle || book.title,
     ...(book.sourceTitles ? { sourceTitles: book.sourceTitles } : {}),
     ...(book.sourceSection ? { sourceSection: book.sourceSection } : {}),
-    ...(book.sourceSectionOccurrence ? { sourceSectionOccurrence: book.sourceSectionOccurrence } : {}),
+    ...(book.sourceSectionOccurrence
+      ? { sourceSectionOccurrence: book.sourceSectionOccurrence }
+      : {}),
     ...(book.singleVolumeChapter ? { singleVolumeChapter: true } : {}),
     ...(book.renderedTextFallback ? { renderedTextFallback: true } : {}),
-    evidence: book.evidence || `Wikisource Chinese text of a public-domain ${book.year} work by ${book.author}.`,
+    evidence:
+      book.evidence ||
+      `Wikisource Chinese text of a public-domain ${book.year} work by ${book.author}.`,
     blurb: book.blurb,
-    description: book.description || `${book.author}《${book.title}》，依中文維基文庫公版文本整理為 EPUB。`,
+    description:
+      book.description || `${book.author}《${book.title}》，依中文維基文庫公版文本整理為 EPUB。`,
   })),
 ];
 
 function wikiPath(title) {
-  return String(title).split("/").map((part) => encodeURIComponent(part)).join("/");
+  return String(title)
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
 }
 
 function sourceUrl(book) {
@@ -4367,7 +6918,9 @@ function renderedApiUrlForTitle(sourceTitle) {
 }
 
 function wikisourceRedirectTarget(raw) {
-  const match = String(raw).trim().match(/^#\s*(?:REDIRECT|重定向)\s*\[\[([^\]#|]+)(?:#[^\]|]+)?(?:\|[^\]]*)?\]\]/iu);
+  const match = String(raw)
+    .trim()
+    .match(/^#\s*(?:REDIRECT|重定向)\s*\[\[([^\]#|]+)(?:#[^\]|]+)?(?:\|[^\]]*)?\]\]/iu);
   return match?.[1]?.trim() || null;
 }
 
@@ -4409,18 +6962,38 @@ function parseArgs(argv) {
       options.liveProbe = false;
       continue;
     }
-    if (arg === "--publish" || arg === "--skip-existing" || arg === "--continue-on-error" || arg === "--summary" || arg === "--json" || arg === "--quiet") {
+    if (
+      arg === "--publish" ||
+      arg === "--skip-existing" ||
+      arg === "--continue-on-error" ||
+      arg === "--summary" ||
+      arg === "--json" ||
+      arg === "--quiet"
+    ) {
       options[arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = true;
       continue;
     }
-    if (arg === "--ids" || arg === "--api-url" || arg === "--concurrency" || arg === "--chapter-concurrency" || arg === "--publish-attempts" || arg === "--publish-timeout-ms") {
+    if (
+      arg === "--ids" ||
+      arg === "--api-url" ||
+      arg === "--concurrency" ||
+      arg === "--chapter-concurrency" ||
+      arg === "--publish-attempts" ||
+      arg === "--publish-timeout-ms"
+    ) {
       const value = argv[++i];
       if (!value) throw new Error(`Missing value for ${arg}`);
-      if (arg === "--ids") options.ids = value.split(",").map((s) => s.trim()).filter(Boolean);
+      if (arg === "--ids")
+        options.ids = value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
       else if (arg === "--api-url") options.apiUrl = value.replace(/\/+$/, "");
       else if (arg === "--concurrency") options.concurrency = parsePositiveInteger(value, arg);
-      else if (arg === "--chapter-concurrency") options.chapterConcurrency = parsePositiveInteger(value, arg);
-      else if (arg === "--publish-attempts") options.publishAttempts = parsePositiveInteger(value, arg);
+      else if (arg === "--chapter-concurrency")
+        options.chapterConcurrency = parsePositiveInteger(value, arg);
+      else if (arg === "--publish-attempts")
+        options.publishAttempts = parsePositiveInteger(value, arg);
       else options.publishTimeoutMs = parsePositiveInteger(value, arg);
       continue;
     }
@@ -4471,7 +7044,7 @@ function decodeEntities(text) {
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, "\"")
+    .replace(/&quot;/gi, '"')
     .replace(/&#39;/g, "'");
 }
 
@@ -4502,7 +7075,10 @@ function chooseVariant(body) {
   const compact = body.trim();
   if (/^T\|/iu.test(compact)) return "";
   if (!compact.includes(":")) return compact;
-  const variants = compact.split(";").map((part) => part.trim()).filter(Boolean);
+  const variants = compact
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
   for (const key of ["zh-hant", "zh"]) {
     const hit = variants.find((part) => part.toLowerCase().startsWith(`${key}:`));
     if (hit) return hit.slice(hit.indexOf(":") + 1).trim();
@@ -4521,7 +7097,10 @@ function renderKnownTemplate(body) {
   if (name === "*" || name === "textquality" || name === "references") return "";
   if (name === "!" || name === "br") return "";
   if (["quote", "blockquote", "center"].includes(name)) return args.slice(1).join("");
-  if (["專", "另", "另2", "參", "参", "標"].includes(args[0]) || ["propernoun", "lang", "yl", "u", "ul"].includes(name)) {
+  if (
+    ["專", "另", "另2", "參", "参", "標"].includes(args[0]) ||
+    ["propernoun", "lang", "yl", "u", "ul"].includes(name)
+  ) {
     if (name === "lang") return args[2] || args[1] || "";
     return args[1] || "";
   }
@@ -4580,7 +7159,13 @@ function stripTemplateBlocks(text, names) {
     out += text.slice(i, start);
     const nameStart = start + 2;
     const nameEnd = text.slice(nameStart).search(/[|}]/u);
-    const rawName = nameEnd < 0 ? "" : text.slice(nameStart, nameStart + nameEnd).trim().toLowerCase();
+    const rawName =
+      nameEnd < 0
+        ? ""
+        : text
+            .slice(nameStart, nameStart + nameEnd)
+            .trim()
+            .toLowerCase();
     if (!wanted.has(rawName)) {
       out += "{{";
       i = nameStart;
@@ -4635,14 +7220,20 @@ function stripLeadingTemplate(text, templateName) {
 
 function extractWikisourceBody(raw) {
   const text = String(raw);
-  const only = [...text.matchAll(/<onlyinclude>([\s\S]*?)<\/onlyinclude>/giu)].map((match) => match[1]);
+  const only = [...text.matchAll(/<onlyinclude>([\s\S]*?)<\/onlyinclude>/giu)].map(
+    (match) => match[1],
+  );
   if (only.length) return only.join("\n\n");
   const openOnly = text.match(/<onlyinclude>/iu);
   if (openOnly) return text.slice(openOnly.index + openOnly[0].length);
-  const body = ["textquality", "header2", "header"].reduce((nextBody, templateName) => stripLeadingTemplate(nextBody, templateName), text);
+  const body = ["textquality", "header2", "header"].reduce(
+    (nextBody, templateName) => stripLeadingTemplate(nextBody, templateName),
+    text,
+  );
   const sectionStart = body.search(/<section\s+begin\s*=/iu);
   if (sectionStart >= 0) {
-    const beforeSection = body.slice(0, sectionStart)
+    const beforeSection = body
+      .slice(0, sectionStart)
       .replace(/<!--[\s\S]*?-->/g, "")
       .replace(/<ref\b[^>]*>[\s\S]*?<\/ref>/giu, "")
       .replace(/<[^>]+>/g, "")
@@ -4705,7 +7296,10 @@ function cleanWikisourceWikitext(raw) {
   text = text.replace(/-\{([^{}]+)\}-/gu, (_, body) => chooseVariant(body));
   text = stripTemplates(text);
   text = text.replace(/\}\}(?=[\p{Script=Han}「『（〈《])/gu, "");
-  text = text.replace(/^\s*[\p{Script=Han}（）()·]{1,40}\s+作者：[\p{Script=Han}（）()·]{1,20}\s*\n+/u, "");
+  text = text.replace(
+    /^\s*[\p{Script=Han}（）()·]{1,40}\s+作者：[\p{Script=Han}（）()·]{1,20}\s*\n+/u,
+    "",
+  );
   text = text.replace(/^[<>]{1,2}\s+.*$/gmu, "");
   text = text.replace(/^\s*(?:回目录|回目錄|目录|目錄)\s*$/gmu, "");
   text = text.replace(/^-{3,}\s*$/gmu, "");
@@ -4760,8 +7354,14 @@ function paragraphText(part) {
     .map((line) => line.trim())
     .filter(Boolean)
     .join("")
-    .replace(/^[零一二三四五六七八九十百千〇○]+之[零一二三四五六七八九十百千〇○]+(?=\p{Script=Han})/u, "")
-    .replace(/(?<=[\p{Script=Han}，。！？；：「」『』、])\s+(?=[\p{Script=Han}，。！？；：「」『』、])/gu, "")
+    .replace(
+      /^[零一二三四五六七八九十百千〇○]+之[零一二三四五六七八九十百千〇○]+(?=\p{Script=Han})/u,
+      "",
+    )
+    .replace(
+      /(?<=[\p{Script=Han}，。！？；：「」『』、])\s+(?=[\p{Script=Han}，。！？；：「」『』、])/gu,
+      "",
+    )
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -4813,28 +7413,66 @@ function storedZip(entries) {
     const body = Buffer.isBuffer(entry.body) ? entry.body : Buffer.from(entry.body);
     const crc = crc32(body);
     const local = Buffer.concat([
-      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
-      u32(crc), u32(body.length), u32(body.length), u16(name.length), u16(0), name, body,
+      u32(0x04034b50),
+      u16(20),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(crc),
+      u32(body.length),
+      u32(body.length),
+      u16(name.length),
+      u16(0),
+      name,
+      body,
     ]);
     localParts.push(local);
-    centralParts.push(Buffer.concat([
-      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
-      u32(crc), u32(body.length), u32(body.length), u16(name.length), u16(0), u16(0),
-      u16(0), u16(0), u32(0), u32(offset), name,
-    ]));
+    centralParts.push(
+      Buffer.concat([
+        u32(0x02014b50),
+        u16(20),
+        u16(20),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(crc),
+        u32(body.length),
+        u32(body.length),
+        u16(name.length),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(0),
+        u32(offset),
+        name,
+      ]),
+    );
     offset += local.length;
   }
   const central = Buffer.concat(centralParts);
   return Buffer.concat([
     ...localParts,
     central,
-    u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length),
-    u32(central.length), u32(offset), u16(0),
+    u32(0x06054b50),
+    u16(0),
+    u16(0),
+    u16(entries.length),
+    u16(entries.length),
+    u32(central.length),
+    u32(offset),
+    u16(0),
   ]);
 }
 
 function xml(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function xhtmlParagraphs(text) {
@@ -4845,7 +7483,10 @@ async function writeEpub(book, chapters) {
   const dir = await mkdtemp(path.join(tmpdir(), "liber-wikisource-"));
   const epubPath = path.join(dir, `${book.id}.epub`);
   const manifestItems = chapters
-    .map((_, i) => `    <item id="c${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
+    .map(
+      (_, i) =>
+        `    <item id="c${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`,
+    )
     .join("\n");
   const spineItems = chapters.map((_, i) => `    <itemref idref="c${i + 1}"/>`).join("\n");
   const opf = `<?xml version="1.0" encoding="utf-8"?>
@@ -4866,12 +7507,15 @@ ${spineItems}
 </package>`;
   const zip = storedZip([
     { name: "mimetype", body: "application/epub+zip" },
-    { name: "META-INF/container.xml", body: `<?xml version="1.0"?>
+    {
+      name: "META-INF/container.xml",
+      body: `<?xml version="1.0"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>` },
+</container>`,
+    },
     { name: "OEBPS/content.opf", body: opf },
     ...chapters.map((chapter, i) => ({
       name: `OEBPS/chapter${i + 1}.xhtml`,
@@ -4928,7 +7572,8 @@ async function fetchRawPage(book, attempts = 10) {
       if (res && ![408, 429, 500, 502, 503, 504].includes(res.status)) break;
       if (attempt < attempts) await sleep(retryDelayMs(res, attempt));
     }
-    if (lastStatus) throw new Error(`Wikisource raw fetch failed for ${book.sourceTitle}: HTTP ${lastStatus}`);
+    if (lastStatus)
+      throw new Error(`Wikisource raw fetch failed for ${book.sourceTitle}: HTTP ${lastStatus}`);
     throw lastError || new Error(`Wikisource raw fetch failed for ${book.sourceTitle}`);
   })();
   rawPageCache.set(url, promise);
@@ -4965,15 +7610,22 @@ async function fetchRenderedPageText(sourceTitle, attempts = 6) {
     if (res && ![408, 429, 500, 502, 503, 504].includes(res.status)) break;
     if (attempt < attempts) await sleep(retryDelayMs(res, attempt));
   }
-  if (lastStatus) throw new Error(`Wikisource rendered fetch failed for ${sourceTitle}: HTTP ${lastStatus}`);
+  if (lastStatus)
+    throw new Error(`Wikisource rendered fetch failed for ${sourceTitle}: HTTP ${lastStatus}`);
   throw lastError || new Error(`Wikisource rendered fetch failed for ${sourceTitle}`);
 }
 
 async function fetchRaw(book) {
   const sourceTitles = book.sourceTitles || [book.sourceTitle];
-  const raws = await Promise.all(sourceTitles.map((sourceTitle) => fetchRawPage({ ...book, sourceTitle })));
-  const sections = raws.map((raw) => extractWikisourceSection(raw, book.sourceSection, book.sourceSectionOccurrence));
-  const expanded = await Promise.all(sections.map((section) => expandWikisourceTransclusions(section, book)));
+  const raws = await Promise.all(
+    sourceTitles.map((sourceTitle) => fetchRawPage({ ...book, sourceTitle })),
+  );
+  const sections = raws.map((raw) =>
+    extractWikisourceSection(raw, book.sourceSection, book.sourceSectionOccurrence),
+  );
+  const expanded = await Promise.all(
+    sections.map((section) => expandWikisourceTransclusions(section, book)),
+  );
   return expanded.join("\n\n");
 }
 
@@ -4986,7 +7638,12 @@ async function expandWikisourceTransclusions(text, book, depth = 0, seen = new S
     const nextSeen = new Set(seen);
     nextSeen.add(key);
     const transcludedRaw = await fetchRawPage({ ...book, sourceTitle: title });
-    const body = await expandWikisourceTransclusions(extractWikisourceBody(transcludedRaw), book, depth + 1, nextSeen);
+    const body = await expandWikisourceTransclusions(
+      extractWikisourceBody(transcludedRaw),
+      book,
+      depth + 1,
+      nextSeen,
+    );
     out = out.replace(
       new RegExp(`\\{\\{\\s*:\\s*${escapeRegExp(title)}(?:\\|[^{}\\n]*)?\\}\\}`, "gu"),
       body,
@@ -5028,10 +7685,12 @@ async function probe(apiUrl, book) {
 }
 
 async function liveBookExists(apiUrl, book) {
-  const body = await fetchJsonWithRetry(`${apiUrl}/api/books/${encodeURIComponent(book.id)}`).catch((error) => {
-    if (/HTTP 404/.test(error.message)) return null;
-    throw error;
-  });
+  const body = await fetchJsonWithRetry(`${apiUrl}/api/books/${encodeURIComponent(book.id)}`).catch(
+    (error) => {
+      if (/HTTP 404/.test(error.message)) return null;
+      throw error;
+    },
+  );
   return Boolean(body?.book);
 }
 
@@ -5041,8 +7700,16 @@ async function importOne(book, options) {
   const chapters = parseWikisourceChapters(book, raw);
   const { epubPath } = await writeEpub(book, chapters);
   const info = await inspectEpub(epubPath);
-  const license = await verifyPublishLicense(info, { source: sourceUrl(book), license: "PUBLIC-DOMAIN", evidence: book.evidence });
-  const manifest = await createBookManifest(epubPath, { source: sourceUrl(book), license: "PUBLIC-DOMAIN", evidence: book.evidence });
+  const license = await verifyPublishLicense(info, {
+    source: sourceUrl(book),
+    license: "PUBLIC-DOMAIN",
+    evidence: book.evidence,
+  });
+  const manifest = await createBookManifest(epubPath, {
+    source: sourceUrl(book),
+    license: "PUBLIC-DOMAIN",
+    evidence: book.evidence,
+  });
   const payload = await createIngestPayload(manifest, {
     ...book,
     sourceUrl: sourceUrl(book),
@@ -5071,7 +7738,10 @@ async function importOne(book, options) {
       timeoutMs: options.publishTimeoutMs,
       onProgress: (event) => {
         if (event.stage === "chapter") {
-          if (!options.quiet) process.stderr.write(`[wikisource] ${book.id} chapter ${event.current}/${event.total}: ${event.chapter.title}\n`);
+          if (!options.quiet)
+            process.stderr.write(
+              `[wikisource] ${book.id} chapter ${event.current}/${event.total}: ${event.chapter.title}\n`,
+            );
         } else {
           process.stderr.write(`[wikisource] ${book.id} ${event.stage}...\n`);
         }
@@ -5140,10 +7810,12 @@ async function main() {
   const selected = BOOKS.filter((book) => ids.includes(book.id));
   if (!selected.length) throw new Error(`No matching Wikisource books for --ids ${ids.join(",")}`);
   const bookConcurrency = importBookConcurrency(options);
-  process.stderr.write(`[wikisource] selected ${selected.length} Chinese books; book concurrency ${bookConcurrency}${options.publish ? `; chapter concurrency ${options.chapterConcurrency}; live probe ${options.liveProbe ? "on" : "off"}` : ""}\n`);
+  process.stderr.write(
+    `[wikisource] selected ${selected.length} Chinese books; book concurrency ${bookConcurrency}${options.publish ? `; chapter concurrency ${options.chapterConcurrency}; live probe ${options.liveProbe ? "on" : "off"}` : ""}\n`,
+  );
   const results = await mapWithConcurrency(selected, bookConcurrency, async (book) => {
     try {
-      if (options.publish && options.skipExisting && await liveBookExists(options.apiUrl, book)) {
+      if (options.publish && options.skipExisting && (await liveBookExists(options.apiUrl, book))) {
         process.stderr.write(`[wikisource] ${book.id} exists; skip\n`);
         return {
           id: book.id,
@@ -5170,7 +7842,11 @@ async function main() {
   });
   const output = { mode: options.publish ? "publish" : "dry-run", apiUrl: options.apiUrl, results };
   const body = options.summary ? summarizeOutput(output) : output;
-  process.stdout.write(options.json ? `${JSON.stringify(body, null, 2)}\n` : `${results.map((r) => `${r.id}: ${r.title}`).join("\n")}\n`);
+  process.stdout.write(
+    options.json
+      ? `${JSON.stringify(body, null, 2)}\n`
+      : `${results.map((r) => `${r.id}: ${r.title}`).join("\n")}\n`,
+  );
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

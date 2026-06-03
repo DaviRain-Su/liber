@@ -29,7 +29,10 @@ const eq = (a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)) === 0;
 // Computes the digest Turnkey must sign for a Sui PERSONAL MESSAGE (login challenge).
 function suiPersonalMessageDigest(message) {
   const msgBytes = typeof message === "string" ? new TextEncoder().encode(message) : message;
-  const intent = messageWithIntent("PersonalMessage", bcs.vector(bcs.u8()).serialize(msgBytes).toBytes());
+  const intent = messageWithIntent(
+    "PersonalMessage",
+    bcs.vector(bcs.u8()).serialize(msgBytes).toBytes(),
+  );
   return blake2b(intent, { dkLen: 32 }); // 32-byte payload → Turnkey signRawPayload(..., HASH_FUNCTION_NOT_APPLICABLE)
 }
 // Assembles Sui's serialized signature from Turnkey's raw 64-byte ed25519 signature + the wallet pubkey.
@@ -42,8 +45,8 @@ function assembleSuiSignature(rawSig64, rawPubkey32) {
 }
 
 // --- Simulate a Turnkey embedded ed25519 wallet (a seed "in the enclave") ----
-const seed = new Uint8Array(randomBytes(32));        // Turnkey would generate + hold this in its TEE
-const rawPubkey = ed25519.getPublicKey(seed);        // Turnkey returns this 32-byte pubkey + the Sui address
+const seed = new Uint8Array(randomBytes(32)); // Turnkey would generate + hold this in its TEE
+const rawPubkey = ed25519.getPublicKey(seed); // Turnkey returns this 32-byte pubkey + the Sui address
 const groundTruthKp = Ed25519Keypair.fromSecretKey(seed); // ground-truth wallet for the same seed
 
 // (0) Address derivation: Turnkey's ed25519 pubkey → Sui address must match @mysten/sui.
@@ -61,7 +64,7 @@ const truth = await groundTruthKp.signPersonalMessage(msgBytes);
 
 // Turnkey path: digest → RAW ed25519 sign (== signRawPayload) → assemble.
 const digest = suiPersonalMessageDigest(msgBytes);
-const rawSigFromEnclave = ed25519.sign(digest, seed);          // <-- the only line Turnkey replaces in prod
+const rawSigFromEnclave = ed25519.sign(digest, seed); // <-- the only line Turnkey replaces in prod
 const wrapped = assembleSuiSignature(rawSigFromEnclave, rawPubkey);
 
 const matchesGroundTruth = wrapped === truth.signature;
@@ -83,6 +86,12 @@ console.log(`Digest (Turnkey signs this): ${toHex(digest)}`);
 console.log(`Wrapped sig (base64): ${wrapped.slice(0, 44)}…\n`);
 for (const [label, ok] of rows) console.log(`  ${ok ? "✅ PASS" : "❌ FAIL"}  ${label}`);
 const allPass = rows.every(([, ok]) => ok);
-console.log(`\n${allPass ? "✅ ALL PASS" : "❌ FAILED"} — Turnkey embedded Sui wallet ${allPass ? "CAN" : "cannot"} produce a valid Liber Sui login signature.`);
-console.log(allPass ? "Production: replace the one ed25519.sign(digest, seed) line with Turnkey signRawPayload(digest).\n" : "");
+console.log(
+  `\n${allPass ? "✅ ALL PASS" : "❌ FAILED"} — Turnkey embedded Sui wallet ${allPass ? "CAN" : "cannot"} produce a valid Liber Sui login signature.`,
+);
+console.log(
+  allPass
+    ? "Production: replace the one ed25519.sign(digest, seed) line with Turnkey signRawPayload(digest).\n"
+    : "",
+);
 process.exit(allPass ? 0 : 1);

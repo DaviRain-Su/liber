@@ -15,8 +15,16 @@ import type { Env } from "./types";
 // it can be unit-tested without a live AI binding (test/ai-parse.test.mjs).
 import { workersAiText } from "./ai-parse.mjs";
 
-export interface ChatMsg { role: "system" | "user" | "assistant"; content: string }
-export interface ChatOpts { maxTokens?: number; temperature?: number; model?: string; gatewayCache?: boolean }
+export interface ChatMsg {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+export interface ChatOpts {
+  maxTokens?: number;
+  temperature?: number;
+  model?: string;
+  gatewayCache?: boolean;
+}
 
 const DEFAULTS: Record<string, string> = {
   "workers-ai": "@cf/qwen/qwen3-30b-a3b-fp8",
@@ -35,7 +43,10 @@ function modelFor(env: Env, p: string, override?: string): string {
 function gatewayOptions(env: Env, opts: ChatOpts = {}): Record<string, unknown> | undefined {
   const id = (env.AI_GATEWAY_ID || "").trim();
   if (!id) return undefined;
-  const gateway: Record<string, unknown> = { id, skipCache: opts.gatewayCache === true ? false : true };
+  const gateway: Record<string, unknown> = {
+    id,
+    skipCache: opts.gatewayCache === true ? false : true,
+  };
   const ttl = parseInt(env.AI_GATEWAY_CACHE_TTL || "", 10);
   if (Number.isFinite(ttl) && ttl > 0 && opts.gatewayCache === true) gateway.cacheTtl = ttl;
   return { gateway };
@@ -50,9 +61,10 @@ export async function aiChat(env: Env, messages: ChatMsg[], opts: ChatOpts = {})
   const temperature = opts.temperature ?? 0.7;
 
   if (p === "deepseek" || p === "openai-compat") {
-    const base = p === "deepseek"
-      ? (env.AI_BASE_URL || "https://api.deepseek.com")
-      : (env.AI_BASE_URL || "https://api.openai.com");
+    const base =
+      p === "deepseek"
+        ? env.AI_BASE_URL || "https://api.deepseek.com"
+        : env.AI_BASE_URL || "https://api.openai.com";
     const apiKey = env.AI_API_KEY || env.DEEPSEEK_API_KEY;
     if (!apiKey) throw new Error(`${p}: missing API key`);
     const res = await fetch(`${base.replace(/\/$/, "")}/v1/chat/completions`, {
@@ -66,7 +78,11 @@ export async function aiChat(env: Env, messages: ChatMsg[], opts: ChatOpts = {})
   }
 
   // default: Cloudflare Workers AI
-  const res: any = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature }, gatewayOptions(env, opts));
+  const res: any = await env.AI.run(
+    model,
+    { messages, max_tokens: maxTokens, temperature },
+    gatewayOptions(env, opts),
+  );
   return workersAiText(res);
 }
 
@@ -78,25 +94,42 @@ export function supportsTools(env: Env): boolean {
   return p === "deepseek" || p === "openai-compat";
 }
 
-export interface RawToolCall { id: string; name: string; args: any }
-export interface RawReply { content: string; toolCalls: RawToolCall[] }
+export interface RawToolCall {
+  id: string;
+  name: string;
+  args: any;
+}
+export interface RawReply {
+  content: string;
+  toolCalls: RawToolCall[];
+}
 
 // Tool-capable chat. `messages` is the raw OpenAI-shaped array (may include
 // assistant tool_calls and {role:"tool"} results). Returns the assistant's text
 // plus any tool calls it wants run. Only meaningful for OpenAI-compat providers;
 // for Workers AI it returns text only (no tool calls).
-export async function aiChatRaw(env: Env, messages: any[], opts: ChatOpts & { tools?: any[] } = {}): Promise<RawReply> {
+export async function aiChatRaw(
+  env: Env,
+  messages: any[],
+  opts: ChatOpts & { tools?: any[] } = {},
+): Promise<RawReply> {
   const p = provider(env);
   const model = modelFor(env, p, opts.model);
   const maxTokens = opts.maxTokens ?? 700;
   const temperature = opts.temperature ?? 0.7;
 
   if (p === "deepseek" || p === "openai-compat") {
-    const base = p === "deepseek" ? (env.AI_BASE_URL || "https://api.deepseek.com") : (env.AI_BASE_URL || "https://api.openai.com");
+    const base =
+      p === "deepseek"
+        ? env.AI_BASE_URL || "https://api.deepseek.com"
+        : env.AI_BASE_URL || "https://api.openai.com";
     const apiKey = env.AI_API_KEY || env.DEEPSEEK_API_KEY;
     if (!apiKey) throw new Error(`${p}: missing API key`);
     const body: any = { model, messages, max_tokens: maxTokens, temperature, stream: false };
-    if (opts.tools && opts.tools.length) { body.tools = opts.tools; body.tool_choice = "auto"; }
+    if (opts.tools && opts.tools.length) {
+      body.tools = opts.tools;
+      body.tool_choice = "auto";
+    }
     const res = await fetch(`${base.replace(/\/$/, "")}/v1/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -107,24 +140,38 @@ export async function aiChatRaw(env: Env, messages: any[], opts: ChatOpts & { to
     const msg = j?.choices?.[0]?.message || {};
     const toolCalls: RawToolCall[] = (msg.tool_calls || []).map((tc: any) => {
       let args = {};
-      try { args = JSON.parse(tc.function?.arguments || "{}"); } catch { /* leave {} */ }
+      try {
+        args = JSON.parse(tc.function?.arguments || "{}");
+      } catch {
+        /* leave {} */
+      }
       return { id: tc.id, name: tc.function?.name, args };
     });
     return { content: String(msg.content ?? "").trim(), toolCalls };
   }
 
   // Workers AI: text only
-  const res: any = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature }, gatewayOptions(env, opts));
+  const res: any = await env.AI.run(
+    model,
+    { messages, max_tokens: maxTokens, temperature },
+    gatewayOptions(env, opts),
+  );
   return { content: workersAiText(res), toolCalls: [] };
 }
 
 // Which provider/model is active — handy for the Agent View / debugging.
-export function activeProvider(env: Env): { provider: string; model: string; gateway: { id: string; cacheTtl: number | null } | null } {
+export function activeProvider(env: Env): {
+  provider: string;
+  model: string;
+  gateway: { id: string; cacheTtl: number | null } | null;
+} {
   const p = provider(env);
   const ttl = parseInt(env.AI_GATEWAY_CACHE_TTL || "", 10);
   return {
     provider: p,
     model: modelFor(env, p),
-    gateway: env.AI_GATEWAY_ID ? { id: env.AI_GATEWAY_ID, cacheTtl: Number.isFinite(ttl) && ttl > 0 ? ttl : null } : null,
+    gateway: env.AI_GATEWAY_ID
+      ? { id: env.AI_GATEWAY_ID, cacheTtl: Number.isFinite(ttl) && ttl > 0 ? ttl : null }
+      : null,
   };
 }

@@ -20,7 +20,8 @@ const BOOKS = [
     lang: "zh",
     category: "宗教 · 佛典",
     year: "唐",
-    source: "https://commons.wikimedia.org/wiki/File:NCPSSD-71016218_%E8%88%AC%E8%8B%A5%E6%B3%A2%E7%BE%85%E8%9C%9C%E5%A4%9A%E5%BF%83%E7%B6%93%E6%B3%A8%E8%A7%A3_%E7%AC%AC%E4%B8%80%E5%86%8C.pdf",
+    source:
+      "https://commons.wikimedia.org/wiki/File:NCPSSD-71016218_%E8%88%AC%E8%8B%A5%E6%B3%A2%E7%BE%85%E8%9C%9C%E5%A4%9A%E5%BF%83%E7%B6%93%E6%B3%A8%E8%A7%A3_%E7%AC%AC%E4%B8%80%E5%86%8C.pdf",
     evidence: "唐玄奘譯本；Wikimedia Commons scan is marked public domain.",
     blurb: "觀自在菩薩，行深般若波羅蜜多時，照見五蘊皆空。",
     description: "玄奘譯《般若波羅蜜多心經》白文，依公版經文整理為 EPUB。",
@@ -48,7 +49,8 @@ const BOOKS = [
     lang: "zh",
     category: "宗教 · 道藏",
     year: "古本",
-    source: "https://commons.wikimedia.org/wiki/File:IOC.UTokyo-008019_%E5%A4%AA%E4%B8%8A%E8%80%81%E5%90%9B%E8%AA%AA%E5%B8%B8%E6%B8%85%E9%9D%9C%E7%B6%93%E8%A8%BB%E4%B8%80%E5%8D%B7_%E5%8D%B7%E4%B8%80.pdf",
+    source:
+      "https://commons.wikimedia.org/wiki/File:IOC.UTokyo-008019_%E5%A4%AA%E4%B8%8A%E8%80%81%E5%90%9B%E8%AA%AA%E5%B8%B8%E6%B8%85%E9%9D%9C%E7%B6%93%E8%A8%BB%E4%B8%80%E5%8D%B7_%E5%8D%B7%E4%B8%80.pdf",
     evidence: "Wikimedia Commons identifies the source scan as public domain.",
     blurb: "大道無形，生育天地；大道無情，運行日月。",
     description: "《太上老君說常清靜經》白文，依公版道藏經文整理為 EPUB。",
@@ -119,28 +121,66 @@ function storedZip(entries) {
     const body = Buffer.isBuffer(entry.body) ? entry.body : Buffer.from(entry.body);
     const crc = crc32(body);
     const local = Buffer.concat([
-      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
-      u32(crc), u32(body.length), u32(body.length), u16(name.length), u16(0), name, body,
+      u32(0x04034b50),
+      u16(20),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(crc),
+      u32(body.length),
+      u32(body.length),
+      u16(name.length),
+      u16(0),
+      name,
+      body,
     ]);
     localParts.push(local);
-    centralParts.push(Buffer.concat([
-      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
-      u32(crc), u32(body.length), u32(body.length), u16(name.length), u16(0), u16(0),
-      u16(0), u16(0), u32(0), u32(offset), name,
-    ]));
+    centralParts.push(
+      Buffer.concat([
+        u32(0x02014b50),
+        u16(20),
+        u16(20),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(crc),
+        u32(body.length),
+        u32(body.length),
+        u16(name.length),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(0),
+        u32(offset),
+        name,
+      ]),
+    );
     offset += local.length;
   }
   const central = Buffer.concat(centralParts);
   return Buffer.concat([
     ...localParts,
     central,
-    u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length),
-    u32(central.length), u32(offset), u16(0),
+    u32(0x06054b50),
+    u16(0),
+    u16(0),
+    u16(entries.length),
+    u16(entries.length),
+    u32(central.length),
+    u32(offset),
+    u16(0),
   ]);
 }
 
 function xml(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function xhtmlParagraphs(lines) {
@@ -151,7 +191,10 @@ async function writeEpub(book) {
   const dir = await mkdtemp(path.join(tmpdir(), "liber-pd-text-"));
   const epubPath = path.join(dir, `${book.id}.epub`);
   const manifestItems = book.chapters
-    .map((_, i) => `    <item id="c${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
+    .map(
+      (_, i) =>
+        `    <item id="c${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`,
+    )
     .join("\n");
   const spineItems = book.chapters.map((_, i) => `    <itemref idref="c${i + 1}"/>`).join("\n");
   const opf = `<?xml version="1.0" encoding="utf-8"?>
@@ -172,12 +215,15 @@ ${spineItems}
 </package>`;
   const zip = storedZip([
     { name: "mimetype", body: "application/epub+zip" },
-    { name: "META-INF/container.xml", body: `<?xml version="1.0"?>
+    {
+      name: "META-INF/container.xml",
+      body: `<?xml version="1.0"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>` },
+</container>`,
+    },
     { name: "OEBPS/content.opf", body: opf },
     ...book.chapters.map((chapter, i) => ({
       name: `OEBPS/chapter${i + 1}.xhtml`,
@@ -193,7 +239,12 @@ ${spineItems}
 }
 
 function parseArgs(argv) {
-  const out = { publish: false, apiUrl: "https://liber.davirain.xyz", ids: BOOKS.map((b) => b.id), json: false };
+  const out = {
+    publish: false,
+    apiUrl: "https://liber.davirain.xyz",
+    ids: BOOKS.map((b) => b.id),
+    json: false,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--publish" || arg === "--json") {
@@ -203,7 +254,11 @@ function parseArgs(argv) {
     if (arg === "--ids" || arg === "--api-url") {
       const value = argv[++i];
       if (!value) throw new Error(`Missing value for ${arg}`);
-      if (arg === "--ids") out.ids = value.split(",").map((s) => s.trim()).filter(Boolean);
+      if (arg === "--ids")
+        out.ids = value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
       else out.apiUrl = value.replace(/\/+$/, "");
       continue;
     }
@@ -216,8 +271,16 @@ async function importOne(book, options) {
   process.stderr.write(`[pd] package ${book.id}...\n`);
   const { epubPath } = await writeEpub(book);
   const info = await inspectEpub(epubPath);
-  const license = verifyPublishLicense(info, { source: book.source, license: "PUBLIC-DOMAIN", evidence: book.evidence });
-  const manifest = await createBookManifest(epubPath, { source: book.source, license: "PUBLIC-DOMAIN", evidence: book.evidence });
+  const license = verifyPublishLicense(info, {
+    source: book.source,
+    license: "PUBLIC-DOMAIN",
+    evidence: book.evidence,
+  });
+  const manifest = await createBookManifest(epubPath, {
+    source: book.source,
+    license: "PUBLIC-DOMAIN",
+    evidence: book.evidence,
+  });
   const payload = await createIngestPayload(manifest, book);
   let publish = null;
   if (options.publish) {
@@ -242,7 +305,9 @@ async function main() {
   if (!selected.length) throw new Error(`No matching books for --ids ${options.ids.join(",")}`);
   const results = [];
   for (const book of selected) results.push(await importOne(book, options));
-  process.stdout.write(`${JSON.stringify({ mode: options.publish ? "publish" : "dry-run", results }, null, 2)}\n`);
+  process.stdout.write(
+    `${JSON.stringify({ mode: options.publish ? "publish" : "dry-run", results }, null, 2)}\n`,
+  );
 }
 
 main().catch((error) => {

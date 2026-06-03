@@ -2,12 +2,25 @@ import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import type { Env, Variables } from "../lib/types";
 import {
-  issueNonce, consumeNonce, verifyWalletSignature, createSession, deleteSession,
-  upsertWalletUser, createGuestUser, getUser, createCliDevice, approveCliDevice,
-  pollCliDevice, requireUser, createCliPublishToken,
+  issueNonce,
+  consumeNonce,
+  verifyWalletSignature,
+  createSession,
+  deleteSession,
+  upsertWalletUser,
+  createGuestUser,
+  getUser,
+  createCliDevice,
+  approveCliDevice,
+  pollCliDevice,
+  requireUser,
+  createCliPublishToken,
 } from "../lib/auth";
 import {
-  passkeyRegisterOptions, passkeyRegisterVerify, passkeyLoginOptions, passkeyLoginVerify,
+  passkeyRegisterOptions,
+  passkeyRegisterVerify,
+  passkeyLoginOptions,
+  passkeyLoginVerify,
 } from "../lib/passkey";
 import { readingStats } from "../lib/reading-summary";
 import { chainById } from "../lib/chains";
@@ -18,7 +31,13 @@ import { run, first, id, now } from "../lib/db";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-const cookieOpts = { httpOnly: true, secure: true, sameSite: "Lax" as const, maxAge: 60 * 60 * 24 * 30, path: "/" };
+const cookieOpts = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "Lax" as const,
+  maxAge: 60 * 60 * 24 * 30,
+  path: "/",
+};
 
 // 1) request a nonce + the message the wallet should sign
 auth.post("/nonce", async (c) => {
@@ -82,11 +101,20 @@ auth.post("/google", async (c) => {
   if (!user) {
     const uid = id("u_");
     const name = profile.name || (profile.email ? profile.email.split("@")[0] : "读者");
-    const handle = (profile.email ? `@${profile.email.split("@")[0]}` : `@g_${profile.sub.slice(-8)}`).slice(0, 24);
+    const handle = (
+      profile.email ? `@${profile.email.split("@")[0]}` : `@g_${profile.sub.slice(-8)}`
+    ).slice(0, 24);
     await run(
       c.env.DB,
       `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
-      uid, key, handle, name, "#c0392b", [...name][0] || "G", "", now(),
+      uid,
+      key,
+      handle,
+      name,
+      "#c0392b",
+      [...name][0] || "G",
+      "",
+      now(),
     );
     user = await getUser(c.env, uid);
   }
@@ -104,28 +132,51 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 auth.post("/email/start", async (c) => {
   const { email } = await c.req.json();
-  const addr = String(email || "").trim().toLowerCase();
+  const addr = String(email || "")
+    .trim()
+    .toLowerCase();
   if (!EMAIL_RE.test(addr) || addr.length > 200) return c.json({ error: "邮箱格式不正确" }, 400);
-  if (await c.env.KV.get(`email-otp-rl:${addr}`)) return c.json({ error: "请求过于频繁，请稍后再试" }, 429);
+  if (await c.env.KV.get(`email-otp-rl:${addr}`))
+    return c.json({ error: "请求过于频繁，请稍后再试" }, 429);
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, "0");
-  await c.env.KV.put(`email-otp:${addr}`, JSON.stringify({ code, attempts: 0 }), { expirationTtl: 600 });
+  await c.env.KV.put(`email-otp:${addr}`, JSON.stringify({ code, attempts: 0 }), {
+    expirationTtl: 600,
+  });
   await c.env.KV.put(`email-otp-rl:${addr}`, "1", { expirationTtl: 60 }); // 60s = KV's TTL floor
   const mail = await sendOtpEmail(c.env, addr, code);
   // Only ever expose the code when nothing was actually emailed (binding absent).
-  return c.json({ ok: true, sent: mail.sent, devCode: mail.sent ? undefined : code, mailError: mail.error });
+  return c.json({
+    ok: true,
+    sent: mail.sent,
+    devCode: mail.sent ? undefined : code,
+    mailError: mail.error,
+  });
 });
 
 auth.post("/email/verify", async (c) => {
   const { email, code } = await c.req.json();
-  const addr = String(email || "").trim().toLowerCase();
+  const addr = String(email || "")
+    .trim()
+    .toLowerCase();
   const raw = await c.env.KV.get(`email-otp:${addr}`);
   if (!raw) return c.json({ error: "验证码已过期，请重新获取" }, 400);
   let rec: any = null;
-  try { rec = JSON.parse(raw); } catch { rec = null; }
+  try {
+    rec = JSON.parse(raw);
+  } catch {
+    rec = null;
+  }
   if (!rec) return c.json({ error: "验证码无效，请重新获取" }, 400);
-  if (rec.attempts >= 5) { await c.env.KV.delete(`email-otp:${addr}`); return c.json({ error: "尝试次数过多，请重新获取" }, 429); }
+  if (rec.attempts >= 5) {
+    await c.env.KV.delete(`email-otp:${addr}`);
+    return c.json({ error: "尝试次数过多，请重新获取" }, 429);
+  }
   if (String(code || "").trim() !== rec.code) {
-    await c.env.KV.put(`email-otp:${addr}`, JSON.stringify({ ...rec, attempts: (rec.attempts || 0) + 1 }), { expirationTtl: 600 });
+    await c.env.KV.put(
+      `email-otp:${addr}`,
+      JSON.stringify({ ...rec, attempts: (rec.attempts || 0) + 1 }),
+      { expirationTtl: 600 },
+    );
     return c.json({ error: "验证码不正确" }, 401);
   }
   await c.env.KV.delete(`email-otp:${addr}`);
@@ -138,7 +189,14 @@ auth.post("/email/verify", async (c) => {
     await run(
       c.env.DB,
       `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
-      uid, key, `@${name}`.slice(0, 24), name, "#2e7d57", ([...name][0] || "M").toUpperCase(), "", now(),
+      uid,
+      key,
+      `@${name}`.slice(0, 24),
+      name,
+      "#2e7d57",
+      ([...name][0] || "M").toUpperCase(),
+      "",
+      now(),
     );
     user = await getUser(c.env, uid);
   }
@@ -201,7 +259,8 @@ auth.get("/cli/poll/:device", async (c) => {
 auth.post("/cli/approve", async (c) => {
   const uid = requireUser(c);
   const user = await getUser(c.env, uid);
-  if (!user || user.is_guest || !user.sui_address) return c.json({ error: "需要钱包登录后才能授权 CLI" }, 401);
+  if (!user || user.is_guest || !user.sui_address)
+    return c.json({ error: "需要钱包登录后才能授权 CLI" }, 401);
   const { deviceCode } = await c.req.json();
   if (!deviceCode) return c.json({ error: "缺少 CLI 授权码" }, 400);
   const result = await approveCliDevice(c.env, deviceCode, user);
@@ -211,9 +270,15 @@ auth.post("/cli/approve", async (c) => {
 auth.post("/cli/token", async (c) => {
   const uid = requireUser(c);
   const user = await getUser(c.env, uid);
-  if (!user || user.is_guest || !user.sui_address) return c.json({ error: "需要钱包登录后才能签发 CLI 发布令牌" }, 401);
+  if (!user || user.is_guest || !user.sui_address)
+    return c.json({ error: "需要钱包登录后才能签发 CLI 发布令牌" }, 401);
   const result = await createCliPublishToken(c.env, user);
-  return c.json({ ok: true, token: result.token, expiresIn: result.expiresIn, wallet: user.sui_address });
+  return c.json({
+    ok: true,
+    token: result.token,
+    expiresIn: result.expiresIn,
+    wallet: user.sui_address,
+  });
 });
 
 auth.get("/me", async (c) => {
@@ -225,8 +290,16 @@ auth.get("/me", async (c) => {
   const stats = await readingStats(c.env, uid);
   // Parse the Turnkey embedded multi-chain addresses (Sui/Ethereum/Solana) for the UI.
   let turnkeyWallets: any = null;
-  try { turnkeyWallets = (user as any).turnkey_addresses ? JSON.parse((user as any).turnkey_addresses) : null; } catch { /* ignore */ }
-  return c.json({ user: { ...user, wallet: user.sui_address || "通行密钥", turnkeyWallets, stats } });
+  try {
+    turnkeyWallets = (user as any).turnkey_addresses
+      ? JSON.parse((user as any).turnkey_addresses)
+      : null;
+  } catch {
+    /* ignore */
+  }
+  return c.json({
+    user: { ...user, wallet: user.sui_address || "通行密钥", turnkeyWallets, stats },
+  });
 });
 
 auth.put("/me", async (c) => {
@@ -234,18 +307,29 @@ auth.put("/me", async (c) => {
   const user = await getUser(c.env, uid);
   if (!user || user.is_guest) return c.json({ error: "需要登录后才能编辑资料" }, 401);
   const body = await c.req.json();
-  const clean = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const clean = (v: unknown, max: number) =>
+    String(v ?? "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, max);
   const name = clean(body.name, 32) || user.name || "读者";
   const handleRaw = clean(body.handle, 32).replace(/^@+/, "");
   const handleSlug = handleRaw.replace(/[^\p{L}\p{N}_-]/gu, "").slice(0, 24);
   const handle = handleSlug ? `@${handleSlug}` : user.handle || `@${uid.slice(0, 8)}`;
   const bio = clean(body.bio, 160);
-  const color = /^#[0-9a-f]{6}$/i.test(String(body.color || "")) ? String(body.color) : user.color || "#3a4fb0";
+  const color = /^#[0-9a-f]{6}$/i.test(String(body.color || ""))
+    ? String(body.color)
+    : user.color || "#3a4fb0";
   const seal = clean(body.seal, 2).slice(0, 2) || name.slice(0, 1) || "读";
   await run(
     c.env.DB,
     `UPDATE users SET name = ?, handle = ?, bio = ?, color = ?, seal = ? WHERE id = ?`,
-    name, handle, bio, color, seal, uid,
+    name,
+    handle,
+    bio,
+    color,
+    seal,
+    uid,
   );
   const next = await getUser(c.env, uid);
   const stats = await readingStats(c.env, uid);

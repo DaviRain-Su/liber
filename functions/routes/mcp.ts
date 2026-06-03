@@ -10,13 +10,15 @@ import { rateLimit, clientIp } from "../lib/ratelimit";
 // (functions/lib/tools), so the two never drift.
 const mcp = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-mcp.get("/", (c) => c.json({
-  name: "liber",
-  description: "Liber 永存的开放图书馆 · 内容即接口",
-  license: "CC0-1.0",
-  auth: "none",
-  tools: manifest(),
-}));
+mcp.get("/", (c) =>
+  c.json({
+    name: "liber",
+    description: "Liber 永存的开放图书馆 · 内容即接口",
+    license: "CC0-1.0",
+    auth: "none",
+    tools: manifest(),
+  }),
+);
 
 mcp.post("/call", async (c) => {
   const perMin = Number(c.env.AI_RATE_PER_MIN || 20) || 20;

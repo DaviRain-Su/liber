@@ -16,7 +16,13 @@ export function timingSafeEqual(a, b) {
 
 export async function hmacHex(secret, payload) {
   const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(payload));
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -54,11 +60,19 @@ export function sameSuiAddress(a, b) {
 // so a forged/short/wrong-coin transfer cannot unlock Pro.
 export function paymentReceived(balanceChanges, { coinType, treasury, amount }) {
   let need;
-  try { need = BigInt(amount); } catch { return false; }
+  try {
+    need = BigInt(amount);
+  } catch {
+    return false;
+  }
   return (balanceChanges || []).some((bc) => {
     if (bc.coinType !== coinType) return false;
     if (!sameSuiAddress(ownerAddress(bc.owner), treasury)) return false;
-    try { return BigInt(bc.amount) >= need; } catch { return false; }
+    try {
+      return BigInt(bc.amount) >= need;
+    } catch {
+      return false;
+    }
   });
 }
 

@@ -29,6 +29,8 @@ export default {
   // Nightly maintenance (KNOWLEDGE_GRAPH_SPEC §6.6): theme labelling + cold-link
   // decay. Scheduled via [triggers] crons in wrangler.toml.
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runMaintenance(env).then((r) => console.log("graph maintenance:", JSON.stringify(r))));
+    ctx.waitUntil(
+      runMaintenance(env).then((r) => console.log("graph maintenance:", JSON.stringify(r))),
+    );
   },
 };

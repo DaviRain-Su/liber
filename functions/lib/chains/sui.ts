@@ -99,7 +99,9 @@ export const suiAdapter: ChainAdapter = {
         transaction: tx,
         options: { showEffects: true, showObjectChanges: true },
       });
-      const created = (res.objectChanges || []).find((ch: any) => ch.type === "created") as { objectId?: string } | undefined;
+      const created = (res.objectChanges || []).find((ch: any) => ch.type === "created") as
+        | { objectId?: string }
+        | undefined;
       return { chain: "sui", digest: res.digest, objectId: created?.objectId };
     } catch {
       return null;

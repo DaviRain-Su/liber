@@ -53,7 +53,9 @@ export function findMigrationProblems(dir = MIGRATIONS_DIR) {
 
   for (const f of all) {
     if (!MIGRATION_RE.test(f)) {
-      problems.push(`would be SKIPPED by the runner (bad name): ${f} — expected NNNN_snake_case.sql`);
+      problems.push(
+        `would be SKIPPED by the runner (bad name): ${f} — expected NNNN_snake_case.sql`,
+      );
     }
   }
 
@@ -71,7 +73,9 @@ export function findMigrationProblems(dir = MIGRATIONS_DIR) {
   const numbers = [...seen.keys()].sort((a, b) => a - b);
   for (let i = 0; i < numbers.length; i += 1) {
     if (numbers[i] !== i + 1) {
-      problems.push(`numbering not contiguous from 0001: missing ${pad(i + 1)} (next found is ${pad(numbers[i])})`);
+      problems.push(
+        `numbering not contiguous from 0001: missing ${pad(i + 1)} (next found is ${pad(numbers[i])})`,
+      );
       break;
     }
   }
@@ -110,7 +114,9 @@ function wranglerExec(target, extraArgs) {
   const res = spawnSync(WRANGLER, args, { encoding: "utf8" });
   if (res.error) throw new Error(`could not run wrangler: ${res.error.message}`);
   if (res.status !== 0) {
-    throw new Error(`wrangler ${args.join(" ")} failed:\n${(res.stderr || res.stdout || "").trim()}`);
+    throw new Error(
+      `wrangler ${args.join(" ")} failed:\n${(res.stderr || res.stdout || "").trim()}`,
+    );
   }
   return res.stdout || "";
 }
@@ -135,7 +141,9 @@ function ensureJournal(target) {
 }
 
 function readApplied(target) {
-  const parsed = extractJson(wranglerExec(target, ["--command", "SELECT name FROM schema_migrations", "--json"]));
+  const parsed = extractJson(
+    wranglerExec(target, ["--command", "SELECT name FROM schema_migrations", "--json"]),
+  );
   const rows = Array.isArray(parsed) ? parsed.flatMap((r) => (r && r.results) || []) : [];
   return new Set(rows.map((r) => r.name));
 }
@@ -163,7 +171,9 @@ function runMigrations(target, { baseline = false, dryRun = false } = {}) {
   if (dryRun) {
     console.log(`Dry run — ${files.length} migration(s) discovered (would target: ${target}):`);
     for (const f of files) console.log(`  • ${f}`);
-    console.log("\nWithout --dry-run, only files absent from schema_migrations are applied (in order).");
+    console.log(
+      "\nWithout --dry-run, only files absent from schema_migrations are applied (in order).",
+    );
     return;
   }
 
@@ -172,8 +182,11 @@ function runMigrations(target, { baseline = false, dryRun = false } = {}) {
   const pending = files.filter((f) => !applied.has(f));
 
   if (baseline) {
-    if (!pending.length) return void console.log(`Baseline (${target}): journal already up to date.`);
-    console.log(`Baseline (${target}): marking ${pending.length} migration(s) applied WITHOUT executing them:`);
+    if (!pending.length)
+      return void console.log(`Baseline (${target}): journal already up to date.`);
+    console.log(
+      `Baseline (${target}): marking ${pending.length} migration(s) applied WITHOUT executing them:`,
+    );
     for (const f of pending) {
       recordApplied(target, f);
       console.log(`  ✓ baselined ${f}`);
@@ -182,7 +195,10 @@ function runMigrations(target, { baseline = false, dryRun = false } = {}) {
     return;
   }
 
-  if (!pending.length) return void console.log(`Up to date — all ${files.length} migration(s) already applied (${target}).`);
+  if (!pending.length)
+    return void console.log(
+      `Up to date — all ${files.length} migration(s) already applied (${target}).`,
+    );
   console.log(`Applying ${pending.length} pending migration(s) to ${target}:`);
   for (const f of pending) {
     process.stdout.write(`  → ${f} … `);
@@ -206,7 +222,9 @@ function main(argv) {
   }
   if (args.local === args.remote) {
     console.error("Specify exactly one target: --local or --remote.");
-    console.error("  add --baseline to mark files applied without executing (existing DBs, e.g. prod)");
+    console.error(
+      "  add --baseline to mark files applied without executing (existing DBs, e.g. prod)",
+    );
     console.error("  add --dry-run to print the plan without touching any DB");
     process.exitCode = 1;
     return;

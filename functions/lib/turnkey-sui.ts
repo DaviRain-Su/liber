@@ -15,7 +15,8 @@ const hexToBytes = (h: string): Uint8Array => {
   for (let i = 0; i < a.length; i++) a[i] = parseInt(s.slice(i * 2, i * 2 + 2), 16);
   return a;
 };
-const bytesToHex = (b: Uint8Array): string => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+const bytesToHex = (b: Uint8Array): string =>
+  Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 
 // Sui address for a raw ed25519 public key (hex). Lets us derive/verify the address
 // from the pubkey Turnkey returns, independent of Turnkey's own ADDRESS_FORMAT_SUI.
@@ -28,7 +29,10 @@ export function suiAddressFromEd25519Pubkey(pubkeyHex: string): string {
 // hashFunction=NOT_APPLICABLE.
 export function suiPersonalMessageDigestHex(message: string): string {
   const msgBytes = new TextEncoder().encode(message);
-  const intent = messageWithIntent("PersonalMessage", bcs.vector(bcs.u8()).serialize(msgBytes).toBytes());
+  const intent = messageWithIntent(
+    "PersonalMessage",
+    bcs.vector(bcs.u8()).serialize(msgBytes).toBytes(),
+  );
   return bytesToHex(blake2b(intent, { dkLen: 32 }));
 }
 

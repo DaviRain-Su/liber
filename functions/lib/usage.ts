@@ -14,13 +14,21 @@ function freeMonthly(env: Env): number {
   return Number.isFinite(n) && n > 0 ? n : 60;
 }
 
-export interface Plan { plan: string; active: boolean; unlimited: boolean }
+export interface Plan {
+  plan: string;
+  active: boolean;
+  unlimited: boolean;
+}
 
 // A user's effective plan (defaults to free when no row / expired).
 export async function getPlan(env: Env, userId: string): Promise<Plan> {
-  const row = await first<any>(env.DB, `SELECT plan, status, expires_at FROM subscriptions WHERE user_id = ?`, userId);
+  const row = await first<any>(
+    env.DB,
+    `SELECT plan, status, expires_at FROM subscriptions WHERE user_id = ?`,
+    userId,
+  );
   const active = !!row && row.status === "active" && (!row.expires_at || row.expires_at > now());
-  const plan = active ? (row.plan || "free") : "free";
+  const plan = active ? row.plan || "free" : "free";
   return { plan, active, unlimited: active && plan === "pro" };
 }
 
@@ -29,19 +37,28 @@ export interface UsageInfo {
   requests: number;
   tokens: number;
   plan: string;
-  limit: number | null;   // null = unlimited
+  limit: number | null; // null = unlimited
   remaining: number | null;
 }
 
 export async function getUsage(env: Env, userId: string): Promise<UsageInfo> {
   const p = period();
-  const row = await first<any>(env.DB, `SELECT requests, tokens FROM ai_usage WHERE user_id = ? AND period = ?`, userId, p);
+  const row = await first<any>(
+    env.DB,
+    `SELECT requests, tokens FROM ai_usage WHERE user_id = ? AND period = ?`,
+    userId,
+    p,
+  );
   const plan = await getPlan(env, userId);
   const requests = row?.requests || 0;
   const limit = plan.unlimited ? null : freeMonthly(env);
   return {
-    period: p, requests, tokens: row?.tokens || 0, plan: plan.plan,
-    limit, remaining: limit === null ? null : Math.max(0, limit - requests),
+    period: p,
+    requests,
+    tokens: row?.tokens || 0,
+    plan: plan.plan,
+    limit,
+    remaining: limit === null ? null : Math.max(0, limit - requests),
   };
 }
 
@@ -61,9 +78,14 @@ export async function recordUsage(env: Env, userId: string, tokens: number): Pro
        VALUES (?,?,1,?,?)
        ON CONFLICT(user_id, period) DO UPDATE SET
          requests = requests + 1, tokens = tokens + excluded.tokens, updated_at = excluded.updated_at`,
-      userId, p, Math.max(0, Math.round(tokens) || 0), now(),
+      userId,
+      p,
+      Math.max(0, Math.round(tokens) || 0),
+      now(),
     );
-  } catch { /* metering must never block chatting */ }
+  } catch {
+    /* metering must never block chatting */
+  }
 }
 
 // Rough token estimate when the provider doesn't report usage (~4 chars/token,

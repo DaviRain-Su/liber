@@ -33,7 +33,12 @@ export async function consumeNonce(env: Env, nonce?: string | null): Promise<boo
 
 // Verify a wallet login signature via the active chain adapter; returns the
 // signer's canonical address or null. Chain-agnostic — switch chains with CHAIN.
-export async function verifyWalletSignature(env: Env, message: string, signature: string, address?: string): Promise<string | null> {
+export async function verifyWalletSignature(
+  env: Env,
+  message: string,
+  signature: string,
+  address?: string,
+): Promise<string | null> {
   return chain(env).verifySignature(message, signature, address);
 }
 
@@ -57,8 +62,15 @@ export interface CliDevice {
 export async function createCliDevice(env: Env): Promise<CliDevice> {
   const deviceCode = crypto.randomUUID();
   const nowMs = Date.now();
-  const device = { deviceCode, userCode: userCode(), createdAt: nowMs, expiresAt: nowMs + CLI_DEVICE_TTL * 1000 };
-  await env.KV.put(`cli-device:${deviceCode}`, JSON.stringify(device), { expirationTtl: CLI_DEVICE_TTL });
+  const device = {
+    deviceCode,
+    userCode: userCode(),
+    createdAt: nowMs,
+    expiresAt: nowMs + CLI_DEVICE_TTL * 1000,
+  };
+  await env.KV.put(`cli-device:${deviceCode}`, JSON.stringify(device), {
+    expirationTtl: CLI_DEVICE_TTL,
+  });
   return device;
 }
 
@@ -68,16 +80,24 @@ export interface CliPublishToken {
   createdAt: number;
 }
 
-export async function getCliPublishToken(env: Env, token?: string | null): Promise<CliPublishToken | null> {
+export async function getCliPublishToken(
+  env: Env,
+  token?: string | null,
+): Promise<CliPublishToken | null> {
   if (!token) return null;
   const raw = await env.KV.get(`cli-publish:${token}`);
   return raw ? JSON.parse(raw) : null;
 }
 
-export async function createCliPublishToken(env: Env, user: UserRow): Promise<{ token: string; expiresIn: number }> {
+export async function createCliPublishToken(
+  env: Env,
+  user: UserRow,
+): Promise<{ token: string; expiresIn: number }> {
   const token = crypto.randomUUID();
   const payload = { userId: user.id, wallet: user.sui_address, createdAt: Date.now() };
-  await env.KV.put(`cli-publish:${token}`, JSON.stringify(payload), { expirationTtl: CLI_TOKEN_TTL });
+  await env.KV.put(`cli-publish:${token}`, JSON.stringify(payload), {
+    expirationTtl: CLI_TOKEN_TTL,
+  });
   return { token, expiresIn: CLI_TOKEN_TTL };
 }
 
@@ -105,20 +125,32 @@ export function hasAdminToken(env: Env, token?: string | null): boolean {
 export async function isPlatformAdmin(env: Env, token?: string | null): Promise<boolean> {
   if (hasAdminToken(env, token)) return true;
   const allow = new Set(
-    (env.ADMIN_WALLETS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+    (env.ADMIN_WALLETS || "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
   );
   if (!allow.size) return false;
   const cli = await getCliPublishToken(env, token);
   return !!(cli && cli.wallet && allow.has(cli.wallet.toLowerCase()));
 }
 
-export async function approveCliDevice(env: Env, deviceCode: string, user: UserRow): Promise<{ token: string; expiresIn: number }> {
+export async function approveCliDevice(
+  env: Env,
+  deviceCode: string,
+  user: UserRow,
+): Promise<{ token: string; expiresIn: number }> {
   const raw = await env.KV.get(`cli-device:${deviceCode}`);
   if (!raw) throw new Error("CLI 授权请求不存在或已过期");
   const { token, expiresIn } = await createCliPublishToken(env, user);
   await env.KV.put(
     `cli-device-result:${deviceCode}`,
-    JSON.stringify({ status: "approved", token, expiresIn, user: { id: user.id, wallet: user.sui_address, name: user.name } }),
+    JSON.stringify({
+      status: "approved",
+      token,
+      expiresIn,
+      user: { id: user.id, wallet: user.sui_address, name: user.name },
+    }),
     { expirationTtl: CLI_DEVICE_TTL },
   );
   return { token, expiresIn };
@@ -143,7 +175,10 @@ function tokenFrom(c: Ctx): string | null {
 }
 
 // Resolves the session (if any) into c.var.userId — never throws.
-export const authMiddleware: MiddlewareHandler<{ Bindings: Env; Variables: Variables }> = async (c, next) => {
+export const authMiddleware: MiddlewareHandler<{ Bindings: Env; Variables: Variables }> = async (
+  c,
+  next,
+) => {
   const token = tokenFrom(c);
   const userId = token ? await c.env.KV.get(`sess:${token}`) : null;
   c.set("userId", userId);
@@ -175,7 +210,11 @@ export async function getUser(env: Env, userId: string): Promise<UserRow | null>
 
 // Find-or-create a user by Sui address.
 export async function upsertWalletUser(env: Env, address: string): Promise<UserRow> {
-  const existing = await first<UserRow>(env.DB, `SELECT * FROM users WHERE sui_address = ?`, address);
+  const existing = await first<UserRow>(
+    env.DB,
+    `SELECT * FROM users WHERE sui_address = ?`,
+    address,
+  );
   if (existing) return existing;
   const uid = id("u_");
   const seal = "读";
@@ -184,7 +223,14 @@ export async function upsertWalletUser(env: Env, address: string): Promise<UserR
     env.DB,
     `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at)
      VALUES (?,?,?,?,?,?,?,0,?)`,
-    uid, address, `@${address.slice(0, 8)}`, `读者 ${short}`, "#3a4fb0", seal, "", now(),
+    uid,
+    address,
+    `@${address.slice(0, 8)}`,
+    `读者 ${short}`,
+    "#3a4fb0",
+    seal,
+    "",
+    now(),
   );
   return (await getUser(env, uid))!;
 }
@@ -195,7 +241,14 @@ export async function createGuestUser(env: Env): Promise<UserRow> {
     env.DB,
     `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at)
      VALUES (?,?,?,?,?,?,?,1,?)`,
-    uid, `guest:${uid}`, `@guest`, "访客读者", "#9a5b2e", "客", "以访客身份浏览", now(),
+    uid,
+    `guest:${uid}`,
+    `@guest`,
+    "访客读者",
+    "#9a5b2e",
+    "客",
+    "以访客身份浏览",
+    now(),
   );
   return (await getUser(env, uid))!;
 }

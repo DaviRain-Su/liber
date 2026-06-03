@@ -10,16 +10,16 @@ let inFlight = null;
 
 function seedBooks() {
   if (seedBooksCache) return seedBooksCache;
-  seedBooksCache = typeof window !== "undefined" && Array.isArray(window.BOOKS)
-    ? [...window.BOOKS]
-    : [];
+  seedBooksCache =
+    typeof window !== "undefined" && Array.isArray(window.BOOKS) ? [...window.BOOKS] : [];
   return seedBooksCache;
 }
 
 function cleanBooks(books) {
   const seen = new Set();
-  return (Array.isArray(books) ? books : [])
-    .filter((book) => book && book.id && !seen.has(book.id) && seen.add(book.id));
+  return (Array.isArray(books) ? books : []).filter(
+    (book) => book && book.id && !seen.has(book.id) && seen.add(book.id),
+  );
 }
 
 export function getCatalogBooks() {
@@ -48,10 +48,16 @@ export async function loadCatalogBooks() {
     catalogStore.setState((p) => ({ ...p, loaded: true }));
     return getCatalogBooks();
   }
-  inFlight = api.books.list()
+  inFlight = api.books
+    .list()
     .then((res) => setCatalogBooks(res?.books || [], Number(res?.total)))
-    .catch(() => { catalogStore.setState((p) => ({ ...p, loaded: true })); return getCatalogBooks(); })
-    .finally(() => { inFlight = null; });
+    .catch(() => {
+      catalogStore.setState((p) => ({ ...p, loaded: true }));
+      return getCatalogBooks();
+    })
+    .finally(() => {
+      inFlight = null;
+    });
   return inFlight;
 }
 

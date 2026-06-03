@@ -11,8 +11,22 @@ import type { Context } from "hono";
 import type { Env, Variables } from "../lib/types";
 import { bearerToken, hasAdminToken, createSession, getUser } from "../lib/auth";
 import { id, now, run, first, all } from "../lib/db";
-import { turnkeyConfigured, createSubOrgWithSuiWallet, provisionWallets, getWalletAccount, signRawPayload, getSubOrgRootUserId, createPasskeyAuthenticator, getSignRawPayloadResult } from "../lib/turnkey";
-import { suiAddressFromEd25519Pubkey, suiPersonalMessageDigestHex, suiTransactionDigestHex, assembleSuiSignature } from "../lib/turnkey-sui";
+import {
+  turnkeyConfigured,
+  createSubOrgWithSuiWallet,
+  provisionWallets,
+  getWalletAccount,
+  signRawPayload,
+  getSubOrgRootUserId,
+  createPasskeyAuthenticator,
+  getSignRawPayloadResult,
+} from "../lib/turnkey";
+import {
+  suiAddressFromEd25519Pubkey,
+  suiPersonalMessageDigestHex,
+  suiTransactionDigestHex,
+  assembleSuiSignature,
+} from "../lib/turnkey-sui";
 import { upsertTurnkeyUser, ensureTurnkeyWallet } from "../lib/turnkey-auth";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
 import { Transaction } from "@mysten/sui/transactions";
@@ -22,24 +36,63 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { relTime } from "../lib/time";
 import { walrusPublish } from "../lib/storage";
-import { evmSigningDigestHex, evmSignedRawTx, erc20TransferData, toBaseUnits, type EvmTx } from "../lib/turnkey-evm";
-import { solTransferMessage, solMessageHex, solSignedTxBase64, solParseForSigning, solInjectSignature } from "../lib/turnkey-solana";
-import { p2wpkhProgram, p2wpkhScript, bip143Sighashes, derLowS, buildSignedTx, hash160, estVsize, DUST_P2WPKH, bytesToHex as btcBytesToHex, type TxOutput, type TxInput } from "../lib/turnkey-bitcoin";
+import {
+  evmSigningDigestHex,
+  evmSignedRawTx,
+  erc20TransferData,
+  toBaseUnits,
+  type EvmTx,
+} from "../lib/turnkey-evm";
+import {
+  solTransferMessage,
+  solMessageHex,
+  solSignedTxBase64,
+  solParseForSigning,
+  solInjectSignature,
+} from "../lib/turnkey-solana";
+import {
+  p2wpkhProgram,
+  p2wpkhScript,
+  bip143Sighashes,
+  derLowS,
+  buildSignedTx,
+  hash160,
+  estVsize,
+  DUST_P2WPKH,
+  bytesToHex as btcBytesToHex,
+  type TxOutput,
+  type TxInput,
+} from "../lib/turnkey-bitcoin";
 
 const turnkey = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 type TkCtx = Context<{ Bindings: Env; Variables: Variables }>;
-interface WalletCtx { uid: string; user: any; addrs: any; suiAddress: string; subOrgId: string; walletId: string; }
+interface WalletCtx {
+  uid: string;
+  user: any;
+  addrs: any;
+  suiAddress: string;
+  subOrgId: string;
+  walletId: string;
+}
 // Resolve the signed-in reader's embedded wallet, or return a ready error Response.
 // Replaces the ~8-line uid/getUser/guest/parse-addresses/extract/validate block that
 // was repeated across every wallet action endpoint. Usage:
 //   const w = await walletCtx(c, { sui: true }); if (w instanceof Response) return w;
-async function walletCtx(c: TkCtx, opts: { sui?: boolean; walletId?: boolean } = {}): Promise<WalletCtx | Response> {
+async function walletCtx(
+  c: TkCtx,
+  opts: { sui?: boolean; walletId?: boolean } = {},
+): Promise<WalletCtx | Response> {
   const uid = c.get("userId");
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   const user: any = await getUser(c.env, uid);
   if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  let addrs: any = null;
+  try {
+    addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null;
+  } catch {
+    addrs = null;
+  }
   const suiAddress = user.turnkey_sui_address || addrs?.sui;
   const subOrgId = user.turnkey_sub_org_id;
   const walletId = user.turnkey_wallet_id;
@@ -53,7 +106,13 @@ turnkey.post("/spike", async (c) => {
   const env = c.env;
   if (!hasAdminToken(env, bearerToken(c))) return c.json({ error: "unauthorized" }, 401);
   if (!turnkeyConfigured(env)) {
-    return c.json({ error: "turnkey_not_configured", need: ["TURNKEY_ORG_ID", "TURNKEY_API_PUBLIC_KEY", "TURNKEY_API_PRIVATE_KEY (secret)"] }, 501);
+    return c.json(
+      {
+        error: "turnkey_not_configured",
+        need: ["TURNKEY_ORG_ID", "TURNKEY_API_PUBLIC_KEY", "TURNKEY_API_PRIVATE_KEY (secret)"],
+      },
+      501,
+    );
   }
 
   const debug: any = {};
@@ -61,17 +120,39 @@ turnkey.post("/spike", async (c) => {
     // 1. Create a per-user sub-organization holding a Sui (ed25519) wallet.
     const created = await createSubOrgWithSuiWallet(env, `liber-spike-${Date.now()}`);
     debug.create = created.result;
-    const r = created.result?.createSubOrganizationResultV7 || created.result?.createSubOrganizationResult || created.result || {};
+    const r =
+      created.result?.createSubOrganizationResultV7 ||
+      created.result?.createSubOrganizationResult ||
+      created.result ||
+      {};
     const subOrgId = r.subOrganizationId;
     const walletId = r.wallet?.walletId;
     const suiAddress = (r.wallet?.addresses || [])[0];
-    if (!subOrgId || !walletId || !suiAddress) return c.json({ ok: false, step: "create_sub_org", error: "missing subOrgId/walletId/address — check field names", debug }, 502);
+    if (!subOrgId || !walletId || !suiAddress)
+      return c.json(
+        {
+          ok: false,
+          step: "create_sub_org",
+          error: "missing subOrgId/walletId/address — check field names",
+          debug,
+        },
+        502,
+      );
 
     // 2. Fetch the wallet account to get its raw ed25519 public key (needed to assemble).
     const acct = await getWalletAccount(env, subOrgId, walletId, suiAddress);
     debug.account = acct;
     const pubkeyHex = acct?.account?.publicKey || acct?.publicKey;
-    if (!pubkeyHex) return c.json({ ok: false, step: "get_wallet_account", error: "missing publicKey — check field names", debug }, 502);
+    if (!pubkeyHex)
+      return c.json(
+        {
+          ok: false,
+          step: "get_wallet_account",
+          error: "missing publicKey — check field names",
+          debug,
+        },
+        502,
+      );
     const derivedAddr = suiAddressFromEd25519Pubkey(pubkeyHex);
 
     // 3. Build a Sui login challenge, compute its digest, sign it via Turnkey.
@@ -80,16 +161,27 @@ turnkey.post("/spike", async (c) => {
     const signed = await signRawPayload(env, subOrgId, suiAddress, digestHex);
     debug.sign = signed.result;
     const sr = signed.result?.signRawPayloadResult || signed.result || {};
-    if (!sr.r || !sr.s) return c.json({ ok: false, step: "sign_raw_payload", error: "missing r/s — check field names", debug }, 502);
+    if (!sr.r || !sr.s)
+      return c.json(
+        { ok: false, step: "sign_raw_payload", error: "missing r/s — check field names", debug },
+        502,
+      );
 
     // 4. Assemble Sui's serialized signature and verify it with Liber's own verifier.
     const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
-    const recovered = await verifyPersonalMessageSignature(new TextEncoder().encode(challenge), signature);
+    const recovered = await verifyPersonalMessageSignature(
+      new TextEncoder().encode(challenge),
+      signature,
+    );
     const recoveredAddr = recovered.toSuiAddress();
 
     // 5. Bridge to a Liber account: find/create the user, link the sub-org, mint a
     // Liber session (proves the Phase 0 foundation: Turnkey sub-org → Liber session).
-    const { user, isNew } = await upsertTurnkeyUser(env, { identityKey: suiAddress, subOrgId, suiAddress });
+    const { user, isNew } = await upsertTurnkeyUser(env, {
+      identityKey: suiAddress,
+      subOrgId,
+      suiAddress,
+    });
     const liberToken = await createSession(env, user.id);
 
     return c.json({
@@ -138,13 +230,30 @@ turnkey.post("/ensure-test", async (c) => {
   await run(
     env.DB,
     `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
-    uid, identityKey, `@${uid}`, "Turnkey 测试用户", "#2e7d57", "测", "", now(),
+    uid,
+    identityKey,
+    `@${uid}`,
+    "Turnkey 测试用户",
+    "#2e7d57",
+    "测",
+    "",
+    now(),
   );
   try {
     const user = await getUser(env, uid);
     const res = await ensureTurnkeyWallet(env, user!);
-    const after = await first<any>(env.DB, `SELECT turnkey_sub_org_id, turnkey_wallet_id, turnkey_addresses FROM users WHERE id = ?`, uid);
-    return c.json({ ok: true, identityKey, provisioned: !!res, wallets: res?.addresses ?? null, linked: after });
+    const after = await first<any>(
+      env.DB,
+      `SELECT turnkey_sub_org_id, turnkey_wallet_id, turnkey_addresses FROM users WHERE id = ?`,
+      uid,
+    );
+    return c.json({
+      ok: true,
+      identityKey,
+      provisioned: !!res,
+      wallets: res?.addresses ?? null,
+      linked: after,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
@@ -174,14 +283,39 @@ turnkey.post("/sui-transfer-test", async (c) => {
   if (!hasAdminToken(env, bearerToken(c))) return c.json({ error: "unauthorized" }, 401);
   if (!turnkeyConfigured(env)) return c.json({ error: "turnkey_not_configured" }, 501);
   const body: any = await c.req.json().catch(() => ({}));
-  const subOrgId = String(body?.subOrgId || ""), walletId = String(body?.walletId || ""), suiAddress = String(body?.suiAddress || "");
-  if (!subOrgId || !walletId || !suiAddress) return c.json({ ok: false, error: "need subOrgId, walletId, suiAddress (from /provision; fund the suiAddress on testnet first)" }, 400);
+  const subOrgId = String(body?.subOrgId || ""),
+    walletId = String(body?.walletId || ""),
+    suiAddress = String(body?.suiAddress || "");
+  if (!subOrgId || !walletId || !suiAddress)
+    return c.json(
+      {
+        ok: false,
+        error:
+          "need subOrgId, walletId, suiAddress (from /provision; fund the suiAddress on testnet first)",
+      },
+      400,
+    );
   try {
     const url = (body?.rpc && String(body.rpc)) || env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
-    const network = /devnet/.test(url) ? "devnet" : /mainnet/.test(url) ? "mainnet" : /localnet|127\.0\.0\.1|localhost/.test(url) ? "localnet" : "testnet";
+    const network = /devnet/.test(url)
+      ? "devnet"
+      : /mainnet/.test(url)
+        ? "mainnet"
+        : /localnet|127\.0\.0\.1|localhost/.test(url)
+          ? "localnet"
+          : "testnet";
     const client = new SuiJsonRpcClient({ url, network: network as any });
     const coins = await client.getCoins({ owner: suiAddress });
-    if (!coins.data?.length) return c.json({ ok: false, step: "gas", error: "address has no SUI on testnet — fund it first", suiAddress }, 400);
+    if (!coins.data?.length)
+      return c.json(
+        {
+          ok: false,
+          step: "gas",
+          error: "address has no SUI on testnet — fund it first",
+          suiAddress,
+        },
+        400,
+      );
 
     const recipient = (body?.to && String(body.to)) || suiAddress;
     const tx = new Transaction();
@@ -197,11 +331,24 @@ turnkey.post("/sui-transfer-test", async (c) => {
     const digestHex = suiTransactionDigestHex(bytes);
     const signed = await signRawPayload(env, subOrgId, suiAddress, digestHex);
     const sr = signed.result?.signRawPayloadResult || signed.result || {};
-    if (!sr.r || !sr.s) return c.json({ ok: false, step: "sign", debug: { sign: signed.result } }, 502);
+    if (!sr.r || !sr.s)
+      return c.json({ ok: false, step: "sign", debug: { sign: signed.result } }, 502);
     const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
 
-    const res = await client.executeTransactionBlock({ transactionBlock: bytes, signature, options: { showEffects: true } });
-    return c.json({ ok: true, network, suiAddress, recipient, digest: res.digest, status: res.effects?.status?.status, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
+    const res = await client.executeTransactionBlock({
+      transactionBlock: bytes,
+      signature,
+      options: { showEffects: true },
+    });
+    return c.json({
+      ok: true,
+      network,
+      suiAddress,
+      recipient,
+      digest: res.digest,
+      status: res.effects?.status?.status,
+      explorer: `https://suiscan.xyz/${network}/tx/${res.digest}`,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
@@ -224,24 +371,39 @@ turnkey.post("/sign-test", async (c) => {
     {
       const addr = p.addresses.ethereum!;
       const digestHex = toHex(keccak_256(enc.encode("Liber Turnkey EVM test")));
-      const sr = (await signRawPayload(env, p.subOrgId, addr, digestHex, "HASH_FUNCTION_NO_OP")).result?.signRawPayloadResult || {};
+      const sr =
+        (await signRawPayload(env, p.subOrgId, addr, digestHex, "HASH_FUNCTION_NO_OP")).result
+          ?.signRawPayloadResult || {};
       const recovered = evmAddressFromSignature(digestHex, sr.r, sr.s, Number(sr.v ?? 0));
-      results.ethereum = { address: addr, recovered, valid: recovered.toLowerCase() === addr.toLowerCase() };
+      results.ethereum = {
+        address: addr,
+        recovered,
+        valid: recovered.toLowerCase() === addr.toLowerCase(),
+      };
     }
     // Solana (ed25519, verify signature over the message against the account pubkey).
     {
       const addr = p.addresses.solana!;
-      const pubkeyHex = (await getWalletAccount(env, p.subOrgId, p.walletId, addr))?.account?.publicKey;
+      const pubkeyHex = (await getWalletAccount(env, p.subOrgId, p.walletId, addr))?.account
+        ?.publicKey;
       const msgHex = toHex(enc.encode("Liber Turnkey SOL test"));
-      const sr = (await signRawPayload(env, p.subOrgId, addr, msgHex, "HASH_FUNCTION_NOT_APPLICABLE")).result?.signRawPayloadResult || {};
-      results.solana = { address: addr, valid: verifyEd25519(msgHex, (sr.r || "") + (sr.s || ""), pubkeyHex) };
+      const sr =
+        (await signRawPayload(env, p.subOrgId, addr, msgHex, "HASH_FUNCTION_NOT_APPLICABLE")).result
+          ?.signRawPayloadResult || {};
+      results.solana = {
+        address: addr,
+        valid: verifyEd25519(msgHex, (sr.r || "") + (sr.s || ""), pubkeyHex),
+      };
     }
     // Bitcoin (secp256k1, sha256 digest → ECDSA verify against the account pubkey).
     {
       const addr = p.addresses.bitcoin!;
-      const pubkeyHex = (await getWalletAccount(env, p.subOrgId, p.walletId, addr))?.account?.publicKey;
+      const pubkeyHex = (await getWalletAccount(env, p.subOrgId, p.walletId, addr))?.account
+        ?.publicKey;
       const digestHex = toHex(sha256(enc.encode("Liber Turnkey BTC test")));
-      const sr = (await signRawPayload(env, p.subOrgId, addr, digestHex, "HASH_FUNCTION_NO_OP")).result?.signRawPayloadResult || {};
+      const sr =
+        (await signRawPayload(env, p.subOrgId, addr, digestHex, "HASH_FUNCTION_NO_OP")).result
+          ?.signRawPayloadResult || {};
       results.bitcoin = { address: addr, valid: verifySecp256k1(digestHex, sr.r, sr.s, pubkeyHex) };
     }
     return c.json({ ok: true, subOrgId: p.subOrgId, results });
@@ -257,35 +419,145 @@ turnkey.get("/balances", async (c) => {
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   const user: any = await getUser(c.env, uid);
   let tk: any = null;
-  try { tk = user?.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { tk = null; }
+  try {
+    tk = user?.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null;
+  } catch {
+    tk = null;
+  }
   if (!tk) return c.json({ ok: true, tokens: [], total: 0 });
 
   const jrpc = async (url: string, method: string, params: any[]) => {
-    const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
-    const j: any = await r.json(); if (j.error) throw new Error(j.error.message); return j.result;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    });
+    const j: any = await r.json();
+    if (j.error) throw new Error(j.error.message);
+    return j.result;
   };
-  const suiBal = async (a: string) => { try { const cl = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("mainnet"), network: "mainnet" as any }); const b: any = await cl.getBalance({ owner: a }); return Number(b.totalBalance) / 1e9; } catch { return null; } };
-  const evmBal = async (a: string) => { try { const r = await jrpc("https://ethereum-rpc.publicnode.com", "eth_getBalance", [a, "latest"]); return r ? parseInt(r, 16) / 1e18 : null; } catch { return null; } };
+  const suiBal = async (a: string) => {
+    try {
+      const cl = new SuiJsonRpcClient({
+        url: getJsonRpcFullnodeUrl("mainnet"),
+        network: "mainnet" as any,
+      });
+      const b: any = await cl.getBalance({ owner: a });
+      return Number(b.totalBalance) / 1e9;
+    } catch {
+      return null;
+    }
+  };
+  const evmBal = async (a: string) => {
+    try {
+      const r = await jrpc("https://ethereum-rpc.publicnode.com", "eth_getBalance", [a, "latest"]);
+      return r ? parseInt(r, 16) / 1e18 : null;
+    } catch {
+      return null;
+    }
+  };
   // USDC (ERC-20) balanceOf on mainnet: 0x70a08231 + 32-byte address.
-  const usdcBal = async (a: string) => { try { const data = "0x70a08231" + a.replace(/^0x/, "").toLowerCase().padStart(64, "0"); const r = await jrpc("https://ethereum-rpc.publicnode.com", "eth_call", [{ to: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", data }, "latest"]); return r && r !== "0x" ? parseInt(r, 16) / 1e6 : null; } catch { return null; } };
-  const solBal = async (a: string) => { try { const r: any = await jrpc("https://api.mainnet-beta.solana.com", "getBalance", [a]); return r ? Number(r.value) / 1e9 : null; } catch { return null; } };
-  const btcBal = async (a: string) => { try { const r = await fetch(`https://blockstream.info/api/address/${a}`); const j: any = await r.json(); const s = j.chain_stats; return s ? (Number(s.funded_txo_sum) - Number(s.spent_txo_sum)) / 1e8 : null; } catch { return null; } };
+  const usdcBal = async (a: string) => {
+    try {
+      const data = "0x70a08231" + a.replace(/^0x/, "").toLowerCase().padStart(64, "0");
+      const r = await jrpc("https://ethereum-rpc.publicnode.com", "eth_call", [
+        { to: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", data },
+        "latest",
+      ]);
+      return r && r !== "0x" ? parseInt(r, 16) / 1e6 : null;
+    } catch {
+      return null;
+    }
+  };
+  const solBal = async (a: string) => {
+    try {
+      const r: any = await jrpc("https://api.mainnet-beta.solana.com", "getBalance", [a]);
+      return r ? Number(r.value) / 1e9 : null;
+    } catch {
+      return null;
+    }
+  };
+  const btcBal = async (a: string) => {
+    try {
+      const r = await fetch(`https://blockstream.info/api/address/${a}`);
+      const j: any = await r.json();
+      const s = j.chain_stats;
+      return s ? (Number(s.funded_txo_sum) - Number(s.spent_txo_sum)) / 1e8 : null;
+    } catch {
+      return null;
+    }
+  };
 
-  const [btc, eth, sol, sui, usdc] = await Promise.all([btcBal(tk.bitcoin), evmBal(tk.ethereum), solBal(tk.solana), suiBal(tk.sui), tk.ethereum ? usdcBal(tk.ethereum) : Promise.resolve(null)]);
+  const [btc, eth, sol, sui, usdc] = await Promise.all([
+    btcBal(tk.bitcoin),
+    evmBal(tk.ethereum),
+    solBal(tk.solana),
+    suiBal(tk.sui),
+    tk.ethereum ? usdcBal(tk.ethereum) : Promise.resolve(null),
+  ]);
   let prices: any = {};
-  try { const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,sui,usd-coin&vs_currencies=usd"); prices = await r.json(); } catch { prices = {}; }
+  try {
+    const r = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,sui,usd-coin&vs_currencies=usd",
+    );
+    prices = await r.json();
+  } catch {
+    prices = {};
+  }
 
   const META = [
-    { key: "bitcoin", sym: "BTC", chain: "Bitcoin", cls: "btc", cg: "bitcoin", amt: btc, addr: tk.bitcoin },
-    { key: "ethereum", sym: "ETH", chain: "Ethereum", cls: "eth", cg: "ethereum", amt: eth, addr: tk.ethereum },
-    { key: "usdc", sym: "USDC", chain: "Ethereum", cls: "usdc", cg: "usd-coin", amt: usdc, addr: tk.ethereum },
-    { key: "solana", sym: "SOL", chain: "Solana", cls: "sol", cg: "solana", amt: sol, addr: tk.solana },
+    {
+      key: "bitcoin",
+      sym: "BTC",
+      chain: "Bitcoin",
+      cls: "btc",
+      cg: "bitcoin",
+      amt: btc,
+      addr: tk.bitcoin,
+    },
+    {
+      key: "ethereum",
+      sym: "ETH",
+      chain: "Ethereum",
+      cls: "eth",
+      cg: "ethereum",
+      amt: eth,
+      addr: tk.ethereum,
+    },
+    {
+      key: "usdc",
+      sym: "USDC",
+      chain: "Ethereum",
+      cls: "usdc",
+      cg: "usd-coin",
+      amt: usdc,
+      addr: tk.ethereum,
+    },
+    {
+      key: "solana",
+      sym: "SOL",
+      chain: "Solana",
+      cls: "sol",
+      cg: "solana",
+      amt: sol,
+      addr: tk.solana,
+    },
     { key: "sui", sym: "SUI", chain: "Sui", cls: "sui", cg: "sui", amt: sui, addr: tk.sui },
   ];
   const tokens = META.map((m) => {
     const price = prices?.[m.cg]?.usd ?? null;
     const value = m.amt != null && price != null ? m.amt * price : m.amt != null ? 0 : null;
-    return { sym: m.sym, name: m.sym === "USDC" ? "USD Coin" : m.chain, chain: m.chain, cls: m.cls, glyph: { BTC: "₿", ETH: "Ξ", SOL: "◎", SUI: "S", USDC: "$" }[m.sym], amt: m.amt, price, value, address: m.addr };
+    return {
+      sym: m.sym,
+      name: m.sym === "USDC" ? "USD Coin" : m.chain,
+      chain: m.chain,
+      cls: m.cls,
+      glyph: { BTC: "₿", ETH: "Ξ", SOL: "◎", SUI: "S", USDC: "$" }[m.sym],
+      amt: m.amt,
+      price,
+      value,
+      address: m.addr,
+    };
   });
   const total = tokens.reduce((s, t) => s + (t.value || 0), 0);
   return c.json({ ok: true, tokens, total });
@@ -309,7 +581,13 @@ turnkey.post("/passkey/enroll", async (c) => {
     let rootUserId = user.turnkey_root_user_id;
     if (!rootUserId) {
       rootUserId = await getSubOrgRootUserId(c.env, user.turnkey_sub_org_id);
-      if (rootUserId) await run(c.env.DB, `UPDATE users SET turnkey_root_user_id = ? WHERE id = ?`, rootUserId, uid);
+      if (rootUserId)
+        await run(
+          c.env.DB,
+          `UPDATE users SET turnkey_root_user_id = ? WHERE id = ?`,
+          rootUserId,
+          uid,
+        );
     }
     if (!rootUserId) return c.json({ ok: false, error: "no_root_user" }, 502);
     await createPasskeyAuthenticator(c.env, user.turnkey_sub_org_id, rootUserId, {
@@ -319,7 +597,10 @@ turnkey.post("/passkey/enroll", async (c) => {
         credentialId: att.credentialId,
         clientDataJson: att.clientDataJson,
         attestationObject: att.attestationObject,
-        transports: Array.isArray(att.transports) && att.transports.length ? att.transports : ["AUTHENTICATOR_TRANSPORT_INTERNAL"],
+        transports:
+          Array.isArray(att.transports) && att.transports.length
+            ? att.transports
+            : ["AUTHENTICATOR_TRANSPORT_INTERNAL"],
       },
     });
     await run(c.env.DB, `UPDATE users SET turnkey_passkey_at = ? WHERE id = ?`, now(), uid);
@@ -336,7 +617,13 @@ turnkey.post("/passkey/enroll", async (c) => {
 // the user-signed result and broadcasts it. Sui rejects any tx whose bytes don't
 // match the signed digest, so a tampered broadcast can't succeed.
 function suiNetworkOf(url: string): string {
-  return /devnet/.test(url) ? "devnet" : /testnet/.test(url) ? "testnet" : /localnet|127\.0\.0\.1|localhost/.test(url) ? "localnet" : "mainnet";
+  return /devnet/.test(url)
+    ? "devnet"
+    : /testnet/.test(url)
+      ? "testnet"
+      : /localnet|127\.0\.0\.1|localhost/.test(url)
+        ? "localnet"
+        : "mainnet";
 }
 function b64encode(bytes: Uint8Array): string {
   let bin = "";
@@ -353,14 +640,22 @@ turnkey.post("/sui/prepare", async (c) => {
   const body: any = await c.req.json().catch(() => ({}));
   const to = String(body?.to || "").trim();
   const amount = Number(body?.amount);
-  if (!/^0x[0-9a-fA-F]{1,64}$/.test(to)) return c.json({ ok: false, error: "bad_recipient", message: "请填写有效的 Sui 地址（0x…）" }, 400);
+  if (!/^0x[0-9a-fA-F]{1,64}$/.test(to))
+    return c.json(
+      { ok: false, error: "bad_recipient", message: "请填写有效的 Sui 地址（0x…）" },
+      400,
+    );
   if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
   try {
     const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("mainnet");
     const network = suiNetworkOf(url);
     const client = new SuiJsonRpcClient({ url, network: network as any });
     const coins = await client.getCoins({ owner: suiAddress });
-    if (!coins.data?.length) return c.json({ ok: false, error: "no_gas", message: "该 Sui 地址暂无余额，无法支付转账与矿工费" }, 400);
+    if (!coins.data?.length)
+      return c.json(
+        { ok: false, error: "no_gas", message: "该 Sui 地址暂无余额，无法支付转账与矿工费" },
+        400,
+      );
 
     const mist = BigInt(Math.round(amount * 1e9));
     const tx = new Transaction();
@@ -370,7 +665,14 @@ turnkey.post("/sui/prepare", async (c) => {
     tx.transferObjects([coin], to);
     const bytes = await tx.build({ client });
     const digestHex = suiTransactionDigestHex(bytes);
-    return c.json({ ok: true, txBytesB64: b64encode(bytes), digestHex, signWith: suiAddress, organizationId: subOrgId, network });
+    return c.json({
+      ok: true,
+      txBytesB64: b64encode(bytes),
+      digestHex,
+      signWith: suiAddress,
+      organizationId: subOrgId,
+      network,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
@@ -388,8 +690,13 @@ turnkey.post("/sui/broadcast", async (c) => {
   if (!txBytesB64 || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
   try {
     const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
-    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
-    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account?.publicKey;
+    if (!sr)
+      return c.json(
+        { ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" },
+        502,
+      );
+    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account
+      ?.publicKey;
     if (!pubkeyHex) return c.json({ ok: false, error: "no_pubkey" }, 502);
     const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
     const bytes = Uint8Array.from(atob(txBytesB64), (ch) => ch.charCodeAt(0));
@@ -397,8 +704,18 @@ turnkey.post("/sui/broadcast", async (c) => {
     const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("mainnet");
     const network = suiNetworkOf(url);
     const client = new SuiJsonRpcClient({ url, network: network as any });
-    const res = await client.executeTransactionBlock({ transactionBlock: bytes, signature, options: { showEffects: true } });
-    return c.json({ ok: true, digest: res.digest, status: res.effects?.status?.status, network, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
+    const res = await client.executeTransactionBlock({
+      transactionBlock: bytes,
+      signature,
+      options: { showEffects: true },
+    });
+    return c.json({
+      ok: true,
+      digest: res.digest,
+      status: res.effects?.status?.status,
+      network,
+      explorer: `https://suiscan.xyz/${network}/tx/${res.digest}`,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
@@ -410,9 +727,15 @@ turnkey.post("/sui/broadcast", async (c) => {
 // signed raw tx. The signature binds to the exact tx fields, so a tampered broadcast
 // recovers a different signer and is rejected by the network.
 const USDC_MAINNET = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"; // 6 decimals
-function evmRpcUrl(env: Env): string { return (env as any).EVM_RPC || "https://ethereum-rpc.publicnode.com"; }
+function evmRpcUrl(env: Env): string {
+  return (env as any).EVM_RPC || "https://ethereum-rpc.publicnode.com";
+}
 async function ethCall(url: string, method: string, params: any[]): Promise<any> {
-  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+  });
   const j: any = await r.json();
   if (j.error) throw new Error(j.error.message || "rpc error");
   return j.result;
@@ -430,7 +753,11 @@ turnkey.post("/evm/prepare", async (c) => {
   const to = String(body?.to || "").trim();
   const amount = Number(body?.amount);
   const sym = String(body?.token || "ETH").toUpperCase();
-  if (!/^0x[0-9a-fA-F]{40}$/.test(to)) return c.json({ ok: false, error: "bad_recipient", message: "请填写有效的以太坊地址（0x… 40 位）" }, 400);
+  if (!/^0x[0-9a-fA-F]{40}$/.test(to))
+    return c.json(
+      { ok: false, error: "bad_recipient", message: "请填写有效的以太坊地址（0x… 40 位）" },
+      400,
+    );
   if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
   if (sym !== "ETH" && sym !== "USDC") return c.json({ ok: false, error: "bad_token" }, 400);
   try {
@@ -442,18 +769,51 @@ turnkey.post("/evm/prepare", async (c) => {
     let txTo: string, value: bigint, data: string, gas: bigint;
     if (sym === "USDC") {
       const amt = toBaseUnits(amount, 6);
-      txTo = USDC_MAINNET; value = 0n; data = erc20TransferData(to, amt);
-      try { gas = (hexBig(await ethCall(url, "eth_estimateGas", [{ from, to: txTo, data }])) * 12n) / 10n; } catch { gas = 100000n; }
+      txTo = USDC_MAINNET;
+      value = 0n;
+      data = erc20TransferData(to, amt);
+      try {
+        gas =
+          (hexBig(await ethCall(url, "eth_estimateGas", [{ from, to: txTo, data }])) * 12n) / 10n;
+      } catch {
+        gas = 100000n;
+      }
     } else {
-      txTo = to; value = toBaseUnits(amount, 18); data = ""; gas = 21000n;
+      txTo = to;
+      value = toBaseUnits(amount, 18);
+      data = "";
+      gas = 21000n;
     }
     const ethBal = hexBig(await ethCall(url, "eth_getBalance", [from, "latest"]));
     const maxCost = (sym === "USDC" ? 0n : value) + gasPrice * gas;
-    if (ethBal < maxCost) return c.json({ ok: false, error: "no_gas", message: "以太坊地址的 ETH 不足以支付" + (sym === "USDC" ? "矿工费" : "转账与矿工费") }, 400);
+    if (ethBal < maxCost)
+      return c.json(
+        {
+          ok: false,
+          error: "no_gas",
+          message: "以太坊地址的 ETH 不足以支付" + (sym === "USDC" ? "矿工费" : "转账与矿工费"),
+        },
+        400,
+      );
 
-    const tx: EvmTx = { nonce: nonce.toString(), gasPrice: gasPrice.toString(), gas: gas.toString(), to: txTo, value: value.toString(), data, chainId };
+    const tx: EvmTx = {
+      nonce: nonce.toString(),
+      gasPrice: gasPrice.toString(),
+      gas: gas.toString(),
+      to: txTo,
+      value: value.toString(),
+      data,
+      chainId,
+    };
     const digestHex = evmSigningDigestHex(tx);
-    return c.json({ ok: true, digestHex, signWith: from, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NO_OP", tx });
+    return c.json({
+      ok: true,
+      digestHex,
+      signWith: from,
+      organizationId: subOrgId,
+      hashFunction: "HASH_FUNCTION_NO_OP",
+      tx,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
@@ -470,11 +830,21 @@ turnkey.post("/evm/broadcast", async (c) => {
   if (!tx || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
   try {
     const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
-    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    if (!sr)
+      return c.json(
+        { ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" },
+        502,
+      );
     const raw = evmSignedRawTx(tx, sr.r, sr.s, Number(sr.v ?? 0));
     const url = evmRpcUrl(c.env);
     const hash = await ethCall(url, "eth_sendRawTransaction", [raw]);
-    return c.json({ ok: true, digest: hash, status: "success", network: "ethereum", explorer: `https://etherscan.io/tx/${hash}` });
+    return c.json({
+      ok: true,
+      digest: hash,
+      status: "success",
+      network: "ethereum",
+      explorer: `https://etherscan.io/tx/${hash}`,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
@@ -485,12 +855,20 @@ turnkey.post("/evm/broadcast", async (c) => {
 // the whole message (NOT_APPLICABLE) and r||s is the 64-byte signature.
 const SOL_RPC = "https://api.mainnet-beta.solana.com";
 async function solRpc(method: string, params: any[]): Promise<any> {
-  const r = await fetch(SOL_RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  const r = await fetch(SOL_RPC, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+  });
   const jj: any = await r.json();
   if (jj.error) throw new Error(jj.error.message || "sol rpc error");
   return jj.result;
 }
-function hexToBytesLocal(h: string): Uint8Array { const a = new Uint8Array(h.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16); return a; }
+function hexToBytesLocal(h: string): Uint8Array {
+  const a = new Uint8Array(h.length / 2);
+  for (let i = 0; i < a.length; i++) a[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+  return a;
+}
 
 turnkey.post("/sol/prepare", async (c) => {
   const w = await walletCtx(c);
@@ -501,18 +879,30 @@ turnkey.post("/sol/prepare", async (c) => {
   const body: any = await c.req.json().catch(() => ({}));
   const to = String(body?.to || "").trim();
   const amount = Number(body?.amount);
-  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(to)) return c.json({ ok: false, error: "bad_recipient", message: "请填写有效的 Solana 地址" }, 400);
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(to))
+    return c.json({ ok: false, error: "bad_recipient", message: "请填写有效的 Solana 地址" }, 400);
   if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
   try {
     const lamports = BigInt(Math.round(amount * 1e9));
     const bal: any = await solRpc("getBalance", [from]);
     const have = BigInt(bal?.value ?? 0);
-    if (have < lamports + 5000n) return c.json({ ok: false, error: "no_gas", message: "Solana 余额不足以支付转账与手续费" }, 400);
+    if (have < lamports + 5000n)
+      return c.json(
+        { ok: false, error: "no_gas", message: "Solana 余额不足以支付转账与手续费" },
+        400,
+      );
     const bh: any = await solRpc("getLatestBlockhash", [{ commitment: "finalized" }]);
     const blockhash = bh?.value?.blockhash;
     if (!blockhash) return c.json({ ok: false, error: "no_blockhash" }, 502);
     const msg = solTransferMessage(from, to, lamports, blockhash);
-    return c.json({ ok: true, digestHex: solMessageHex(msg), signWith: from, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", sol: { messageHex: solMessageHex(msg) } });
+    return c.json({
+      ok: true,
+      digestHex: solMessageHex(msg),
+      signWith: from,
+      organizationId: subOrgId,
+      hashFunction: "HASH_FUNCTION_NOT_APPLICABLE",
+      sol: { messageHex: solMessageHex(msg) },
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
@@ -528,10 +918,23 @@ turnkey.post("/sol/broadcast", async (c) => {
   if (!messageHex || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
   try {
     const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
-    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    if (!sr)
+      return c.json(
+        { ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" },
+        502,
+      );
     const txB64 = solSignedTxBase64(hexToBytesLocal(messageHex), sr.r + sr.s);
-    const sig = await solRpc("sendTransaction", [txB64, { encoding: "base64", preflightCommitment: "confirmed" }]);
-    return c.json({ ok: true, digest: sig, status: "success", network: "solana", explorer: `https://solscan.io/tx/${sig}` });
+    const sig = await solRpc("sendTransaction", [
+      txB64,
+      { encoding: "base64", preflightCommitment: "confirmed" },
+    ]);
+    return c.json({
+      ok: true,
+      digest: sig,
+      status: "success",
+      network: "solana",
+      explorer: `https://solscan.io/tx/${sig}`,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
@@ -551,18 +954,38 @@ turnkey.post("/btc/prepare", async (c) => {
   const body: any = await c.req.json().catch(() => ({}));
   const to = String(body?.to || "").trim();
   const amount = Number(body?.amount);
-  if (!/^bc1q[02-9ac-hj-np-z]{38,58}$/.test(to)) return c.json({ ok: false, error: "bad_recipient", message: "仅支持原生隔离见证地址（bc1q…）" }, 400);
+  if (!/^bc1q[02-9ac-hj-np-z]{38,58}$/.test(to))
+    return c.json(
+      { ok: false, error: "bad_recipient", message: "仅支持原生隔离见证地址（bc1q…）" },
+      400,
+    );
   if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
   try {
     const amountSats = BigInt(Math.round(amount * 1e8));
     const utxos: any[] = await (await fetch(`${BTC_API}/address/${from}/utxo`)).json();
-    const confirmed = (utxos || []).filter((u) => u?.status?.confirmed).sort((a, b) => a.value - b.value);
-    if (!confirmed.length) return c.json({ ok: false, error: "no_utxo", message: "该比特币地址暂无已确认余额" }, 400);
+    const confirmed = (utxos || [])
+      .filter((u) => u?.status?.confirmed)
+      .sort((a, b) => a.value - b.value);
+    if (!confirmed.length)
+      return c.json({ ok: false, error: "no_utxo", message: "该比特币地址暂无已确认余额" }, 400);
     let feeRate = 8;
-    try { const fe: any = await (await fetch(`${BTC_API}/fee-estimates`)).json(); feeRate = Math.max(2, Math.ceil(fe["6"] || fe["3"] || fe["1"] || 8)); } catch { /* fallback */ }
+    try {
+      const fe: any = await (await fetch(`${BTC_API}/fee-estimates`)).json();
+      feeRate = Math.max(2, Math.ceil(fe["6"] || fe["3"] || fe["1"] || 8));
+    } catch {
+      /* fallback */
+    }
     const fee2 = BigInt(feeRate * estVsize(2));
     const utxo = confirmed.find((u) => BigInt(u.value) >= amountSats + fee2);
-    if (!utxo) return c.json({ ok: false, error: "no_single_utxo", message: "没有单个 UTXO 能覆盖该金额（暂不支持合并多个 UTXO），可减小金额" }, 400);
+    if (!utxo)
+      return c.json(
+        {
+          ok: false,
+          error: "no_single_utxo",
+          message: "没有单个 UTXO 能覆盖该金额（暂不支持合并多个 UTXO），可减小金额",
+        },
+        400,
+      );
 
     const inVal = BigInt(utxo.value);
     const ownProgram = p2wpkhProgram(from);
@@ -570,9 +993,14 @@ turnkey.post("/btc/prepare", async (c) => {
     let change = inVal - amountSats - fee2;
     const outputs: TxOutput[] = [{ script: recScript, value: amountSats }];
     if (change >= DUST_P2WPKH) outputs.push({ script: p2wpkhScript(ownProgram), value: change });
-    else { // fold dust change into fee; recompute against the 1-output fee floor
+    else {
+      // fold dust change into fee; recompute against the 1-output fee floor
       const fee1 = BigInt(feeRate * estVsize(1));
-      if (inVal < amountSats + fee1) return c.json({ ok: false, error: "insufficient", message: "余额不足以覆盖金额与矿工费" }, 400);
+      if (inVal < amountSats + fee1)
+        return c.json(
+          { ok: false, error: "insufficient", message: "余额不足以覆盖金额与矿工费" },
+          400,
+        );
     }
     const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, from))?.account?.publicKey;
     if (!pubkeyHex) return c.json({ ok: false, error: "no_pubkey" }, 502);
@@ -580,8 +1008,22 @@ turnkey.post("/btc/prepare", async (c) => {
     const input = { txid: utxo.txid, vout: utxo.vout, sequence: 0xffffffff };
     const sighash = bip143Sighashes([{ ...input, amount: inVal, pubkeyHash }], outputs, 2, 0)[0];
     return c.json({
-      ok: true, digestHex: sighash, signWith: from, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NO_OP",
-      btc: { input, outputs: outputs.map((o) => ({ scriptHex: btcBytesToHex(o.script), value: o.value.toString() })), pubkeyHex, version: 2, locktime: 0, feeRate },
+      ok: true,
+      digestHex: sighash,
+      signWith: from,
+      organizationId: subOrgId,
+      hashFunction: "HASH_FUNCTION_NO_OP",
+      btc: {
+        input,
+        outputs: outputs.map((o) => ({
+          scriptHex: btcBytesToHex(o.script),
+          value: o.value.toString(),
+        })),
+        pubkeyHex,
+        version: 2,
+        locktime: 0,
+        feeRate,
+      },
     });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
@@ -593,20 +1035,52 @@ turnkey.post("/btc/broadcast", async (c) => {
   if (w instanceof Response) return w;
   const { subOrgId } = w;
   const body: any = await c.req.json().catch(() => ({}));
-  const btc = body?.btc; const activityId = String(body?.activityId || "");
-  if (!btc?.input || !btc?.outputs || !btc?.pubkeyHex || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  const btc = body?.btc;
+  const activityId = String(body?.activityId || "");
+  if (!btc?.input || !btc?.outputs || !btc?.pubkeyHex || !activityId)
+    return c.json({ ok: false, error: "bad_request" }, 400);
   try {
     const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
-    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    if (!sr)
+      return c.json(
+        { ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" },
+        502,
+      );
     const der = derLowS(sr.r, sr.s);
-    const witnessSig = new Uint8Array(der.length + 1); witnessSig.set(der, 0); witnessSig[der.length] = 0x01; // SIGHASH_ALL
-    const outputs: TxOutput[] = btc.outputs.map((o: any) => ({ script: hexToBytesLocal(o.scriptHex), value: BigInt(o.value) }));
-    const input: TxInput = { txid: btc.input.txid, vout: btc.input.vout, sequence: btc.input.sequence >>> 0 };
-    const rawHex = buildSignedTx([input], outputs, [[witnessSig, hexToBytesLocal(btc.pubkeyHex)]], btc.version || 2, btc.locktime || 0);
-    const res = await fetch(`${BTC_API}/tx`, { method: "POST", headers: { "content-type": "text/plain" }, body: rawHex });
+    const witnessSig = new Uint8Array(der.length + 1);
+    witnessSig.set(der, 0);
+    witnessSig[der.length] = 0x01; // SIGHASH_ALL
+    const outputs: TxOutput[] = btc.outputs.map((o: any) => ({
+      script: hexToBytesLocal(o.scriptHex),
+      value: BigInt(o.value),
+    }));
+    const input: TxInput = {
+      txid: btc.input.txid,
+      vout: btc.input.vout,
+      sequence: btc.input.sequence >>> 0,
+    };
+    const rawHex = buildSignedTx(
+      [input],
+      outputs,
+      [[witnessSig, hexToBytesLocal(btc.pubkeyHex)]],
+      btc.version || 2,
+      btc.locktime || 0,
+    );
+    const res = await fetch(`${BTC_API}/tx`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: rawHex,
+    });
     const txt = await res.text();
-    if (!res.ok) return c.json({ ok: false, error: "broadcast_rejected", message: txt.slice(0, 200) }, 502);
-    return c.json({ ok: true, digest: txt, status: "success", network: "bitcoin", explorer: `https://mempool.space/tx/${txt}` });
+    if (!res.ok)
+      return c.json({ ok: false, error: "broadcast_rejected", message: txt.slice(0, 200) }, 502);
+    return c.json({
+      ok: true,
+      digest: txt,
+      status: "success",
+      network: "bitcoin",
+      explorer: `https://mempool.space/tx/${txt}`,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
@@ -623,7 +1097,11 @@ turnkey.get("/activity", async (c) => {
   const user: any = await getUser(c.env, uid);
   if (!user || user.is_guest) return c.json({ ok: true, items: [] });
   let addrs: any = null;
-  try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  try {
+    addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null;
+  } catch {
+    addrs = null;
+  }
   const suiAddress = user.turnkey_sui_address || addrs?.sui;
   if (!suiAddress) return c.json({ ok: true, items: [] });
 
@@ -633,35 +1111,59 @@ turnkey.get("/activity", async (c) => {
     const client = new SuiJsonRpcClient({ url, network: network as any });
     const options = { showBalanceChanges: true, showEffects: true } as any;
     const [sent, recvd] = await Promise.all([
-      client.queryTransactionBlocks({ filter: { FromAddress: suiAddress }, options, limit: 15, order: "descending" }).catch(() => ({ data: [] as any[] })),
-      client.queryTransactionBlocks({ filter: { ToAddress: suiAddress }, options, limit: 15, order: "descending" }).catch(() => ({ data: [] as any[] })),
+      client
+        .queryTransactionBlocks({
+          filter: { FromAddress: suiAddress },
+          options,
+          limit: 15,
+          order: "descending",
+        })
+        .catch(() => ({ data: [] as any[] })),
+      client
+        .queryTransactionBlocks({
+          filter: { ToAddress: suiAddress },
+          options,
+          limit: 15,
+          order: "descending",
+        })
+        .catch(() => ({ data: [] as any[] })),
     ]);
 
     const seen = new Map<string, { digest: string; amt: number; status: string; ts: number }>();
     for (const t of [...((sent as any).data || []), ...((recvd as any).data || [])]) {
       if (!t?.digest || seen.has(t.digest)) continue;
       let delta = 0n;
-      for (const bc of (t.balanceChanges || [])) {
+      for (const bc of t.balanceChanges || []) {
         const ownerAddr = bc?.owner?.AddressOwner;
-        if (ownerAddr === suiAddress && bc?.coinType === "0x2::sui::SUI") delta += BigInt(bc.amount);
+        if (ownerAddr === suiAddress && bc?.coinType === "0x2::sui::SUI")
+          delta += BigInt(bc.amount);
       }
-      seen.set(t.digest, { digest: t.digest, amt: Number(delta) / 1e9, status: t.effects?.status?.status || "", ts: Number(t.timestampMs || 0) });
+      seen.set(t.digest, {
+        digest: t.digest,
+        amt: Number(delta) / 1e9,
+        status: t.effects?.status?.status || "",
+        ts: Number(t.timestampMs || 0),
+      });
     }
-    const items = [...seen.values()].sort((a, b) => b.ts - a.ts).slice(0, 20).map((x) => {
-      const kind = x.amt < 0 ? "send" : x.amt > 0 ? "recv" : "gas";
-      return {
-        id: x.digest,
-        kind,
-        ok: x.status === "success",
-        title: kind === "send" ? "转账 · SUI" : kind === "recv" ? "收款 · SUI" : "链上操作 · SUI",
-        sub: x.status === "success" ? "已确认 · 永久存证" : (x.status || "处理中"),
-        sym: "SUI", chain: "Sui",
-        amt: (x.amt >= 0 ? "+" : "") + x.amt.toFixed(x.amt === 0 ? 0 : 4),
-        when: x.ts ? relTime(x.ts) : "—",
-        hash: x.digest.slice(0, 6) + "…" + x.digest.slice(-4),
-        explorer: `https://suiscan.xyz/${network}/tx/${x.digest}`,
-      };
-    });
+    const items = [...seen.values()]
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 20)
+      .map((x) => {
+        const kind = x.amt < 0 ? "send" : x.amt > 0 ? "recv" : "gas";
+        return {
+          id: x.digest,
+          kind,
+          ok: x.status === "success",
+          title: kind === "send" ? "转账 · SUI" : kind === "recv" ? "收款 · SUI" : "链上操作 · SUI",
+          sub: x.status === "success" ? "已确认 · 永久存证" : x.status || "处理中",
+          sym: "SUI",
+          chain: "Sui",
+          amt: (x.amt >= 0 ? "+" : "") + x.amt.toFixed(x.amt === 0 ? 0 : 4),
+          when: x.ts ? relTime(x.ts) : "—",
+          hash: x.digest.slice(0, 6) + "…" + x.digest.slice(-4),
+          explorer: `https://suiscan.xyz/${network}/tx/${x.digest}`,
+        };
+      });
     return c.json({ ok: true, items, network });
   } catch (e: any) {
     return c.json({ ok: true, items: [], error: String(e?.message || e).slice(0, 200) });
@@ -681,11 +1183,30 @@ turnkey.get("/contacts", async (c) => {
      ORDER BY u.name LIMIT 60`,
     uid,
   );
-  const contacts = rows.map((u) => {
-    let a: any = {}; try { a = JSON.parse(u.turnkey_addresses) || {}; } catch { a = {}; }
-    return { id: u.id, name: u.name, sub: u.handle || "", seal: u.seal || "读", cls: "ink", color: u.color || "#3a4fb0",
-      addresses: { SUI: a.sui || null, ETH: a.ethereum || null, SOL: a.solana || null, BTC: a.bitcoin || null } };
-  }).filter((x) => x.addresses.SUI || x.addresses.ETH || x.addresses.SOL || x.addresses.BTC);
+  const contacts = rows
+    .map((u) => {
+      let a: any = {};
+      try {
+        a = JSON.parse(u.turnkey_addresses) || {};
+      } catch {
+        a = {};
+      }
+      return {
+        id: u.id,
+        name: u.name,
+        sub: u.handle || "",
+        seal: u.seal || "读",
+        cls: "ink",
+        color: u.color || "#3a4fb0",
+        addresses: {
+          SUI: a.sui || null,
+          ETH: a.ethereum || null,
+          SOL: a.solana || null,
+          BTC: a.bitcoin || null,
+        },
+      };
+    })
+    .filter((x) => x.addresses.SUI || x.addresses.ETH || x.addresses.SOL || x.addresses.BTC);
   return c.json({ ok: true, contacts });
 });
 
@@ -707,14 +1228,38 @@ turnkey.get("/tip-targets", async (c) => {
           OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followee_id = u.id) )
      ORDER BY (work_title IS NOT NULL) DESC, share_n DESC, u.name
      LIMIT 40`,
-    uid, uid,
+    uid,
+    uid,
   );
-  const targets = rows.map((u) => {
-    let a: any = {}; try { a = JSON.parse(u.turnkey_addresses) || {}; } catch { a = {}; }
-    const sub = u.work_title ? `著《${u.work_title}》` : (u.share_n > 0 ? `${u.share_n} 篇书评` : (u.bio || "你关注的读者"));
-    return { id: u.id, name: u.name, sub, seal: u.seal || "读", cls: "ink", color: u.color || "#3a4fb0",
-      addresses: { SUI: a.sui || null, ETH: a.ethereum || null, SOL: a.solana || null, BTC: a.bitcoin || null } };
-  }).filter((x) => x.addresses.SUI || x.addresses.ETH || x.addresses.SOL || x.addresses.BTC);
+  const targets = rows
+    .map((u) => {
+      let a: any = {};
+      try {
+        a = JSON.parse(u.turnkey_addresses) || {};
+      } catch {
+        a = {};
+      }
+      const sub = u.work_title
+        ? `著《${u.work_title}》`
+        : u.share_n > 0
+          ? `${u.share_n} 篇书评`
+          : u.bio || "你关注的读者";
+      return {
+        id: u.id,
+        name: u.name,
+        sub,
+        seal: u.seal || "读",
+        cls: "ink",
+        color: u.color || "#3a4fb0",
+        addresses: {
+          SUI: a.sui || null,
+          ETH: a.ethereum || null,
+          SOL: a.solana || null,
+          BTC: a.bitcoin || null,
+        },
+      };
+    })
+    .filter((x) => x.addresses.SUI || x.addresses.ETH || x.addresses.SOL || x.addresses.BTC);
   return c.json({ ok: true, targets });
 });
 
@@ -724,34 +1269,65 @@ turnkey.get("/tips", async (c) => {
   const uid = c.get("userId");
   if (!uid) return c.json({ ok: true, tips: [] });
   const user: any = await getUser(c.env, uid);
-  let addrs: any = null; try { addrs = user?.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  let addrs: any = null;
+  try {
+    addrs = user?.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null;
+  } catch {
+    addrs = null;
+  }
   const suiAddress = user?.turnkey_sui_address || addrs?.sui;
   if (!suiAddress) return c.json({ ok: true, tips: [] });
   try {
     const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("mainnet");
     const network = suiNetworkOf(url);
     const client = new SuiJsonRpcClient({ url, network: network as any });
-    const recvd: any = await client.queryTransactionBlocks({ filter: { ToAddress: suiAddress }, options: { showBalanceChanges: true, showInput: true } as any, limit: 25, order: "descending" }).catch(() => ({ data: [] }));
+    const recvd: any = await client
+      .queryTransactionBlocks({
+        filter: { ToAddress: suiAddress },
+        options: { showBalanceChanges: true, showInput: true } as any,
+        limit: 25,
+        order: "descending",
+      })
+      .catch(() => ({ data: [] }));
     const raw: { sender: string; amt: number; ts: number; hash: string }[] = [];
-    for (const t of (recvd.data || [])) {
+    for (const t of recvd.data || []) {
       const sender = t?.transaction?.data?.sender;
       if (!sender || sender === suiAddress) continue;
       let delta = 0n;
-      for (const bc of (t.balanceChanges || [])) {
-        if (bc?.owner?.AddressOwner === suiAddress && bc?.coinType === "0x2::sui::SUI") delta += BigInt(bc.amount);
+      for (const bc of t.balanceChanges || []) {
+        if (bc?.owner?.AddressOwner === suiAddress && bc?.coinType === "0x2::sui::SUI")
+          delta += BigInt(bc.amount);
       }
       if (delta <= 0n) continue;
-      raw.push({ sender, amt: Number(delta) / 1e9, ts: Number(t.timestampMs || 0), hash: t.digest });
+      raw.push({
+        sender,
+        amt: Number(delta) / 1e9,
+        ts: Number(t.timestampMs || 0),
+        hash: t.digest,
+      });
     }
     const seen: Record<string, any> = {};
     for (const r of raw) {
-      if (seen[r.sender] === undefined) seen[r.sender] = await first<any>(c.env.DB, `SELECT name, seal, color FROM users WHERE turnkey_sui_address = ? LIMIT 1`, r.sender);
+      if (seen[r.sender] === undefined)
+        seen[r.sender] = await first<any>(
+          c.env.DB,
+          `SELECT name, seal, color FROM users WHERE turnkey_sui_address = ? LIMIT 1`,
+          r.sender,
+        );
     }
     const tips = raw.slice(0, 12).map((r) => {
       const u = seen[r.sender];
-      return { name: u?.name || (r.sender.slice(0, 6) + "…" + r.sender.slice(-4)), seal: u?.seal || "匿", color: u?.color || "#5b6478",
-        amt: "+" + r.amt.toFixed(r.amt >= 1 ? 2 : 4), sym: "SUI", msg: "", when: r.ts ? relTime(r.ts) : "—",
-        hash: r.hash.slice(0, 6) + "…" + r.hash.slice(-4), explorer: `https://suiscan.xyz/${network}/tx/${r.hash}` };
+      return {
+        name: u?.name || r.sender.slice(0, 6) + "…" + r.sender.slice(-4),
+        seal: u?.seal || "匿",
+        color: u?.color || "#5b6478",
+        amt: "+" + r.amt.toFixed(r.amt >= 1 ? 2 : 4),
+        sym: "SUI",
+        msg: "",
+        when: r.ts ? relTime(r.ts) : "—",
+        hash: r.hash.slice(0, 6) + "…" + r.hash.slice(-4),
+        explorer: `https://suiscan.xyz/${network}/tx/${r.hash}`,
+      };
     });
     return c.json({ ok: true, tips });
   } catch (e: any) {
@@ -765,12 +1341,34 @@ turnkey.get("/tips", async (c) => {
 // EvmTx(s) and the user passkey-signs each; broadcast reuses /turnkey/evm/broadcast.
 // ERC20 source (USDC) prepends an approve step (2 signatures). LI.FI doesn't cover Sui
 // or native BTC, and SOL-source is a follow-up, so those are honestly gated client-side.
-const pad32 = (hexNo0x: string): string => hexNo0x.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+const pad32 = (hexNo0x: string): string =>
+  hexNo0x.toLowerCase().replace(/^0x/, "").padStart(64, "0");
 const LIFI_QUOTE = "https://li.quest/v1/quote";
-const SWAP_TOKENS: Record<string, { chain: string; token: string; decimals: number; addrKey: "ethereum" | "solana"; native?: boolean }> = {
-  ETH:  { chain: "1", token: "0x0000000000000000000000000000000000000000", decimals: 18, addrKey: "ethereum", native: true },
+const SWAP_TOKENS: Record<
+  string,
+  {
+    chain: string;
+    token: string;
+    decimals: number;
+    addrKey: "ethereum" | "solana";
+    native?: boolean;
+  }
+> = {
+  ETH: {
+    chain: "1",
+    token: "0x0000000000000000000000000000000000000000",
+    decimals: 18,
+    addrKey: "ethereum",
+    native: true,
+  },
   USDC: { chain: "1", token: USDC_MAINNET, decimals: 6, addrKey: "ethereum" },
-  SOL:  { chain: "1151111081099710", token: "11111111111111111111111111111111", decimals: 9, addrKey: "solana", native: true },
+  SOL: {
+    chain: "1151111081099710",
+    token: "11111111111111111111111111111111",
+    decimals: 9,
+    addrKey: "solana",
+    native: true,
+  },
 };
 
 turnkey.post("/swap/prepare", async (c) => {
@@ -778,7 +1376,12 @@ turnkey.post("/swap/prepare", async (c) => {
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   const user: any = await getUser(c.env, uid);
   if (!user || user.is_guest) return c.json({ ok: false, error: "no_user" }, 401);
-  let addrs: any = null; try { addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null; } catch { addrs = null; }
+  let addrs: any = null;
+  try {
+    addrs = user.turnkey_addresses ? JSON.parse(user.turnkey_addresses) : null;
+  } catch {
+    addrs = null;
+  }
   const subOrgId = user.turnkey_sub_org_id;
   if (!subOrgId || !addrs) return c.json({ ok: false, error: "no_wallet" }, 400);
 
@@ -786,26 +1389,62 @@ turnkey.post("/swap/prepare", async (c) => {
   const fromSym = String(body?.from || "").toUpperCase();
   const toSym = String(body?.to || "").toUpperCase();
   const amount = Number(body?.amount);
-  const F = SWAP_TOKENS[fromSym], T = SWAP_TOKENS[toSym];
-  if (!F || !T || fromSym === toSym) return c.json({ ok: false, error: "unsupported_pair", message: "暂不支持该兑换对" }, 400);
+  const F = SWAP_TOKENS[fromSym],
+    T = SWAP_TOKENS[toSym];
+  if (!F || !T || fromSym === toSym)
+    return c.json({ ok: false, error: "unsupported_pair", message: "暂不支持该兑换对" }, 400);
   if (!(amount > 0)) return c.json({ ok: false, error: "bad_amount", message: "金额无效" }, 400);
-  const fromAddr = addrs[F.addrKey], toAddr = addrs[T.addrKey];
+  const fromAddr = addrs[F.addrKey],
+    toAddr = addrs[T.addrKey];
   if (!fromAddr || !toAddr) return c.json({ ok: false, error: "no_wallet" }, 400);
   try {
     const fromAmount = toBaseUnits(amount, F.decimals).toString();
-    const params = new URLSearchParams({ fromChain: F.chain, toChain: T.chain, fromToken: F.token, toToken: T.token, fromAmount, fromAddress: fromAddr, toAddress: toAddr, slippage: "0.01" });
+    const params = new URLSearchParams({
+      fromChain: F.chain,
+      toChain: T.chain,
+      fromToken: F.token,
+      toToken: T.token,
+      fromAmount,
+      fromAddress: fromAddr,
+      toAddress: toAddr,
+      slippage: "0.01",
+    });
     const q: any = await (await fetch(`${LIFI_QUOTE}?${params.toString()}`)).json();
     const tr = q?.transactionRequest;
-    const quote = { fromSym, toSym, amount, toAmount: Number(q?.estimate?.toAmount || 0) / 10 ** T.decimals, tool: q?.tool || "lifi", crossChain: F.chain !== T.chain };
+    const quote = {
+      fromSym,
+      toSym,
+      amount,
+      toAmount: Number(q?.estimate?.toAmount || 0) / 10 ** T.decimals,
+      tool: q?.tool || "lifi",
+      crossChain: F.chain !== T.chain,
+    };
 
     // Solana-source: LI.FI returns a base64 Solana tx with a zero signer placeholder.
     // We sign the message (ed25519) and splice the signature in on broadcast.
     if (F.chain === SWAP_TOKENS.SOL.chain) {
-      if (!tr?.data) return c.json({ ok: false, error: "no_route", message: q?.message || "没有可用的兑换路径" }, 502);
+      if (!tr?.data)
+        return c.json(
+          { ok: false, error: "no_route", message: q?.message || "没有可用的兑换路径" },
+          502,
+        );
       const { messageHex, sigOffset } = solParseForSigning(tr.data, fromAddr);
-      return c.json({ ok: true, chainKind: "sol", organizationId: subOrgId, signWith: fromAddr, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", digestHex: messageHex, sol: { txB64: tr.data, sigOffset }, quote });
+      return c.json({
+        ok: true,
+        chainKind: "sol",
+        organizationId: subOrgId,
+        signWith: fromAddr,
+        hashFunction: "HASH_FUNCTION_NOT_APPLICABLE",
+        digestHex: messageHex,
+        sol: { txB64: tr.data, sigOffset },
+        quote,
+      });
     }
-    if (!tr?.to || !tr?.data) return c.json({ ok: false, error: "no_route", message: q?.message || "没有可用的兑换路径" }, 502);
+    if (!tr?.to || !tr?.data)
+      return c.json(
+        { ok: false, error: "no_route", message: q?.message || "没有可用的兑换路径" },
+        502,
+      );
 
     const url = evmRpcUrl(c.env);
     const chainId = Number(tr.chainId) || 1;
@@ -813,24 +1452,56 @@ turnkey.post("/swap/prepare", async (c) => {
     const gasPrice = hexBig(await ethCall(url, "eth_gasPrice", []));
     const steps: { kind: string; tx: EvmTx; digestHex: string }[] = [];
 
-    if (!F.native) { // ERC20 source → ensure the LI.FI spender has allowance
+    if (!F.native) {
+      // ERC20 source → ensure the LI.FI spender has allowance
       const spender = q?.estimate?.approvalAddress || tr.to;
-      const cur = hexBig(await ethCall(url, "eth_call", [{ to: F.token, data: "0xdd62ed3e" + pad32(fromAddr) + pad32(spender) }, "latest"]));
+      const cur = hexBig(
+        await ethCall(url, "eth_call", [
+          { to: F.token, data: "0xdd62ed3e" + pad32(fromAddr) + pad32(spender) },
+          "latest",
+        ]),
+      );
       if (cur < BigInt(fromAmount)) {
         const approveData = "0x095ea7b3" + pad32(spender) + pad32(BigInt(fromAmount).toString(16));
-        const atx: EvmTx = { nonce: nonce.toString(), gasPrice: gasPrice.toString(), gas: "80000", to: F.token, value: "0", data: approveData, chainId };
+        const atx: EvmTx = {
+          nonce: nonce.toString(),
+          gasPrice: gasPrice.toString(),
+          gas: "80000",
+          to: F.token,
+          value: "0",
+          data: approveData,
+          chainId,
+        };
         steps.push({ kind: "approve", tx: atx, digestHex: evmSigningDigestHex(atx) });
         nonce = nonce + 1n;
       }
     }
     const swapGas = (BigInt(tr.gasLimit || "350000") * 13n) / 10n;
-    const stx: EvmTx = { nonce: nonce.toString(), gasPrice: gasPrice.toString(), gas: swapGas.toString(), to: tr.to, value: BigInt(tr.value || "0").toString(), data: tr.data, chainId };
+    const stx: EvmTx = {
+      nonce: nonce.toString(),
+      gasPrice: gasPrice.toString(),
+      gas: swapGas.toString(),
+      to: tr.to,
+      value: BigInt(tr.value || "0").toString(),
+      data: tr.data,
+      chainId,
+    };
     const ethBal = hexBig(await ethCall(url, "eth_getBalance", [fromAddr, "latest"]));
-    const gasCost = steps.reduce((s, st) => s + BigInt(st.tx.gas) * gasPrice, 0n) + BigInt(stx.gas) * gasPrice;
-    if (ethBal < BigInt(stx.value) + gasCost) return c.json({ ok: false, error: "no_gas", message: "ETH 余额不足以支付兑换与矿工费" }, 400);
+    const gasCost =
+      steps.reduce((s, st) => s + BigInt(st.tx.gas) * gasPrice, 0n) + BigInt(stx.gas) * gasPrice;
+    if (ethBal < BigInt(stx.value) + gasCost)
+      return c.json({ ok: false, error: "no_gas", message: "ETH 余额不足以支付兑换与矿工费" }, 400);
     steps.push({ kind: "swap", tx: stx, digestHex: evmSigningDigestHex(stx) });
 
-    return c.json({ ok: true, chainKind: "evm", organizationId: subOrgId, signWith: fromAddr, hashFunction: "HASH_FUNCTION_NO_OP", steps, quote });
+    return c.json({
+      ok: true,
+      chainKind: "evm",
+      organizationId: subOrgId,
+      signWith: fromAddr,
+      hashFunction: "HASH_FUNCTION_NO_OP",
+      steps,
+      quote,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
@@ -846,13 +1517,27 @@ turnkey.post("/swap/sol/broadcast", async (c) => {
   const txB64 = String(body?.sol?.txB64 || "");
   const sigOffset = Number(body?.sol?.sigOffset);
   const activityId = String(body?.activityId || "");
-  if (!txB64 || !Number.isInteger(sigOffset) || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
+  if (!txB64 || !Number.isInteger(sigOffset) || !activityId)
+    return c.json({ ok: false, error: "bad_request" }, 400);
   try {
     const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
-    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
+    if (!sr)
+      return c.json(
+        { ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" },
+        502,
+      );
     const signed = solInjectSignature(txB64, sr.r + sr.s, sigOffset);
-    const sig = await solRpc("sendTransaction", [signed, { encoding: "base64", preflightCommitment: "confirmed" }]);
-    return c.json({ ok: true, digest: sig, status: "success", network: "solana", explorer: `https://solscan.io/tx/${sig}` });
+    const sig = await solRpc("sendTransaction", [
+      signed,
+      { encoding: "base64", preflightCommitment: "confirmed" },
+    ]);
+    return c.json({
+      ok: true,
+      digest: sig,
+      status: "success",
+      network: "solana",
+      explorer: `https://solscan.io/tx/${sig}`,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
@@ -868,7 +1553,13 @@ turnkey.post("/sign/message", async (c) => {
   const body: any = await c.req.json().catch(() => ({}));
   const message = String(body?.message || "");
   if (!message || message.length > 2000) return c.json({ ok: false, error: "bad_message" }, 400);
-  return c.json({ ok: true, digestHex: suiPersonalMessageDigestHex(message), signWith: suiAddress, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE" });
+  return c.json({
+    ok: true,
+    digestHex: suiPersonalMessageDigestHex(message),
+    signWith: suiAddress,
+    organizationId: subOrgId,
+    hashFunction: "HASH_FUNCTION_NOT_APPLICABLE",
+  });
 });
 
 turnkey.post("/sign/verify", async (c) => {
@@ -881,12 +1572,24 @@ turnkey.post("/sign/verify", async (c) => {
   if (!message || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
   try {
     const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
-    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
-    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account?.publicKey;
+    if (!sr)
+      return c.json(
+        { ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" },
+        502,
+      );
+    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account
+      ?.publicKey;
     if (!pubkeyHex) return c.json({ ok: false, error: "no_pubkey" }, 502);
     const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
     let verified = false;
-    try { verified = (await verifyPersonalMessageSignature(new TextEncoder().encode(message), signature)).toSuiAddress() === suiAddress; } catch { verified = false; }
+    try {
+      verified =
+        (
+          await verifyPersonalMessageSignature(new TextEncoder().encode(message), signature)
+        ).toSuiAddress() === suiAddress;
+    } catch {
+      verified = false;
+    }
     return c.json({ ok: true, signature, verified, address: suiAddress });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
@@ -899,21 +1602,37 @@ turnkey.post("/sign/verify", async (c) => {
 // The user pays gas and signs; non-custodial. prepare builds the PTB; broadcast executes
 // and records it so the UI can show 已上链.
 async function buildRegisterTx(
-  env: Env, suiAddress: string, contentId: string, kind: string, license: string,
-): Promise<{ ok: true; txBytesB64: string; digestHex: string; network: string } | { ok: false; error: string; network: string }> {
+  env: Env,
+  suiAddress: string,
+  contentId: string,
+  kind: string,
+  license: string,
+): Promise<
+  | { ok: true; txBytesB64: string; digestHex: string; network: string }
+  | { ok: false; error: string; network: string }
+> {
   const url = env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
   const network = suiNetworkOf(url);
   const client = new SuiJsonRpcClient({ url, network: network as any });
   const coins = await client.getCoins({ owner: suiAddress });
   if (!coins.data?.length) return { ok: false, error: "no_gas", network };
-  const pkg = env.SUI_PACKAGE!; const mod = env.SUI_MODULE || "registry";
+  const pkg = env.SUI_PACKAGE!;
+  const mod = env.SUI_MODULE || "registry";
   const tx = new Transaction();
   tx.setSender(suiAddress);
   tx.setGasBudget(20_000_000);
-  const [rec] = tx.moveCall({ target: `${pkg}::${mod}::register`, arguments: [tx.pure.string(contentId), tx.pure.string(kind), tx.pure.string(license)] });
+  const [rec] = tx.moveCall({
+    target: `${pkg}::${mod}::register`,
+    arguments: [tx.pure.string(contentId), tx.pure.string(kind), tx.pure.string(license)],
+  });
   tx.transferObjects([rec], suiAddress);
   const bytes = await tx.build({ client });
-  return { ok: true, txBytesB64: b64encode(bytes), digestHex: suiTransactionDigestHex(bytes), network };
+  return {
+    ok: true,
+    txBytesB64: b64encode(bytes),
+    digestHex: suiTransactionDigestHex(bytes),
+    network,
+  };
 }
 
 // On-chain ONLY for ownership / authorship / provenance items, and always by explicit
@@ -925,17 +1644,44 @@ turnkey.post("/onchain/prepare", async (c) => {
   const w = await walletCtx(c, { sui: true });
   if (w instanceof Response) return w;
   const { suiAddress, subOrgId } = w;
-  if (!c.env.SUI_PACKAGE) return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
+  if (!c.env.SUI_PACKAGE)
+    return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
   const body: any = await c.req.json().catch(() => ({}));
   const contentId = String(body?.contentId || "").slice(0, 400);
   const kind = String(body?.kind || "annotation").slice(0, 32);
   const license = String(body?.license || "CC0-1.0").slice(0, 32);
   if (!contentId) return c.json({ ok: false, error: "bad_content", message: "缺少登记内容" }, 400);
-  if (!ONCHAIN_KINDS.has(kind)) return c.json({ ok: false, error: "kind_not_allowed", message: "该类型不支持上链（仅作品/批注/证书等高价值条目可永存上链）" }, 400);
+  if (!ONCHAIN_KINDS.has(kind))
+    return c.json(
+      {
+        ok: false,
+        error: "kind_not_allowed",
+        message: "该类型不支持上链（仅作品/批注/证书等高价值条目可永存上链）",
+      },
+      400,
+    );
   try {
     const r = await buildRegisterTx(c.env, suiAddress, contentId, kind, license);
-    if (!r.ok) return c.json({ ok: false, error: r.error, message: `该 Sui 地址在 ${r.network} 上没有 gas，请先充值${r.network === "testnet" ? "（测试网可领水）" : ""}` }, 400);
-    return c.json({ ok: true, txBytesB64: r.txBytesB64, digestHex: r.digestHex, signWith: suiAddress, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", contentId, kind, network: r.network });
+    if (!r.ok)
+      return c.json(
+        {
+          ok: false,
+          error: r.error,
+          message: `该 Sui 地址在 ${r.network} 上没有 gas，请先充值${r.network === "testnet" ? "（测试网可领水）" : ""}`,
+        },
+        400,
+      );
+    return c.json({
+      ok: true,
+      txBytesB64: r.txBytesB64,
+      digestHex: r.digestHex,
+      signWith: suiAddress,
+      organizationId: subOrgId,
+      hashFunction: "HASH_FUNCTION_NOT_APPLICABLE",
+      contentId,
+      kind,
+      network: r.network,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
@@ -947,8 +1693,18 @@ turnkey.post("/onchain/prepare", async (c) => {
 turnkey.get("/my-works", async (c) => {
   const uid = c.get("userId");
   if (!uid) return c.json({ ok: true, items: [] });
-  const rows = await all<any>(c.env.DB, `SELECT id, title, body, created_at FROM works WHERE user_id = ? ORDER BY created_at DESC LIMIT 40`, uid);
-  const items = rows.map((w) => ({ id: w.id, title: w.title, snippet: String(w.body || "").replace(/\s+/g, " ").slice(0, 64) }));
+  const rows = await all<any>(
+    c.env.DB,
+    `SELECT id, title, body, created_at FROM works WHERE user_id = ? ORDER BY created_at DESC LIMIT 40`,
+    uid,
+  );
+  const items = rows.map((w) => ({
+    id: w.id,
+    title: w.title,
+    snippet: String(w.body || "")
+      .replace(/\s+/g, " ")
+      .slice(0, 64),
+  }));
   return c.json({ ok: true, items });
 });
 
@@ -956,18 +1712,49 @@ turnkey.post("/storage/prepare", async (c) => {
   const w = await walletCtx(c, { sui: true });
   if (w instanceof Response) return w;
   const { uid, suiAddress, subOrgId } = w;
-  if (!c.env.SUI_PACKAGE) return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
+  if (!c.env.SUI_PACKAGE)
+    return c.json({ ok: false, error: "not_configured", message: "链上登记尚未配置" }, 501);
   const body: any = await c.req.json().catch(() => ({}));
   const workId = String(body?.workId || "");
-  const work = await first<any>(c.env.DB, `SELECT id, title, body FROM works WHERE id = ? AND user_id = ?`, workId, uid);
+  const work = await first<any>(
+    c.env.DB,
+    `SELECT id, title, body FROM works WHERE id = ? AND user_id = ?`,
+    workId,
+    uid,
+  );
   if (!work) return c.json({ ok: false, error: "not_found", message: "未找到该作品" }, 404);
   try {
-    const blobId = await walrusPublish(c.env, new TextEncoder().encode(String(work.body || "")), 25_000);
-    if (!blobId) return c.json({ ok: false, error: "walrus_failed", message: "Walrus 存储失败，请重试" }, 502);
+    const blobId = await walrusPublish(
+      c.env,
+      new TextEncoder().encode(String(work.body || "")),
+      25_000,
+    );
+    if (!blobId)
+      return c.json({ ok: false, error: "walrus_failed", message: "Walrus 存储失败，请重试" }, 502);
     const contentId = `walrus://${blobId}`;
     const r = await buildRegisterTx(c.env, suiAddress, contentId, "storage", "CC0-1.0");
-    if (!r.ok) return c.json({ ok: false, error: r.error, message: `该 Sui 地址在 ${r.network} 上没有 gas，请先充值${r.network === "testnet" ? "（测试网可领水）" : ""}`, blobId }, 400);
-    return c.json({ ok: true, txBytesB64: r.txBytesB64, digestHex: r.digestHex, signWith: suiAddress, organizationId: subOrgId, hashFunction: "HASH_FUNCTION_NOT_APPLICABLE", contentId, kind: "storage", blobId, network: r.network });
+    if (!r.ok)
+      return c.json(
+        {
+          ok: false,
+          error: r.error,
+          message: `该 Sui 地址在 ${r.network} 上没有 gas，请先充值${r.network === "testnet" ? "（测试网可领水）" : ""}`,
+          blobId,
+        },
+        400,
+      );
+    return c.json({
+      ok: true,
+      txBytesB64: r.txBytesB64,
+      digestHex: r.digestHex,
+      signWith: suiAddress,
+      organizationId: subOrgId,
+      hashFunction: "HASH_FUNCTION_NOT_APPLICABLE",
+      contentId,
+      kind: "storage",
+      blobId,
+      network: r.network,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 300) }, 500);
   }
@@ -982,13 +1769,18 @@ turnkey.get("/my-books", async (c) => {
     `SELECT lb.id, lb.title, p.percent,
             (SELECT r.digest FROM onchain_records r WHERE r.user_id = ? AND r.kind = 'certificate' AND r.content_id = 'liber:book:' || lb.id LIMIT 1) AS cert_digest
      FROM progress p JOIN library_books lb ON lb.id = p.book_id WHERE p.user_id = ? ORDER BY p.updated_at DESC LIMIT 40`,
-    uid, uid,
+    uid,
+    uid,
   );
   const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
   const network = suiNetworkOf(url);
   const items = rows.map((b) => ({
-    id: b.id, title: b.title, percent: b.percent || 0, contentId: `liber:book:${b.id}`,
-    onChain: !!b.cert_digest, explorer: b.cert_digest ? `https://suiscan.xyz/${network}/tx/${b.cert_digest}` : null,
+    id: b.id,
+    title: b.title,
+    percent: b.percent || 0,
+    contentId: `liber:book:${b.id}`,
+    onChain: !!b.cert_digest,
+    explorer: b.cert_digest ? `https://suiscan.xyz/${network}/tx/${b.cert_digest}` : null,
   }));
   return c.json({ ok: true, items, network });
 });
@@ -1005,21 +1797,49 @@ turnkey.post("/onchain/broadcast", async (c) => {
   if (!txBytesB64 || !activityId) return c.json({ ok: false, error: "bad_request" }, 400);
   try {
     const sr = await getSignRawPayloadResult(c.env, subOrgId, activityId);
-    if (!sr) return c.json({ ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" }, 502);
-    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account?.publicKey;
+    if (!sr)
+      return c.json(
+        { ok: false, error: "sign_incomplete", message: "未能取得签名结果，请重试" },
+        502,
+      );
+    const pubkeyHex = (await getWalletAccount(c.env, subOrgId, walletId, suiAddress))?.account
+      ?.publicKey;
     if (!pubkeyHex) return c.json({ ok: false, error: "no_pubkey" }, 502);
     const signature = assembleSuiSignature(sr.r, sr.s, pubkeyHex);
     const bytes = Uint8Array.from(atob(txBytesB64), (ch) => ch.charCodeAt(0));
     const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
     const network = suiNetworkOf(url);
     const client = new SuiJsonRpcClient({ url, network: network as any });
-    const res = await client.executeTransactionBlock({ transactionBlock: bytes, signature, options: { showEffects: true, showObjectChanges: true } });
-    const recordId = (res.objectChanges || []).find((o: any) => o.type === "created" && String(o.objectType || "").includes("::registry::Record")) as any;
+    const res = await client.executeTransactionBlock({
+      transactionBlock: bytes,
+      signature,
+      options: { showEffects: true, showObjectChanges: true },
+    });
+    const recordId = (res.objectChanges || []).find(
+      (o: any) => o.type === "created" && String(o.objectType || "").includes("::registry::Record"),
+    ) as any;
     if (contentId && res.effects?.status?.status === "success") {
-      await run(c.env.DB, `INSERT INTO onchain_records (id, user_id, kind, content_id, digest, record_id, network, created_at) VALUES (?,?,?,?,?,?,?,?)`,
-        id("oc_"), uid, kind, contentId, res.digest, recordId?.objectId ?? null, network, now());
+      await run(
+        c.env.DB,
+        `INSERT INTO onchain_records (id, user_id, kind, content_id, digest, record_id, network, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+        id("oc_"),
+        uid,
+        kind,
+        contentId,
+        res.digest,
+        recordId?.objectId ?? null,
+        network,
+        now(),
+      );
     }
-    return c.json({ ok: true, digest: res.digest, status: res.effects?.status?.status, recordId: recordId?.objectId ?? null, network, explorer: `https://suiscan.xyz/${network}/tx/${res.digest}` });
+    return c.json({
+      ok: true,
+      digest: res.digest,
+      status: res.effects?.status?.status,
+      recordId: recordId?.objectId ?? null,
+      network,
+      explorer: `https://suiscan.xyz/${network}/tx/${res.digest}`,
+    });
   } catch (e: any) {
     return c.json({ ok: false, error: String(e?.message || e).slice(0, 400) }, 500);
   }
@@ -1041,7 +1861,12 @@ turnkey.get("/annotations", async (c) => {
   const url = c.env.SUI_RPC || getJsonRpcFullnodeUrl("testnet");
   const network = suiNetworkOf(url);
   const items = rows.map((n) => ({
-    id: n.id, bookId: n.bookId, sid: n.sid, text: n.text, bookTitle: n.bookTitle || "未命名", createdAt: n.createdAt,
+    id: n.id,
+    bookId: n.bookId,
+    sid: n.sid,
+    text: n.text,
+    bookTitle: n.bookTitle || "未命名",
+    createdAt: n.createdAt,
     contentId: `liber:note:${n.bookId}#${n.sid}`,
     onChain: !!n.onchainDigest,
     explorer: n.onchainDigest ? `https://suiscan.xyz/${network}/tx/${n.onchainDigest}` : null,

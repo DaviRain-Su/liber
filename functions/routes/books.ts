@@ -36,20 +36,36 @@ async function ingestAuth(c: any): Promise<{ ok: boolean; userId?: string | null
 // SSRF guard for the optional server-side fetch of `sourceUrl` in /books/ingest:
 // https only, a small public-domain host allowlist (extend via INGEST_HOSTS),
 // and explicit rejection of loopback/private hosts and IP literals.
-const INGEST_HOST_ALLOW = [/(^|\.)gutenberg\.org$/i, /(^|\.)gutenberg\.net$/i, /(^|\.)archive\.org$/i, /(^|\.)wikisource\.org$/i];
+const INGEST_HOST_ALLOW = [
+  /(^|\.)gutenberg\.org$/i,
+  /(^|\.)gutenberg\.net$/i,
+  /(^|\.)archive\.org$/i,
+  /(^|\.)wikisource\.org$/i,
+];
 function isAllowedIngestUrl(raw: string | undefined, env: Env): boolean {
   if (!raw) return false;
   let u: URL;
-  try { u = new URL(raw); } catch { return false; }
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
   if (u.protocol !== "https:") return false;
   const host = u.hostname.toLowerCase();
   if (
-    host === "localhost" || host.endsWith(".local") || host.endsWith(".internal") ||
-    host.includes(":") || host.startsWith("[") ||
+    host === "localhost" ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host.includes(":") ||
+    host.startsWith("[") ||
     /^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host) ||
     /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-  ) return false;
-  const extra = (env.INGEST_HOSTS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  )
+    return false;
+  const extra = (env.INGEST_HOSTS || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
   if (extra.includes(host)) return true;
   return INGEST_HOST_ALLOW.some((re) => re.test(host));
 }
@@ -71,7 +87,12 @@ books.get("/books/:id", async (c) => {
   if (!b) return c.json({ error: "未找到该书" }, 404);
   const toc = await getToc(c.env, b.id);
   const hasSeed = b.id === "daodejing";
-  return c.json({ book: b, toc: toc.length ? toc : null, highlights: hasSeed ? S.HIGHLIGHTS : null, reviews: hasSeed ? S.REVIEWS : null });
+  return c.json({
+    book: b,
+    toc: toc.length ? toc : null,
+    highlights: hasSeed ? S.HIGHLIGHTS : null,
+    reviews: hasSeed ? S.REVIEWS : null,
+  });
 });
 
 books.get("/books/:id/chapters", async (c) => {
@@ -108,7 +129,9 @@ books.get("/books/:id/source.epub", async (c) => {
   const filename = `${b.id}.epub`;
   const utf8Name = encodeURIComponent(`${b.t || b.id}.epub`);
   if (!bytes) {
-    const row = await c.env.DB.prepare(`SELECT source_url FROM library_books WHERE id = ?`).bind(bookId).first<{ source_url?: string }>();
+    const row = await c.env.DB.prepare(`SELECT source_url FROM library_books WHERE id = ?`)
+      .bind(bookId)
+      .first<{ source_url?: string }>();
     const sourceUrl = row?.source_url || "";
     const m = sourceUrl.match(/^https:\/\/www\.gutenberg\.org\/ebooks\/(\d+)$/);
     const epubUrls = m
@@ -117,7 +140,9 @@ books.get("/books/:id/source.epub", async (c) => {
           `https://www.gutenberg.org/ebooks/${m[1]}.epub.noimages`,
           `https://www.gutenberg.org/ebooks/${m[1]}.epub`,
         ]
-      : (/^https:\/\/.+\.epub(?:\?.*)?$/i.test(sourceUrl) ? [sourceUrl] : []);
+      : /^https:\/\/.+\.epub(?:\?.*)?$/i.test(sourceUrl)
+        ? [sourceUrl]
+        : [];
     for (const epubUrl of epubUrls) {
       try {
         const res = await fetch(epubUrl, { headers: { "user-agent": "liber-epub-proxy/0.1" } });
@@ -150,7 +175,12 @@ books.get("/books/:id/source.epub", async (c) => {
 // (even 404) means DNS/TLS/route works. null when the endpoint isn't configured.
 async function reachable(url?: string): Promise<boolean | null> {
   if (!url) return null;
-  try { await fetch(url, { method: "GET" }); return true; } catch { return false; }
+  try {
+    await fetch(url, { method: "GET" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 books.get("/books/:id/proof", async (c) => {
@@ -162,10 +192,14 @@ books.get("/books/:id/proof", async (c) => {
     chain(c.env).chainInfo(c.env), // active-chain liveness (checkpoint/block) or null when unset
   ]);
   return c.json({
-    blob: b.blob, backup: b.backup, index: b.index, license: b.license || "CC0-1.0",
+    blob: b.blob,
+    backup: b.backup,
+    index: b.index,
+    license: b.license || "CC0-1.0",
     networks: {
       configured: !!(c.env.WALRUS_AGGREGATOR || c.env.SUI_RPC || c.env.EVM_RPC),
-      walrus, arweave,
+      walrus,
+      arweave,
       chain: chainStatus?.chain ?? null,
       // back-compat alias: the certificate UI still reads `sui`
       sui: chainStatus ? chainStatus.live : null,
@@ -195,13 +229,23 @@ books.get("/blobs/:key{.+}", async (c) => {
   const key = c.req.param("key");
   const rec = await c.env.DB.prepare(
     `SELECT key, walrus, arweave, sui_index, size, content_type, created_at FROM blobs WHERE key = ?`,
-  ).bind(key).first<any>();
+  )
+    .bind(key)
+    .first<any>();
   if (!rec) return c.json({ error: "未找到该 blob" }, 404);
   let available: boolean | null = null;
   const agg = c.env.WALRUS_AGGREGATOR;
-  const blobId = typeof rec.walrus === "string" && rec.walrus.startsWith("walrus://") ? rec.walrus.slice(9) : null;
+  const blobId =
+    typeof rec.walrus === "string" && rec.walrus.startsWith("walrus://")
+      ? rec.walrus.slice(9)
+      : null;
   if (agg && blobId && !blobId.includes("…")) {
-    try { const res = await fetch(`${agg.replace(/\/$/, "")}/v1/blobs/${blobId}`); available = res.ok; } catch { available = false; }
+    try {
+      const res = await fetch(`${agg.replace(/\/$/, "")}/v1/blobs/${blobId}`);
+      available = res.ok;
+    } catch {
+      available = false;
+    }
   }
   return c.json({ blob: rec, available });
 });
@@ -210,16 +254,28 @@ books.get("/search", async (c) => {
   const term = (c.req.query("q") || "").trim();
   const dynamicOnly = await hasLibraryBooks(c.env);
   const seedBooks = term
-    ? S.BOOKS.filter((b) => b.t.includes(term) || b.a.includes(term) || (b.sub || "").toLowerCase().includes(term.toLowerCase()) || b.cat.includes(term))
+    ? S.BOOKS.filter(
+        (b) =>
+          b.t.includes(term) ||
+          b.a.includes(term) ||
+          (b.sub || "").toLowerCase().includes(term.toLowerCase()) ||
+          b.cat.includes(term),
+      )
     : S.BOOKS.slice(0, 4);
   const idx = S.sentenceIndex();
   const seedSentences = term
-    ? Object.entries(idx).filter(([, v]) => v.t.includes(term)).map(([sid, v]) => ({ sid, t: v.t, book: "道德经", bookId: "daodejing", chap: v.chap }))
+    ? Object.entries(idx)
+        .filter(([, v]) => v.t.includes(term))
+        .map(([sid, v]) => ({ sid, t: v.t, book: "道德经", bookId: "daodejing", chap: v.chap }))
     : [];
   const dynamic = await searchDynamic(c.env, term);
-  if (dynamicOnly) return c.json({ books: dynamic.books, sentences: dynamic.sentences.slice(0, 12) });
+  if (dynamicOnly)
+    return c.json({ books: dynamic.books, sentences: dynamic.sentences.slice(0, 12) });
   const ids = new Set(dynamic.books.map((b: any) => b.id));
-  return c.json({ books: [...dynamic.books, ...seedBooks.filter((b) => !ids.has(b.id))], sentences: [...dynamic.sentences, ...seedSentences].slice(0, 12) });
+  return c.json({
+    books: [...dynamic.books, ...seedBooks.filter((b) => !ids.has(b.id))],
+    sentences: [...dynamic.sentences, ...seedSentences].slice(0, 12),
+  });
 });
 
 // ---- Book text on decentralized storage ----
@@ -241,14 +297,18 @@ books.post("/books/ingest", async (c) => {
     let res: Response | undefined;
     for (let hop = 0; hop < 4; hop++) {
       if (!isAllowedIngestUrl(url, c.env)) {
-        return c.json({ error: "sourceUrl 不在允许的来源白名单内（仅限 https 公有领域来源）" }, 400);
+        return c.json(
+          { error: "sourceUrl 不在允许的来源白名单内（仅限 https 公有领域来源）" },
+          400,
+        );
       }
       res = await fetch(url, { redirect: "manual" });
       const loc = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
       if (!loc) break;
       url = new URL(loc, url).toString();
     }
-    if (!res || !res.ok) return c.json({ error: `源文本下载失败：${res?.status ?? "重定向过多"}` }, 400);
+    if (!res || !res.ok)
+      return c.json({ error: `源文本下载失败：${res?.status ?? "重定向过多"}` }, 400);
     body.text = await res.text();
   }
   try {
@@ -275,7 +335,13 @@ books.post("/books/ingest/chapter", async (c) => {
   if (!auth.ok) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   try {
     const body = await c.req.json();
-    const result = await ingestBookChapter(c.env, body, body.chapter, Number(body.index || 0), auth.userId);
+    const result = await ingestBookChapter(
+      c.env,
+      body,
+      body.chapter,
+      Number(body.index || 0),
+      auth.userId,
+    );
     return c.json({ ok: true, chapter: result.n, title: result.title, ref: result.ref });
   } catch (e) {
     return c.json({ error: String(e instanceof Error ? e.message : e) }, 400);
@@ -303,27 +369,34 @@ books.post("/books/:id/ingest", async (c) => {
 
   const refs: Array<{ n: number; title: string; walrus: string; size: number }> = [];
   for (const ch of chapters) {
-    const text = ch.paras.flat().map((s: any) => s.t).join("\n");
+    const text = ch.paras
+      .flat()
+      .map((s: any) => s.t)
+      .join("\n");
     const ref = await putBlob(c.env, `book/${b.id}/ch/${ch.n}`, text, "text/plain; charset=utf-8");
     refs.push({ n: ch.n, title: ch.title, walrus: ref.walrus, size: ref.size });
   }
   const manifest = JSON.stringify({ book: b.id, title: b.t, license: "CC0-1.0", chapters: refs });
   const mref = await putBlob(c.env, `book/${b.id}/manifest`, manifest, "application/json");
   try {
-    await ingestBook(c.env, {
-      id: b.id,
-      title: b.t,
-      subtitle: b.sub,
-      author: b.a,
-      category: b.cat,
-      lang: b.lang,
-      year: b.year,
-      blurb: b.blurb,
-      description: b.long,
-      license: "CC0-1.0",
-      featured: !!b.featured,
-      chapters: chapters.map((ch: any) => ({ n: ch.n, title: ch.title, paras: ch.paras })),
-    }, auth.userId);
+    await ingestBook(
+      c.env,
+      {
+        id: b.id,
+        title: b.t,
+        subtitle: b.sub,
+        author: b.a,
+        category: b.cat,
+        lang: b.lang,
+        year: b.year,
+        blurb: b.blurb,
+        description: b.long,
+        license: "CC0-1.0",
+        featured: !!b.featured,
+        chapters: chapters.map((ch: any) => ({ n: ch.n, title: ch.title, paras: ch.paras })),
+      },
+      auth.userId,
+    );
   } catch {
     // legacy ingest still succeeded; don't fail the request after blob writes.
   }
@@ -337,7 +410,10 @@ books.get("/books/:id/content/:n", async (c) => {
   const n = Number(c.req.param("n"));
   const content = await getChapterText(c.env, b.id, n);
   if (!content) return c.json({ error: "未找到该章" }, 404);
-  return c.json({ ...content, chapter: textToChapter(b.id, content.n, content.title, content.text) });
+  return c.json({
+    ...content,
+    chapter: textToChapter(b.id, content.n, content.title, content.text),
+  });
 });
 
 export default books;

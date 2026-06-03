@@ -8,8 +8,19 @@ import { first, run, id, now } from "./db";
 import { getUser, type UserRow } from "./auth";
 import { provisionWallets, turnkeyConfigured } from "./turnkey";
 
-export interface TurnkeyWallets { sui: string | null; ethereum: string | null; solana: string | null; bitcoin: string | null; }
-const safeParse = (s: string | null | undefined): any => { try { return s ? JSON.parse(s) : null; } catch { return null; } };
+export interface TurnkeyWallets {
+  sui: string | null;
+  ethereum: string | null;
+  solana: string | null;
+  bitcoin: string | null;
+}
+const safeParse = (s: string | null | undefined): any => {
+  try {
+    return s ? JSON.parse(s) : null;
+  } catch {
+    return null;
+  }
+};
 
 export interface TurnkeyUserInput {
   // The Liber identity key stored in users.sui_address — UNCHANGED for existing users
@@ -26,14 +37,23 @@ export interface TurnkeyUserInput {
 
 // Find-or-create the Liber user for a Turnkey-authenticated identity and link the
 // sub-org + embedded Sui address. Idempotent: re-linking is a no-op.
-export async function upsertTurnkeyUser(env: Env, input: TurnkeyUserInput): Promise<{ user: UserRow; isNew: boolean }> {
-  const existing = await first<UserRow>(env.DB, `SELECT * FROM users WHERE sui_address = ?`, input.identityKey);
+export async function upsertTurnkeyUser(
+  env: Env,
+  input: TurnkeyUserInput,
+): Promise<{ user: UserRow; isNew: boolean }> {
+  const existing = await first<UserRow>(
+    env.DB,
+    `SELECT * FROM users WHERE sui_address = ?`,
+    input.identityKey,
+  );
   if (existing) {
     if (!(existing as any).turnkey_sub_org_id) {
       await run(
         env.DB,
         `UPDATE users SET turnkey_sub_org_id = ?, turnkey_sui_address = ? WHERE id = ?`,
-        input.subOrgId, input.suiAddress, existing.id,
+        input.subOrgId,
+        input.suiAddress,
+        existing.id,
       );
     }
     return { user: (await getUser(env, existing.id))!, isNew: false };
@@ -64,16 +84,26 @@ export async function upsertTurnkeyUser(env: Env, input: TurnkeyUserInput): Prom
 // brought their own address, and guests are skipped. The server (parent API key) is
 // a root user of the sub-org, so it can sign Sui actions for the user (custodial,
 // see plan): exactly what work-registration needs.
-export async function ensureTurnkeyWallet(env: Env, user: UserRow): Promise<{ subOrgId: string; addresses: TurnkeyWallets } | null> {
+export async function ensureTurnkeyWallet(
+  env: Env,
+  user: UserRow,
+): Promise<{ subOrgId: string; addresses: TurnkeyWallets } | null> {
   const u = user as any;
   const existing: TurnkeyWallets | null = safeParse(u.turnkey_addresses);
   // Already has the full multi-chain set → done.
-  if (u.turnkey_sub_org_id && existing?.sui && existing?.ethereum && existing?.solana && existing?.bitcoin) {
+  if (
+    u.turnkey_sub_org_id &&
+    existing?.sui &&
+    existing?.ethereum &&
+    existing?.solana &&
+    existing?.bitcoin
+  ) {
     return { subOrgId: u.turnkey_sub_org_id, addresses: existing };
   }
   if (!turnkeyConfigured(env) || user.is_guest) return null;
   const key = user.sui_address || "";
-  const ownWallet = !!key && !key.startsWith("email:") && !key.startsWith("google:") && !key.startsWith("guest:");
+  const ownWallet =
+    !!key && !key.startsWith("email:") && !key.startsWith("google:") && !key.startsWith("guest:");
   if (ownWallet) return null; // wallet-connect users already control their own wallet
 
   // Provision (or re-provision an incomplete Sui-only wallet — the old address is
@@ -83,7 +113,12 @@ export async function ensureTurnkeyWallet(env: Env, user: UserRow): Promise<{ su
   await run(
     env.DB,
     `UPDATE users SET turnkey_sub_org_id = ?, turnkey_wallet_id = ?, turnkey_root_user_id = ?, turnkey_sui_address = ?, turnkey_addresses = ? WHERE id = ?`,
-    p.subOrgId, p.walletId, p.rootUserId, p.addresses.sui, JSON.stringify(p.addresses), user.id,
+    p.subOrgId,
+    p.walletId,
+    p.rootUserId,
+    p.addresses.sui,
+    JSON.stringify(p.addresses),
+    user.id,
   );
   return { subOrgId: p.subOrgId, addresses: p.addresses };
 }

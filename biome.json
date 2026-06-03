@@ -12,7 +12,8 @@
       "!**/package-lock.json",
       "!**/*.gen.ts",
       "!move",
-      "!test/fixtures"
+      "!test/fixtures",
+      "!src/data"
     ]
   },
   "formatter": {

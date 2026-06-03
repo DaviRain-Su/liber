@@ -27,7 +27,10 @@ function formatJoined(ms?: number | null): string {
 
 // Trim + length-cap user-supplied text. Mirrors the comment-body cap (slice 4000)
 // so create endpoints can't push unbounded bytes into D1/R2/Walrus.
-const cap = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
+const cap = (v: unknown, n: number) =>
+  String(v ?? "")
+    .trim()
+    .slice(0, n);
 
 function chapterNumberFromSid(sid?: string | null): number | null {
   const m = String(sid || "").match(/-c(\d+)-s\d+$/);
@@ -43,10 +46,19 @@ async function countRows(env: Env, sql: string, ...params: unknown[]): Promise<n
   }
 }
 
-async function isFollowing(env: Env, viewerId: string | null | undefined, targetId: string): Promise<boolean> {
+async function isFollowing(
+  env: Env,
+  viewerId: string | null | undefined,
+  targetId: string,
+): Promise<boolean> {
   if (!viewerId || viewerId === targetId) return false;
   try {
-    return !!(await first(env.DB, `SELECT 1 AS x FROM follows WHERE follower_id = ? AND followee_id = ?`, viewerId, targetId));
+    return !!(await first(
+      env.DB,
+      `SELECT 1 AS x FROM follows WHERE follower_id = ? AND followee_id = ?`,
+      viewerId,
+      targetId,
+    ));
   } catch {
     return false;
   }
@@ -79,10 +91,13 @@ async function publicReaderProfile(env: Env, user: UserRow) {
     if (!n) return { text: sid, chap: "" };
     const key = `${bookId}:${n}`;
     if (!chapterCache.has(key)) {
-      chapterCache.set(key, (async () => {
-        const content = await getChapterText(env, bookId, n);
-        return content ? textToChapter(bookId, content.n, content.title, content.text) : null;
-      })());
+      chapterCache.set(
+        key,
+        (async () => {
+          const content = await getChapterText(env, bookId, n);
+          return content ? textToChapter(bookId, content.n, content.title, content.text) : null;
+        })(),
+      );
     }
     const ch = await chapterCache.get(key);
     const sentence = ch?.paras?.flat?.().find((s: any) => s.id === sid);
@@ -106,7 +121,9 @@ async function publicReaderProfile(env: Env, user: UserRow) {
 
   const reading = readingRows.map((p) => ({
     id: p.book_id,
-    at: p.chapter_n ? `第 ${p.chapter_n} 章 · ${Math.round(Number(p.percent || 0))}%` : `${Math.round(Number(p.percent || 0))}%`,
+    at: p.chapter_n
+      ? `第 ${p.chapter_n} 章 · ${Math.round(Number(p.percent || 0))}%`
+      : `${Math.round(Number(p.percent || 0))}%`,
     chapter: p.chapter_n,
     percent: Number(p.percent || 0),
     updatedAt: p.updated_at,
@@ -117,7 +134,9 @@ async function publicReaderProfile(env: Env, user: UserRow) {
     id: user.id,
     userId: user.id,
     name,
-    handle: user.handle || (user.sui_address ? `@${user.sui_address.slice(0, 8)}` : `@${user.id.slice(0, 8)}`),
+    handle:
+      user.handle ||
+      (user.sui_address ? `@${user.sui_address.slice(0, 8)}` : `@${user.id.slice(0, 8)}`),
     color: user.color || "#3a4fb0",
     seal: user.seal || name.slice(0, 1) || "读",
     bio: user.bio || "正在 Liber 阅读真实入库的 CC0 图书。",
@@ -132,13 +151,25 @@ async function publicReaderProfile(env: Env, user: UserRow) {
 
 // Count agree-votes for ONLY the target ids on the page, so the hot list
 // endpoints don't GROUP BY the entire votes table on every load.
-async function voteCountsFor(env: Env, type: string, ids: string[]): Promise<Record<string, number>> {
+async function voteCountsFor(
+  env: Env,
+  type: string,
+  ids: string[],
+): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
   if (!ids.length) return out;
   const q = ids.map(() => "?").join(",");
   try {
-    for (const v of await all<any>(env.DB, `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type = ? AND target_id IN (${q}) GROUP BY target_id`, type, ...ids)) out[v.target_id] = v.n;
-  } catch { /* votes table may predate migration 0002 */ }
+    for (const v of await all<any>(
+      env.DB,
+      `SELECT target_id, COUNT(*) AS n FROM votes WHERE target_type = ? AND target_id IN (${q}) GROUP BY target_id`,
+      type,
+      ...ids,
+    ))
+      out[v.target_id] = v.n;
+  } catch {
+    /* votes table may predate migration 0002 */
+  }
   return out;
 }
 
@@ -155,17 +186,41 @@ async function buildLiveGroupsBatch(env: Env, books: any[], userId?: string | nu
   // One D1 batch = ONE round-trip for all aggregates (Promise.all over separate
   // .all() calls serialises on D1's single connection).
   const res = await env.DB.batch([
-    env.DB.prepare(`SELECT gm.group_id, u.name, u.color, u.seal, gm.user_id FROM group_members gm JOIN users u ON u.id = gm.user_id WHERE gm.group_id IN (${gp}) ORDER BY gm.joined_at ASC`).bind(...gids),
-    env.DB.prepare(`SELECT group_id, COUNT(*) AS n FROM group_members WHERE group_id IN (${gp}) GROUP BY group_id`).bind(...gids),
-    env.DB.prepare(`SELECT group_id, COUNT(*) AS n FROM group_posts WHERE group_id IN (${gp}) GROUP BY group_id`).bind(...gids),
-    env.DB.prepare(`SELECT gm.group_id, p.percent FROM group_members gm JOIN progress p ON p.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND p.book_id = substr(gm.group_id, 6)`).bind(...gids),
-    env.DB.prepare(`SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN notes nt ON nt.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND nt.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`).bind(...gids),
-    env.DB.prepare(`SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND h.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`).bind(...gids),
-    env.DB.prepare(`SELECT book_id, n, title FROM library_chapters WHERE book_id IN (${bp}) ORDER BY book_id, n`).bind(...bookIds),
+    env.DB.prepare(
+      `SELECT gm.group_id, u.name, u.color, u.seal, gm.user_id FROM group_members gm JOIN users u ON u.id = gm.user_id WHERE gm.group_id IN (${gp}) ORDER BY gm.joined_at ASC`,
+    ).bind(...gids),
+    env.DB.prepare(
+      `SELECT group_id, COUNT(*) AS n FROM group_members WHERE group_id IN (${gp}) GROUP BY group_id`,
+    ).bind(...gids),
+    env.DB.prepare(
+      `SELECT group_id, COUNT(*) AS n FROM group_posts WHERE group_id IN (${gp}) GROUP BY group_id`,
+    ).bind(...gids),
+    env.DB.prepare(
+      `SELECT gm.group_id, p.percent FROM group_members gm JOIN progress p ON p.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND p.book_id = substr(gm.group_id, 6)`,
+    ).bind(...gids),
+    env.DB.prepare(
+      `SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN notes nt ON nt.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND nt.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`,
+    ).bind(...gids),
+    env.DB.prepare(
+      `SELECT gm.group_id, COUNT(*) AS n FROM group_members gm JOIN highlights h ON h.user_id = gm.user_id WHERE gm.group_id IN (${gp}) AND h.book_id = substr(gm.group_id, 6) GROUP BY gm.group_id`,
+    ).bind(...gids),
+    env.DB.prepare(
+      `SELECT book_id, n, title FROM library_chapters WHERE book_id IN (${bp}) ORDER BY book_id, n`,
+    ).bind(...bookIds),
   ]);
-  const [members, memberCounts, postCounts, progress, noteCounts, hlCounts, chapters] = res.map((r: any) => (r.results || []) as any[]);
-  const listBy = (rows: any[], key: string) => { const m: Record<string, any[]> = {}; for (const r of rows) (m[r[key]] ||= []).push(r); return m; };
-  const numBy = (rows: any[], key: string) => { const m: Record<string, number> = {}; for (const r of rows) m[r[key]] = Number(r.n || 0); return m; };
+  const [members, memberCounts, postCounts, progress, noteCounts, hlCounts, chapters] = res.map(
+    (r: any) => (r.results || []) as any[],
+  );
+  const listBy = (rows: any[], key: string) => {
+    const m: Record<string, any[]> = {};
+    for (const r of rows) (m[r[key]] ||= []).push(r);
+    return m;
+  };
+  const numBy = (rows: any[], key: string) => {
+    const m: Record<string, number> = {};
+    for (const r of rows) m[r[key]] = Number(r.n || 0);
+    return m;
+  };
   const membersByG = listBy(members, "group_id");
   const memberCountByG = numBy(memberCounts, "group_id");
   const postCountByG = numBy(postCounts, "group_id");
@@ -179,7 +234,9 @@ async function buildLiveGroupsBatch(env: Env, books: any[], userId?: string | nu
     const progressRows = progressByG[gid] || [];
     const toc = (tocByBook[b.id] || []).map((r) => ({ n: r.n, title: r.title }));
     const progressPct = progressRows.length
-      ? Math.round(progressRows.reduce((sum, r) => sum + Number(r.percent || 0), 0) / progressRows.length)
+      ? Math.round(
+          progressRows.reduce((sum, r) => sum + Number(r.percent || 0), 0) / progressRows.length,
+        )
       : 0;
     const annos = (noteByG[gid] || 0) + (hlByG[gid] || 0);
     const first = toc[0];
@@ -255,10 +312,14 @@ async function liveGroups(env: Env, userId?: string | null) {
   try {
     const raw = await env.KV.get(GROUPS_CARDS_KEY);
     if (raw) cards = JSON.parse(raw);
-  } catch { cards = null; }
+  } catch {
+    cards = null;
+  }
   if (!Array.isArray(cards)) {
     cards = await buildGroupsCards(env);
-    await env.KV.put(GROUPS_CARDS_KEY, JSON.stringify(cards), { expirationTtl: 60 }).catch(() => {});
+    await env.KV.put(GROUPS_CARDS_KEY, JSON.stringify(cards), { expirationTtl: 60 }).catch(
+      () => {},
+    );
   }
   if (!cards.length) return [];
   // `joined` must stay accurate even on a cache hit, so resolve the viewer's
@@ -268,9 +329,16 @@ async function liveGroups(env: Env, userId?: string | null) {
   if (userId) {
     const gids = cards.map((c) => c.id);
     try {
-      const rows = await all<any>(env.DB, `SELECT group_id FROM group_members WHERE user_id = ? AND group_id IN (${gids.map(() => "?").join(",")})`, userId, ...gids);
+      const rows = await all<any>(
+        env.DB,
+        `SELECT group_id FROM group_members WHERE user_id = ? AND group_id IN (${gids.map(() => "?").join(",")})`,
+        userId,
+        ...gids,
+      );
       joined = new Set(rows.map((r) => r.group_id));
-    } catch { /* leave empty on a transient error → conservative not-joined */ }
+    } catch {
+      /* leave empty on a transient error → conservative not-joined */
+    }
   }
   return cards.map((c) => ({ ...c, joined: joined.has(c.id) }));
 }
@@ -301,7 +369,11 @@ async function liveFeed(env: Env) {
   // Live agree counts — the votes table is the source of truth (the denormalized
   // s.agree column is never incremented), so the feed must merge it the same way
   // /shares does, or shared conversations always render 0 upvotes.
-  const shareVotes = await voteCountsFor(env, "share", shares.map((s) => s.id));
+  const shareVotes = await voteCountsFor(
+    env,
+    "share",
+    shares.map((s) => s.id),
+  );
   // Each item carries a STABLE threadKey so the discussion overlay opens a real,
   // per-item thread (the root is the item itself; replies are live thread_replies)
   // instead of a shared seed thread.
@@ -309,28 +381,73 @@ async function liveFeed(env: Env) {
     ...notes.map((n) => {
       const cn = chapterNumberFromSid(n.sid);
       return {
-        kind: "anno", id: `note:${n.id}`, threadKey: `note:${n.id}`, userId: n.user_id, u: n.name || "读者", color: n.color || "#3a4fb0",
-        book: n.book_title || n.book_id, bookId: n.book_id, sid: n.sid, chap: cn ? `第 ${cn} 章` : "",
-        t: n.text, up: n.up || 0, replies: 0, when: relTime(n.created_at), createdAt: n.created_at,
+        kind: "anno",
+        id: `note:${n.id}`,
+        threadKey: `note:${n.id}`,
+        userId: n.user_id,
+        u: n.name || "读者",
+        color: n.color || "#3a4fb0",
+        book: n.book_title || n.book_id,
+        bookId: n.book_id,
+        sid: n.sid,
+        chap: cn ? `第 ${cn} 章` : "",
+        t: n.text,
+        up: n.up || 0,
+        replies: 0,
+        when: relTime(n.created_at),
+        createdAt: n.created_at,
       };
     }),
     ...shares.map((s) => ({
-      kind: "convo", id: `share:${s.id}`, threadKey: `share:${s.id}`, userId: s.user_id, u: s.name || "读者", color: s.color || "#3a4fb0",
-      book: s.book_title || s.book_id, title: s.title || "分享了一段阅读对话", quote: s.quote, up: shareVotes[s.id] || 0, saved: 0, replies: 0, when: relTime(s.created_at), createdAt: s.created_at,
+      kind: "convo",
+      id: `share:${s.id}`,
+      threadKey: `share:${s.id}`,
+      userId: s.user_id,
+      u: s.name || "读者",
+      color: s.color || "#3a4fb0",
+      book: s.book_title || s.book_id,
+      title: s.title || "分享了一段阅读对话",
+      quote: s.quote,
+      up: shareVotes[s.id] || 0,
+      saved: 0,
+      replies: 0,
+      when: relTime(s.created_at),
+      createdAt: s.created_at,
     })),
     ...posts.map((p) => ({
-      kind: "group", id: `gpost:${p.id}`, threadKey: `gpost:${p.id}`, userId: p.user_id, u: p.name || "读者", color: p.color || "#3a4fb0",
-      groupId: p.group_id, t: p.text, chap: p.chap || "", up: p.up || 0, members: 0, replies: 0, when: relTime(p.created_at), createdAt: p.created_at,
+      kind: "group",
+      id: `gpost:${p.id}`,
+      threadKey: `gpost:${p.id}`,
+      userId: p.user_id,
+      u: p.name || "读者",
+      color: p.color || "#3a4fb0",
+      groupId: p.group_id,
+      t: p.text,
+      chap: p.chap || "",
+      up: p.up || 0,
+      members: 0,
+      replies: 0,
+      when: relTime(p.created_at),
+      createdAt: p.created_at,
     })),
-  ].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)).slice(0, 30);
+  ]
+    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+    .slice(0, 30);
   // Real reply counts, bounded to the visible items' thread keys.
   const keys = items.map((it) => it.threadKey);
   if (keys.length) {
     try {
       const counts: Record<string, number> = {};
-      for (const r of await all<any>(env.DB, `SELECT thread_key, COUNT(*) AS n FROM thread_replies WHERE thread_key IN (${keys.map(() => "?").join(",")}) GROUP BY thread_key`, ...keys)) counts[r.thread_key] = Number(r.n || 0);
+      for (const r of await all<any>(
+        env.DB,
+        `SELECT thread_key, COUNT(*) AS n FROM thread_replies WHERE thread_key IN (${keys.map(() => "?").join(",")}) GROUP BY thread_key`,
+        ...keys,
+      ))
+        counts[r.thread_key] = Number(r.n || 0);
       for (const it of items) it.replies = counts[it.threadKey] || 0;
-    } catch { /* thread_replies may predate migration 0002 — leave replies at 0 */ }
+    } catch {
+      /* thread_replies may predate migration 0002 — leave replies at 0 */
+    }
   }
   return items;
 }
@@ -374,17 +491,41 @@ social.post("/readers/:id/follow", async (c) => {
   if (uid === targetId) return c.json({ error: "不能关注自己" }, 400);
   const target = await getUser(c.env, targetId);
   if (!target || target.is_guest) return c.json({ error: "没有找到这位读者" }, 404);
-  const exists = await first(c.env.DB, `SELECT 1 AS x FROM follows WHERE follower_id = ? AND followee_id = ?`, uid, targetId);
+  const exists = await first(
+    c.env.DB,
+    `SELECT 1 AS x FROM follows WHERE follower_id = ? AND followee_id = ?`,
+    uid,
+    targetId,
+  );
   if (exists) {
-    await run(c.env.DB, `DELETE FROM follows WHERE follower_id = ? AND followee_id = ?`, uid, targetId);
+    await run(
+      c.env.DB,
+      `DELETE FROM follows WHERE follower_id = ? AND followee_id = ?`,
+      uid,
+      targetId,
+    );
   } else {
-    await run(c.env.DB, `INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?,?,?)`, uid, targetId, now());
+    await run(
+      c.env.DB,
+      `INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?,?,?)`,
+      uid,
+      targetId,
+      now(),
+    );
     await notifyFrom(c.env, uid, { userId: targetId, kind: "follow", text: "关注了你" });
   }
   return c.json({
     following: !exists,
-    followerCount: await countRows(c.env, `SELECT COUNT(*) AS n FROM follows WHERE followee_id = ?`, targetId),
-    followingCount: await countRows(c.env, `SELECT COUNT(*) AS n FROM follows WHERE follower_id = ?`, targetId),
+    followerCount: await countRows(
+      c.env,
+      `SELECT COUNT(*) AS n FROM follows WHERE followee_id = ?`,
+      targetId,
+    ),
+    followingCount: await countRows(
+      c.env,
+      `SELECT COUNT(*) AS n FROM follows WHERE follower_id = ?`,
+      targetId,
+    ),
   });
 });
 
@@ -397,9 +538,17 @@ social.get("/annotations/:bookId/:sid", async (c) => {
     c.env.DB,
     `SELECT n.text, n.color, n.up, n.user_id, u.name FROM notes n JOIN users u ON u.id = n.user_id
      WHERE n.book_id = ? AND n.sid = ? AND n.public = 1 ORDER BY n.created_at DESC LIMIT 50`,
-    bookId, sid,
+    bookId,
+    sid,
   );
-  const extra = rows.map((r) => ({ userId: r.user_id, u: r.name || "读者", color: r.color || "#3a4fb0", t: r.text, up: r.up || 0, replies: 0 }));
+  const extra = rows.map((r) => ({
+    userId: r.user_id,
+    u: r.name || "读者",
+    color: r.color || "#3a4fb0",
+    t: r.text,
+    up: r.up || 0,
+    replies: 0,
+  }));
   return c.json({ annotations: [...seedAnnos, ...extra] });
 });
 
@@ -428,13 +577,25 @@ social.get("/shares", async (c) => {
   const saveCounts: Record<string, number> = {};
   if (shareIds.length) {
     try {
-      for (const r2 of await all(c.env.DB, `SELECT target_id, COUNT(*) AS n FROM comments WHERE target_type='share' AND target_id IN (${inQ}) GROUP BY target_id`, ...shareIds)) cmtCounts[r2.target_id] = r2.n;
+      for (const r2 of await all(
+        c.env.DB,
+        `SELECT target_id, COUNT(*) AS n FROM comments WHERE target_type='share' AND target_id IN (${inQ}) GROUP BY target_id`,
+        ...shareIds,
+      ))
+        cmtCounts[r2.target_id] = r2.n;
     } catch {
       // Older D1 databases may not have 0002 yet; don't take down /shares.
     }
     try {
-      for (const r2 of await all(c.env.DB, `SELECT share_id, COUNT(*) AS n FROM convo_saves WHERE share_id IN (${inQ}) GROUP BY share_id`, ...shareIds)) saveCounts[r2.share_id] = r2.n;
-    } catch { /* convo_saves may predate its migration; counts default to 0 */ }
+      for (const r2 of await all(
+        c.env.DB,
+        `SELECT share_id, COUNT(*) AS n FROM convo_saves WHERE share_id IN (${inQ}) GROUP BY share_id`,
+        ...shareIds,
+      ))
+        saveCounts[r2.share_id] = r2.n;
+    } catch {
+      /* convo_saves may predate its migration; counts default to 0 */
+    }
   }
   const voteCounts = await voteCountsFor(c.env, "share", shareIds);
 
@@ -442,13 +603,36 @@ social.get("/shares", async (c) => {
   const children: Record<string, any[]> = {};
   for (const r of rows) {
     let data: any = {};
-    try { data = JSON.parse(r.data || "{}"); } catch { /* corrupt row — skip its data */ }
+    try {
+      data = JSON.parse(r.data || "{}");
+    } catch {
+      /* corrupt row — skip its data */
+    }
     byId[r.id] = {
-      id: r.id, parent: r.parent_id || null, form: r.form, book: r.book_id, bookT: r.book_title || S.bookById(r.book_id)?.t || "",
-      seal: data.seal || r.author_seal || "道", chap: data.chap || "", quote: r.quote, sid: r.sid, title: r.title, insight: r.insight,
-      author: { id: r.user_id, userId: r.user_id, name: r.author_name, ava: r.author_seal || "读", color: r.author_color || "#3a4fb0" },
-      agree: (r.agree || 0) + (voteCounts[r.id] || 0), comments: cmtCounts[r.id] || 0, saves: saveCounts[r.id] || 0,
-      when: "刚刚", msgs: data.msgs || [], mine: r.user_id === mine,
+      id: r.id,
+      parent: r.parent_id || null,
+      form: r.form,
+      book: r.book_id,
+      bookT: r.book_title || S.bookById(r.book_id)?.t || "",
+      seal: data.seal || r.author_seal || "道",
+      chap: data.chap || "",
+      quote: r.quote,
+      sid: r.sid,
+      title: r.title,
+      insight: r.insight,
+      author: {
+        id: r.user_id,
+        userId: r.user_id,
+        name: r.author_name,
+        ava: r.author_seal || "读",
+        color: r.author_color || "#3a4fb0",
+      },
+      agree: (r.agree || 0) + (voteCounts[r.id] || 0),
+      comments: cmtCounts[r.id] || 0,
+      saves: saveCounts[r.id] || 0,
+      when: "刚刚",
+      msgs: data.msgs || [],
+      mine: r.user_id === mine,
     };
     if (r.parent_id) (children[r.parent_id] ||= []).push(r.id);
   }
@@ -457,13 +641,28 @@ social.get("/shares", async (c) => {
     const c2 = byId[cid];
     const kids = (children[cid] || []).map(toNode);
     const q = (c2.msgs.find((m: any) => m.r === "q") || {}).t || c2.title || c2.insight || "";
-    return { id: c2.id, userId: c2.author.id, name: c2.author.name, ava: c2.author.ava, color: c2.author.color, q, agree: c2.agree, forks: kids.length, children: kids };
+    return {
+      id: c2.id,
+      userId: c2.author.id,
+      name: c2.author.name,
+      ava: c2.author.ava,
+      color: c2.author.color,
+      q,
+      agree: c2.agree,
+      forks: kids.length,
+      children: kids,
+    };
   };
-  const descendants = (cid: string): number => (children[cid] || []).reduce((s, k) => s + 1 + descendants(k), 0);
+  const descendants = (cid: string): number =>
+    (children[cid] || []).reduce((s, k) => s + 1 + descendants(k), 0);
   // top-level cards = roots only; their forks nest as a real tree that grows with each continuation
   const published = rows
     .filter((r) => !r.parent_id || !byId[r.parent_id])
-    .map((r) => ({ ...byId[r.id], forks: descendants(r.id), tree: (children[r.id] || []).map(toNode) }));
+    .map((r) => ({
+      ...byId[r.id],
+      forks: descendants(r.id),
+      tree: (children[r.id] || []).map(toNode),
+    }));
   if (await hasLibraryBooks(c.env)) return c.json({ shares: published });
   return c.json({ shares: [...published, ...S.SHARED_CONVOS] });
 });
@@ -474,28 +673,55 @@ social.post("/shares", async (c) => {
   const sid = id("sh_");
   // Bound the conversation payload: cap message count and per-field text, then a
   // hard total-size guard, so one share can't push unbounded bytes downstream.
-  const msgs = (Array.isArray(b.msgs) ? b.msgs : []).slice(0, 100).map((m: any) => ({ ...m, r: cap(m?.r, 16), t: cap(m?.t, 4000) }));
+  const msgs = (Array.isArray(b.msgs) ? b.msgs : [])
+    .slice(0, 100)
+    .map((m: any) => ({ ...m, r: cap(m?.r, 16), t: cap(m?.t, 4000) }));
   const data = JSON.stringify({ msgs, chap: cap(b.chap, 200), seal: cap(b.seal, 16) });
   if (data.length > 200000) return c.json({ error: "内容过长" }, 413);
   await run(
     c.env.DB,
     `INSERT INTO shares (id, user_id, book_id, sid, form, title, insight, quote, visibility, parent_id, data, agree, created_at)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)`,
-    sid, uid, b.bookId || null, b.sid || null, cap(b.form, 32) || "card", cap(b.title, 500) || null, cap(b.insight, 4000) || null,
-    cap(b.quote, 2000) || null, b.visibility === "private" ? "private" : "public", b.parentId || null, data, now(),
+    sid,
+    uid,
+    b.bookId || null,
+    b.sid || null,
+    cap(b.form, 32) || "card",
+    cap(b.title, 500) || null,
+    cap(b.insight, 4000) || null,
+    cap(b.quote, 2000) || null,
+    b.visibility === "private" ? "private" : "public",
+    b.parentId || null,
+    data,
+    now(),
   );
   // persist the shared conversation as a content-addressed blob (Walrus when configured, R2 always)
   const ref = await putBlob(c.env, `share/${sid}`, data, "application/json");
   // register on Sui when configured (no-op otherwise); record the real digest/objectId
-  const chainRef = await chain(c.env).registerObject(c.env, { contentId: ref.walrus, kind: "conversation", license: "CC0-1.0" });
-  if (chainRef) await run(c.env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, chainRef.objectId || chainRef.digest, `share/${sid}`);
+  const chainRef = await chain(c.env).registerObject(c.env, {
+    contentId: ref.walrus,
+    kind: "conversation",
+    license: "CC0-1.0",
+  });
+  if (chainRef)
+    await run(
+      c.env.DB,
+      `UPDATE blobs SET sui_index = ? WHERE key = ?`,
+      chainRef.objectId || chainRef.digest,
+      `share/${sid}`,
+    );
   return c.json({ ok: true, id: sid, walrus: ref.walrus, sui: chainRef });
 });
 
 social.post("/shares/:id/save", async (c) => {
   const uid = requireUser(c);
   const sid = c.req.param("id");
-  const exists = await first(c.env.DB, `SELECT 1 AS x FROM convo_saves WHERE user_id = ? AND share_id = ?`, uid, sid);
+  const exists = await first(
+    c.env.DB,
+    `SELECT 1 AS x FROM convo_saves WHERE user_id = ? AND share_id = ?`,
+    uid,
+    sid,
+  );
   if (exists) {
     await run(c.env.DB, `DELETE FROM convo_saves WHERE user_id = ? AND share_id = ?`, uid, sid);
     return c.json({ saved: false });
@@ -505,7 +731,8 @@ social.post("/shares/:id/save", async (c) => {
 });
 
 social.get("/groups", async (c) => {
-  if (await hasLibraryBooks(c.env)) return c.json({ groups: await liveGroups(c.env, c.get("userId")) });
+  if (await hasLibraryBooks(c.env))
+    return c.json({ groups: await liveGroups(c.env, c.get("userId")) });
   return c.json({ groups: S.GROUPS });
 });
 
@@ -548,19 +775,39 @@ social.post("/groups/:id/posts", async (c) => {
   const body = cap(text, 4000);
   if (!body) return c.json({ error: "内容为空" }, 400);
   const pid = id("gp_");
-  await run(c.env.DB, `INSERT INTO group_posts (id, group_id, user_id, text, chap, up, created_at) VALUES (?,?,?,?,?,0,?)`, pid, gid, uid, body, cap(chap, 200) || null, now());
+  await run(
+    c.env.DB,
+    `INSERT INTO group_posts (id, group_id, user_id, text, chap, up, created_at) VALUES (?,?,?,?,?,0,?)`,
+    pid,
+    gid,
+    uid,
+    body,
+    cap(chap, 200) || null,
+    now(),
+  );
   return c.json({ ok: true, id: pid });
 });
 
 social.post("/groups/:id/join", async (c) => {
   const uid = requireUser(c);
   const gid = c.req.param("id");
-  const ex = await first(c.env.DB, `SELECT 1 AS x FROM group_members WHERE group_id = ? AND user_id = ?`, gid, uid);
+  const ex = await first(
+    c.env.DB,
+    `SELECT 1 AS x FROM group_members WHERE group_id = ? AND user_id = ?`,
+    gid,
+    uid,
+  );
   if (ex) {
     await run(c.env.DB, `DELETE FROM group_members WHERE group_id = ? AND user_id = ?`, gid, uid);
     return c.json({ joined: false });
   }
-  await run(c.env.DB, `INSERT INTO group_members (group_id, user_id, joined_at) VALUES (?,?,?)`, gid, uid, now());
+  await run(
+    c.env.DB,
+    `INSERT INTO group_members (group_id, user_id, joined_at) VALUES (?,?,?)`,
+    gid,
+    uid,
+    now(),
+  );
   return c.json({ joined: true });
 });
 
@@ -574,7 +821,17 @@ social.get("/threads/:key", async (c) => {
   const mine = c.get("userId");
   // Replies only — the discussion root is the real feed item the client opened,
   // not a seed thread.
-  return c.json({ replies: replies.map((r) => ({ userId: r.user_id, u: r.name, color: r.color, when: relTime(r.created_at), t: r.text, up: r.up || 0, mine: r.user_id === mine })) });
+  return c.json({
+    replies: replies.map((r) => ({
+      userId: r.user_id,
+      u: r.name,
+      color: r.color,
+      when: relTime(r.created_at),
+      t: r.text,
+      up: r.up || 0,
+      mine: r.user_id === mine,
+    })),
+  });
 });
 
 social.post("/threads/:key", async (c) => {
@@ -582,12 +839,23 @@ social.post("/threads/:key", async (c) => {
   const { text } = await c.req.json();
   const body = cap(text, 4000);
   if (!body) return c.json({ error: "内容为空" }, 400);
-  await run(c.env.DB, `INSERT INTO thread_replies (id, thread_key, user_id, text, up, created_at) VALUES (?,?,?,?,0,?)`, id("tr_"), c.req.param("key"), uid, body, now());
+  await run(
+    c.env.DB,
+    `INSERT INTO thread_replies (id, thread_key, user_id, text, up, created_at) VALUES (?,?,?,?,0,?)`,
+    id("tr_"),
+    c.req.param("key"),
+    uid,
+    body,
+    now(),
+  );
   return c.json({ ok: true });
 });
 
 social.get("/works", async (c) => {
-  const rows = await all(c.env.DB, `SELECT w.id, w.title, w.body, w.addr, w.license, w.cited, w.created_at, u.name FROM works w JOIN users u ON u.id = w.user_id ORDER BY w.created_at DESC LIMIT 50`);
+  const rows = await all(
+    c.env.DB,
+    `SELECT w.id, w.title, w.body, w.addr, w.license, w.cited, w.created_at, u.name FROM works w JOIN users u ON u.id = w.user_id ORDER BY w.created_at DESC LIMIT 50`,
+  );
   return c.json({ works: rows });
 });
 
@@ -603,12 +871,35 @@ social.post("/works", async (c) => {
   await run(
     c.env.DB,
     `INSERT INTO works (id, user_id, title, body, addr, license, cited, created_at) VALUES (?,?,?,?,?,?,0,?)`,
-    wid, uid, heading, text, `liber://work/${wid}`, "CC0-1.0", now(),
+    wid,
+    uid,
+    heading,
+    text,
+    `liber://work/${wid}`,
+    "CC0-1.0",
+    now(),
   );
   // register the CC0 work on Sui when configured (no-op otherwise)
-  const chainRef = await chain(c.env).registerObject(c.env, { contentId: ref.walrus, kind: "work", license: "CC0-1.0" });
-  if (chainRef) await run(c.env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, chainRef.objectId || chainRef.digest, `work/${wid}`);
-  return c.json({ ok: true, id: wid, addr: `liber://work/${wid}`, walrus: ref.walrus, arweave: ref.arweave, sui: chainRef });
+  const chainRef = await chain(c.env).registerObject(c.env, {
+    contentId: ref.walrus,
+    kind: "work",
+    license: "CC0-1.0",
+  });
+  if (chainRef)
+    await run(
+      c.env.DB,
+      `UPDATE blobs SET sui_index = ? WHERE key = ?`,
+      chainRef.objectId || chainRef.digest,
+      `work/${wid}`,
+    );
+  return c.json({
+    ok: true,
+    id: wid,
+    addr: `liber://work/${wid}`,
+    walrus: ref.walrus,
+    arweave: ref.arweave,
+    sui: chainRef,
+  });
 });
 
 // ---- Comments (generic over targets: share | work | book | …) ----
@@ -621,17 +912,30 @@ social.get("/comments/:type/:id", async (c) => {
     `SELECT cm.id, cm.text, cm.up, cm.walrus, cm.created_at, u.name, u.color, u.seal, cm.user_id
      FROM comments cm JOIN users u ON u.id = cm.user_id
      WHERE cm.target_type = ? AND cm.target_id = ? ORDER BY cm.created_at ASC LIMIT 200`,
-    type, tid,
+    type,
+    tid,
   );
   const mine = c.get("userId");
   // Merge live vote counts: comment upvotes are cast via /vote/comment/:id into
   // the votes table; the comments.up column is never incremented, so without
   // this every comment renders 0 regardless of real votes.
-  const voteCounts = await voteCountsFor(c.env, "comment", rows.map((r) => r.id));
+  const voteCounts = await voteCountsFor(
+    c.env,
+    "comment",
+    rows.map((r) => r.id),
+  );
   return c.json({
     comments: rows.map((r) => ({
-      id: r.id, u: r.name || "读者", color: r.color || "#3a4fb0", seal: r.seal || "读",
-      userId: r.user_id, t: r.text, up: (r.up || 0) + (voteCounts[r.id] || 0), when: relTime(r.created_at), mine: r.user_id === mine, walrus: r.walrus || null,
+      id: r.id,
+      u: r.name || "读者",
+      color: r.color || "#3a4fb0",
+      seal: r.seal || "读",
+      userId: r.user_id,
+      t: r.text,
+      up: (r.up || 0) + (voteCounts[r.id] || 0),
+      when: relTime(r.created_at),
+      mine: r.user_id === mine,
+      walrus: r.walrus || null,
     })),
   });
 });
@@ -656,14 +960,36 @@ social.post("/comments/:type/:id", async (c) => {
     c.env.DB,
     `INSERT INTO comments (id, target_type, target_id, user_id, text, up, walrus, created_at)
      VALUES (?,?,?,?,?,0,?,?)`,
-    cid, type, tid, uid, body, ref.walrus, now(),
+    cid,
+    type,
+    tid,
+    uid,
+    body,
+    ref.walrus,
+    now(),
   );
   // register the comment on Sui when configured (no-op otherwise); record the digest/objectId
-  const chainRef = await chain(c.env).registerObject(c.env, { contentId: ref.walrus, kind: "comment", license: "CC0-1.0" });
-  if (chainRef) await run(c.env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, chainRef.objectId || chainRef.digest, `comment/${cid}`);
+  const chainRef = await chain(c.env).registerObject(c.env, {
+    contentId: ref.walrus,
+    kind: "comment",
+    license: "CC0-1.0",
+  });
+  if (chainRef)
+    await run(
+      c.env.DB,
+      `UPDATE blobs SET sui_index = ? WHERE key = ?`,
+      chainRef.objectId || chainRef.digest,
+      `comment/${cid}`,
+    );
   // notify the thing's owner that someone replied
   const ownerId = await targetOwnerId(c.env, type, tid);
-  if (ownerId) await notifyFrom(c.env, uid, { userId: ownerId, kind: "reply", text: `回复了你：${body.slice(0, 40)}`, target: tid });
+  if (ownerId)
+    await notifyFrom(c.env, uid, {
+      userId: ownerId,
+      kind: "reply",
+      text: `回复了你：${body.slice(0, 40)}`,
+      target: tid,
+    });
   return c.json({ ok: true, id: cid, walrus: ref.walrus, sui: chainRef });
 });
 
@@ -672,15 +998,45 @@ social.post("/vote/:type/:id", async (c) => {
   const uid = requireUser(c);
   const { type, id: tid } = c.req.param();
   if (!SOCIAL_TARGET_TYPES.has(type)) return c.json({ error: "无效的投票目标类型" }, 400);
-  const ex = await first(c.env.DB, `SELECT 1 AS x FROM votes WHERE user_id=? AND target_type=? AND target_id=?`, uid, type, tid);
+  const ex = await first(
+    c.env.DB,
+    `SELECT 1 AS x FROM votes WHERE user_id=? AND target_type=? AND target_id=?`,
+    uid,
+    type,
+    tid,
+  );
   if (ex) {
-    await run(c.env.DB, `DELETE FROM votes WHERE user_id=? AND target_type=? AND target_id=?`, uid, type, tid);
+    await run(
+      c.env.DB,
+      `DELETE FROM votes WHERE user_id=? AND target_type=? AND target_id=?`,
+      uid,
+      type,
+      tid,
+    );
   } else {
-    await run(c.env.DB, `INSERT INTO votes (user_id, target_type, target_id, created_at) VALUES (?,?,?,?)`, uid, type, tid, now());
+    await run(
+      c.env.DB,
+      `INSERT INTO votes (user_id, target_type, target_id, created_at) VALUES (?,?,?,?)`,
+      uid,
+      type,
+      tid,
+      now(),
+    );
     const ownerId = await targetOwnerId(c.env, type, tid);
-    if (ownerId) await notifyFrom(c.env, uid, { userId: ownerId, kind: "agree", text: "赞同了你", target: tid });
+    if (ownerId)
+      await notifyFrom(c.env, uid, {
+        userId: ownerId,
+        kind: "agree",
+        text: "赞同了你",
+        target: tid,
+      });
   }
-  const row = await first(c.env.DB, `SELECT COUNT(*) AS n FROM votes WHERE target_type=? AND target_id=?`, type, tid);
+  const row = await first(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM votes WHERE target_type=? AND target_id=?`,
+    type,
+    tid,
+  );
   return c.json({ voted: !ex, count: row?.n || 0 });
 });
 

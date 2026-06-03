@@ -30,7 +30,10 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--json") out.json = true;
-    else if (a.startsWith("--")) { out[a.slice(2)] = argv[i + 1]; i++; }
+    else if (a.startsWith("--")) {
+      out[a.slice(2)] = argv[i + 1];
+      i++;
+    }
   }
   return out;
 }
@@ -90,7 +93,10 @@ async function embedAll(texts) {
     }
     const j = await res.json();
     const data = j?.result?.data ?? j?.result?.embeddings ?? j?.data;
-    if (!Array.isArray(data)) { console.error("✗ unexpected response shape:", JSON.stringify(j).slice(0, 300)); process.exit(1); }
+    if (!Array.isArray(data)) {
+      console.error("✗ unexpected response shape:", JSON.stringify(j).slice(0, 300));
+      process.exit(1);
+    }
     vectors.push(...data);
     process.stderr.write(`  embedded ${Math.min(i + BATCH, texts.length)}/${texts.length}\r`);
   }
@@ -99,8 +105,14 @@ async function embedAll(texts) {
 }
 
 function cosine(a, b) {
-  let dot = 0, na = 0, nb = 0;
-  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  let dot = 0,
+    na = 0,
+    nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
   return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
 }
 
@@ -113,7 +125,9 @@ function seedEchoFor(sid) {
 async function main() {
   const rows = collectSentences();
   const books = [...new Set(rows.map((r) => r.bookId))];
-  console.error(`Spike: ${rows.length} sentences across ${books.length} books [${books.map(bookTitle).join(", ")}], model ${MODEL}\n`);
+  console.error(
+    `Spike: ${rows.length} sentences across ${books.length} books [${books.map(bookTitle).join(", ")}], model ${MODEL}\n`,
+  );
 
   const vectors = await embedAll(rows.map((r) => r.t));
 
@@ -131,11 +145,25 @@ async function main() {
   }
 
   if (JSON_OUT) {
-    console.log(JSON.stringify(report.map((r) => ({
-      sid: r.src.sid, book: bookTitle(r.src.bookId), quote: r.src.t,
-      auto: r.top.map((t) => ({ score: Number(t.score.toFixed(3)), book: bookTitle(t.bookId), quote: t.t })),
-      seedHandwritten: r.seed ? r.seed.items.map((it) => ({ book: it.bookT, quote: it.quote, why: it.why })) : null,
-    })), null, 2));
+    console.log(
+      JSON.stringify(
+        report.map((r) => ({
+          sid: r.src.sid,
+          book: bookTitle(r.src.bookId),
+          quote: r.src.t,
+          auto: r.top.map((t) => ({
+            score: Number(t.score.toFixed(3)),
+            book: bookTitle(t.bookId),
+            quote: t.t,
+          })),
+          seedHandwritten: r.seed
+            ? r.seed.items.map((it) => ({ book: it.bookT, quote: it.quote, why: it.why }))
+            : null,
+        })),
+        null,
+        2,
+      ),
+    );
     return;
   }
 
@@ -143,16 +171,25 @@ async function main() {
     console.log(`\n━━ ${bookTitle(r.src.bookId)} 〔${r.src.sid}〕`);
     console.log(`   「${r.src.t}」`);
     console.log(`   AUTO（语义最近邻，跨书）:`);
-    for (const t of r.top) console.log(`     ${t.score.toFixed(3)}  《${bookTitle(t.bookId)}》 ${t.t}`);
+    for (const t of r.top)
+      console.log(`     ${t.score.toFixed(3)}  《${bookTitle(t.bookId)}》 ${t.t}`);
     if (r.seed) {
       console.log(`   SEED（编辑部手写「${r.seed.theme}」）:`);
-      for (const it of r.seed.items) console.log(`     —      《${it.bookT}》 ${it.quote}\n              ↳ ${it.why}`);
+      for (const it of r.seed.items)
+        console.log(`     —      《${it.bookT}》 ${it.quote}\n              ↳ ${it.why}`);
     }
   }
 
   const withSeed = report.filter((r) => r.seed).length;
-  console.log(`\n──────────\n${report.length} sentences got ≥1 cross-book echo at min=${MIN}. ${withSeed} of them also have a hand-written seed echo to compare against.`);
-  console.log(`Judge: do the AUTO neighbours feel as insightful as the SEED ones? Tune --min / --topk and re-run. This decides GRAPH_MIN_SCORE and whether to ship.`);
+  console.log(
+    `\n──────────\n${report.length} sentences got ≥1 cross-book echo at min=${MIN}. ${withSeed} of them also have a hand-written seed echo to compare against.`,
+  );
+  console.log(
+    `Judge: do the AUTO neighbours feel as insightful as the SEED ones? Tune --min / --topk and re-run. This decides GRAPH_MIN_SCORE and whether to ship.`,
+  );
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

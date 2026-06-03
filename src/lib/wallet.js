@@ -12,9 +12,9 @@ const SUI_TYPE = "0x2::sui::SUI";
 
 function suiWallets() {
   try {
-    return getWallets().get().filter(
-      (w) => w.features?.["standard:connect"] && w.features?.["sui:signPersonalMessage"],
-    );
+    return getWallets()
+      .get()
+      .filter((w) => w.features?.["standard:connect"] && w.features?.["sui:signPersonalMessage"]);
   } catch {
     return [];
   }
@@ -50,9 +50,17 @@ async function connectWallet(name) {
 async function loginWithConnection(wallet, account) {
   const { nonce, message } = await api.auth.nonce();
   const bytes = new TextEncoder().encode(message);
-  const signed = await wallet.features["sui:signPersonalMessage"].signPersonalMessage({ message: bytes, account });
+  const signed = await wallet.features["sui:signPersonalMessage"].signPersonalMessage({
+    message: bytes,
+    account,
+  });
 
-  const res = await api.auth.verify({ address: account.address, message, signature: signed.signature, nonce });
+  const res = await api.auth.verify({
+    address: account.address,
+    message,
+    signature: signed.signature,
+    nonce,
+  });
   if (res?.token) setToken(res.token);
   return { address: account.address, token: res?.token, user: res?.user };
 }
@@ -80,7 +88,9 @@ export async function evmLogin() {
   const { nonce, message } = await api.auth.nonce();
   // personal_sign(data, account): hex-encode the message so every wallet signs the
   // same bytes; the wallet adds the EIP-191 prefix, which the backend re-derives.
-  const hexMsg = "0x" + [...new TextEncoder().encode(message)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hexMsg =
+    "0x" +
+    [...new TextEncoder().encode(message)].map((b) => b.toString(16).padStart(2, "0")).join("");
   const signature = await eth.request({ method: "personal_sign", params: [hexMsg, address] });
   const res = await api.auth.verify({ address, message, signature, nonce, chain: "evm" });
   if (res?.token) setToken(res.token);
@@ -90,9 +100,9 @@ export async function evmLogin() {
 // ---- Solana login (Phantom & any Wallet-Standard solana wallet) ----
 function solanaWallets() {
   try {
-    return getWallets().get().filter(
-      (w) => w.features?.["standard:connect"] && w.features?.["solana:signMessage"],
-    );
+    return getWallets()
+      .get()
+      .filter((w) => w.features?.["standard:connect"] && w.features?.["solana:signMessage"]);
   } catch {
     return [];
   }
@@ -126,7 +136,9 @@ export async function solanaLogin() {
   }
   if (!address || !sigBytes) throw new Error("Solana 钱包签名失败");
   // ed25519 signature over the raw message; send base58 (Solana convention).
-  const signature = base58.encode(sigBytes instanceof Uint8Array ? sigBytes : new Uint8Array(sigBytes));
+  const signature = base58.encode(
+    sigBytes instanceof Uint8Array ? sigBytes : new Uint8Array(sigBytes),
+  );
   const res = await api.auth.verify({ address, message, signature, nonce, chain: "solana" });
   if (res?.token) setToken(res.token);
   return { address, token: res?.token, user: res?.user };
@@ -165,7 +177,10 @@ export async function stablecoinSubscribe(name) {
   if (!cfg?.configured) throw new Error("链上稳定币付费尚未配置");
   const { wallet, account } = await connectWallet(name);
   await loginWithConnection(wallet, account);
-  if (!wallet.features["sui:signAndExecuteTransaction"] && !wallet.features["sui:signAndExecuteTransactionBlock"]) {
+  if (
+    !wallet.features["sui:signAndExecuteTransaction"] &&
+    !wallet.features["sui:signAndExecuteTransactionBlock"]
+  ) {
     throw new Error("当前钱包不支持交易签名发送");
   }
 
@@ -180,7 +195,11 @@ export async function stablecoinSubscribe(name) {
     const coins = await collectCoins(cfg.rpc, account.address, cfg.coinType, amount);
     const total = coins.reduce((sum, coin) => sum + BigInt(coin.balance || 0), 0n);
     const [primary, ...rest] = coins;
-    if (rest.length) tx.mergeCoins(tx.object(primary.coinObjectId), rest.map((c) => tx.object(c.coinObjectId)));
+    if (rest.length)
+      tx.mergeCoins(
+        tx.object(primary.coinObjectId),
+        rest.map((c) => tx.object(c.coinObjectId)),
+      );
     if (total === amount) {
       tx.transferObjects([tx.object(primary.coinObjectId)], cfg.treasury);
     } else {
@@ -189,6 +208,10 @@ export async function stablecoinSubscribe(name) {
     }
   }
 
-  const result = await signAndExecuteTransaction(wallet, { account, chain: cfg.chain, transaction: tx });
+  const result = await signAndExecuteTransaction(wallet, {
+    account,
+    chain: cfg.chain,
+    transaction: tx,
+  });
   return api.billing.confirmCrypto(result.digest);
 }

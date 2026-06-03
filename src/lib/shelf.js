@@ -35,7 +35,11 @@ export function addShelfBook(bookId) {
 // account does not inherit the previous one's locally-tracked books.
 export function clearShelf() {
   if (typeof localStorage === "undefined") return;
-  try { localStorage.removeItem(READING_KEY); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(READING_KEY);
+  } catch {
+    /* ignore */
+  }
   bump();
 }
 
@@ -59,7 +63,9 @@ export function shelfReadingEntries(seedReading, catalog) {
       return book ? { ...book, at: row.at || "未开始 · 0%" } : null;
     })
     .filter(Boolean);
-  const rows = [...localRows, ...seedRows].filter((book) => !seen.has(book.id) && seen.add(book.id));
+  const rows = [...localRows, ...seedRows].filter(
+    (book) => !seen.has(book.id) && seen.add(book.id),
+  );
   if (rows.length) return rows;
 
   const liveBooks = books.filter((book) => book.dynamic);
@@ -69,13 +75,15 @@ export function shelfReadingEntries(seedReading, catalog) {
 export function shelfCollections(seedCollections, catalog) {
   const liveBooks = (Array.isArray(catalog) ? catalog : []).filter((book) => book.dynamic);
   if (liveBooks.length) {
-    return [{
-      id: "live-library",
-      name: "已入库公版书",
-      desc: "来自真实入库内容",
-      books: liveBooks.map((book) => book.id),
-      color: "ink",
-    }];
+    return [
+      {
+        id: "live-library",
+        name: "已入库公版书",
+        desc: "来自真实入库内容",
+        books: liveBooks.map((book) => book.id),
+        color: "ink",
+      },
+    ];
   }
   return Array.isArray(seedCollections) ? seedCollections : [];
 }

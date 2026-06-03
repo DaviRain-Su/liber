@@ -7,7 +7,11 @@ import type { Env } from "./types";
 // A REST-API fallback (CF_EMAIL_TOKEN + CF_ACCOUNT_ID) is kept for environments
 // without the binding. When neither is configured, the caller surfaces the code in
 // the response (dev mode) so login still works.
-export async function sendOtpEmail(env: Env, to: string, code: string): Promise<{ sent: boolean; error?: string }> {
+export async function sendOtpEmail(
+  env: Env,
+  to: string,
+  code: string,
+): Promise<{ sent: boolean; error?: string }> {
   const fromStr = (env.EMAIL_FROM || "Liber <login@davirain.xyz>").trim();
   const m = fromStr.match(/^(.*?)\s*<([^>]+)>$/);
   const fromEmail = m ? m[2].trim() : fromStr;
@@ -38,14 +42,20 @@ export async function sendOtpEmail(env: Env, to: string, code: string): Promise<
   if (!token || !account) return { sent: false };
   const from = { address: fromEmail, name: fromName };
   try {
-    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/email/sending/send`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ to, from, subject, text, html }),
-    });
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${account}/email/sending/send`,
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ to, from, subject, text, html }),
+      },
+    );
     const j: any = await res.json().catch(() => ({}));
     if (res.ok && j?.success) return { sent: true };
-    return { sent: false, error: JSON.stringify(j?.errors?.length ? j.errors : (j || `HTTP ${res.status}`)).slice(0, 300) };
+    return {
+      sent: false,
+      error: JSON.stringify(j?.errors?.length ? j.errors : j || `HTTP ${res.status}`).slice(0, 300),
+    };
   } catch (e: any) {
     return { sent: false, error: String(e?.message || e) };
   }

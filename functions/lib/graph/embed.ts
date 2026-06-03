@@ -40,19 +40,29 @@ function topK(env: Env): number {
 // Producer: fire-and-forget a batch of sids onto the embed queue. No-op unless
 // the graph is enabled and a queue is bound. Never throws (best-effort, must not
 // block the originating write). Wrap the call in c.executionCtx.waitUntil(...).
-export async function enqueueSids(env: Env, sids: string[], texts?: Record<string, string>): Promise<void> {
+export async function enqueueSids(
+  env: Env,
+  sids: string[],
+  texts?: Record<string, string>,
+): Promise<void> {
   if (!graphEnabled(env) || !env.EMBED_QUEUE) return;
   const full = Array.from(new Set(sids.map(toFullSid).filter(Boolean)));
   if (!full.length) return;
   try {
     const msg: EmbedMsg = texts ? { sids: full, texts } : { sids: full };
     await env.EMBED_QUEUE.send(msg);
-  } catch { /* metering/graph must never block the user write */ }
+  } catch {
+    /* metering/graph must never block the user write */
+  }
 }
 
 // Resolve sentence text for sids we weren't handed inline — grouped by book so
 // each chapter is loaded at most once.
-async function resolveTexts(env: Env, sids: string[], inline?: Record<string, string>): Promise<Map<string, string>> {
+async function resolveTexts(
+  env: Env,
+  sids: string[],
+  inline?: Record<string, string>,
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   const missing: string[] = [];
   for (const sid of sids) {
@@ -123,7 +133,10 @@ export async function processEmbedBatch(env: Env, msgs: EmbedMsg[]): Promise<voi
   const pending = todo.filter((sid) => textMap.get(sid));
   if (!pending.length) return;
 
-  const vectors = await embedTexts(env, pending.map((sid) => textMap.get(sid)!));
+  const vectors = await embedTexts(
+    env,
+    pending.map((sid) => textMap.get(sid)!),
+  );
 
   // upsert vectors + record the ledger
   const toUpsert = pending.map((sid, i) => {
@@ -137,7 +150,11 @@ export async function processEmbedBatch(env: Env, msgs: EmbedMsg[]): Promise<voi
       env.DB,
       `INSERT INTO embeddings (sid, book_id, model, dim, created_at) VALUES (?,?,?,?,?)
        ON CONFLICT(sid) DO UPDATE SET model = excluded.model, dim = excluded.dim, created_at = excluded.created_at`,
-      sid, p?.bookId || "", model, vectors[0]?.length || EMBED_DIM, now(),
+      sid,
+      p?.bookId || "",
+      model,
+      vectors[0]?.length || EMBED_DIM,
+      now(),
     );
   }
 
@@ -150,7 +167,9 @@ export async function processEmbedBatch(env: Env, msgs: EmbedMsg[]): Promise<voi
     let matches: any;
     try {
       matches = await vec.query(vectors[i] as any, { topK: k + 4, returnMetadata: true } as any);
-    } catch { continue; }
+    } catch {
+      continue;
+    }
     for (const match of matches?.matches || []) {
       const dstSid: string = match.id;
       if (dstSid === srcSid) continue;
@@ -164,7 +183,14 @@ export async function processEmbedBatch(env: Env, msgs: EmbedMsg[]): Promise<voi
 }
 
 // Insert/refresh one echo edge, normalized so src < dst for stable de-dup.
-async function upsertEdge(env: Env, a: string, b: string, aBook: string, bBook: string, score: number): Promise<void> {
+async function upsertEdge(
+  env: Env,
+  a: string,
+  b: string,
+  aBook: string,
+  bBook: string,
+  score: number,
+): Promise<void> {
   const [srcSid, dstSid, srcBook, dstBook] = a < b ? [a, b, aBook, bBook] : [b, a, bBook, aBook];
   await run(
     env.DB,
@@ -172,6 +198,13 @@ async function upsertEdge(env: Env, a: string, b: string, aBook: string, bBook: 
      VALUES (?,?,?,?,?,?,'auto',0,?,?)
      ON CONFLICT(src_sid, dst_sid) DO UPDATE SET
        score = MAX(echo_edges.score, excluded.score), updated_at = excluded.updated_at`,
-    id("ee_"), srcSid, dstSid, srcBook, dstBook, score, now(), now(),
+    id("ee_"),
+    srcSid,
+    dstSid,
+    srcBook,
+    dstBook,
+    score,
+    now(),
+    now(),
   );
 }

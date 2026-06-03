@@ -22,7 +22,9 @@ async function echoCounts(env: Env): Promise<Record<string, number>> {
       for (const r of rows) out[r.book] = Number(r.n || 0);
       if (Object.keys(out).length) return out;
     }
-  } catch { /* fall through to seed */ }
+  } catch {
+    /* fall through to seed */
+  }
   // seed-derived: anchor (道德经) + each in-library echo target
   for (const data of Object.values(S.ECHOES)) {
     for (const it of (data as any)?.items || []) {
@@ -47,7 +49,10 @@ function countMap(rows: Array<{ book_id: string; n: number }>) {
 }
 
 function seedCharts(win: string, echoes: Record<string, number> = {}) {
-  const base = (S.CHARTS[win] || S.CHARTS.today || []).map((r: any) => ({ ...r, echoes: echoes[r.id] ?? r.echoes ?? 0 }));
+  const base = (S.CHARTS[win] || S.CHARTS.today || []).map((r: any) => ({
+    ...r,
+    echoes: echoes[r.id] ?? r.echoes ?? 0,
+  }));
   return {
     window: win,
     rows: base,
@@ -99,4 +104,3 @@ export async function getCharts(env: Env, win = "today") {
   rows.sort((a, b) => b.reads - a.reads || b.lines - a.lines || b.convos - a.convos);
   return { window: win, rows, surge: {}, hotToday: null, sentences: [], source: "library" };
 }
-

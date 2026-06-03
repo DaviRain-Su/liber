@@ -2,13 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const aiProvider = await readFile(new URL("../functions/lib/aiProvider.ts", import.meta.url), "utf8");
+const aiProvider = await readFile(
+  new URL("../functions/lib/aiProvider.ts", import.meta.url),
+  "utf8",
+);
 const aiRoute = await readFile(new URL("../functions/routes/ai.ts", import.meta.url), "utf8");
 const aiCache = await readFile(new URL("../functions/lib/aiCache.ts", import.meta.url), "utf8");
 const aiPrompts = await readFile(new URL("../functions/lib/ai.ts", import.meta.url), "utf8");
 const types = await readFile(new URL("../functions/lib/types.ts", import.meta.url), "utf8");
 const productData = await readFile(new URL("../src/data/product-data.js", import.meta.url), "utf8");
-const readerSource = await readFile(new URL("../src/components/product-reader.jsx", import.meta.url), "utf8");
+const readerSource = await readFile(
+  new URL("../src/components/product-reader.jsx", import.meta.url),
+  "utf8",
+);
 const backendDoc = await readFile(new URL("../BACKEND.md", import.meta.url), "utf8");
 
 test("Workers AI defaults avoid deprecated Qwen1.5 and expose AI Gateway knobs", () => {
@@ -20,7 +26,7 @@ test("Workers AI defaults avoid deprecated Qwen1.5 and expose AI Gateway knobs",
 });
 
 test("classical Chinese translation is a first-class reader lens", () => {
-  assert.match(aiPrompts, /translate: "你是「今译 Agent」/);
+  assert.match(aiPrompts, /translate:\s*"你是「今译 Agent」/);
   assert.match(aiPrompts, /temperature: translate \? 0\.2 : 0\.7/);
   assert.match(productData, /id:"translate", name:"古文今译"/);
   assert.match(readerSource, /translateSelection/);

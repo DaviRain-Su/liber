@@ -5,7 +5,8 @@ import { aiChat } from "./aiProvider";
 import { agentEnabled, runCompanionAgent } from "./agent";
 
 const LENS_PROMPT: Record<string, string> = {
-  translate: "你是「今译 Agent」，专做古汉语、文言文、繁体古籍的现代汉语翻译与字词释义。忠于原文，不擅自扩写，不把翻译写成读后感。",
+  translate:
+    "你是「今译 Agent」，专做古汉语、文言文、繁体古籍的现代汉语翻译与字词释义。忠于原文，不擅自扩写，不把翻译写成读后感。",
   companion: "你是「书友」，一个温和、博学的通读陪伴者。陪读者一句句读懂经典，不剧透后文。",
   extend: "你是知识延展者。把读者眼前的概念，连接到馆里其他经典与思想，给出可顺藤摸瓜的线索。",
   notes: "你是笔记整理者。把要点整理成清晰的脉络与金句，便于读者归档。",
@@ -41,7 +42,12 @@ export interface CompanionInput {
   history?: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
-export interface CompanionReply { text: string; ref: string; error?: boolean; steps?: Array<{ tool: string; args: any; ok: boolean }> }
+export interface CompanionReply {
+  text: string;
+  ref: string;
+  error?: boolean;
+  steps?: Array<{ tool: string; args: any; ok: boolean }>;
+}
 
 export async function companionReply(env: Env, opts: CompanionInput): Promise<CompanionReply> {
   const persona = LENS_PROMPT[opts.lens] || LENS_PROMPT.companion;
@@ -61,11 +67,20 @@ export async function companionReply(env: Env, opts: CompanionInput): Promise<Co
   // actually read passages / look up cross-book echoes / search before answering.
   if (!translate && agentEnabled(env)) {
     try {
-      const agentSys = sys + "\n你可以调用工具读正文、查跨书呼应、看热门划线、检索馆藏；先查证再作答，不要凭空编造。";
-      const r = await runCompanionAgent(env, { system: agentSys, history, question: opts.question });
-      if (r.text) return { text: r.text, ref: LENS_REF[opts.lens] || LENS_REF.companion, steps: r.steps };
+      const agentSys =
+        sys +
+        "\n你可以调用工具读正文、查跨书呼应、看热门划线、检索馆藏；先查证再作答，不要凭空编造。";
+      const r = await runCompanionAgent(env, {
+        system: agentSys,
+        history,
+        question: opts.question,
+      });
+      if (r.text)
+        return { text: r.text, ref: LENS_REF[opts.lens] || LENS_REF.companion, steps: r.steps };
       // empty answer → fall through to single-shot
-    } catch { /* fall through to single-shot below */ }
+    } catch {
+      /* fall through to single-shot below */
+    }
   }
 
   const messages = [

@@ -25,10 +25,12 @@ export function recoverEvmAddress(message, signature) {
     const r = sig.slice(0, 32);
     const s = sig.slice(32, 64);
     let rec = sig[64];
-    if (rec >= 27) rec -= 27;         // personal_sign v is 27/28; some wallets send 0/1
+    if (rec >= 27) rec -= 27; // personal_sign v is 27/28; some wallets send 0/1
     if (rec !== 0 && rec !== 1) return null;
     const msg = utf8ToBytes(message);
-    const digest = keccak_256(concatBytes(utf8ToBytes("\x19Ethereum Signed Message:\n" + msg.length), msg));
+    const digest = keccak_256(
+      concatBytes(utf8ToBytes("\x19Ethereum Signed Message:\n" + msg.length), msg),
+    );
     const pub = secp256k1.Signature.fromBytes(concatBytes(r, s), "compact")
       .addRecoveryBit(rec)
       .recoverPublicKey(digest)
@@ -44,7 +46,8 @@ export function recoverEvmAddress(message, signature) {
 // base58-encoded 64-byte signature. Returns the address when valid, else null.
 export function verifySolanaAddress(message, signature, address) {
   try {
-    if (typeof message !== "string" || typeof signature !== "string" || typeof address !== "string") return null;
+    if (typeof message !== "string" || typeof signature !== "string" || typeof address !== "string")
+      return null;
     const pub = base58.decode(address);
     if (pub.length !== 32) return null;
     const sig = base58.decode(signature);

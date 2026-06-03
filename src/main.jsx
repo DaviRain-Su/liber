@@ -36,7 +36,9 @@ import { App } from "./components/product-app.jsx";
 import { LiberTweaks } from "./components/product-tweaks.jsx";
 
 createRoot(document.getElementById("app")).render(
-  <QueryClientProvider client={queryClient}><App /></QueryClientProvider>,
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>,
 );
 
 /* The Tweaks island doesn't mount inside the phone-preview iframe (?vp=phone),

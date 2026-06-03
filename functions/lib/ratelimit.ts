@@ -43,15 +43,25 @@ export async function rateLimit(
       env.DB,
       `INSERT INTO rate_counters (k, w, n) VALUES (?, ?, 1)
        ON CONFLICT(k, w) DO UPDATE SET n = n + 1`,
-      key, w,
+      key,
+      w,
     );
-    const row = await first<{ n: number }>(env.DB, `SELECT n FROM rate_counters WHERE k = ? AND w = ?`, key, w);
+    const row = await first<{ n: number }>(
+      env.DB,
+      `SELECT n FROM rate_counters WHERE k = ? AND w = ?`,
+      key,
+      w,
+    );
     const n = row?.n || 1;
     const decision = n > limit ? { ok: false, remaining: 0 } : { ok: true, remaining: limit - n };
     // First hit of a new window for this key → prune old windows (keeps the
     // table bounded to roughly one window's worth of rows). Best-effort.
     if (n === 1) {
-      try { await run(env.DB, `DELETE FROM rate_counters WHERE w < ?`, w - 2); } catch { /* ignore */ }
+      try {
+        await run(env.DB, `DELETE FROM rate_counters WHERE w < ?`, w - 2);
+      } catch {
+        /* ignore */
+      }
     }
     return decision;
   } catch {

@@ -9,20 +9,20 @@
 import type { Env } from "../types";
 
 export interface ChainRef {
-  chain: string;        // "sui" | "evm" | "solana"
-  digest: string;       // tx hash / digest (always verifiable)
-  objectId?: string;    // created registry object/account id, if any
+  chain: string; // "sui" | "evm" | "solana"
+  digest: string; // tx hash / digest (always verifiable)
+  objectId?: string; // created registry object/account id, if any
 }
 
 export interface ChainInfo {
   chain: string;
   live: boolean;
-  checkpoint?: string;  // checkpoint / block height — proof the chain is advancing
+  checkpoint?: string; // checkpoint / block height — proof the chain is advancing
   chainId?: string;
 }
 
 export interface ChainAdapter {
-  readonly id: string;  // "sui" | "evm" | "solana"
+  readonly id: string; // "sui" | "evm" | "solana"
 
   // Verify a wallet login signature over `message`; return the signer address
   // (the canonical on-chain address for this chain) or null if invalid.
@@ -37,5 +37,8 @@ export interface ChainAdapter {
   // Register a content reference on-chain (high-value objects only). Fully
   // gated: returns null when signing keys / contract address aren't configured,
   // so the publish path is never blocked. Writing needs a deployed contract.
-  registerObject(env: Env, payload: { contentId: string; kind: string; license?: string }): Promise<ChainRef | null>;
+  registerObject(
+    env: Env,
+    payload: { contentId: string; kind: string; license?: string },
+  ): Promise<ChainRef | null>;
 }

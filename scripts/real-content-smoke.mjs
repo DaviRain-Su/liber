@@ -74,10 +74,11 @@ function elapsed(startedAt) {
 }
 
 function createProgress(options) {
-  if (options.quiet) return {
-    log: () => {},
-    step: async (_label, fn) => fn(() => {}),
-  };
+  if (options.quiet)
+    return {
+      log: () => {},
+      step: async (_label, fn) => fn(() => {}),
+    };
   const log = (message) => process.stderr.write(`[smoke] ${message}\n`);
   const step = async (label, fn) => {
     const startedAt = Date.now();
@@ -171,31 +172,49 @@ async function main() {
 
   const dir = await mkdtemp(path.join(tmpdir(), "liber-real-content-"));
   const epubPath = path.join(dir, `${options.id}.epub`);
-  progress.log(`mode=${options.publish ? "publish" : "dry-run"} api=${options.apiUrl} id=${options.id}`);
-  const downloaded = await progress.step("download EPUB", (tick) => download(options.epubUrl, epubPath, tick));
+  progress.log(
+    `mode=${options.publish ? "publish" : "dry-run"} api=${options.apiUrl} id=${options.id}`,
+  );
+  const downloaded = await progress.step("download EPUB", (tick) =>
+    download(options.epubUrl, epubPath, tick),
+  );
   const info = await progress.step("inspect EPUB", () => inspectEpub(epubPath));
-  const license = await progress.step("verify license", async () => verifyPublishLicense(info, { source: options.source, license: options.license }));
-  const manifest = await progress.step("create manifest", () => createBookManifest(epubPath, { source: options.source, license: options.license }));
-  const payload = await progress.step("create ingest payload", () => createIngestPayload(manifest, { id: options.id, category: options.category }));
-  const plan = await progress.step("create publish plan", async () => dryRunPublishPlan(manifest, { apiUrl: options.apiUrl, ingestPayload: payload }));
+  const license = await progress.step("verify license", async () =>
+    verifyPublishLicense(info, { source: options.source, license: options.license }),
+  );
+  const manifest = await progress.step("create manifest", () =>
+    createBookManifest(epubPath, { source: options.source, license: options.license }),
+  );
+  const payload = await progress.step("create ingest payload", () =>
+    createIngestPayload(manifest, { id: options.id, category: options.category }),
+  );
+  const plan = await progress.step("create publish plan", async () =>
+    dryRunPublishPlan(manifest, { apiUrl: options.apiUrl, ingestPayload: payload }),
+  );
 
   let publish = null;
   if (options.publish) {
-    progress.log(`publishing ${payload.chapters.length} chapters + ${formatBytes(downloaded.size)} EPUB; server may spend time writing R2/Walrus`);
-    publish = await progress.step("POST /api/books/ingest", () => publishBookManifest(manifest, {
-      apiUrl: options.apiUrl,
-      id: options.id,
-      category: options.category,
-    }));
+    progress.log(
+      `publishing ${payload.chapters.length} chapters + ${formatBytes(downloaded.size)} EPUB; server may spend time writing R2/Walrus`,
+    );
+    publish = await progress.step("POST /api/books/ingest", () =>
+      publishBookManifest(manifest, {
+        apiUrl: options.apiUrl,
+        id: options.id,
+        category: options.category,
+      }),
+    );
   }
 
-  const [health, book, content, search, proof] = await progress.step("probe live API", () => Promise.all([
-    maybeGet("/api/health", options),
-    maybeGet(`/api/books/${encodeURIComponent(options.id)}`, options),
-    maybeGet(`/api/books/${encodeURIComponent(options.id)}/content/1`, options),
-    maybeGet(`/api/search?q=${encodeURIComponent(options.expect)}`, options),
-    maybeGet(`/api/books/${encodeURIComponent(options.id)}/proof`, options),
-  ]));
+  const [health, book, content, search, proof] = await progress.step("probe live API", () =>
+    Promise.all([
+      maybeGet("/api/health", options),
+      maybeGet(`/api/books/${encodeURIComponent(options.id)}`, options),
+      maybeGet(`/api/books/${encodeURIComponent(options.id)}/content/1`, options),
+      maybeGet(`/api/search?q=${encodeURIComponent(options.expect)}`, options),
+      maybeGet(`/api/books/${encodeURIComponent(options.id)}/proof`, options),
+    ]),
+  );
 
   const summary = {
     mode: options.publish ? "publish" : "dry-run",

@@ -3,7 +3,11 @@
 // backend, and persist the returned session token so /auth/me reports the
 // reader as logged in. @simplewebauthn/browser handles the ArrayBuffer<->base64url
 // plumbing around navigator.credentials.{create,get}.
-import { startRegistration, startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
+import {
+  startRegistration,
+  startAuthentication,
+  browserSupportsWebAuthn,
+} from "@simplewebauthn/browser";
 import { api, setToken } from "./api.js";
 
 // Remembers that this device has a Liber passkey, so returning readers go
@@ -11,7 +15,11 @@ import { api, setToken } from "./api.js";
 const SEEN_KEY = "liber.passkey";
 
 export function passkeySupported() {
-  try { return browserSupportsWebAuthn(); } catch { return false; }
+  try {
+    return browserSupportsWebAuthn();
+  } catch {
+    return false;
+  }
 }
 
 // Create a brand-new passkey + account, then sign in with it.
@@ -20,7 +28,11 @@ async function register() {
   const response = await startRegistration({ optionsJSON });
   const res = await api.auth.passkey.registerVerify(response);
   if (res?.token) setToken(res.token);
-  try { localStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    /* ignore */
+  }
   return { user: res?.user, token: res?.token };
 }
 
@@ -31,7 +43,11 @@ async function authenticate() {
   const response = await startAuthentication({ optionsJSON });
   const res = await api.auth.passkey.loginVerify(response);
   if (res?.token) setToken(res.token);
-  try { localStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    /* ignore */
+  }
   return { user: res?.user, token: res?.token };
 }
 

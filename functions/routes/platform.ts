@@ -47,26 +47,40 @@ platform.get("/jobs", async (c) => {
      ORDER BY created_at DESC LIMIT 80`,
     ...(status ? [status] : []),
   );
-  return c.json({ jobs: rows.map((row) => {
-    let payload: any = {};
-    let result: any = null;
-    try { payload = JSON.parse(row.payload || "{}"); } catch { /* corrupt row — don't 500 the whole list */ }
-    try { result = row.result ? JSON.parse(row.result) : null; } catch { /* corrupt row */ }
-    return { ...row, payload, result };
-  }) });
+  return c.json({
+    jobs: rows.map((row) => {
+      let payload: any = {};
+      let result: any = null;
+      try {
+        payload = JSON.parse(row.payload || "{}");
+      } catch {
+        /* corrupt row — don't 500 the whole list */
+      }
+      try {
+        result = row.result ? JSON.parse(row.result) : null;
+      } catch {
+        /* corrupt row */
+      }
+      return { ...row, payload, result };
+    }),
+  });
 });
 
 platform.post("/jobs", async (c) => {
   if (!(await platformAuth(c))) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
   const body = await c.req.json();
-  const job = await enqueuePlatformJob(c.env, {
-    type: body.type,
-    targetType: body.targetType || body.target_type || null,
-    targetId: body.targetId || body.target_id || null,
-    payload: body.payload || {},
-    priority: Number(body.priority || 0),
-    runAfter: body.runAfter || body.run_after || null,
-  }, c.get("userId"));
+  const job = await enqueuePlatformJob(
+    c.env,
+    {
+      type: body.type,
+      targetType: body.targetType || body.target_type || null,
+      targetId: body.targetId || body.target_id || null,
+      payload: body.payload || {},
+      priority: Number(body.priority || 0),
+      runAfter: body.runAfter || body.run_after || null,
+    },
+    c.get("userId"),
+  );
   return c.json({ ok: true, job });
 });
 
@@ -88,12 +102,16 @@ platform.post("/jobs/:id/run", async (c) => {
 
 platform.post("/index/book/:id", async (c) => {
   if (!(await platformAuth(c))) return c.json({ error: "需要管理员令牌或 CLI 发布授权" }, 401);
-  const job = await enqueuePlatformJob(c.env, {
-    type: "index-book",
-    targetType: "book",
-    targetId: c.req.param("id"),
-    payload: { bookId: c.req.param("id") },
-  }, c.get("userId"));
+  const job = await enqueuePlatformJob(
+    c.env,
+    {
+      type: "index-book",
+      targetType: "book",
+      targetId: c.req.param("id"),
+      payload: { bookId: c.req.param("id") },
+    },
+    c.get("userId"),
+  );
   return c.json({ ok: true, job });
 });
 
@@ -108,17 +126,25 @@ platform.post("/render/share-card", async (c) => {
       return c.json({ error: String(err instanceof Error ? err.message : err) }, 400);
     }
   }
-  const job = await enqueuePlatformJob(c.env, {
-    type: "render-share-card",
-    targetType: "share",
-    targetId: body.shareId || null,
-    payload: body,
-  }, c.get("userId"));
+  const job = await enqueuePlatformJob(
+    c.env,
+    {
+      type: "render-share-card",
+      targetType: "share",
+      targetId: body.shareId || null,
+      payload: body,
+    },
+    c.get("userId"),
+  );
   return c.json({ ok: true, job });
 });
 
 platform.get("/assets/:id", async (c) => {
-  const row = await first<any>(c.env.DB, `SELECT r2_key, content_type FROM share_assets WHERE id = ? AND status = 'ready'`, c.req.param("id"));
+  const row = await first<any>(
+    c.env.DB,
+    `SELECT r2_key, content_type FROM share_assets WHERE id = ? AND status = 'ready'`,
+    c.req.param("id"),
+  );
   if (!row?.r2_key) return c.json({ error: "未找到生成资产" }, 404);
   const obj = await c.env.R2.get(row.r2_key);
   if (!obj) return c.json({ error: "R2 资产不存在" }, 404);

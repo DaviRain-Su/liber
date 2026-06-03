@@ -5,421 +5,1776 @@
    assets / activity are sample data until on-chain balance + history are fetched. */
 import React from "react";
 import { api } from "../lib/api.js";
-import { createWalletPasskey, passkeySupported, passkeySignDigest } from "../lib/turnkey-passkey.js";
+import {
+  createWalletPasskey,
+  passkeySupported,
+  passkeySignDigest,
+} from "../lib/turnkey-passkey.js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 const { useState: useS, useEffect: useE, useRef: useR } = React;
 
 /* ---------- icons ---------- */
 const WI = {
-  send:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 13 20 4l-6 16-2.5-6.5L4 13Z"/></svg>,
-  recv:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 4v13M6 11l6 6 6-6M5 20h14"/></svg>,
-  swap:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M7 4 4 7l3 3M4 7h12M17 20l3-3-3-3M20 17H8"/></svg>,
-  sign:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 19c3-1 4-9 6-9s2 5 4 5 2-3 4-3M4 21h16"/></svg>,
-  copy:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>,
-  check: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 12 4.5 4.5L19 7"/></svg>,
-  x:     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m6 6 12 12M18 6 6 18"/></svg>,
-  left:  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m15 5-7 7 7 7"/></svg>,
-  right: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m9 5 7 7-7 7"/></svg>,
-  chev:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m9 6 6 6-6 6"/></svg>,
-  up:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="m6 14 6-6 6 6"/></svg>,
-  down:  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="m6 10 6 6 6-6"/></svg>,
-  shield:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3 5 6v5c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>,
-  finger:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 4a6 6 0 0 0-6 6v3M12 4a6 6 0 0 1 6 6v2a8 8 0 0 1-1 4M9 20a10 10 0 0 1-1-7 4 4 0 0 1 8 0v2M12 13v3M15 20a14 14 0 0 0 .8-4"/></svg>,
-  dot:   <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>,
-  ext:   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>,
-  book:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h12"/></svg>,
+  send: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="M4 13 20 4l-6 16-2.5-6.5L4 13Z" />
+    </svg>
+  ),
+  recv: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="M12 4v13M6 11l6 6 6-6M5 20h14" />
+    </svg>
+  ),
+  swap: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="M7 4 4 7l3 3M4 7h12M17 20l3-3-3-3M20 17H8" />
+    </svg>
+  ),
+  sign: (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="M3 19c3-1 4-9 6-9s2 5 4 5 2-3 4-3M4 21h16" />
+    </svg>
+  ),
+  copy: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h8" />
+    </svg>
+  ),
+  check: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="m5 12 4.5 4.5L19 7" />
+    </svg>
+  ),
+  x: (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  ),
+  left: (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="m15 5-7 7 7 7" />
+    </svg>
+  ),
+  right: (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="m9 5 7 7-7 7" />
+    </svg>
+  ),
+  chev: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  ),
+  up: (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+    >
+      <path d="m6 14 6-6 6 6" />
+    </svg>
+  ),
+  down: (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+    >
+      <path d="m6 10 6 6 6-6" />
+    </svg>
+  ),
+  shield: (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="M12 3 5 6v5c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  ),
+  finger: (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <path d="M12 4a6 6 0 0 0-6 6v3M12 4a6 6 0 0 1 6 6v2a8 8 0 0 1-1 4M9 20a10 10 0 0 1-1-7 4 4 0 0 1 8 0v2M12 13v3M15 20a14 14 0 0 0 .8-4" />
+    </svg>
+  ),
+  dot: (
+    <svg width="8" height="8" viewBox="0 0 8 8">
+      <circle cx="4" cy="4" r="4" fill="currentColor" />
+    </svg>
+  ),
+  ext: (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+    </svg>
+  ),
+  book: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
+      <path d="M4 19a2 2 0 0 1 2-2h12" />
+    </svg>
+  ),
 };
-const ACT_GLYPH = { send:WI.send, recv:WI.recv, swap:WI.swap, tip:WI.book, gas:WI.sign, storage:WI.shield, mint:WI.send, sign:WI.sign };
-function WMark({ size = 26 }){
-  return (<svg width={size} height={size} viewBox="0 0 30 30" fill="none" aria-hidden="true">
-    <rect x="4" y="5" width="3.2" height="20" rx="1.6" fill="currentColor"/><rect x="10.4" y="5" width="3.2" height="20" rx="1.6" fill="currentColor"/>
-    <rect x="16.8" y="5" width="3.2" height="20" rx="1.6" fill="currentColor"/><rect x="23.2" y="5" width="3.2" height="20" rx="1.6" fill="currentColor"/>
-    <rect x="2" y="13.4" width="26" height="2.4" rx="1.2" fill="currentColor"/></svg>);
+const ACT_GLYPH = {
+  send: WI.send,
+  recv: WI.recv,
+  swap: WI.swap,
+  tip: WI.book,
+  gas: WI.sign,
+  storage: WI.shield,
+  mint: WI.send,
+  sign: WI.sign,
+};
+function WMark({ size = 26 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 30 30" fill="none" aria-hidden="true">
+      <rect x="4" y="5" width="3.2" height="20" rx="1.6" fill="currentColor" />
+      <rect x="10.4" y="5" width="3.2" height="20" rx="1.6" fill="currentColor" />
+      <rect x="16.8" y="5" width="3.2" height="20" rx="1.6" fill="currentColor" />
+      <rect x="23.2" y="5" width="3.2" height="20" rx="1.6" fill="currentColor" />
+      <rect x="2" y="13.4" width="26" height="2.4" rx="1.2" fill="currentColor" />
+    </svg>
+  );
 }
-const fmtUSD = (n, dp=2) => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits:dp, maximumFractionDigits:dp });
+const fmtUSD = (n, dp = 2) =>
+  "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
 const signed = (n) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 
 /* ---------- token cosmetics (glyph + color class for a symbol; not data) ---------- */
 const TOKEN_META = {
-  BTC:{ cls:"btc", glyph:"₿" }, ETH:{ cls:"eth", glyph:"Ξ" }, SOL:{ cls:"sol", glyph:"◎" },
-  SUI:{ cls:"sui", glyph:"S" }, USDC:{ cls:"usdc", glyph:"$" }, WAL:{ cls:"wal", glyph:"❖" },
+  BTC: { cls: "btc", glyph: "₿" },
+  ETH: { cls: "eth", glyph: "Ξ" },
+  SOL: { cls: "sol", glyph: "◎" },
+  SUI: { cls: "sui", glyph: "S" },
+  USDC: { cls: "usdc", glyph: "$" },
+  WAL: { cls: "wal", glyph: "❖" },
 };
 const USES = [
-  { k:"tip", title:"打赏作者 / 译者", desc:"为你读到的好译文、好书评，直接打一笔。", cta:"去打赏", sym:"USDC" },
-  { k:"gas", title:"为划线 · 批注上链", desc:"把你的批注作为不可篡改的存证写上 Sui，作者与时间链上可验证。", cta:"批注上链", sym:"SUI" },
-  { k:"storage", title:"永久存储 · Walrus", desc:"把你的 CC0 作品永久存到 Walrus，并在链上登记存证。", cta:"永久存储", sym:"SUI" },
-  { k:"mint", title:"藏书证书", desc:"为读过的书铸造一枚归你所有、可转移的链上藏书证书。", cta:"铸造证书", sym:"SUI" },
+  {
+    k: "tip",
+    title: "打赏作者 / 译者",
+    desc: "为你读到的好译文、好书评，直接打一笔。",
+    cta: "去打赏",
+    sym: "USDC",
+  },
+  {
+    k: "gas",
+    title: "为划线 · 批注上链",
+    desc: "把你的批注作为不可篡改的存证写上 Sui，作者与时间链上可验证。",
+    cta: "批注上链",
+    sym: "SUI",
+  },
+  {
+    k: "storage",
+    title: "永久存储 · Walrus",
+    desc: "把你的 CC0 作品永久存到 Walrus，并在链上登记存证。",
+    cta: "永久存储",
+    sym: "SUI",
+  },
+  {
+    k: "mint",
+    title: "藏书证书",
+    desc: "为读过的书铸造一枚归你所有、可转移的链上藏书证书。",
+    cta: "铸造证书",
+    sym: "SUI",
+  },
 ];
-const priceNum = (t) => Number(String(t.price).replace(/,/g,"")) || 0;
-const balNum = (t) => Number(String(t.amt).replace(/,/g,"")) || 0;
+const priceNum = (t) => Number(String(t.price).replace(/,/g, "")) || 0;
+const balNum = (t) => Number(String(t.amt).replace(/,/g, "")) || 0;
 
 /* ---------- primitives ---------- */
-function TokenSeal({ token, size = 44 }){
-  const s = typeof token === "string" ? (TOKEN_META[token] || { cls:"slate", glyph:"◦" }) : token;
-  return <div className={`tok-seal ${s.cls}`} style={{ width:size, height:size, fontSize:size*0.46 }}><span>{s.glyph}</span></div>;
+function TokenSeal({ token, size = 44 }) {
+  const s = typeof token === "string" ? TOKEN_META[token] || { cls: "slate", glyph: "◦" } : token;
+  return (
+    <div
+      className={`tok-seal ${s.cls}`}
+      style={{ width: size, height: size, fontSize: size * 0.46 }}
+    >
+      <span>{s.glyph}</span>
+    </div>
+  );
 }
-function Sparkline({ data, w=120, h=36, up=true, area=false, strokeW=1.6 }){
-  const min=Math.min(...data), max=Math.max(...data), span=(max-min)||1, stepX=w/(data.length-1);
-  const pts=data.map((v,i)=>[i*stepX, h-((v-min)/span)*(h-4)-2]);
-  const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
-  const col=up?"var(--pos)":"var(--neg)", id="sg"+Math.abs((data[0]*1000|0))+data.length;
-  return (<svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-    {area && (<><defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={col} stopOpacity="0.22"/><stop offset="1" stopColor={col} stopOpacity="0"/></linearGradient></defs>
-      <path d={`${d} L ${w} ${h} L 0 ${h} Z`} fill={`url(#${id})`} stroke="none"/></>)}
-    <path d={d} fill="none" stroke={col} strokeWidth={strokeW} strokeLinejoin="round" strokeLinecap="round"/></svg>);
+function Sparkline({ data, w = 120, h = 36, up = true, area = false, strokeW = 1.6 }) {
+  const min = Math.min(...data),
+    max = Math.max(...data),
+    span = max - min || 1,
+    stepX = w / (data.length - 1);
+  const pts = data.map((v, i) => [i * stepX, h - ((v - min) / span) * (h - 4) - 2]);
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const col = up ? "var(--pos)" : "var(--neg)",
+    id = "sg" + Math.abs((data[0] * 1000) | 0) + data.length;
+  return (
+    <svg
+      className="spark"
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+    >
+      {area && (
+        <>
+          <defs>
+            <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={col} stopOpacity="0.22" />
+              <stop offset="1" stopColor={col} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={`${d} L ${w} ${h} L 0 ${h} Z`} fill={`url(#${id})`} stroke="none" />
+        </>
+      )}
+      <path
+        d={d}
+        fill="none"
+        stroke={col}
+        strokeWidth={strokeW}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
-function AllocRing({ alloc, size=168, thick=22 }){
-  const total=alloc.reduce((s,a)=>s+a.value,0), r=(size-thick)/2, c=2*Math.PI*r, cx=size/2; let off=0;
-  return (<svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="alloc-ring">
-    <circle cx={cx} cy={cx} r={r} fill="none" stroke="var(--hair)" strokeWidth={thick}/>
-    {alloc.map((a)=>{ const len=(a.value/total)*c; const el=(<circle key={a.sym} cx={cx} cy={cx} r={r} fill="none" stroke={`var(--tk-${a.cls})`} strokeWidth={thick} strokeDasharray={`${len} ${c-len}`} strokeDashoffset={-off} transform={`rotate(-90 ${cx} ${cx})`} strokeLinecap="butt"/>); off+=len; return el; })}</svg>);
+function AllocRing({ alloc, size = 168, thick = 22 }) {
+  const total = alloc.reduce((s, a) => s + a.value, 0),
+    r = (size - thick) / 2,
+    c = 2 * Math.PI * r,
+    cx = size / 2;
+  let off = 0;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="alloc-ring">
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke="var(--hair)" strokeWidth={thick} />
+      {alloc.map((a) => {
+        const len = (a.value / total) * c;
+        const el = (
+          <circle
+            key={a.sym}
+            cx={cx}
+            cy={cx}
+            r={r}
+            fill="none"
+            stroke={`var(--tk-${a.cls})`}
+            strokeWidth={thick}
+            strokeDasharray={`${len} ${c - len}`}
+            strokeDashoffset={-off}
+            transform={`rotate(-90 ${cx} ${cx})`}
+            strokeLinecap="butt"
+          />
+        );
+        off += len;
+        return el;
+      })}
+    </svg>
+  );
 }
-function QR({ seed="liber", size=176 }){
-  const n=25, cells=useR(null);
-  if (!cells.current){ let s=0; for (let i=0;i<seed.length;i++) s=(s*31+seed.charCodeAt(i))%233280; const grid=[]; for (let y=0;y<n;y++){ const row=[]; for (let x=0;x<n;x++){ s=(s*9301+49297)%233280; row.push(s/233280>0.5);} grid.push(row);} cells.current=grid; }
-  const px=size/n;
-  const isFinder=(x,y)=>{ const f=(ox,oy)=>x>=ox&&x<ox+7&&y>=oy&&y<oy+7; return f(0,0)||f(n-7,0)||f(0,n-7); };
-  const inCore=(x,y)=>{ const f=(ox,oy)=>x>=ox+2&&x<ox+5&&y>=oy+2&&y<oy+5; return f(0,0)||f(n-7,0)||f(0,n-7); };
-  const rects=[]; for (let y=0;y<n;y++) for (let x=0;x<n;x++){ if (x>=10&&x<15&&y>=10&&y<15) continue; if (isFinder(x,y)){ if (inCore(x,y)) rects.push([x,y]); continue; } if (cells.current[y][x]) rects.push([x,y]); }
-  const frame=(ox,oy)=>(<rect key={ox+"-"+oy} x={ox*px} y={oy*px} width={7*px} height={7*px} rx={px} fill="none" stroke="currentColor" strokeWidth={px}/>);
-  return (<div className="qr" style={{ width:size, height:size }}><svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-    {rects.map(([x,y],i)=><rect key={i} x={x*px+px*0.08} y={y*px+px*0.08} width={px*0.84} height={px*0.84} rx={px*0.18} fill="currentColor"/>)}{frame(0,0)}{frame(n-7,0)}{frame(0,n-7)}</svg>
-    <div className="qr-mark"><WMark size={size*0.16}/></div></div>);
+function QR({ seed = "liber", size = 176 }) {
+  const n = 25,
+    cells = useR(null);
+  if (!cells.current) {
+    let s = 0;
+    for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) % 233280;
+    const grid = [];
+    for (let y = 0; y < n; y++) {
+      const row = [];
+      for (let x = 0; x < n; x++) {
+        s = (s * 9301 + 49297) % 233280;
+        row.push(s / 233280 > 0.5);
+      }
+      grid.push(row);
+    }
+    cells.current = grid;
+  }
+  const px = size / n;
+  const isFinder = (x, y) => {
+    const f = (ox, oy) => x >= ox && x < ox + 7 && y >= oy && y < oy + 7;
+    return f(0, 0) || f(n - 7, 0) || f(0, n - 7);
+  };
+  const inCore = (x, y) => {
+    const f = (ox, oy) => x >= ox + 2 && x < ox + 5 && y >= oy + 2 && y < oy + 5;
+    return f(0, 0) || f(n - 7, 0) || f(0, n - 7);
+  };
+  const rects = [];
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      if (x >= 10 && x < 15 && y >= 10 && y < 15) continue;
+      if (isFinder(x, y)) {
+        if (inCore(x, y)) rects.push([x, y]);
+        continue;
+      }
+      if (cells.current[y][x]) rects.push([x, y]);
+    }
+  const frame = (ox, oy) => (
+    <rect
+      key={ox + "-" + oy}
+      x={ox * px}
+      y={oy * px}
+      width={7 * px}
+      height={7 * px}
+      rx={px}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={px}
+    />
+  );
+  return (
+    <div className="qr" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {rects.map(([x, y], i) => (
+          <rect
+            key={i}
+            x={x * px + px * 0.08}
+            y={y * px + px * 0.08}
+            width={px * 0.84}
+            height={px * 0.84}
+            rx={px * 0.18}
+            fill="currentColor"
+          />
+        ))}
+        {frame(0, 0)}
+        {frame(n - 7, 0)}
+        {frame(0, n - 7)}
+      </svg>
+      <div className="qr-mark">
+        <WMark size={size * 0.16} />
+      </div>
+    </div>
+  );
 }
 // Real passkey gate: tapping the orb runs onSign (Face ID → Turnkey → broadcast).
 // Parent unmounts this on success; on failure it shows the error and allows retry.
-function RealSignGate({ label="用通行密钥确认", sub, onSign, onCancel }){
-  const [phase,setPhase]=useS("idle"); const [err,setErr]=useS("");
-  const go=async()=>{ if (phase==="working") return; setPhase("working"); setErr("");
-    try { await onSign(); } catch(e){ setErr((e&&e.message)||"签名或广播失败"); setPhase("error"); } };
-  return (<div className="pk"><button className={"pk-orb "+(phase==="working"?"scanning":"")} onClick={go} aria-label={label}><span className="pk-ring"/><span className="pk-ico">{WI.finger}</span></button>
-    <div className="pk-label">{phase==="working"?"请在设备上确认…":phase==="error"?"轻点重试":label}</div>
-    <div className="pk-sub" style={phase==="error"?{ color:"var(--neg)" }:null}>{phase==="error"?err:sub}</div>
-    {onCancel&&phase!=="working"&&<button className="pk-cancel" onClick={onCancel}>取消</button>}</div>);
+function RealSignGate({ label = "用通行密钥确认", sub, onSign, onCancel }) {
+  const [phase, setPhase] = useS("idle");
+  const [err, setErr] = useS("");
+  const go = async () => {
+    if (phase === "working") return;
+    setPhase("working");
+    setErr("");
+    try {
+      await onSign();
+    } catch (e) {
+      setErr((e && e.message) || "签名或广播失败");
+      setPhase("error");
+    }
+  };
+  return (
+    <div className="pk">
+      <button
+        className={"pk-orb " + (phase === "working" ? "scanning" : "")}
+        onClick={go}
+        aria-label={label}
+      >
+        <span className="pk-ring" />
+        <span className="pk-ico">{WI.finger}</span>
+      </button>
+      <div className="pk-label">
+        {phase === "working" ? "请在设备上确认…" : phase === "error" ? "轻点重试" : label}
+      </div>
+      <div className="pk-sub" style={phase === "error" ? { color: "var(--neg)" } : null}>
+        {phase === "error" ? err : sub}
+      </div>
+      {onCancel && phase !== "working" && (
+        <button className="pk-cancel" onClick={onCancel}>
+          取消
+        </button>
+      )}
+    </div>
+  );
 }
 
 /* ---------- flows (sheets) ---------- */
-function Sheet({ title, step, onBack, onClose, wide, children }){
-  return (<div className="sheet-scrim" onMouseDown={(e)=>{ if (e.target===e.currentTarget) onClose(); }}>
-    <div className={"sheet"+(wide?" wide":"")} onMouseDown={(e)=>e.stopPropagation()}>
-      <div className="sheet-h">{onBack&&<span className="back" onClick={onBack}>{WI.left}</span>}<span className="ttl">{title}</span>{step&&<span className="step">{step}</span>}<span className="x" onClick={onClose}>{WI.x}</span></div>
-      <div className="sheet-body">{children}</div></div></div>);
+function Sheet({ title, step, onBack, onClose, wide, children }) {
+  return (
+    <div
+      className="sheet-scrim"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className={"sheet" + (wide ? " wide" : "")} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="sheet-h">
+          {onBack && (
+            <span className="back" onClick={onBack}>
+              {WI.left}
+            </span>
+          )}
+          <span className="ttl">{title}</span>
+          {step && <span className="step">{step}</span>}
+          <span className="x" onClick={onClose}>
+            {WI.x}
+          </span>
+        </div>
+        <div className="sheet-body">{children}</div>
+      </div>
+    </div>
+  );
 }
-function TokenPick({ tokens, value, onChange }){
-  return (<div className="tok-pick">{tokens.map(t=>(<div key={t.sym} className={"tok-pill"+(value&&value.sym===t.sym?" on":"")} onClick={()=>onChange(t)}><TokenSeal token={t} size={30}/><div><div className="tp-nm">{t.sym}</div><div className="tp-bal tnum">{t.amt}</div></div></div>))}</div>);
+function TokenPick({ tokens, value, onChange }) {
+  return (
+    <div className="tok-pick">
+      {tokens.map((t) => (
+        <div
+          key={t.sym}
+          className={"tok-pill" + (value && value.sym === t.sym ? " on" : "")}
+          onClick={() => onChange(t)}
+        >
+          <TokenSeal token={t} size={30} />
+          <div>
+            <div className="tp-nm">{t.sym}</div>
+            <div className="tp-bal tnum">{t.amt}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 // chain → which address field on a contact (and the token.sym we match the chain by).
-const CHAIN_KEY = { Sui:"SUI", Ethereum:"ETH", Solana:"SOL", Bitcoin:"BTC" };
-function RecipientPick({ token, contacts, value, onChange, heading }){
-  const [custom,setCustom]=useS("");
+const CHAIN_KEY = { Sui: "SUI", Ethereum: "ETH", Solana: "SOL", Bitcoin: "BTC" };
+function RecipientPick({ token, contacts, value, onChange, heading }) {
+  const [custom, setCustom] = useS("");
   const key = token ? CHAIN_KEY[token.chain] : null;
   // Only contacts that have an address on the selected token's chain.
-  const usable = (contacts||[]).filter(c=>key && c.addresses && c.addresses[key]);
-  const placeholder = token && token.chain==="Bitcoin" ? "bc1q…" : token && token.chain==="Solana" ? "Solana 地址" : "0x…";
-  const empty = heading ? `暂无可打赏的${heading}（需对方在 ${token?token.chain:""} 上有地址）` : "通讯录为空 · 关注有钱包的读者后会出现在这里";
-  return (<div><div className="fld"><div className="fld-l">粘贴 {token?token.chain:""} 收款地址</div>
-    <input className="inp" placeholder={placeholder} value={custom} onChange={(e)=>{ const v=e.target.value.trim(); setCustom(v); onChange(v?{ name:v.slice(0,10)+"…", addr:v, cls:"slate", seal:"#" }:null); }}/></div>
-    <div className="recip-divider">{usable.length?(heading||"通讯录 · 你关注的读者"):empty}</div>
-    {usable.map(c=>{ const addr=c.addresses[key]; const short=addr.slice(0,6)+"…"+addr.slice(-4); return (
-      <div key={c.id} className={"recip"+(value&&value.id===c.id?" on":"")} onClick={()=>{ setCustom(""); onChange({ id:c.id, name:c.name, addr, cls:c.cls||"ink", seal:c.seal, sub:c.sub }); }}>
-        <span className={"av "+(c.cls||"ink")} style={c.color?{ background:c.color }:null}>{c.seal}</span>
-        <div className="rb"><div className="nm">{c.name}</div><div className="ad">{short} · {token&&token.chain}</div></div>
-        <div className="rb r-sub"><div className="sub">{c.sub}</div></div></div>); })}</div>);
+  const usable = (contacts || []).filter((c) => key && c.addresses && c.addresses[key]);
+  const placeholder =
+    token && token.chain === "Bitcoin"
+      ? "bc1q…"
+      : token && token.chain === "Solana"
+        ? "Solana 地址"
+        : "0x…";
+  const empty = heading
+    ? `暂无可打赏的${heading}（需对方在 ${token ? token.chain : ""} 上有地址）`
+    : "通讯录为空 · 关注有钱包的读者后会出现在这里";
+  return (
+    <div>
+      <div className="fld">
+        <div className="fld-l">粘贴 {token ? token.chain : ""} 收款地址</div>
+        <input
+          className="inp"
+          placeholder={placeholder}
+          value={custom}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            setCustom(v);
+            onChange(v ? { name: v.slice(0, 10) + "…", addr: v, cls: "slate", seal: "#" } : null);
+          }}
+        />
+      </div>
+      <div className="recip-divider">
+        {usable.length ? heading || "通讯录 · 你关注的读者" : empty}
+      </div>
+      {usable.map((c) => {
+        const addr = c.addresses[key];
+        const short = addr.slice(0, 6) + "…" + addr.slice(-4);
+        return (
+          <div
+            key={c.id}
+            className={"recip" + (value && value.id === c.id ? " on" : "")}
+            onClick={() => {
+              setCustom("");
+              onChange({
+                id: c.id,
+                name: c.name,
+                addr,
+                cls: c.cls || "ink",
+                seal: c.seal,
+                sub: c.sub,
+              });
+            }}
+          >
+            <span
+              className={"av " + (c.cls || "ink")}
+              style={c.color ? { background: c.color } : null}
+            >
+              {c.seal}
+            </span>
+            <div className="rb">
+              <div className="nm">{c.name}</div>
+              <div className="ad">
+                {short} · {token && token.chain}
+              </div>
+            </div>
+            <div className="rb r-sub">
+              <div className="sub">{c.sub}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
-function AmountEntry({ token, amount, onChange }){
-  const max=balNum(token), fiat=(Number(amount)||0)*priceNum(token);
-  return (<div><div className="amt-big"><input className="ai-in tnum" inputMode="decimal" placeholder="0" value={amount} onChange={(e)=>onChange(e.target.value.replace(/[^0-9.]/g,""))} autoFocus/><div className="ai-sym">{token.sym} · 余额 {token.amt}</div><div className="ai-fiat tnum">≈ {fmtUSD(fiat)}</div></div>
-    <div className="quick-amt">{[0.25,0.5,1].map(f=>(<button key={f} onClick={()=>onChange(String(+(max*f).toPrecision(6)))}>{f===1?"全部":`${f*100}%`}</button>))}</div></div>);
+function AmountEntry({ token, amount, onChange }) {
+  const max = balNum(token),
+    fiat = (Number(amount) || 0) * priceNum(token);
+  return (
+    <div>
+      <div className="amt-big">
+        <input
+          className="ai-in tnum"
+          inputMode="decimal"
+          placeholder="0"
+          value={amount}
+          onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))}
+          autoFocus
+        />
+        <div className="ai-sym">
+          {token.sym} · 余额 {token.amt}
+        </div>
+        <div className="ai-fiat tnum">≈ {fmtUSD(fiat)}</div>
+      </div>
+      <div className="quick-amt">
+        {[0.25, 0.5, 1].map((f) => (
+          <button key={f} onClick={() => onChange(String(+(max * f).toPrecision(6)))}>
+            {f === 1 ? "全部" : `${f * 100}%`}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
-function ReviewRows({ token, recipient, amount }){
-  const fiat=(Number(amount)||0)*priceNum(token);
-  return (<div className="rev"><div className="rev-hero"><TokenSeal token={token} size={46}/><div><div className="rh-amt tnum">{amount||0} {token.sym}</div><div className="rh-sub tnum">≈ {fmtUSD(fiat)}</div></div></div>
-    <div className="rr"><span className="k">收款人</span><span className="v">{recipient?recipient.name:"—"}</span></div>
-    <div className="rr"><span className="k">地址</span><span className="v">{recipient?recipient.addr:"—"}</span></div>
-    <div className="rr"><span className="k">网络</span><span className="v">{token.chain}</span></div>
-    <div className="rr"><span className="k">矿工费</span><span className="v">由 {token.chain} 网络实时结算</span></div>
-    <div className="rr total"><span className="k">转账金额</span><span className="v tnum">{amount||0} {token.sym}</span></div></div>);
+function ReviewRows({ token, recipient, amount }) {
+  const fiat = (Number(amount) || 0) * priceNum(token);
+  return (
+    <div className="rev">
+      <div className="rev-hero">
+        <TokenSeal token={token} size={46} />
+        <div>
+          <div className="rh-amt tnum">
+            {amount || 0} {token.sym}
+          </div>
+          <div className="rh-sub tnum">≈ {fmtUSD(fiat)}</div>
+        </div>
+      </div>
+      <div className="rr">
+        <span className="k">收款人</span>
+        <span className="v">{recipient ? recipient.name : "—"}</span>
+      </div>
+      <div className="rr">
+        <span className="k">地址</span>
+        <span className="v">{recipient ? recipient.addr : "—"}</span>
+      </div>
+      <div className="rr">
+        <span className="k">网络</span>
+        <span className="v">{token.chain}</span>
+      </div>
+      <div className="rr">
+        <span className="k">矿工费</span>
+        <span className="v">由 {token.chain} 网络实时结算</span>
+      </div>
+      <div className="rr total">
+        <span className="k">转账金额</span>
+        <span className="v tnum">
+          {amount || 0} {token.sym}
+        </span>
+      </div>
+    </div>
+  );
 }
-function SendFlow({ tokens, presetToken, contacts, tip, onClose }){
-  const [token,setToken]=useS(presetToken||tokens[0]);
-  const [recipient,setRecipient]=useS(null);
-  const [amount,setAmount]=useS("");
-  const [phase,setPhase]=useS("asset");
-  const [result,setResult]=useS(null); // real broadcast result { digest, explorer, network, status }
-  const hash=useR("0x"+Math.random().toString(16).slice(2,6)+"…"+Math.random().toString(16).slice(2,6));
+function SendFlow({ tokens, presetToken, contacts, tip, onClose }) {
+  const [token, setToken] = useS(presetToken || tokens[0]);
+  const [recipient, setRecipient] = useS(null);
+  const [amount, setAmount] = useS("");
+  const [phase, setPhase] = useS("asset");
+  const [result, setResult] = useS(null); // real broadcast result { digest, explorer, network, status }
+  const hash = useR(
+    "0x" + Math.random().toString(16).slice(2, 6) + "…" + Math.random().toString(16).slice(2, 6),
+  );
   // All four chains are wired for real, non-custodial passkey signing.
-  const order=["asset","recipient","amount","review","pk","done"], idx=order.indexOf(phase);
-  const titles=tip
-    ? { asset:"打赏 · 选择资产", recipient:"打赏给谁", amount:"打赏金额", review:"确认打赏", pk:"签名", done:"完成" }
-    : { asset:"选择资产", recipient:"收款人", amount:"输入金额", review:"确认", pk:"签名", done:"完成" };
-  const next=()=>setPhase(order[idx+1]); const back=idx>0&&phase!=="done"?()=>setPhase(order[idx-1]):null;
+  const order = ["asset", "recipient", "amount", "review", "pk", "done"],
+    idx = order.indexOf(phase);
+  const titles = tip
+    ? {
+        asset: "打赏 · 选择资产",
+        recipient: "打赏给谁",
+        amount: "打赏金额",
+        review: "确认打赏",
+        pk: "签名",
+        done: "完成",
+      }
+    : {
+        asset: "选择资产",
+        recipient: "收款人",
+        amount: "输入金额",
+        review: "确认",
+        pk: "签名",
+        done: "完成",
+      };
+  const next = () => setPhase(order[idx + 1]);
+  const back = idx > 0 && phase !== "done" ? () => setPhase(order[idx - 1]) : null;
   // Build → passkey-sign (in browser, straight to Turnkey) → broadcast (server).
-  const signAndSend=async()=>{
-    const sign=(prep)=>passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
-    const fail=(r,m)=>{ if (!r||!r.ok) throw new Error((r&&(r.message||r.error))||m); return r; };
+  const signAndSend = async () => {
+    const sign = (prep) =>
+      passkeySignDigest({
+        organizationId: prep.organizationId,
+        signWith: prep.signWith,
+        digestHex: prep.digestHex,
+        hashFunction: prep.hashFunction,
+      });
+    const fail = (r, m) => {
+      if (!r || !r.ok) throw new Error((r && (r.message || r.error)) || m);
+      return r;
+    };
     let out;
     if (token.chain === "Sui") {
-      const prep=fail(await api.auth.suiPrepare({ to:recipient.addr, amount:Number(amount) }), "构建交易失败");
-      out=await api.auth.suiBroadcast({ txBytesB64:prep.txBytesB64, activityId:(await sign(prep)).activityId });
+      const prep = fail(
+        await api.auth.suiPrepare({ to: recipient.addr, amount: Number(amount) }),
+        "构建交易失败",
+      );
+      out = await api.auth.suiBroadcast({
+        txBytesB64: prep.txBytesB64,
+        activityId: (await sign(prep)).activityId,
+      });
     } else if (token.chain === "Ethereum") {
-      const prep=fail(await api.auth.evmPrepare({ to:recipient.addr, amount:Number(amount), token:token.sym }), "构建交易失败");
-      out=await api.auth.evmBroadcast({ tx:prep.tx, activityId:(await sign(prep)).activityId });
+      const prep = fail(
+        await api.auth.evmPrepare({ to: recipient.addr, amount: Number(amount), token: token.sym }),
+        "构建交易失败",
+      );
+      out = await api.auth.evmBroadcast({ tx: prep.tx, activityId: (await sign(prep)).activityId });
     } else if (token.chain === "Solana") {
-      const prep=fail(await api.auth.solPrepare({ to:recipient.addr, amount:Number(amount) }), "构建交易失败");
-      out=await api.auth.solBroadcast({ sol:prep.sol, activityId:(await sign(prep)).activityId });
-    } else { // Bitcoin
-      const prep=fail(await api.auth.btcPrepare({ to:recipient.addr, amount:Number(amount) }), "构建交易失败");
-      out=await api.auth.btcBroadcast({ btc:prep.btc, activityId:(await sign(prep)).activityId });
+      const prep = fail(
+        await api.auth.solPrepare({ to: recipient.addr, amount: Number(amount) }),
+        "构建交易失败",
+      );
+      out = await api.auth.solBroadcast({
+        sol: prep.sol,
+        activityId: (await sign(prep)).activityId,
+      });
+    } else {
+      // Bitcoin
+      const prep = fail(
+        await api.auth.btcPrepare({ to: recipient.addr, amount: Number(amount) }),
+        "构建交易失败",
+      );
+      out = await api.auth.btcBroadcast({
+        btc: prep.btc,
+        activityId: (await sign(prep)).activityId,
+      });
     }
-    if (!out||!out.ok) throw new Error((out&&(out.message||out.error))||"广播失败");
-    setResult(out); setPhase("done");
+    if (!out || !out.ok) throw new Error((out && (out.message || out.error)) || "广播失败");
+    setResult(out);
+    setPhase("done");
   };
-  return (<Sheet title={titles[phase]} step={phase!=="done"?`${idx+1} / 5`:null} onBack={back} onClose={onClose}>
-    <div className="steps" style={{ marginBottom:20 }}>{order.slice(0,5).map((s,i)=><i key={s} className={i===idx?"on":i<idx?"done":""}/>)}</div>
-    {phase==="asset" && <TokenPick tokens={tokens} value={token} onChange={(t)=>{ setToken(t); next(); }}/>}
-    {phase==="recipient" && <RecipientPick token={token} contacts={contacts} value={recipient} onChange={setRecipient} heading={tip?"作者 · 译者 · 读者":null}/>}
-    {phase==="amount" && <AmountEntry token={token} amount={amount} onChange={setAmount}/>}
-    {phase==="review" && <ReviewRows token={token} recipient={recipient} amount={amount}/>}
-    {phase==="pk" && <RealSignGate label="用通行密钥确认转账" sub={`${amount} ${token.sym} → ${recipient&&recipient.name} · 真实上链`} onSign={signAndSend} onCancel={()=>setPhase("review")}/>}
-    {phase==="done" && (<div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{result?"转账已上链":"转账已提交"}</div>
-      <div className="dsub">{amount} {token.sym} → {recipient&&recipient.name}<br/>{result?`已在 ${result.network} 广播 · ${result.status==="success"?"成功":(result.status||"已提交")}`:`已在 ${token.chain} 上广播，等待确认。`}</div>
-      {result&&result.explorer ? <a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a> : <div className="done-hash">{WI.ext} {hash.current}</div>}</div>)}
-    {(phase==="recipient"||phase==="amount"||phase==="review") && (<div style={{ display:"flex", gap:12, marginTop:24 }}><button className="wbtn wbtn-primary" disabled={(phase==="recipient"&&!recipient)||(phase==="amount"&&!(Number(amount)>0))} onClick={next}>{phase==="review"?"用通行密钥签名":"继续"} {WI.right}</button></div>)}
-    {phase==="done" && <div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div>}
-  </Sheet>);
+  return (
+    <Sheet
+      title={titles[phase]}
+      step={phase !== "done" ? `${idx + 1} / 5` : null}
+      onBack={back}
+      onClose={onClose}
+    >
+      <div className="steps" style={{ marginBottom: 20 }}>
+        {order.slice(0, 5).map((s, i) => (
+          <i key={s} className={i === idx ? "on" : i < idx ? "done" : ""} />
+        ))}
+      </div>
+      {phase === "asset" && (
+        <TokenPick
+          tokens={tokens}
+          value={token}
+          onChange={(t) => {
+            setToken(t);
+            next();
+          }}
+        />
+      )}
+      {phase === "recipient" && (
+        <RecipientPick
+          token={token}
+          contacts={contacts}
+          value={recipient}
+          onChange={setRecipient}
+          heading={tip ? "作者 · 译者 · 读者" : null}
+        />
+      )}
+      {phase === "amount" && <AmountEntry token={token} amount={amount} onChange={setAmount} />}
+      {phase === "review" && <ReviewRows token={token} recipient={recipient} amount={amount} />}
+      {phase === "pk" && (
+        <RealSignGate
+          label="用通行密钥确认转账"
+          sub={`${amount} ${token.sym} → ${recipient && recipient.name} · 真实上链`}
+          onSign={signAndSend}
+          onCancel={() => setPhase("review")}
+        />
+      )}
+      {phase === "done" && (
+        <div className="done-state">
+          <div className="done-mark">{WI.check}</div>
+          <div className="dt">{result ? "转账已上链" : "转账已提交"}</div>
+          <div className="dsub">
+            {amount} {token.sym} → {recipient && recipient.name}
+            <br />
+            {result
+              ? `已在 ${result.network} 广播 · ${result.status === "success" ? "成功" : result.status || "已提交"}`
+              : `已在 ${token.chain} 上广播，等待确认。`}
+          </div>
+          {result && result.explorer ? (
+            <a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">
+              {WI.ext} 在区块浏览器查看
+            </a>
+          ) : (
+            <div className="done-hash">
+              {WI.ext} {hash.current}
+            </div>
+          )}
+        </div>
+      )}
+      {(phase === "recipient" || phase === "amount" || phase === "review") && (
+        <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+          <button
+            className="wbtn wbtn-primary"
+            disabled={
+              (phase === "recipient" && !recipient) || (phase === "amount" && !(Number(amount) > 0))
+            }
+            onClick={next}
+          >
+            {phase === "review" ? "用通行密钥签名" : "继续"} {WI.right}
+          </button>
+        </div>
+      )}
+      {phase === "done" && (
+        <div style={{ marginTop: 24 }}>
+          <button className="wbtn wbtn-ghost" style={{ width: "100%" }} onClick={onClose}>
+            完成
+          </button>
+        </div>
+      )}
+    </Sheet>
+  );
 }
-function ReceiveFlow({ presetToken, addresses, onClose }){
-  const chains=["Sui","Ethereum","Solana","Bitcoin"].filter(c=>addresses[{ Bitcoin:"BTC", Ethereum:"ETH", Solana:"SOL", Sui:"SUI" }[c]]);
-  const [chain,setChain]=useS((presetToken&&presetToken.chain)||chains[0]);
-  const addr=addresses[{ Bitcoin:"BTC", Ethereum:"ETH", Solana:"SOL", Sui:"SUI" }[chain]] || "";
-  const [copied,setCopied]=useS(false);
-  const copy=()=>{ try{ navigator.clipboard.writeText(addr); }catch(e){} setCopied(true); setTimeout(()=>setCopied(false),1400); };
-  return (<Sheet title="收款" onClose={onClose}><div className="recv-card">
-    <div className="recv-chain-tabs">{chains.map(c=><div key={c} className={"tok-pill"+(chain===c?" on":"")} onClick={()=>setChain(c)}><span className="tp-nm" style={{ fontSize:14 }}>{c}</span></div>)}</div>
-    <QR seed={addr} size={184}/>
-    <div className="recv-addr"><span className="ad">{addr}</span><span className="cp" onClick={copy}>{copied?WI.check:WI.copy}</span></div>
-    <div style={{ fontFamily:"var(--mono)", fontSize:12, color:"var(--ink-3)", marginTop:16, lineHeight:1.6 }}>仅向此地址转入 <b style={{ color:"var(--ink-2)" }}>{chain}</b> 网络资产。<br/>由通行密钥守护 · 无需助记词。</div>
-  </div></Sheet>);
+function ReceiveFlow({ presetToken, addresses, onClose }) {
+  const chains = ["Sui", "Ethereum", "Solana", "Bitcoin"].filter(
+    (c) => addresses[{ Bitcoin: "BTC", Ethereum: "ETH", Solana: "SOL", Sui: "SUI" }[c]],
+  );
+  const [chain, setChain] = useS((presetToken && presetToken.chain) || chains[0]);
+  const addr =
+    addresses[{ Bitcoin: "BTC", Ethereum: "ETH", Solana: "SOL", Sui: "SUI" }[chain]] || "";
+  const [copied, setCopied] = useS(false);
+  const copy = () => {
+    try {
+      navigator.clipboard.writeText(addr);
+    } catch (e) {}
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  };
+  return (
+    <Sheet title="收款" onClose={onClose}>
+      <div className="recv-card">
+        <div className="recv-chain-tabs">
+          {chains.map((c) => (
+            <div
+              key={c}
+              className={"tok-pill" + (chain === c ? " on" : "")}
+              onClick={() => setChain(c)}
+            >
+              <span className="tp-nm" style={{ fontSize: 14 }}>
+                {c}
+              </span>
+            </div>
+          ))}
+        </div>
+        <QR seed={addr} size={184} />
+        <div className="recv-addr">
+          <span className="ad">{addr}</span>
+          <span className="cp" onClick={copy}>
+            {copied ? WI.check : WI.copy}
+          </span>
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 12,
+            color: "var(--ink-3)",
+            marginTop: 16,
+            lineHeight: 1.6,
+          }}
+        >
+          仅向此地址转入 <b style={{ color: "var(--ink-2)" }}>{chain}</b> 网络资产。
+          <br />
+          由通行密钥守护 · 无需助记词。
+        </div>
+      </div>
+    </Sheet>
+  );
 }
 // LI.FI routes any pair among ETH/USDC/SOL (same-chain + cross-chain). Sui/BTC aren't
 // routable via LI.FI, so they're honestly gated (quote shown, execute disabled).
-const SWAP_FROM = ["ETH","USDC","SOL"]; const SWAP_TO = ["ETH","USDC","SOL"];
-function SwapFlow({ tokens, presetToken, onClose }){
-  const pickable=tokens.filter(t=>SWAP_FROM.includes(t.sym)||SWAP_TO.includes(t.sym));
-  const [from,setFrom]=useS((presetToken&&SWAP_FROM.includes(presetToken.sym)?presetToken:null)||pickable.find(t=>t.sym==="ETH")||pickable[0]);
-  const [to,setTo]=useS(pickable.find(t=>t.sym==="USDC")||pickable.find(t=>t.sym==="SOL")||pickable[0]);
-  const [amt,setAmt]=useS(""); const [pick,setPick]=useS(null); const [phase,setPhase]=useS("form");
-  const [result,setResult]=useS(null); const [progress,setProgress]=useS("");
+const SWAP_FROM = ["ETH", "USDC", "SOL"];
+const SWAP_TO = ["ETH", "USDC", "SOL"];
+function SwapFlow({ tokens, presetToken, onClose }) {
+  const pickable = tokens.filter((t) => SWAP_FROM.includes(t.sym) || SWAP_TO.includes(t.sym));
+  const [from, setFrom] = useS(
+    (presetToken && SWAP_FROM.includes(presetToken.sym) ? presetToken : null) ||
+      pickable.find((t) => t.sym === "ETH") ||
+      pickable[0],
+  );
+  const [to, setTo] = useS(
+    pickable.find((t) => t.sym === "USDC") || pickable.find((t) => t.sym === "SOL") || pickable[0],
+  );
+  const [amt, setAmt] = useS("");
+  const [pick, setPick] = useS(null);
+  const [phase, setPhase] = useS("form");
+  const [result, setResult] = useS(null);
+  const [progress, setProgress] = useS("");
   // Live rate from real /balances prices (USD per unit).
-  const fp=Number(from&&from.price)||0, tp=Number(to&&to.price)||0;
-  const rate=fp&&tp?fp/tp:0, out=(Number(amt)||0)*rate;
-  const flip=()=>{ setFrom(to); setTo(from); };
-  const crossChain = from&&to&&from.chain!==to.chain;
+  const fp = Number(from && from.price) || 0,
+    tp = Number(to && to.price) || 0;
+  const rate = fp && tp ? fp / tp : 0,
+    out = (Number(amt) || 0) * rate;
+  const flip = () => {
+    setFrom(to);
+    setTo(from);
+  };
+  const crossChain = from && to && from.chain !== to.chain;
   // Real LI.FI execution: ETH/USDC source → ETH/USDC/SOL. (USDC source = approve + swap.)
-  const realPair = from&&to&&SWAP_FROM.includes(from.sym)&&SWAP_TO.includes(to.sym)&&from.sym!==to.sym;
-  const swap=async()=>{
-    const prep=await api.auth.swapPrepare({ from:from.sym, to:to.sym, amount:Number(amt) });
-    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建兑换失败");
-    let last=null;
-    if (prep.chainKind==="sol"){ // Solana-source: one ed25519 signature over the LI.FI tx
+  const realPair =
+    from && to && SWAP_FROM.includes(from.sym) && SWAP_TO.includes(to.sym) && from.sym !== to.sym;
+  const swap = async () => {
+    const prep = await api.auth.swapPrepare({ from: from.sym, to: to.sym, amount: Number(amt) });
+    if (!prep || !prep.ok)
+      throw new Error((prep && (prep.message || prep.error)) || "构建兑换失败");
+    let last = null;
+    if (prep.chainKind === "sol") {
+      // Solana-source: one ed25519 signature over the LI.FI tx
       setProgress("");
-      const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
-      last=await api.auth.swapSolBroadcast({ sol:prep.sol, activityId });
-      if (!last||!last.ok) throw new Error((last&&(last.message||last.error))||"广播失败");
-    } else { // EVM-source: ordered steps (approve → swap)
-      const steps=prep.steps||[];
-      for (let i=0;i<steps.length;i++){
-        const st=steps[i];
-        setProgress(steps.length>1?`第 ${i+1}/${steps.length} 步 · ${st.kind==="approve"?"授权代币":"兑换"}`:"");
-        const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:st.digestHex, hashFunction:prep.hashFunction });
-        const o=await api.auth.evmBroadcast({ tx:st.tx, activityId });
-        if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"广播失败");
-        last=o;
+      const { activityId } = await passkeySignDigest({
+        organizationId: prep.organizationId,
+        signWith: prep.signWith,
+        digestHex: prep.digestHex,
+        hashFunction: prep.hashFunction,
+      });
+      last = await api.auth.swapSolBroadcast({ sol: prep.sol, activityId });
+      if (!last || !last.ok) throw new Error((last && (last.message || last.error)) || "广播失败");
+    } else {
+      // EVM-source: ordered steps (approve → swap)
+      const steps = prep.steps || [];
+      for (let i = 0; i < steps.length; i++) {
+        const st = steps[i];
+        setProgress(
+          steps.length > 1
+            ? `第 ${i + 1}/${steps.length} 步 · ${st.kind === "approve" ? "授权代币" : "兑换"}`
+            : "",
+        );
+        const { activityId } = await passkeySignDigest({
+          organizationId: prep.organizationId,
+          signWith: prep.signWith,
+          digestHex: st.digestHex,
+          hashFunction: prep.hashFunction,
+        });
+        const o = await api.auth.evmBroadcast({ tx: st.tx, activityId });
+        if (!o || !o.ok) throw new Error((o && (o.message || o.error)) || "广播失败");
+        last = o;
       }
     }
-    setResult({ ...last, quote:prep.quote }); setPhase("done");
+    setResult({ ...last, quote: prep.quote });
+    setPhase("done");
   };
-  if (pick) return (<Sheet title="选择代币" onBack={()=>setPick(null)} onClose={onClose}><TokenPick tokens={pickable} value={pick==="from"?from:to} onChange={(t)=>{ pick==="from"?setFrom(t):setTo(t); setPick(null); }}/></Sheet>);
-  const q=result&&result.quote;
-  return (<Sheet title="兑换 · Swap" onClose={onClose} onBack={phase==="pk"?()=>setPhase("form"):null}>
-    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{q&&q.crossChain?"跨链兑换已提交":"兑换已上链"}</div><div className="dsub">{amt} {from.sym} → ≈ {q&&q.toAmount?Number(q.toAmount).toPrecision(6):out.toPrecision(6)} {to.sym}<br/>{q&&q.crossChain?`已通过 ${q.tool||"LI.FI"} 跨链路由提交，到账需数分钟。`:"已在以太坊广播。"}</div>{result&&result.explorer&&<a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
-    : phase==="pk" ? <RealSignGate label="用通行密钥确认兑换" sub={progress||`${amt} ${from.sym} → ${to.sym}${crossChain?" · 跨链":""} · 真实上链`} onSign={swap} onCancel={()=>setPhase("form")}/>
-    : (<><div className="swap-leg"><div className="sl-top"><span>支付</span><span className="tnum">余额 {from.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" inputMode="decimal" placeholder="0" value={amt} onChange={(e)=>setAmt(e.target.value.replace(/[^0-9.]/g,""))}/><div className="sl-pick" onClick={()=>setPick("from")}><TokenSeal token={from} size={26}/><span className="nm">{from.sym}</span>{WI.down}</div></div></div>
-      <div className="swap-mid"><button onClick={flip}>{WI.swap}</button></div>
-      <div className="swap-leg"><div className="sl-top"><span>获得（预估）</span><span className="tnum">余额 {to.amt}</span></div><div className="sl-row"><input className="sl-amt tnum" readOnly value={out?out.toPrecision(6):"0"}/><div className="sl-pick" onClick={()=>setPick("to")}><TokenSeal token={to} size={26}/><span className="nm">{to.sym}</span>{WI.down}</div></div></div>
-      <div className="swap-rate"><div className="sr"><span className="k">汇率 · 实时价</span><span className="tnum">{rate?`1 ${from.sym} ≈ ${rate.toPrecision(5)} ${to.sym}`:"—"}</span></div><div className="sr"><span className="k">滑点上限</span><span>1%</span></div><div className="sr"><span className="k">路由</span><span>{realPair?(crossChain?"LI.FI · 跨链":"LI.FI"):"—"}</span></div></div>
-      <div className="sign-warn" style={{ marginTop:14 }}>{WI.shield} 兑换支持 <b>ETH · USDC · SOL</b> 之间任意互换（含跨链）。<b>BTC、Sui 暂不支持兑换</b>，可用「转账 / 收款」管理。</div>
-      <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} disabled={!(Number(amt)>0)||!realPair} onClick={()=>setPhase("pk")}>{WI.sign} {realPair?"审阅并用通行密钥兑换":"请选择不同的两种代币"}</button></>)}
-  </Sheet>);
+  if (pick)
+    return (
+      <Sheet title="选择代币" onBack={() => setPick(null)} onClose={onClose}>
+        <TokenPick
+          tokens={pickable}
+          value={pick === "from" ? from : to}
+          onChange={(t) => {
+            pick === "from" ? setFrom(t) : setTo(t);
+            setPick(null);
+          }}
+        />
+      </Sheet>
+    );
+  const q = result && result.quote;
+  return (
+    <Sheet
+      title="兑换 · Swap"
+      onClose={onClose}
+      onBack={phase === "pk" ? () => setPhase("form") : null}
+    >
+      {phase === "done" ? (
+        <>
+          <div className="done-state">
+            <div className="done-mark">{WI.check}</div>
+            <div className="dt">{q && q.crossChain ? "跨链兑换已提交" : "兑换已上链"}</div>
+            <div className="dsub">
+              {amt} {from.sym} → ≈{" "}
+              {q && q.toAmount ? Number(q.toAmount).toPrecision(6) : out.toPrecision(6)} {to.sym}
+              <br />
+              {q && q.crossChain
+                ? `已通过 ${q.tool || "LI.FI"} 跨链路由提交，到账需数分钟。`
+                : "已在以太坊广播。"}
+            </div>
+            {result && result.explorer && (
+              <a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">
+                {WI.ext} 在区块浏览器查看
+              </a>
+            )}
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <button className="wbtn wbtn-ghost" style={{ width: "100%" }} onClick={onClose}>
+              完成
+            </button>
+          </div>
+        </>
+      ) : phase === "pk" ? (
+        <RealSignGate
+          label="用通行密钥确认兑换"
+          sub={
+            progress || `${amt} ${from.sym} → ${to.sym}${crossChain ? " · 跨链" : ""} · 真实上链`
+          }
+          onSign={swap}
+          onCancel={() => setPhase("form")}
+        />
+      ) : (
+        <>
+          <div className="swap-leg">
+            <div className="sl-top">
+              <span>支付</span>
+              <span className="tnum">余额 {from.amt}</span>
+            </div>
+            <div className="sl-row">
+              <input
+                className="sl-amt tnum"
+                inputMode="decimal"
+                placeholder="0"
+                value={amt}
+                onChange={(e) => setAmt(e.target.value.replace(/[^0-9.]/g, ""))}
+              />
+              <div className="sl-pick" onClick={() => setPick("from")}>
+                <TokenSeal token={from} size={26} />
+                <span className="nm">{from.sym}</span>
+                {WI.down}
+              </div>
+            </div>
+          </div>
+          <div className="swap-mid">
+            <button onClick={flip}>{WI.swap}</button>
+          </div>
+          <div className="swap-leg">
+            <div className="sl-top">
+              <span>获得（预估）</span>
+              <span className="tnum">余额 {to.amt}</span>
+            </div>
+            <div className="sl-row">
+              <input className="sl-amt tnum" readOnly value={out ? out.toPrecision(6) : "0"} />
+              <div className="sl-pick" onClick={() => setPick("to")}>
+                <TokenSeal token={to} size={26} />
+                <span className="nm">{to.sym}</span>
+                {WI.down}
+              </div>
+            </div>
+          </div>
+          <div className="swap-rate">
+            <div className="sr">
+              <span className="k">汇率 · 实时价</span>
+              <span className="tnum">
+                {rate ? `1 ${from.sym} ≈ ${rate.toPrecision(5)} ${to.sym}` : "—"}
+              </span>
+            </div>
+            <div className="sr">
+              <span className="k">滑点上限</span>
+              <span>1%</span>
+            </div>
+            <div className="sr">
+              <span className="k">路由</span>
+              <span>{realPair ? (crossChain ? "LI.FI · 跨链" : "LI.FI") : "—"}</span>
+            </div>
+          </div>
+          <div className="sign-warn" style={{ marginTop: 14 }}>
+            {WI.shield} 兑换支持 <b>ETH · USDC · SOL</b> 之间任意互换（含跨链）。
+            <b>BTC、Sui 暂不支持兑换</b>，可用「转账 / 收款」管理。
+          </div>
+          <button
+            className="wbtn wbtn-primary"
+            style={{ width: "100%", marginTop: 20 }}
+            disabled={!(Number(amt) > 0) || !realPair}
+            onClick={() => setPhase("pk")}
+          >
+            {WI.sign} {realPair ? "审阅并用通行密钥兑换" : "请选择不同的两种代币"}
+          </button>
+        </>
+      )}
+    </Sheet>
+  );
 }
 // Real message signing: passkey-signs a fresh Sui personal message; the backend
 // assembles + verifies the signature and returns it. No transaction, no broadcast.
-function SignFlow({ onClose }){
-  const [kind,setKind]=useS("message"); const [phase,setPhase]=useS("review"); const [result,setResult]=useS(null);
-  const ctx=useR(null);
-  if (!ctx.current){
-    const nonce=(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID().slice(0,18):String(Date.now());
-    const host=(typeof window!=="undefined"&&window.location.hostname)||"liber";
-    const ts=new Date().toISOString().replace("T"," ").slice(0,19)+" UTC";
-    ctx.current={ host,
-      message:`Liber 登录确认\n\n域名: ${host}\nNonce: ${nonce}\n时间: ${ts}\n\n签名即代表你是该钱包地址的主人，不会发起任何转账。`,
-      approve:`Liber 授权确认\n\n域名: ${host}\n授权: 允许 Liber 在你上链批注 / 存储时按条计费\nNonce: ${nonce}\n时间: ${ts}\n\n这是一条链下签名，可随时停止使用，不会转移你的资产。` };
+function SignFlow({ onClose }) {
+  const [kind, setKind] = useS("message");
+  const [phase, setPhase] = useS("review");
+  const [result, setResult] = useS(null);
+  const ctx = useR(null);
+  if (!ctx.current) {
+    const nonce =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID().slice(0, 18)
+        : String(Date.now());
+    const host = (typeof window !== "undefined" && window.location.hostname) || "liber";
+    const ts = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
+    ctx.current = {
+      host,
+      message: `Liber 登录确认\n\n域名: ${host}\nNonce: ${nonce}\n时间: ${ts}\n\n签名即代表你是该钱包地址的主人，不会发起任何转账。`,
+      approve: `Liber 授权确认\n\n域名: ${host}\n授权: 允许 Liber 在你上链批注 / 存储时按条计费\nNonce: ${nonce}\n时间: ${ts}\n\n这是一条链下签名，可随时停止使用，不会转移你的资产。`,
+    };
   }
-  const message = kind==="message" ? ctx.current.message : ctx.current.approve;
-  const doSign=async()=>{
-    const prep=await api.auth.signMessage({ message });
-    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建签名失败");
-    const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
-    const r=await api.auth.signVerify({ message, activityId });
-    if (!r||!r.ok) throw new Error((r&&(r.message||r.error))||"验签失败");
-    setResult(r); setPhase("done");
+  const message = kind === "message" ? ctx.current.message : ctx.current.approve;
+  const doSign = async () => {
+    const prep = await api.auth.signMessage({ message });
+    if (!prep || !prep.ok)
+      throw new Error((prep && (prep.message || prep.error)) || "构建签名失败");
+    const { activityId } = await passkeySignDigest({
+      organizationId: prep.organizationId,
+      signWith: prep.signWith,
+      digestHex: prep.digestHex,
+      hashFunction: prep.hashFunction,
+    });
+    const r = await api.auth.signVerify({ message, activityId });
+    if (!r || !r.ok) throw new Error((r && (r.message || r.error)) || "验签失败");
+    setResult(r);
+    setPhase("done");
   };
-  return (<Sheet title="签名请求" onClose={onClose} onBack={phase==="pk"?()=>setPhase("review"):null}>
-    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{result&&result.verified?"已签名 · 验证通过":"已签名"}</div><div className="dsub">{result&&result.verified?"签名已由你的 Sui 地址验证通过。":"已生成签名。"}<br/>这是链下签名，未发生任何转账。</div>{result&&result.signature&&<div className="done-hash" style={{ wordBreak:"break-all", textAlign:"center", maxWidth:260 }}>{result.signature.slice(0,18)}…{result.signature.slice(-12)}</div>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
-    : phase==="pk" ? <RealSignGate label="用通行密钥签名" sub="对消息做真实签名 · 不会转账" onSign={doSign} onCancel={()=>setPhase("review")}/>
-    : (<><div className="seg-tabs" style={{ marginBottom:18 }}><button className={kind==="message"?"on":""} onClick={()=>setKind("message")}>登录签名</button><button className={kind==="approve"?"on":""} onClick={()=>setKind("approve")}>授权签名</button></div>
-      <div className="sign-origin"><span className="so-fav"><WMark size={20}/></span><div><div className="so-t">{kind==="message"?"登录确认":"授权确认"}</div><div className="so-u">{WI.shield} {ctx.current.host} · Sui</div></div></div>
-      <div className="sign-purpose">用你的钱包通行密钥对下面这条消息做一次真实签名，证明你是该地址的主人。链下签名，不会发起任何转账。</div>
-      <div className="sign-msg">{message}</div>
-      <div className="sign-warn">{WI.shield} 只在你信任的站点签名。Liber 不会通过签名转移你的资产。</div>
-      <div style={{ display:"flex", gap:12, marginTop:20 }}><button className="wbtn wbtn-ghost" onClick={onClose}>拒绝</button><button className="wbtn wbtn-primary" onClick={()=>setPhase("pk")}>{WI.sign} 用通行密钥签名</button></div></>)}
-  </Sheet>);
+  return (
+    <Sheet
+      title="签名请求"
+      onClose={onClose}
+      onBack={phase === "pk" ? () => setPhase("review") : null}
+    >
+      {phase === "done" ? (
+        <>
+          <div className="done-state">
+            <div className="done-mark">{WI.check}</div>
+            <div className="dt">{result && result.verified ? "已签名 · 验证通过" : "已签名"}</div>
+            <div className="dsub">
+              {result && result.verified ? "签名已由你的 Sui 地址验证通过。" : "已生成签名。"}
+              <br />
+              这是链下签名，未发生任何转账。
+            </div>
+            {result && result.signature && (
+              <div
+                className="done-hash"
+                style={{ wordBreak: "break-all", textAlign: "center", maxWidth: 260 }}
+              >
+                {result.signature.slice(0, 18)}…{result.signature.slice(-12)}
+              </div>
+            )}
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <button className="wbtn wbtn-ghost" style={{ width: "100%" }} onClick={onClose}>
+              完成
+            </button>
+          </div>
+        </>
+      ) : phase === "pk" ? (
+        <RealSignGate
+          label="用通行密钥签名"
+          sub="对消息做真实签名 · 不会转账"
+          onSign={doSign}
+          onCancel={() => setPhase("review")}
+        />
+      ) : (
+        <>
+          <div className="seg-tabs" style={{ marginBottom: 18 }}>
+            <button className={kind === "message" ? "on" : ""} onClick={() => setKind("message")}>
+              登录签名
+            </button>
+            <button className={kind === "approve" ? "on" : ""} onClick={() => setKind("approve")}>
+              授权签名
+            </button>
+          </div>
+          <div className="sign-origin">
+            <span className="so-fav">
+              <WMark size={20} />
+            </span>
+            <div>
+              <div className="so-t">{kind === "message" ? "登录确认" : "授权确认"}</div>
+              <div className="so-u">
+                {WI.shield} {ctx.current.host} · Sui
+              </div>
+            </div>
+          </div>
+          <div className="sign-purpose">
+            用你的钱包通行密钥对下面这条消息做一次真实签名，证明你是该地址的主人。链下签名，不会发起任何转账。
+          </div>
+          <div className="sign-msg">{message}</div>
+          <div className="sign-warn">
+            {WI.shield} 只在你信任的站点签名。Liber 不会通过签名转移你的资产。
+          </div>
+          <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+            <button className="wbtn wbtn-ghost" onClick={onClose}>
+              拒绝
+            </button>
+            <button className="wbtn wbtn-primary" onClick={() => setPhase("pk")}>
+              {WI.sign} 用通行密钥签名
+            </button>
+          </div>
+        </>
+      )}
+    </Sheet>
+  );
 }
 // On-chain provenance flows (批注上链 / 永久存储 / 藏书证书) — all register on Sui via
 // liber::registry with a passkey-signed moveCall. One component, three configs.
 const PROV = {
   annotation: {
-    title:"批注上链 · 永久存证", divider:"批注默认只存数据库；在这里挑选值得永久存证的少数几条上链",
-    empty:"你还没有批注 · 在阅读时写下笔记后即可上链", glyph:"book",
-    load:()=>api.auth.annotations(), prepare:(it)=>api.auth.onchainPrepare({ contentId:it.contentId, kind:"annotation" }),
-    primary:(it)=>it.text, secondary:(it)=>`${it.bookTitle} · ${it.sid}`, doneMark:"已上链",
-    purpose:"把下面这条批注作为不可篡改的存证写上 Sui 链（CC0-1.0）。链上记录你的地址与时间，独立于 Liber 服务器即可验证。你支付一笔链上 gas。",
-    body:(it)=>it.text, rows:(it)=>[["出处",it.bookTitle],["引用",it.sid],["许可","CC0-1.0"]],
-    signLabel:"用通行密钥签名上链", signSub:"把这条批注永久写上 Sui 链",
-    doneTitle:"批注已上链", doneText:(r)=>`这条批注已作为不可篡改的存证写上 Sui（${r&&r.network}）。\n作者与时间链上可验证，独立于 Liber 服务器。`,
+    title: "批注上链 · 永久存证",
+    divider: "批注默认只存数据库；在这里挑选值得永久存证的少数几条上链",
+    empty: "你还没有批注 · 在阅读时写下笔记后即可上链",
+    glyph: "book",
+    load: () => api.auth.annotations(),
+    prepare: (it) => api.auth.onchainPrepare({ contentId: it.contentId, kind: "annotation" }),
+    primary: (it) => it.text,
+    secondary: (it) => `${it.bookTitle} · ${it.sid}`,
+    doneMark: "已上链",
+    purpose:
+      "把下面这条批注作为不可篡改的存证写上 Sui 链（CC0-1.0）。链上记录你的地址与时间，独立于 Liber 服务器即可验证。你支付一笔链上 gas。",
+    body: (it) => it.text,
+    rows: (it) => [
+      ["出处", it.bookTitle],
+      ["引用", it.sid],
+      ["许可", "CC0-1.0"],
+    ],
+    signLabel: "用通行密钥签名上链",
+    signSub: "把这条批注永久写上 Sui 链",
+    doneTitle: "批注已上链",
+    doneText: (r) =>
+      `这条批注已作为不可篡改的存证写上 Sui（${r && r.network}）。\n作者与时间链上可验证，独立于 Liber 服务器。`,
   },
   storage: {
-    title:"永久存储 · Walrus", divider:"选择一篇作品，永久存到 Walrus 并上链存证",
-    empty:"你还没有发布作品 · 在「再创作 / 导读」发布后可永久存储", glyph:"shield",
-    load:()=>api.auth.myWorks(), prepare:(it)=>api.auth.storagePrepare({ workId:it.id }),
-    primary:(it)=>it.title, secondary:(it)=>it.snippet||"", doneMark:null,
-    purpose:"把这篇作品永久存到 Walrus（去中心化存储），并在 Sui 上登记不可篡改的存证。你支付一笔链上 gas；Walrus 测试网由公共节点赞助。",
-    body:(it)=>it.title, rows:()=>[["类型","CC0 作品"],["存储","Walrus"],["许可","CC0-1.0"]],
-    signLabel:"用通行密钥签名存证", signSub:"存到 Walrus + 写上 Sui 链",
-    doneTitle:"已永久存储 + 上链", doneText:()=>"作品已存到 Walrus，并在 Sui 上登记了不可篡改的存证。",
+    title: "永久存储 · Walrus",
+    divider: "选择一篇作品，永久存到 Walrus 并上链存证",
+    empty: "你还没有发布作品 · 在「再创作 / 导读」发布后可永久存储",
+    glyph: "shield",
+    load: () => api.auth.myWorks(),
+    prepare: (it) => api.auth.storagePrepare({ workId: it.id }),
+    primary: (it) => it.title,
+    secondary: (it) => it.snippet || "",
+    doneMark: null,
+    purpose:
+      "把这篇作品永久存到 Walrus（去中心化存储），并在 Sui 上登记不可篡改的存证。你支付一笔链上 gas；Walrus 测试网由公共节点赞助。",
+    body: (it) => it.title,
+    rows: () => [
+      ["类型", "CC0 作品"],
+      ["存储", "Walrus"],
+      ["许可", "CC0-1.0"],
+    ],
+    signLabel: "用通行密钥签名存证",
+    signSub: "存到 Walrus + 写上 Sui 链",
+    doneTitle: "已永久存储 + 上链",
+    doneText: () => "作品已存到 Walrus，并在 Sui 上登记了不可篡改的存证。",
   },
   certificate: {
-    title:"藏书证书 · 链上铸造", divider:"选择一本你读过的书，铸造链上藏书证书",
-    empty:"你还没有阅读记录 · 读过的书可铸造藏书证书", glyph:"book",
-    load:()=>api.auth.myBooks(), prepare:(it)=>api.auth.onchainPrepare({ contentId:it.contentId, kind:"certificate" }),
-    primary:(it)=>it.title, secondary:(it)=>`阅读进度 ${Math.round(it.percent||0)}%`, doneMark:"已铸造",
-    purpose:"为这本书铸造一枚链上藏书证书：一个归你所有、可转移的 Sui 对象，记录你的地址与时间。你支付一笔链上 gas。",
-    body:(it)=>it.title, rows:()=>[["证书","藏书证书 · Sui 对象"],["链","Sui"],["许可","CC0-1.0"]],
-    signLabel:"用通行密钥铸造", signSub:"铸造你的藏书证书",
-    doneTitle:"藏书证书已铸造", doneText:()=>"证书已作为归你所有的 Sui 对象铸造完成，可在钱包中转移或收藏。",
+    title: "藏书证书 · 链上铸造",
+    divider: "选择一本你读过的书，铸造链上藏书证书",
+    empty: "你还没有阅读记录 · 读过的书可铸造藏书证书",
+    glyph: "book",
+    load: () => api.auth.myBooks(),
+    prepare: (it) => api.auth.onchainPrepare({ contentId: it.contentId, kind: "certificate" }),
+    primary: (it) => it.title,
+    secondary: (it) => `阅读进度 ${Math.round(it.percent || 0)}%`,
+    doneMark: "已铸造",
+    purpose:
+      "为这本书铸造一枚链上藏书证书：一个归你所有、可转移的 Sui 对象，记录你的地址与时间。你支付一笔链上 gas。",
+    body: (it) => it.title,
+    rows: () => [
+      ["证书", "藏书证书 · Sui 对象"],
+      ["链", "Sui"],
+      ["许可", "CC0-1.0"],
+    ],
+    signLabel: "用通行密钥铸造",
+    signSub: "铸造你的藏书证书",
+    doneTitle: "藏书证书已铸造",
+    doneText: () => "证书已作为归你所有的 Sui 对象铸造完成，可在钱包中转移或收藏。",
   },
 };
-function ProvenanceFlow({ mode, onClose }){
-  const cfg=PROV[mode];
-  const [items,setItems]=useS(null); const [pick,setPick]=useS(null); const [phase,setPhase]=useS("list"); const [result,setResult]=useS(null);
-  useE(()=>{ let live=true; cfg.load().then(r=>{ if(live) setItems((r&&r.items)||[]); }).catch(()=>{ if(live) setItems([]); }); return ()=>{live=false;}; },[mode]);
-  const go=async()=>{
-    const prep=await cfg.prepare(pick);
-    if (!prep||!prep.ok) throw new Error((prep&&(prep.message||prep.error))||"构建交易失败");
-    const { activityId }=await passkeySignDigest({ organizationId:prep.organizationId, signWith:prep.signWith, digestHex:prep.digestHex, hashFunction:prep.hashFunction });
-    const o=await api.auth.onchainBroadcast({ txBytesB64:prep.txBytesB64, activityId, contentId:prep.contentId, kind:prep.kind });
-    if (!o||!o.ok) throw new Error((o&&(o.message||o.error))||"上链失败");
-    setResult(o); setPhase("done");
+function ProvenanceFlow({ mode, onClose }) {
+  const cfg = PROV[mode];
+  const [items, setItems] = useS(null);
+  const [pick, setPick] = useS(null);
+  const [phase, setPhase] = useS("list");
+  const [result, setResult] = useS(null);
+  useE(() => {
+    let live = true;
+    cfg
+      .load()
+      .then((r) => {
+        if (live) setItems((r && r.items) || []);
+      })
+      .catch(() => {
+        if (live) setItems([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [mode]);
+  const go = async () => {
+    const prep = await cfg.prepare(pick);
+    if (!prep || !prep.ok)
+      throw new Error((prep && (prep.message || prep.error)) || "构建交易失败");
+    const { activityId } = await passkeySignDigest({
+      organizationId: prep.organizationId,
+      signWith: prep.signWith,
+      digestHex: prep.digestHex,
+      hashFunction: prep.hashFunction,
+    });
+    const o = await api.auth.onchainBroadcast({
+      txBytesB64: prep.txBytesB64,
+      activityId,
+      contentId: prep.contentId,
+      kind: prep.kind,
+    });
+    if (!o || !o.ok) throw new Error((o && (o.message || o.error)) || "上链失败");
+    setResult(o);
+    setPhase("done");
   };
-  const empty = { padding:"26px", textAlign:"center", fontFamily:"var(--mono)", fontSize:13, color:"var(--ink-3)" };
-  return (<Sheet title={cfg.title} onClose={onClose} onBack={phase==="confirm"?()=>setPhase("list"):phase==="pk"?()=>setPhase("confirm"):null}>
-    {phase==="done" ? (<><div className="done-state"><div className="done-mark">{WI.check}</div><div className="dt">{cfg.doneTitle}</div><div className="dsub" style={{ whiteSpace:"pre-line" }}>{cfg.doneText(result)}</div>{result&&result.explorer&&<a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器查看</a>}</div><div style={{ marginTop:24 }}><button className="wbtn wbtn-ghost" style={{ width:"100%" }} onClick={onClose}>完成</button></div></>)
-    : phase==="pk" ? <RealSignGate label={cfg.signLabel} sub={cfg.signSub} onSign={go} onCancel={()=>setPhase("confirm")}/>
-    : phase==="confirm" ? (<><div className="sign-purpose">{cfg.purpose}</div>
-        <div className="sign-msg">{cfg.body(pick)}</div>
-        <div className="rev">{cfg.rows(pick).map(([k,v],i)=><div key={i} className="rr"><span className="k">{k}</span><span className="v">{v}</span></div>)}</div>
-        <button className="wbtn wbtn-primary" style={{ width:"100%", marginTop:20 }} onClick={()=>setPhase("pk")}>{WI.shield} {cfg.signLabel}</button></>)
-    : (<>{items==null ? <div className="panel" style={empty}>正在读取…</div>
-        : items.length===0 ? <div className="panel" style={empty}>{cfg.empty}</div>
-        : (<><div className="recip-divider">{cfg.divider}</div>{items.map(it=>(<div key={it.id} className="recip" onClick={()=>{ if(!it.onChain){ setPick(it); setPhase("confirm"); } }} style={it.onChain?{ opacity:.6, cursor:"default" }:null}>
-            <span className="av ink">{WI[cfg.glyph]}</span>
-            <div className="rb"><div className="nm" style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:190 }}>{cfg.primary(it)}</div><div className="ad">{cfg.secondary(it)}</div></div>
-            <div className="rb r-sub">{it.onChain ? <a className="sub" href={it.explorer} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"var(--pos)" }}>{cfg.doneMark} {WI.ext}</a> : <span className="sub">{WI.right}</span>}</div></div>))}</>)}</>)}
-  </Sheet>);
+  const empty = {
+    padding: "26px",
+    textAlign: "center",
+    fontFamily: "var(--mono)",
+    fontSize: 13,
+    color: "var(--ink-3)",
+  };
+  return (
+    <Sheet
+      title={cfg.title}
+      onClose={onClose}
+      onBack={
+        phase === "confirm"
+          ? () => setPhase("list")
+          : phase === "pk"
+            ? () => setPhase("confirm")
+            : null
+      }
+    >
+      {phase === "done" ? (
+        <>
+          <div className="done-state">
+            <div className="done-mark">{WI.check}</div>
+            <div className="dt">{cfg.doneTitle}</div>
+            <div className="dsub" style={{ whiteSpace: "pre-line" }}>
+              {cfg.doneText(result)}
+            </div>
+            {result && result.explorer && (
+              <a className="done-hash" href={result.explorer} target="_blank" rel="noreferrer">
+                {WI.ext} 在区块浏览器查看
+              </a>
+            )}
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <button className="wbtn wbtn-ghost" style={{ width: "100%" }} onClick={onClose}>
+              完成
+            </button>
+          </div>
+        </>
+      ) : phase === "pk" ? (
+        <RealSignGate
+          label={cfg.signLabel}
+          sub={cfg.signSub}
+          onSign={go}
+          onCancel={() => setPhase("confirm")}
+        />
+      ) : phase === "confirm" ? (
+        <>
+          <div className="sign-purpose">{cfg.purpose}</div>
+          <div className="sign-msg">{cfg.body(pick)}</div>
+          <div className="rev">
+            {cfg.rows(pick).map(([k, v], i) => (
+              <div key={i} className="rr">
+                <span className="k">{k}</span>
+                <span className="v">{v}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            className="wbtn wbtn-primary"
+            style={{ width: "100%", marginTop: 20 }}
+            onClick={() => setPhase("pk")}
+          >
+            {WI.shield} {cfg.signLabel}
+          </button>
+        </>
+      ) : (
+        <>
+          {items == null ? (
+            <div className="panel" style={empty}>
+              正在读取…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="panel" style={empty}>
+              {cfg.empty}
+            </div>
+          ) : (
+            <>
+              <div className="recip-divider">{cfg.divider}</div>
+              {items.map((it) => (
+                <div
+                  key={it.id}
+                  className="recip"
+                  onClick={() => {
+                    if (!it.onChain) {
+                      setPick(it);
+                      setPhase("confirm");
+                    }
+                  }}
+                  style={it.onChain ? { opacity: 0.6, cursor: "default" } : null}
+                >
+                  <span className="av ink">{WI[cfg.glyph]}</span>
+                  <div className="rb">
+                    <div
+                      className="nm"
+                      style={{
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: 190,
+                      }}
+                    >
+                      {cfg.primary(it)}
+                    </div>
+                    <div className="ad">{cfg.secondary(it)}</div>
+                  </div>
+                  <div className="rb r-sub">
+                    {it.onChain ? (
+                      <a
+                        className="sub"
+                        href={it.explorer}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ color: "var(--pos)" }}
+                      >
+                        {cfg.doneMark} {WI.ext}
+                      </a>
+                    ) : (
+                      <span className="sub">{WI.right}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
+    </Sheet>
+  );
 }
-function ActivityDetail({ item, onClose }){
-  const neg=item.amt.trim().startsWith("-");
-  return (<Sheet title="交易明细" onClose={onClose}><div className="rev"><div className="rev-hero"><TokenSeal token={item.sym} size={46}/><div><div className="rh-amt tnum" style={{ color:neg?"var(--ink)":"var(--pos)" }}>{item.amt} {item.sym}</div><div className="rh-sub">{item.title}</div></div></div>
-    <div className="rr"><span className="k">说明</span><span className="v">{item.sub}</span></div><div className="rr"><span className="k">网络</span><span className="v">{item.chain}</span></div>
-    <div className="rr"><span className="k">时间</span><span className="v">{item.when}</span></div><div className="rr"><span className="k">交易哈希</span><span className="v">{item.hash}</span></div>
-    <div className="rr"><span className="k">状态</span><span className="v" style={{ color:item.ok===false?"var(--neg)":"var(--pos)" }}>● {item.sub||"已确认"}</span></div></div>
-    {item.note && <div style={{ fontFamily:"var(--body)", fontStyle:"italic", fontSize:15, color:"var(--ink-2)", marginTop:16, padding:"0 4px" }}>「{item.note}」</div>}
-    {item.explorer
-      ? <a className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20, display:"flex", justifyContent:"center", gap:8, textDecoration:"none" }} href={item.explorer} target="_blank" rel="noreferrer">{WI.ext} 在区块浏览器中查看</a>
-      : <button className="wbtn wbtn-ghost" style={{ width:"100%", marginTop:20 }}>{WI.ext} 在区块浏览器中查看</button>}</Sheet>);
+function ActivityDetail({ item, onClose }) {
+  const neg = item.amt.trim().startsWith("-");
+  return (
+    <Sheet title="交易明细" onClose={onClose}>
+      <div className="rev">
+        <div className="rev-hero">
+          <TokenSeal token={item.sym} size={46} />
+          <div>
+            <div className="rh-amt tnum" style={{ color: neg ? "var(--ink)" : "var(--pos)" }}>
+              {item.amt} {item.sym}
+            </div>
+            <div className="rh-sub">{item.title}</div>
+          </div>
+        </div>
+        <div className="rr">
+          <span className="k">说明</span>
+          <span className="v">{item.sub}</span>
+        </div>
+        <div className="rr">
+          <span className="k">网络</span>
+          <span className="v">{item.chain}</span>
+        </div>
+        <div className="rr">
+          <span className="k">时间</span>
+          <span className="v">{item.when}</span>
+        </div>
+        <div className="rr">
+          <span className="k">交易哈希</span>
+          <span className="v">{item.hash}</span>
+        </div>
+        <div className="rr">
+          <span className="k">状态</span>
+          <span className="v" style={{ color: item.ok === false ? "var(--neg)" : "var(--pos)" }}>
+            ● {item.sub || "已确认"}
+          </span>
+        </div>
+      </div>
+      {item.note && (
+        <div
+          style={{
+            fontFamily: "var(--body)",
+            fontStyle: "italic",
+            fontSize: 15,
+            color: "var(--ink-2)",
+            marginTop: 16,
+            padding: "0 4px",
+          }}
+        >
+          「{item.note}」
+        </div>
+      )}
+      {item.explorer ? (
+        <a
+          className="wbtn wbtn-ghost"
+          style={{
+            width: "100%",
+            marginTop: 20,
+            display: "flex",
+            justifyContent: "center",
+            gap: 8,
+            textDecoration: "none",
+          }}
+          href={item.explorer}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {WI.ext} 在区块浏览器中查看
+        </a>
+      ) : (
+        <button className="wbtn wbtn-ghost" style={{ width: "100%", marginTop: 20 }}>
+          {WI.ext} 在区块浏览器中查看
+        </button>
+      )}
+    </Sheet>
+  );
 }
-function FlowHost({ flow, addresses, tokens, contacts, tipTargets, onClose }){
+function FlowHost({ flow, addresses, tokens, contacts, tipTargets, onClose }) {
   if (!flow) return null;
-  if (flow.kind==="send") return <SendFlow tokens={tokens} presetToken={flow.token} contacts={flow.tip?tipTargets:contacts} tip={flow.tip} onClose={onClose}/>;
-  if (flow.kind==="receive") return <ReceiveFlow presetToken={flow.token} addresses={addresses} onClose={onClose}/>;
-  if (flow.kind==="swap") return <SwapFlow tokens={tokens} presetToken={flow.token} onClose={onClose}/>;
-  if (flow.kind==="sign") return <SignFlow onClose={onClose}/>;
-  if (flow.kind==="onchain") return <ProvenanceFlow mode={flow.mode||"annotation"} onClose={onClose}/>;
-  if (flow.kind==="activity") return <ActivityDetail item={flow.item} onClose={onClose}/>;
+  if (flow.kind === "send")
+    return (
+      <SendFlow
+        tokens={tokens}
+        presetToken={flow.token}
+        contacts={flow.tip ? tipTargets : contacts}
+        tip={flow.tip}
+        onClose={onClose}
+      />
+    );
+  if (flow.kind === "receive")
+    return <ReceiveFlow presetToken={flow.token} addresses={addresses} onClose={onClose} />;
+  if (flow.kind === "swap")
+    return <SwapFlow tokens={tokens} presetToken={flow.token} onClose={onClose} />;
+  if (flow.kind === "sign") return <SignFlow onClose={onClose} />;
+  if (flow.kind === "onchain")
+    return <ProvenanceFlow mode={flow.mode || "annotation"} onClose={onClose} />;
+  if (flow.kind === "activity") return <ActivityDetail item={flow.item} onClose={onClose} />;
   return null;
 }
 
 /* ---------- tab-pane sections ---------- */
-function WalletBand({ portfolio, alloc, loading }){
+function WalletBand({ portfolio, alloc, loading }) {
   const [whole, cents] = fmtUSD(portfolio.total).replace("$", "").split(".");
   const hasAlloc = alloc && alloc.length > 0;
-  return (<div className="pfw-band"><div><div className="bb-label">{WI.shield} 我的资产 · 由通行密钥守护{loading ? " · 加载中…" : ""}</div>
-    <div className="bb-total tnum">${whole}<span className="cents">.{cents}</span></div>
-    <div className="bb-delta"><span className="tnum" style={{ color: "var(--ink-3)" }}>{hasAlloc ? "链上实时余额 · 主网" : "暂无资产 · 向上方地址转入即可"}</span></div></div>
-    {hasAlloc && <div className="bb-ring"><AllocRing alloc={alloc} size={108} thick={15}/></div>}</div>);
+  return (
+    <div className="pfw-band">
+      <div>
+        <div className="bb-label">
+          {WI.shield} 我的资产 · 由通行密钥守护{loading ? " · 加载中…" : ""}
+        </div>
+        <div className="bb-total tnum">
+          ${whole}
+          <span className="cents">.{cents}</span>
+        </div>
+        <div className="bb-delta">
+          <span className="tnum" style={{ color: "var(--ink-3)" }}>
+            {hasAlloc ? "链上实时余额 · 主网" : "暂无资产 · 向上方地址转入即可"}
+          </span>
+        </div>
+      </div>
+      {hasAlloc && (
+        <div className="bb-ring">
+          <AllocRing alloc={alloc} size={108} thick={15} />
+        </div>
+      )}
+    </div>
+  );
 }
-function QuickActions({ onAction }){
-  return (<div className="pfw-actions">
-    <button className="qa" onClick={()=>onAction("send")}><span className="qa-ic">{WI.send}</span>转账</button>
-    <button className="qa" onClick={()=>onAction("receive")}><span className="qa-ic">{WI.recv}</span>收款</button>
-    <button className="qa" onClick={()=>onAction("swap")}><span className="qa-ic">{WI.swap}</span>兑换</button>
-    <button className="qa ghost" onClick={()=>onAction("sign")}><span className="qa-ic">{WI.sign}</span>签名</button></div>);
+function QuickActions({ onAction }) {
+  return (
+    <div className="pfw-actions">
+      <button className="qa" onClick={() => onAction("send")}>
+        <span className="qa-ic">{WI.send}</span>转账
+      </button>
+      <button className="qa" onClick={() => onAction("receive")}>
+        <span className="qa-ic">{WI.recv}</span>收款
+      </button>
+      <button className="qa" onClick={() => onAction("swap")}>
+        <span className="qa-ic">{WI.swap}</span>兑换
+      </button>
+      <button className="qa ghost" onClick={() => onAction("sign")}>
+        <span className="qa-ic">{WI.sign}</span>签名
+      </button>
+    </div>
+  );
 }
-const ADDR_META = [["sui","SUI","Sui"],["ethereum","ETH","Ethereum"],["solana","SOL","Solana"],["bitcoin","BTC","Bitcoin"]];
-function IdentityStrip({ wallets, onReceive }){
-  const [copied,setCopied]=useS(null);
-  const copy=(k,a)=>{ try{ navigator.clipboard.writeText(a); }catch(e){} setCopied(k); setTimeout(()=>setCopied(null),1200); };
-  const rows=ADDR_META.filter(([k])=>wallets[k]);
-  return (<div className="pfw-card pfw-identity"><div className="pi-h"><span>链上身份 · 真实地址</span><span className="vfy">{WI.shield} 通行密钥已验证</span><span className="more" style={{ marginLeft:"auto" }} onClick={onReceive}>收款 {WI.right}</span></div>
-    <div className="pfw-addr-grid">{rows.map(([k,sym,name])=>(<div key={k} className="pfw-addr" onClick={()=>copy(k,wallets[k])} title={wallets[k]}><TokenSeal token={sym} size={34}/><div className="pa-b"><div className="pa-nm">{name}</div><div className="pa-ad">{wallets[k]}</div></div><span className="pa-cp">{copied===k?WI.check:WI.copy}</span></div>))}</div></div>);
+const ADDR_META = [
+  ["sui", "SUI", "Sui"],
+  ["ethereum", "ETH", "Ethereum"],
+  ["solana", "SOL", "Solana"],
+  ["bitcoin", "BTC", "Bitcoin"],
+];
+function IdentityStrip({ wallets, onReceive }) {
+  const [copied, setCopied] = useS(null);
+  const copy = (k, a) => {
+    try {
+      navigator.clipboard.writeText(a);
+    } catch (e) {}
+    setCopied(k);
+    setTimeout(() => setCopied(null), 1200);
+  };
+  const rows = ADDR_META.filter(([k]) => wallets[k]);
+  return (
+    <div className="pfw-card pfw-identity">
+      <div className="pi-h">
+        <span>链上身份 · 真实地址</span>
+        <span className="vfy">{WI.shield} 通行密钥已验证</span>
+        <span className="more" style={{ marginLeft: "auto" }} onClick={onReceive}>
+          收款 {WI.right}
+        </span>
+      </div>
+      <div className="pfw-addr-grid">
+        {rows.map(([k, sym, name]) => (
+          <div key={k} className="pfw-addr" onClick={() => copy(k, wallets[k])} title={wallets[k]}>
+            <TokenSeal token={sym} size={34} />
+            <div className="pa-b">
+              <div className="pa-nm">{name}</div>
+              <div className="pa-ad">{wallets[k]}</div>
+            </div>
+            <span className="pa-cp">{copied === k ? WI.check : WI.copy}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
-function AssetList({ tokens, onOpen }){
-  return (<div className="panel"><div className="asset-rows">{tokens.map(t=>(
-    <div key={t.sym} className="arow" onClick={()=>onOpen(t)}><TokenSeal token={t} size={42}/>
-      <div className="a-id"><div className="nm">{t.name}</div><div className="ch">{t.chain} · {t.sym}</div></div>
-      <div className="a-price tnum">{t.price != null ? "$" + Number(t.price).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</div>
-      <div className="a-spark">{t.spark ? <Sparkline data={t.spark} w={120} h={34} up/> : null}</div>
-      <div className="a-bal"><div className="v tnum">{t.value ? fmtUSD(t.value) : "$0.00"}</div><div className="u tnum">{t.amt} {t.sym}</div></div>
-      <span className="a-go">{WI.chev}</span></div>))}</div></div>);
+function AssetList({ tokens, onOpen }) {
+  return (
+    <div className="panel">
+      <div className="asset-rows">
+        {tokens.map((t) => (
+          <div key={t.sym} className="arow" onClick={() => onOpen(t)}>
+            <TokenSeal token={t} size={42} />
+            <div className="a-id">
+              <div className="nm">{t.name}</div>
+              <div className="ch">
+                {t.chain} · {t.sym}
+              </div>
+            </div>
+            <div className="a-price tnum">
+              {t.price != null
+                ? "$" + Number(t.price).toLocaleString("en-US", { maximumFractionDigits: 2 })
+                : "—"}
+            </div>
+            <div className="a-spark">
+              {t.spark ? <Sparkline data={t.spark} w={120} h={34} up /> : null}
+            </div>
+            <div className="a-bal">
+              <div className="v tnum">{t.value ? fmtUSD(t.value) : "$0.00"}</div>
+              <div className="u tnum">
+                {t.amt} {t.sym}
+              </div>
+            </div>
+            <span className="a-go">{WI.chev}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
-function ActivityList({ items, onOpen, limit }){
-  const list=limit?items.slice(0,limit):items;
-  return (<div className="panel"><div className="act-list">{list.map(a=>{ const neg=a.amt.trim().startsWith("-"); return (
-    <div key={a.id} className="act" onClick={()=>onOpen&&onOpen(a)}><span className="a-ic">{ACT_GLYPH[a.kind]||WI.send}</span>
-      <div className="a-bd"><div className="t">{a.title}</div><div className="s"><span>{a.sub}</span><span className="hash">· {a.hash}</span></div></div>
-      <div className="a-amt"><div className={"v tnum "+(neg?"neg":"pos")}>{a.amt} {a.sym}</div><div className="st">{WI.dot} {a.when}</div></div></div>); })}</div></div>);
+function ActivityList({ items, onOpen, limit }) {
+  const list = limit ? items.slice(0, limit) : items;
+  return (
+    <div className="panel">
+      <div className="act-list">
+        {list.map((a) => {
+          const neg = a.amt.trim().startsWith("-");
+          return (
+            <div key={a.id} className="act" onClick={() => onOpen && onOpen(a)}>
+              <span className="a-ic">{ACT_GLYPH[a.kind] || WI.send}</span>
+              <div className="a-bd">
+                <div className="t">{a.title}</div>
+                <div className="s">
+                  <span>{a.sub}</span>
+                  <span className="hash">· {a.hash}</span>
+                </div>
+              </div>
+              <div className="a-amt">
+                <div className={"v tnum " + (neg ? "neg" : "pos")}>
+                  {a.amt} {a.sym}
+                </div>
+                <div className="st">
+                  {WI.dot} {a.when}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
-function UsesGrid({ onAction }){
-  return (<div className="uses-grid">{USES.map(u=>(<div key={u.k} className="use-card"><div className="u-h"><TokenSeal token={u.sym} size={30}/><div className="u-t">{u.title}</div></div><div className="u-d">{u.desc}</div>
-    <div className="u-cta" onClick={()=>{ if(u.k==="tip") onAction("tip"); else onAction("onchain", u.k==="gas"?"annotation":u.k==="storage"?"storage":"certificate"); }}>{u.cta} {WI.right}</div></div>))}</div>);
+function UsesGrid({ onAction }) {
+  return (
+    <div className="uses-grid">
+      {USES.map((u) => (
+        <div key={u.k} className="use-card">
+          <div className="u-h">
+            <TokenSeal token={u.sym} size={30} />
+            <div className="u-t">{u.title}</div>
+          </div>
+          <div className="u-d">{u.desc}</div>
+          <div
+            className="u-cta"
+            onClick={() => {
+              if (u.k === "tip") onAction("tip");
+              else
+                onAction(
+                  "onchain",
+                  u.k === "gas" ? "annotation" : u.k === "storage" ? "storage" : "certificate",
+                );
+            }}
+          >
+            {u.cta} {WI.right}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
-function ThanksWall({ tips }){
-  return (<div className="pfw-card thanks-wall"><div className="tw-list">{tips.map((t,i)=>(<div className="tw-item" key={i}><span className="tw-av" style={{ background:`linear-gradient(135deg, ${t.color}, #2e3a7a)` }}>{t.seal}</span>
-    <div className="tw-b"><div className="tw-top"><span className="tw-nm">{t.name}</span><span className="tw-amt tnum">{t.amt} {t.sym}</span></div>{t.msg&&<div className="tw-msg">「{t.msg}」</div>}<div className="tw-meta">{t.explorer?<a href={t.explorer} target="_blank" rel="noreferrer" style={{ color:"inherit" }}>{t.when} · <span className="tw-hash">{t.hash}</span></a>:<>{t.when} · <span className="tw-hash">{t.hash}</span></>}</div></div></div>))}</div></div>);
+function ThanksWall({ tips }) {
+  return (
+    <div className="pfw-card thanks-wall">
+      <div className="tw-list">
+        {tips.map((t, i) => (
+          <div className="tw-item" key={i}>
+            <span
+              className="tw-av"
+              style={{ background: `linear-gradient(135deg, ${t.color}, #2e3a7a)` }}
+            >
+              {t.seal}
+            </span>
+            <div className="tw-b">
+              <div className="tw-top">
+                <span className="tw-nm">{t.name}</span>
+                <span className="tw-amt tnum">
+                  {t.amt} {t.sym}
+                </span>
+              </div>
+              {t.msg && <div className="tw-msg">「{t.msg}」</div>}
+              <div className="tw-meta">
+                {t.explorer ? (
+                  <a
+                    href={t.explorer}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "inherit" }}
+                  >
+                    {t.when} · <span className="tw-hash">{t.hash}</span>
+                  </a>
+                ) : (
+                  <>
+                    {t.when} · <span className="tw-hash">{t.hash}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /* ---------- the 钱包 tab (pane + flow host) ---------- */
-export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
+export function WalletTab({ wallets, passkeyEnrolled, userId, userName }) {
   const [flow, setFlow] = useS(null);
   const [pkState, setPkState] = useS(passkeyEnrolled ? "done" : "idle"); // idle | working | done | error
   const [pkErr, setPkErr] = useS("");
@@ -427,41 +1782,90 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
   // loading/error, and refetch are handled by the cache — no useEffect / live flags /
   // reload counter (compare against the git history of this block).
   const qc = useQueryClient();
-  const balQ = useQuery({ queryKey: ["wallet", "balances"], queryFn: () => api.auth.walletBalances() });
-  const actsQ = useQuery({ queryKey: ["wallet", "activity"], queryFn: () => api.auth.walletActivity() });
+  const balQ = useQuery({
+    queryKey: ["wallet", "balances"],
+    queryFn: () => api.auth.walletBalances(),
+  });
+  const actsQ = useQuery({
+    queryKey: ["wallet", "activity"],
+    queryFn: () => api.auth.walletActivity(),
+  });
   const tipsQ = useQuery({ queryKey: ["wallet", "tips"], queryFn: () => api.auth.walletTips() });
-  const contactsQ = useQuery({ queryKey: ["wallet", "contacts"], queryFn: () => api.auth.walletContacts() });
-  const tipTargetsQ = useQuery({ queryKey: ["wallet", "tipTargets"], queryFn: () => api.auth.tipTargets() });
+  const contactsQ = useQuery({
+    queryKey: ["wallet", "contacts"],
+    queryFn: () => api.auth.walletContacts(),
+  });
+  const tipTargetsQ = useQuery({
+    queryKey: ["wallet", "tipTargets"],
+    queryFn: () => api.auth.tipTargets(),
+  });
   const bal = balQ.data || null;
   const loading = balQ.isPending;
-  const acts = actsQ.isPending ? null : ((actsQ.data && actsQ.data.items) || []);
-  const tips = tipsQ.isPending ? null : ((tipsQ.data && tipsQ.data.tips) || []);
+  const acts = actsQ.isPending ? null : (actsQ.data && actsQ.data.items) || [];
+  const tips = tipsQ.isPending ? null : (tipsQ.data && tipsQ.data.tips) || [];
   const contacts = (contactsQ.data && contactsQ.data.contacts) || [];
   const tipTargets = (tipTargetsQ.data && tipTargetsQ.data.targets) || [];
   const tokens = ((bal && bal.tokens) || []).map((t) => ({
-    sym: t.sym, name: t.name, chain: t.chain, cls: t.cls, glyph: t.glyph,
-    amt: t.amt == null ? "—" : String(t.amt), value: t.value == null ? 0 : t.value,
-    price: t.price, chg: 0, spark: null, address: t.address,
+    sym: t.sym,
+    name: t.name,
+    chain: t.chain,
+    cls: t.cls,
+    glyph: t.glyph,
+    amt: t.amt == null ? "—" : String(t.amt),
+    value: t.value == null ? 0 : t.value,
+    price: t.price,
+    chg: 0,
+    spark: null,
+    address: t.address,
   }));
   const portfolio = { total: (bal && bal.total) || 0 };
-  const alloc = tokens.filter((t) => t.value > 0).map((t) => ({ sym: t.sym, cls: t.cls, value: t.value })).sort((a, b) => b.value - a.value);
-  const addresses = { SUI: wallets.sui, ETH: wallets.ethereum, SOL: wallets.solana, BTC: wallets.bitcoin };
+  const alloc = tokens
+    .filter((t) => t.value > 0)
+    .map((t) => ({ sym: t.sym, cls: t.cls, value: t.value }))
+    .sort((a, b) => b.value - a.value);
+  const addresses = {
+    SUI: wallets.sui,
+    ETH: wallets.ethereum,
+    SOL: wallets.solana,
+    BTC: wallets.bitcoin,
+  };
   const onAction = (kind, arg) => {
-    if (kind === "activity") { setFlow({ kind: "activity", item: arg }); return; }
-    if (kind === "tip") { if (!tokens.length) return; setFlow({ kind: "send", tip: true, token: arg }); return; }
-    if (kind === "onchain") { setFlow({ kind: "onchain", mode: arg }); return; }
+    if (kind === "activity") {
+      setFlow({ kind: "activity", item: arg });
+      return;
+    }
+    if (kind === "tip") {
+      if (!tokens.length) return;
+      setFlow({ kind: "send", tip: true, token: arg });
+      return;
+    }
+    if (kind === "onchain") {
+      setFlow({ kind: "onchain", mode: arg });
+      return;
+    }
     if ((kind === "send" || kind === "swap") && !tokens.length) return;
     setFlow({ kind, token: arg });
   };
   const enrollPasskey = async () => {
-    if (!passkeySupported()) { setPkErr("此设备不支持通行密钥"); setPkState("error"); return; }
-    setPkState("working"); setPkErr("");
+    if (!passkeySupported()) {
+      setPkErr("此设备不支持通行密钥");
+      setPkState("error");
+      return;
+    }
+    setPkState("working");
+    setPkErr("");
     try {
       const payload = await createWalletPasskey({ userId, userName });
       const r = await api.auth.enrollWalletPasskey(payload);
       if (r && r.ok) setPkState("done");
-      else { setPkState("error"); setPkErr((r && r.error) || "注册失败"); }
-    } catch (e) { setPkState("error"); setPkErr((e && e.message) || "已取消或失败"); }
+      else {
+        setPkState("error");
+        setPkErr((r && r.error) || "注册失败");
+      }
+    } catch (e) {
+      setPkState("error");
+      setPkErr((e && e.message) || "已取消或失败");
+    }
   };
   return (
     <div className="pfw-tabpane">
@@ -470,37 +1874,83 @@ export function WalletTab({ wallets, passkeyEnrolled, userId, userName }){
           <div className="pkb-ic">{WI.shield}</div>
           <div className="pkb-b">
             <div className="pkb-t">为钱包设置通行密钥</div>
-            <div className="pkb-d">{pkErr || "用 Face ID / 指纹给钱包加一把签名钥匙。之后转账由你的通行密钥授权，服务器无法擅自动用你的资产。"}</div>
+            <div className="pkb-d">
+              {pkErr ||
+                "用 Face ID / 指纹给钱包加一把签名钥匙。之后转账由你的通行密钥授权，服务器无法擅自动用你的资产。"}
+            </div>
           </div>
-          <button className="wbtn wbtn-primary" style={{ flex: "none" }} disabled={pkState === "working"} onClick={enrollPasskey}>
+          <button
+            className="wbtn wbtn-primary"
+            style={{ flex: "none" }}
+            disabled={pkState === "working"}
+            onClick={enrollPasskey}
+          >
             {pkState === "working" ? "请在设备上确认…" : <>{WI.finger} 设置</>}
           </button>
         </div>
       )}
-      <WalletBand portfolio={portfolio} alloc={alloc} loading={loading}/>
-      <QuickActions onAction={onAction}/>
-      <IdentityStrip wallets={wallets} onReceive={() => setFlow({ kind: "receive" })}/>
+      <WalletBand portfolio={portfolio} alloc={alloc} loading={loading} />
+      <QuickActions onAction={onAction} />
+      <IdentityStrip wallets={wallets} onReceive={() => setFlow({ kind: "receive" })} />
       <div>
-        <div className="pfw-h"><span className="t">资产 · {tokens.length || 4} 链</span><span className="lock">{loading ? "加载中…" : "链上实时余额 · 主网"}</span></div>
-        <AssetList tokens={tokens} onOpen={(t) => onAction("send", t)}/>
+        <div className="pfw-h">
+          <span className="t">资产 · {tokens.length || 4} 链</span>
+          <span className="lock">{loading ? "加载中…" : "链上实时余额 · 主网"}</span>
+        </div>
+        <AssetList tokens={tokens} onOpen={(t) => onAction("send", t)} />
       </div>
       <div>
-        <div className="pfw-h"><span className="t">在 Liber 里用它</span></div>
-        <UsesGrid onAction={onAction}/>
+        <div className="pfw-h">
+          <span className="t">在 Liber 里用它</span>
+        </div>
+        <UsesGrid onAction={onAction} />
       </div>
       <div>
-        <div className="pfw-h"><span className="t">账册 · 最近活动</span><span className="lock">{acts == null ? "加载中…" : "Sui 链上记录 · 实时"}</span></div>
-        {acts && acts.length
-          ? <ActivityList items={acts} onOpen={(a) => onAction("activity", a)} limit={8}/>
-          : <div className="panel" style={{ padding: "26px", textAlign: "center", fontFamily: "var(--mono)", fontSize: 13, color: "var(--ink-3)" }}>{acts == null ? "正在读取链上记录…" : "暂无链上活动 · 转账后会出现在这里"}</div>}
+        <div className="pfw-h">
+          <span className="t">账册 · 最近活动</span>
+          <span className="lock">{acts == null ? "加载中…" : "Sui 链上记录 · 实时"}</span>
+        </div>
+        {acts && acts.length ? (
+          <ActivityList items={acts} onOpen={(a) => onAction("activity", a)} limit={8} />
+        ) : (
+          <div
+            className="panel"
+            style={{
+              padding: "26px",
+              textAlign: "center",
+              fontFamily: "var(--mono)",
+              fontSize: 13,
+              color: "var(--ink-3)",
+            }}
+          >
+            {acts == null ? "正在读取链上记录…" : "暂无链上活动 · 转账后会出现在这里"}
+          </div>
+        )}
       </div>
       {tips && tips.length > 0 && (
         <div>
-          <div className="pfw-h"><span className="t">致谢墙 · 收到的打赏</span><span className="lock">Sui 链上收款 · 实时</span></div>
-          <ThanksWall tips={tips}/>
+          <div className="pfw-h">
+            <span className="t">致谢墙 · 收到的打赏</span>
+            <span className="lock">Sui 链上收款 · 实时</span>
+          </div>
+          <ThanksWall tips={tips} />
         </div>
       )}
-      <FlowHost flow={flow} addresses={addresses} tokens={tokens} contacts={contacts} tipTargets={tipTargets} onClose={() => { const wasSend = flow && (flow.kind === "send" || flow.kind === "swap"); setFlow(null); if (wasSend) ["balances", "activity", "tips"].forEach((k) => qc.invalidateQueries({ queryKey: ["wallet", k] })); }}/>
+      <FlowHost
+        flow={flow}
+        addresses={addresses}
+        tokens={tokens}
+        contacts={contacts}
+        tipTargets={tipTargets}
+        onClose={() => {
+          const wasSend = flow && (flow.kind === "send" || flow.kind === "swap");
+          setFlow(null);
+          if (wasSend)
+            ["balances", "activity", "tips"].forEach((k) =>
+              qc.invalidateQueries({ queryKey: ["wallet", k] }),
+            );
+        }}
+      />
     </div>
   );
 }

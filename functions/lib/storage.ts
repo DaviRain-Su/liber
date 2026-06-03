@@ -32,7 +32,11 @@ function pseudoAddresses(hash: string) {
 
 // Publish bytes to a Walrus publisher; returns the real blobId or null on
 // failure / when unconfigured (caller then uses the pseudo address).
-export async function walrusPublish(env: Env, bytes: Uint8Array, overrideTimeoutMs?: number): Promise<string | null> {
+export async function walrusPublish(
+  env: Env,
+  bytes: Uint8Array,
+  overrideTimeoutMs?: number,
+): Promise<string | null> {
   const base = env.WALRUS_PUBLISHER;
   if (!base) return null;
   const timeoutMs = overrideTimeoutMs
@@ -49,11 +53,7 @@ export async function walrusPublish(env: Env, bytes: Uint8Array, overrideTimeout
     if (!res.ok) return null;
     const j: any = await res.json();
     // Walrus returns either a freshly created or already-certified blob object.
-    return (
-      j?.newlyCreated?.blobObject?.blobId ??
-      j?.alreadyCertified?.blobId ??
-      null
-    );
+    return j?.newlyCreated?.blobObject?.blobId ?? j?.alreadyCertified?.blobId ?? null;
   } catch {
     return null;
   } finally {
@@ -67,11 +67,12 @@ export async function putBlob(
   data: ArrayBuffer | ArrayBufferView | string,
   contentType = "application/octet-stream",
 ): Promise<StoredRef> {
-  const bytes = typeof data === "string"
-    ? new TextEncoder().encode(data)
-    : data instanceof ArrayBuffer
-      ? new Uint8Array(data)
-      : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  const bytes =
+    typeof data === "string"
+      ? new TextEncoder().encode(data)
+      : data instanceof ArrayBuffer
+        ? new Uint8Array(data)
+        : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   // mirror to R2 (fast reads + fallback), always
   await env.R2.put(key, bytes, { httpMetadata: { contentType } });
 
@@ -90,7 +91,13 @@ export async function putBlob(
     env.DB,
     `INSERT OR REPLACE INTO blobs (key, walrus, arweave, sui_index, size, content_type, created_at)
      VALUES (?,?,?,?,?,?,?)`,
-    ref.key, ref.walrus, ref.arweave, ref.sui_index, ref.size, ref.content_type, now(),
+    ref.key,
+    ref.walrus,
+    ref.arweave,
+    ref.sui_index,
+    ref.size,
+    ref.content_type,
+    now(),
   );
   return ref;
 }
@@ -102,7 +109,9 @@ export async function getBlob(env: Env, key: string): Promise<ArrayBuffer | null
   const agg = env.WALRUS_AGGREGATOR;
   if (agg) {
     try {
-      const rec: any = await env.DB.prepare(`SELECT walrus FROM blobs WHERE key = ?`).bind(key).first();
+      const rec: any = await env.DB.prepare(`SELECT walrus FROM blobs WHERE key = ?`)
+        .bind(key)
+        .first();
       const id = rec?.walrus?.startsWith("walrus://") ? rec.walrus.slice("walrus://".length) : null;
       if (id) {
         const res = await fetch(`${agg.replace(/\/$/, "")}/v1/blobs/${id}`);
@@ -119,5 +128,10 @@ export async function getBlob(env: Env, key: string): Promise<ArrayBuffer | null
 export async function addressOf(text: string): Promise<StoredRef> {
   const bytes = new TextEncoder().encode(text);
   const hash = await sha256Hex(bytes);
-  return { key: hash.slice(0, 16), ...pseudoAddresses(hash), size: bytes.byteLength, content_type: "text/plain" };
+  return {
+    key: hash.slice(0, 16),
+    ...pseudoAddresses(hash),
+    size: bytes.byteLength,
+    content_type: "text/plain",
+  };
 }

@@ -52,7 +52,8 @@ function parseFlags(args) {
       flags[key] = true;
     } else {
       const value = args[i + 1];
-      if (!value || value.startsWith("--")) throw new LiberCliError("ARG_REQUIRED", `Missing value for --${key}.`);
+      if (!value || value.startsWith("--"))
+        throw new LiberCliError("ARG_REQUIRED", `Missing value for --${key}.`);
       flags[key] = value;
       i += 1;
     }
@@ -168,20 +169,33 @@ async function main(argv) {
     const { flags } = parseFlags(rest);
     if (action === "browser") {
       const cfg = await loadCliConfig({ configPath: flags.config });
-      const started = await startBrowserAuth({ apiUrl: flags["api-url"], config: cfg, configPath: flags.config });
+      const started = await startBrowserAuth({
+        apiUrl: flags["api-url"],
+        config: cfg,
+        configPath: flags.config,
+      });
       if (!flags.json) {
         process.stdout.write(`Open this URL to authorize Liber CLI:\n${started.authorizeUrl}\n\n`);
         if (!flags["no-open"]) openBrowser(started.authorizeUrl);
         process.stdout.write("Waiting for wallet approval...\n");
       }
-      const approved = await waitForBrowserAuth(started, { timeoutMs: Number(flags.timeout || 120) * 1000 });
-      const saved = await saveCliConfig({
-        apiUrl: started.apiUrl,
-        adminToken: approved.token,
-        wallet: approved.user?.wallet || approved.wallet,
-      }, { configPath: flags.config });
+      const approved = await waitForBrowserAuth(started, {
+        timeoutMs: Number(flags.timeout || 120) * 1000,
+      });
+      const saved = await saveCliConfig(
+        {
+          apiUrl: started.apiUrl,
+          adminToken: approved.token,
+          wallet: approved.user?.wallet || approved.wallet,
+        },
+        { configPath: flags.config },
+      );
       const status = publicConfigStatus(saved, { configPath: flags.config });
-      flags.json ? printJson(status) : process.stdout.write(`Saved Liber CLI browser authorization for ${status.wallet || status.apiUrl}\n`);
+      flags.json
+        ? printJson(status)
+        : process.stdout.write(
+            `Saved Liber CLI browser authorization for ${status.wallet || status.apiUrl}\n`,
+          );
       return 0;
     }
     if (action === "key") {
@@ -192,21 +206,34 @@ async function main(argv) {
         scheme: flags.scheme,
         configPath: flags.config,
       });
-      const saved = await saveCliConfig({
-        apiUrl: approved.apiUrl,
-        adminToken: approved.token,
-        wallet: approved.wallet,
-      }, { configPath: flags.config });
+      const saved = await saveCliConfig(
+        {
+          apiUrl: approved.apiUrl,
+          adminToken: approved.token,
+          wallet: approved.wallet,
+        },
+        { configPath: flags.config },
+      );
       const status = publicConfigStatus(saved, { configPath: flags.config });
-      flags.json ? printJson(status) : process.stdout.write(`Saved Liber CLI key authorization for ${status.wallet || status.apiUrl}\n`);
+      flags.json
+        ? printJson(status)
+        : process.stdout.write(
+            `Saved Liber CLI key authorization for ${status.wallet || status.apiUrl}\n`,
+          );
       return 0;
     }
     if (action === "login") {
       if (!flags["api-url"]) throw new LiberCliError("ARG_REQUIRED", "Missing --api-url.");
-      const adminToken = flags["admin-token"] || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN || "";
-      const saved = await saveCliConfig({ apiUrl: flags["api-url"], adminToken, wallet: flags.wallet }, { configPath: flags.config });
+      const adminToken =
+        flags["admin-token"] || process.env.LIBER_ADMIN_TOKEN || process.env.ADMIN_TOKEN || "";
+      const saved = await saveCliConfig(
+        { apiUrl: flags["api-url"], adminToken, wallet: flags.wallet },
+        { configPath: flags.config },
+      );
       const status = publicConfigStatus(saved, { configPath: flags.config });
-      flags.json ? printJson(status) : process.stdout.write(`Saved Liber CLI auth config for ${status.apiUrl}\n`);
+      flags.json
+        ? printJson(status)
+        : process.stdout.write(`Saved Liber CLI auth config for ${status.apiUrl}\n`);
       return 0;
     }
     if (action === "status") {
@@ -237,7 +264,11 @@ async function main(argv) {
     const file = pos[0];
     if (!file) throw new LiberCliError("ARG_REQUIRED", "Missing EPUB path.");
     const info = await inspectEpub(file);
-    const result = verifyPublishLicense(info, { source: flags.source, license: flags.license, evidence: flags.evidence });
+    const result = verifyPublishLicense(info, {
+      source: flags.source,
+      license: flags.license,
+      evidence: flags.evidence,
+    });
     flags.json ? printJson(result) : printVerification(result);
     return result.accepted ? 0 : 2;
   }
@@ -275,15 +306,23 @@ async function main(argv) {
         id: flags.id,
         category: flags.category,
         year: flags.year,
-        onProgress: flags.json ? undefined : (event) => {
-          if (event.stage === "chapter") {
-            process.stderr.write(`Publishing chapter ${event.current}/${event.total}: ${event.chapter.title}\n`);
-          } else {
-            process.stderr.write(`Publishing ${event.stage}...\n`);
-          }
-        },
+        onProgress: flags.json
+          ? undefined
+          : (event) => {
+              if (event.stage === "chapter") {
+                process.stderr.write(
+                  `Publishing chapter ${event.current}/${event.total}: ${event.chapter.title}\n`,
+                );
+              } else {
+                process.stderr.write(`Publishing ${event.stage}...\n`);
+              }
+            },
       });
-      flags.json ? printJson(result) : process.stdout.write(`Published ${result.book?.id || result.book?.title || "book"} (${result.chapters?.length ?? result.finalize?.chapters ?? "unknown"} chapters)\n`);
+      flags.json
+        ? printJson(result)
+        : process.stdout.write(
+            `Published ${result.book?.id || result.book?.title || "book"} (${result.chapters?.length ?? result.finalize?.chapters ?? "unknown"} chapters)\n`,
+          );
       return 0;
     }
     const cfg = await loadCliConfig({ configPath: flags.config });
@@ -292,7 +331,10 @@ async function main(argv) {
       category: flags.category,
       year: flags.year,
     });
-    const plan = dryRunPublishPlan(manifest, { apiUrl: flags["api-url"] || cfg.apiUrl, ingestPayload: payload });
+    const plan = dryRunPublishPlan(manifest, {
+      apiUrl: flags["api-url"] || cfg.apiUrl,
+      ingestPayload: payload,
+    });
     flags.json ? printJson(plan) : printPlan(plan);
     return 0;
   }
@@ -300,10 +342,16 @@ async function main(argv) {
   throw new LiberCliError("UNKNOWN_COMMAND", `Unknown book command: ${action || "(missing)"}.`);
 }
 
-main(process.argv.slice(2)).then((code) => {
-  process.exitCode = code;
-}).catch((error) => {
-  const code = error instanceof LiberCliError ? error.code : "ERROR";
-  process.stderr.write(`${code}: ${error.message}\n`);
-  process.exitCode = error instanceof LiberCliError && (error.code === "AUTH_REQUIRED" || error.code === "LICENSE_REJECTED") ? 2 : 1;
-});
+main(process.argv.slice(2))
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((error) => {
+    const code = error instanceof LiberCliError ? error.code : "ERROR";
+    process.stderr.write(`${code}: ${error.message}\n`);
+    process.exitCode =
+      error instanceof LiberCliError &&
+      (error.code === "AUTH_REQUIRED" || error.code === "LICENSE_REJECTED")
+        ? 2
+        : 1;
+  });

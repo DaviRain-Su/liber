@@ -19,7 +19,8 @@ const hexToBytes = (h: string): Uint8Array => {
   for (let i = 0; i < a.length; i++) a[i] = parseInt(s.slice(i * 2, i * 2 + 2), 16);
   return a;
 };
-const bytesToHex = (b: Uint8Array): string => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+const bytesToHex = (b: Uint8Array): string =>
+  Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 function base64url(bytes: Uint8Array): string {
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
@@ -36,7 +37,11 @@ export function stamp(bodyStr: string, apiPublicKey: string, apiPrivateKey: stri
   const msgHash = sha256(new TextEncoder().encode(bodyStr));
   const compact = p256.sign(msgHash, hexToBytes(apiPrivateKey), { prehash: false });
   const der = p256.Signature.fromBytes(compact).toBytes("der");
-  const env = { publicKey: apiPublicKey, scheme: "SIGNATURE_SCHEME_TK_API_P256", signature: bytesToHex(der) };
+  const env = {
+    publicKey: apiPublicKey,
+    scheme: "SIGNATURE_SCHEME_TK_API_P256",
+    signature: bytesToHex(der),
+  };
   return base64url(new TextEncoder().encode(JSON.stringify(env)));
 }
 
@@ -60,7 +65,9 @@ async function awaitResult(env: Env, submitJson: any): Promise<any> {
     const status = activity?.status;
     if (status === "ACTIVITY_STATUS_COMPLETED") return activity.result || {};
     if (status === "ACTIVITY_STATUS_FAILED" || status === "ACTIVITY_STATUS_REJECTED") {
-      throw new Error(`turnkey activity ${status}: ${JSON.stringify(activity?.failure || activity).slice(0, 300)}`);
+      throw new Error(
+        `turnkey activity ${status}: ${JSON.stringify(activity?.failure || activity).slice(0, 300)}`,
+      );
     }
     const q = await post(env, "/public/v1/query/get_activity", {
       organizationId: activity?.organizationId || env.TURNKEY_ORG_ID,
@@ -87,7 +94,11 @@ export async function createSubOrgWithSuiWallet(env: Env, label: string): Promis
         {
           userName: "liber-server",
           apiKeys: [
-            { apiKeyName: "liber-parent", publicKey: env.TURNKEY_API_PUBLIC_KEY, curveType: "API_KEY_CURVE_P256" },
+            {
+              apiKeyName: "liber-parent",
+              publicKey: env.TURNKEY_API_PUBLIC_KEY,
+              curveType: "API_KEY_CURVE_P256",
+            },
           ],
           authenticators: [],
           oauthProviders: [],
@@ -98,10 +109,30 @@ export async function createSubOrgWithSuiWallet(env: Env, label: string): Promis
         // One HD wallet, multiple chains from the same seed. Order matters: the
         // create result's wallet.addresses[] comes back in this order.
         accounts: [
-          { curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/784'/0'/0'/0'", addressFormat: "ADDRESS_FORMAT_SUI" },
-          { curve: "CURVE_SECP256K1", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/60'/0'/0/0", addressFormat: "ADDRESS_FORMAT_ETHEREUM" },
-          { curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/501'/0'/0'", addressFormat: "ADDRESS_FORMAT_SOLANA" },
-          { curve: "CURVE_SECP256K1", pathFormat: "PATH_FORMAT_BIP32", path: "m/84'/0'/0'/0/0", addressFormat: "ADDRESS_FORMAT_BITCOIN_MAINNET_P2WPKH" },
+          {
+            curve: "CURVE_ED25519",
+            pathFormat: "PATH_FORMAT_BIP32",
+            path: "m/44'/784'/0'/0'/0'",
+            addressFormat: "ADDRESS_FORMAT_SUI",
+          },
+          {
+            curve: "CURVE_SECP256K1",
+            pathFormat: "PATH_FORMAT_BIP32",
+            path: "m/44'/60'/0'/0/0",
+            addressFormat: "ADDRESS_FORMAT_ETHEREUM",
+          },
+          {
+            curve: "CURVE_ED25519",
+            pathFormat: "PATH_FORMAT_BIP32",
+            path: "m/44'/501'/0'/0'",
+            addressFormat: "ADDRESS_FORMAT_SOLANA",
+          },
+          {
+            curve: "CURVE_SECP256K1",
+            pathFormat: "PATH_FORMAT_BIP32",
+            path: "m/84'/0'/0'/0/0",
+            addressFormat: "ADDRESS_FORMAT_BITCOIN_MAINNET_P2WPKH",
+          },
         ],
       },
     },
@@ -111,17 +142,35 @@ export async function createSubOrgWithSuiWallet(env: Env, label: string): Promis
 
 // Create a sub-org with a multi-chain HD wallet (Sui + Ethereum + Solana) and return
 // the parsed ids + addresses. addresses[] order matches the accounts order above.
-export async function provisionWallets(env: Env, label: string): Promise<{
-  subOrgId: string; walletId: string; rootUserId: string | null; addresses: { sui: string | null; ethereum: string | null; solana: string | null; bitcoin: string | null }; raw: any;
+export async function provisionWallets(
+  env: Env,
+  label: string,
+): Promise<{
+  subOrgId: string;
+  walletId: string;
+  rootUserId: string | null;
+  addresses: {
+    sui: string | null;
+    ethereum: string | null;
+    solana: string | null;
+    bitcoin: string | null;
+  };
+  raw: any;
 }> {
   const { result } = await createSubOrgWithSuiWallet(env, label);
-  const r = result?.createSubOrganizationResultV7 || result?.createSubOrganizationResult || result || {};
+  const r =
+    result?.createSubOrganizationResultV7 || result?.createSubOrganizationResult || result || {};
   const a = r.wallet?.addresses || [];
   return {
     subOrgId: r.subOrganizationId,
     walletId: r.wallet?.walletId,
     rootUserId: (r.rootUserIds || [])[0] ?? null,
-    addresses: { sui: a[0] ?? null, ethereum: a[1] ?? null, solana: a[2] ?? null, bitcoin: a[3] ?? null },
+    addresses: {
+      sui: a[0] ?? null,
+      ethereum: a[1] ?? null,
+      solana: a[2] ?? null,
+      bitcoin: a[3] ?? null,
+    },
     raw: r,
   };
 }
@@ -130,9 +179,29 @@ export async function provisionWallets(env: Env, label: string): Promise<{
 // sign) AND the server API key (so the server can run automated actions). Used at
 // passkey signup so the login passkey is also the wallet signer — no second passkey.
 export async function provisionWalletsWithPasskey(
-  env: Env, label: string,
-  passkey: { authenticatorName: string; challenge: string; attestation: { credentialId: string; clientDataJson: string; attestationObject: string; transports: string[] } },
-): Promise<{ subOrgId: string; walletId: string; rootUserId: string | null; addresses: { sui: string | null; ethereum: string | null; solana: string | null; bitcoin: string | null } }> {
+  env: Env,
+  label: string,
+  passkey: {
+    authenticatorName: string;
+    challenge: string;
+    attestation: {
+      credentialId: string;
+      clientDataJson: string;
+      attestationObject: string;
+      transports: string[];
+    };
+  },
+): Promise<{
+  subOrgId: string;
+  walletId: string;
+  rootUserId: string | null;
+  addresses: {
+    sui: string | null;
+    ethereum: string | null;
+    solana: string | null;
+    bitcoin: string | null;
+  };
+}> {
   const submit = await post(env, "/public/v1/submit/create_sub_organization", {
     type: "ACTIVITY_TYPE_CREATE_SUB_ORGANIZATION_V7",
     timestampMs: String(Date.now()),
@@ -140,31 +209,65 @@ export async function provisionWalletsWithPasskey(
     parameters: {
       subOrganizationName: label,
       rootQuorumThreshold: 1,
-      rootUsers: [{
-        userName: "liber-user",
-        apiKeys: [{ apiKeyName: "liber-server", publicKey: env.TURNKEY_API_PUBLIC_KEY, curveType: "API_KEY_CURVE_P256" }],
-        authenticators: [passkey],
-        oauthProviders: [],
-      }],
+      rootUsers: [
+        {
+          userName: "liber-user",
+          apiKeys: [
+            {
+              apiKeyName: "liber-server",
+              publicKey: env.TURNKEY_API_PUBLIC_KEY,
+              curveType: "API_KEY_CURVE_P256",
+            },
+          ],
+          authenticators: [passkey],
+          oauthProviders: [],
+        },
+      ],
       wallet: {
         walletName: "Liber Wallet",
         accounts: [
-          { curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/784'/0'/0'/0'", addressFormat: "ADDRESS_FORMAT_SUI" },
-          { curve: "CURVE_SECP256K1", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/60'/0'/0/0", addressFormat: "ADDRESS_FORMAT_ETHEREUM" },
-          { curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/501'/0'/0'", addressFormat: "ADDRESS_FORMAT_SOLANA" },
-          { curve: "CURVE_SECP256K1", pathFormat: "PATH_FORMAT_BIP32", path: "m/84'/0'/0'/0/0", addressFormat: "ADDRESS_FORMAT_BITCOIN_MAINNET_P2WPKH" },
+          {
+            curve: "CURVE_ED25519",
+            pathFormat: "PATH_FORMAT_BIP32",
+            path: "m/44'/784'/0'/0'/0'",
+            addressFormat: "ADDRESS_FORMAT_SUI",
+          },
+          {
+            curve: "CURVE_SECP256K1",
+            pathFormat: "PATH_FORMAT_BIP32",
+            path: "m/44'/60'/0'/0/0",
+            addressFormat: "ADDRESS_FORMAT_ETHEREUM",
+          },
+          {
+            curve: "CURVE_ED25519",
+            pathFormat: "PATH_FORMAT_BIP32",
+            path: "m/44'/501'/0'/0'",
+            addressFormat: "ADDRESS_FORMAT_SOLANA",
+          },
+          {
+            curve: "CURVE_SECP256K1",
+            pathFormat: "PATH_FORMAT_BIP32",
+            path: "m/84'/0'/0'/0/0",
+            addressFormat: "ADDRESS_FORMAT_BITCOIN_MAINNET_P2WPKH",
+          },
         ],
       },
     },
   });
   const result = await awaitResult(env, submit);
-  const r = result?.createSubOrganizationResultV7 || result?.createSubOrganizationResult || result || {};
+  const r =
+    result?.createSubOrganizationResultV7 || result?.createSubOrganizationResult || result || {};
   const a = r.wallet?.addresses || [];
   return {
     subOrgId: r.subOrganizationId,
     walletId: r.wallet?.walletId,
     rootUserId: (r.rootUserIds || [])[0] ?? null,
-    addresses: { sui: a[0] ?? null, ethereum: a[1] ?? null, solana: a[2] ?? null, bitcoin: a[3] ?? null },
+    addresses: {
+      sui: a[0] ?? null,
+      ethereum: a[1] ?? null,
+      solana: a[2] ?? null,
+      bitcoin: a[3] ?? null,
+    },
   };
 }
 
@@ -175,7 +278,9 @@ export async function provisionWalletsWithPasskey(
 // own API key and broadcasts. A threshold-1 root signature is normally COMPLETED on
 // submit, so this usually returns on the first read.
 export async function getSignRawPayloadResult(
-  env: Env, organizationId: string, activityId: string,
+  env: Env,
+  organizationId: string,
+  activityId: string,
 ): Promise<{ r: string; s: string; v?: string } | null> {
   for (let i = 0; i < 8; i++) {
     const q = await post(env, "/public/v1/query/get_activity", { organizationId, activityId });
@@ -195,15 +300,26 @@ export async function getSignRawPayloadResult(
 export async function getSubOrgRootUserId(env: Env, subOrgId: string): Promise<string | null> {
   const j = await post(env, "/public/v1/query/get_organization", { organizationId: subOrgId });
   const users = j?.organizationData?.users || j?.organization?.users || j?.users || [];
-  const root = users.find((u: any) => (u.userName || "").includes("liber") ) || users[0];
+  const root = users.find((u: any) => (u.userName || "").includes("liber")) || users[0];
   return root?.userId ?? null;
 }
 
 // Add a WebAuthn passkey as an authenticator on a sub-org user (so the user — not the
 // server — can authorize signing). The attestation is captured client-side.
 export async function createPasskeyAuthenticator(
-  env: Env, subOrgId: string, userId: string,
-  authenticator: { authenticatorName: string; challenge: string; attestation: { credentialId: string; clientDataJson: string; attestationObject: string; transports: string[] } },
+  env: Env,
+  subOrgId: string,
+  userId: string,
+  authenticator: {
+    authenticatorName: string;
+    challenge: string;
+    attestation: {
+      credentialId: string;
+      clientDataJson: string;
+      attestationObject: string;
+      transports: string[];
+    };
+  },
 ): Promise<any> {
   const submit = await post(env, "/public/v1/submit/create_authenticators", {
     type: "ACTIVITY_TYPE_CREATE_AUTHENTICATORS_V2",
@@ -216,7 +332,12 @@ export async function createPasskeyAuthenticator(
 
 // Look up a wallet account to get its raw ed25519 public key (needed to assemble the
 // Sui signature). get_wallet_account requires organizationId + walletId (+ address).
-export async function getWalletAccount(env: Env, subOrgId: string, walletId: string, address: string): Promise<any> {
+export async function getWalletAccount(
+  env: Env,
+  subOrgId: string,
+  walletId: string,
+  address: string,
+): Promise<any> {
   return post(env, "/public/v1/query/get_wallet_account", {
     organizationId: subOrgId,
     walletId,
@@ -226,7 +347,10 @@ export async function getWalletAccount(env: Env, subOrgId: string, walletId: str
 
 // Sign a pre-computed digest with a sub-org wallet (raw ed25519, no extra hashing).
 export async function signRawPayload(
-  env: Env, subOrgId: string, signWith: string, payloadHex: string,
+  env: Env,
+  subOrgId: string,
+  signWith: string,
+  payloadHex: string,
   hashFunction: string = "HASH_FUNCTION_NOT_APPLICABLE",
 ): Promise<any> {
   const submit = await post(env, "/public/v1/submit/sign_raw_payload", {

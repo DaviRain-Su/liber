@@ -60,9 +60,13 @@ function ReaderApp() {
     if (new URLSearchParams(location.search).get("book")) return;
     let live = true;
     loadCatalogBooks()
-      .then((books) => { if (live && books && books[0]) setBookId(books[0].id); })
+      .then((books) => {
+        if (live && books && books[0]) setBookId(books[0].id);
+      })
       .catch(() => {});
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, []);
 
   return (
@@ -71,8 +75,12 @@ function ReaderApp() {
       bookId={bookId}
       /* The focused reader has no library behind it — "close" returns to the
          full app; opening another book swaps the reader to that title in place. */
-      onClose={() => { location.href = "/"; }}
-      onOpenBook={(bid) => { if (bid) setBookId(bid); }}
+      onClose={() => {
+        location.href = "/";
+      }}
+      onOpenBook={(bid) => {
+        if (bid) setBookId(bid);
+      }}
     />
   );
 }

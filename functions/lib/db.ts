@@ -13,7 +13,10 @@ export async function all<T = any>(
   sql: string,
   ...params: unknown[]
 ): Promise<T[]> {
-  const res = await db.prepare(sql).bind(...params).all<T>();
+  const res = await db
+    .prepare(sql)
+    .bind(...params)
+    .all<T>();
   return res.results ?? [];
 }
 
@@ -22,15 +25,19 @@ export async function first<T = any>(
   sql: string,
   ...params: unknown[]
 ): Promise<T | null> {
-  return (await db.prepare(sql).bind(...params).first<T>()) ?? null;
+  return (
+    (await db
+      .prepare(sql)
+      .bind(...params)
+      .first<T>()) ?? null
+  );
 }
 
-export async function run(
-  db: D1Database,
-  sql: string,
-  ...params: unknown[]
-): Promise<D1Result> {
-  return db.prepare(sql).bind(...params).run();
+export async function run(db: D1Database, sql: string, ...params: unknown[]): Promise<D1Result> {
+  return db
+    .prepare(sql)
+    .bind(...params)
+    .run();
 }
 
 // Run a batch of [sql, ...params] statements atomically.

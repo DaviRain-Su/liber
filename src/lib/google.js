@@ -16,7 +16,10 @@ function loadGis() {
       s.async = true;
       s.defer = true;
       s.onload = () => resolve();
-      s.onerror = () => { gisLoading = null; reject(new Error("无法加载 Google 登录")); };
+      s.onerror = () => {
+        gisLoading = null;
+        reject(new Error("无法加载 Google 登录"));
+      };
       document.head.appendChild(s);
     });
   }
@@ -25,8 +28,11 @@ function loadGis() {
 
 // Whether Google login is configured on the backend (GOOGLE_CLIENT_ID set).
 export async function googleConfigured() {
-  try { return !!(await api.auth.googleConfig())?.clientId; }
-  catch { return false; }
+  try {
+    return !!(await api.auth.googleConfig())?.clientId;
+  } catch {
+    return false;
+  }
 }
 
 // Render Google's button into `el`. onSuccess({user, token}) fires after a
@@ -45,11 +51,21 @@ export async function mountGoogleButton(el, { onSuccess, onError } = {}) {
           const res = await api.auth.google(resp.credential);
           if (res?.token) setToken(res.token);
           onSuccess && onSuccess({ user: res?.user, token: res?.token });
-        } catch (e) { onError && onError(e); }
+        } catch (e) {
+          onError && onError(e);
+        }
       },
     });
     el.innerHTML = "";
-    window.google.accounts.id.renderButton(el, { type: "standard", theme: "outline", size: "large", text: "continue_with", shape: "pill", logo_alignment: "center", width: 400 });
+    window.google.accounts.id.renderButton(el, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      text: "continue_with",
+      shape: "pill",
+      logo_alignment: "center",
+      width: 400,
+    });
     return true;
   } catch (e) {
     onError && onError(e);

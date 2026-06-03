@@ -92,9 +92,10 @@ const LANGUAGE_ALIASES = {
 };
 
 export function languageCodeFor(value) {
-  const raw = typeof value === "object" && value
-    ? String(value.lang || "").trim()
-    : String(value || "").trim();
+  const raw =
+    typeof value === "object" && value
+      ? String(value.lang || "").trim()
+      : String(value || "").trim();
   if (!raw) return "unknown";
   return LANGUAGE_ALIASES[raw] || LANGUAGE_ALIASES[raw.toLowerCase()] || raw;
 }

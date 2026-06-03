@@ -15,17 +15,23 @@ import {
 function fakeKV() {
   const m = new Map();
   return {
-    async get(k) { return m.has(k) ? m.get(k) : null; },
-    async put(k, v) { m.set(k, v); },
-    async delete(k) { m.delete(k); },
+    async get(k) {
+      return m.has(k) ? m.get(k) : null;
+    },
+    async put(k, v) {
+      m.set(k, v);
+    },
+    async delete(k) {
+      m.delete(k);
+    },
   };
 }
 
 test("nonce is single-use (anti-replay)", async () => {
   const env = { KV: fakeKV() };
   const nonce = await issueNonce(env);
-  assert.equal(await consumeNonce(env, nonce), true);   // first use accepted
-  assert.equal(await consumeNonce(env, nonce), false);  // replay rejected — already consumed
+  assert.equal(await consumeNonce(env, nonce), true); // first use accepted
+  assert.equal(await consumeNonce(env, nonce), false); // replay rejected — already consumed
   assert.equal(await consumeNonce(env, "never-issued"), false);
   assert.equal(await consumeNonce(env, null), false);
   assert.equal(await consumeNonce(env, undefined), false);
@@ -35,7 +41,7 @@ test("hasAdminToken: matches only the configured ADMIN_TOKEN", () => {
   assert.equal(hasAdminToken({ ADMIN_TOKEN: "s3cret" }, "s3cret"), true);
   assert.equal(hasAdminToken({ ADMIN_TOKEN: "s3cret" }, "wrong"), false);
   assert.equal(hasAdminToken({ ADMIN_TOKEN: "s3cret" }, "s3cre"), false); // length mismatch
-  assert.equal(hasAdminToken({ ADMIN_TOKEN: "" }, ""), false);            // unset → never admin
+  assert.equal(hasAdminToken({ ADMIN_TOKEN: "" }, ""), false); // unset → never admin
   assert.equal(hasAdminToken({}, "anything"), false);
   assert.equal(hasAdminToken({ ADMIN_TOKEN: "s3cret" }, null), false);
 });

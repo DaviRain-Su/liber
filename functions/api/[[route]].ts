@@ -29,20 +29,38 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>().basePath("/api")
 // callers only (Pages preview deploys, localhost, anything in ALLOWED_ORIGINS).
 function isAllowedOrigin(origin: string, env: Env): boolean {
   if (!origin) return false;
-  const extra = (env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const extra = (env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (extra.includes(origin)) return true;
   let u: URL;
-  try { u = new URL(origin); } catch { return false; }
+  try {
+    u = new URL(origin);
+  } catch {
+    return false;
+  }
   const host = u.hostname.toLowerCase();
-  if (u.protocol === "https:" && (host === "liber-99x.pages.dev" || host.endsWith(".liber-99x.pages.dev"))) return true;
-  if ((u.protocol === "http:" || u.protocol === "https:") && (host === "localhost" || host === "127.0.0.1")) return true;
+  if (
+    u.protocol === "https:" &&
+    (host === "liber-99x.pages.dev" || host.endsWith(".liber-99x.pages.dev"))
+  )
+    return true;
+  if (
+    (u.protocol === "http:" || u.protocol === "https:") &&
+    (host === "localhost" || host === "127.0.0.1")
+  )
+    return true;
   return false;
 }
 
-app.use("*", cors({
-  origin: (o, c) => (isAllowedOrigin(o, c.env) ? o : null),
-  credentials: true,
-}));
+app.use(
+  "*",
+  cors({
+    origin: (o, c) => (isAllowedOrigin(o, c.env) ? o : null),
+    credentials: true,
+  }),
+);
 app.use("*", authMiddleware);
 
 app.get("/health", (c) => c.json({ ok: true, service: "liber-api", time: Date.now() }));

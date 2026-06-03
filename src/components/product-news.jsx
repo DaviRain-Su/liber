@@ -14,7 +14,7 @@ import { getNews, findNewsPost } from "../data/news-data.js";
 function inline(text) {
   const parts = String(text).split(/\*\*(.+?)\*\*/g);
   return parts.map((p, i) =>
-    i % 2 === 1 ? <b key={i}>{p}</b> : <React.Fragment key={i}>{p}</React.Fragment>
+    i % 2 === 1 ? <b key={i}>{p}</b> : <React.Fragment key={i}>{p}</React.Fragment>,
   );
 }
 
@@ -56,16 +56,25 @@ function News({ onOpenPost, onBack }) {
           </div>
           <div className="news-head">
             <div className="kicker">动态 · News</div>
-            <h1 className="news-title">关于这座图书馆，<br />我们想说的话。</h1>
+            <h1 className="news-title">
+              关于这座图书馆，
+              <br />
+              我们想说的话。
+            </h1>
             <p className="news-sub">
-              一些短文与公告——关于公共领域、关于永久保存、关于我们为什么这样做事。
-              所有原创内容均以 <b>CC0</b> 发布，欢迎自由转载。
+              一些短文与公告——关于公共领域、关于永久保存、关于我们为什么这样做事。 所有原创内容均以{" "}
+              <b>CC0</b> 发布，欢迎自由转载。
             </p>
           </div>
 
           <div className="news-list">
             {posts.map((p) => (
-              <article className="news-card" key={p.id} onClick={() => onOpenPost(p.id)} role="button">
+              <article
+                className="news-card"
+                key={p.id}
+                onClick={() => onOpenPost(p.id)}
+                role="button"
+              >
                 <div className={"news-seal " + (p.cls || "ink")}>{p.seal || "文"}</div>
                 <div className="news-body">
                   <div className="news-meta">
@@ -74,7 +83,9 @@ function News({ onOpenPost, onBack }) {
                   </div>
                   <h2 className="news-card-title">{p.title}</h2>
                   <p className="news-excerpt">{p.excerpt}</p>
-                  <span className="news-more">阅读全文 <span className="arr">→</span></span>
+                  <span className="news-more">
+                    阅读全文 <span className="arr">→</span>
+                  </span>
                 </div>
               </article>
             ))}
@@ -96,8 +107,12 @@ function NewsPost({ postId, onOpenPost, onBack }) {
         <div className="news">
           <div className="news-wrap" style={{ paddingTop: 80 }}>
             <div className="kicker">动态</div>
-            <h1 className="display-m" style={{ margin: "14px 0" }}>没有找到这篇文章。</h1>
-            <button className="btn btn-primary" onClick={onBack}>回到动态 <span className="arr">→</span></button>
+            <h1 className="display-m" style={{ margin: "14px 0" }}>
+              没有找到这篇文章。
+            </h1>
+            <button className="btn btn-primary" onClick={onBack}>
+              回到动态 <span className="arr">→</span>
+            </button>
           </div>
         </div>
       </div>
@@ -133,7 +148,8 @@ function NewsPost({ postId, onOpenPost, onBack }) {
 
           <footer className="article-foot">
             <span className="article-license">
-              本文由 {post.author} 原创，并以 <b>{post.license}</b> 公共领域贡献声明发布 · 可自由转载、翻译、改编
+              本文由 {post.author} 原创，并以 <b>{post.license}</b> 公共领域贡献声明发布 ·
+              可自由转载、翻译、改编
             </span>
           </footer>
 
@@ -142,7 +158,12 @@ function NewsPost({ postId, onOpenPost, onBack }) {
               <div className="article-more-h">继续读</div>
               <div className="article-more-grid">
                 {more.map((p) => (
-                  <div className="article-more-card" key={p.id} onClick={() => onOpenPost(p.id)} role="button">
+                  <div
+                    className="article-more-card"
+                    key={p.id}
+                    onClick={() => onOpenPost(p.id)}
+                    role="button"
+                  >
                     <span className="news-tag">{p.tag}</span>
                     <div className="article-more-title">{p.title}</div>
                     <div className="article-more-ex">{p.excerpt}</div>
@@ -153,7 +174,9 @@ function NewsPost({ postId, onOpenPost, onBack }) {
           )}
 
           <div style={{ marginTop: 36 }}>
-            <button className="btn btn-ghost" onClick={onBack}>← 全部动态</button>
+            <button className="btn btn-ghost" onClick={onBack}>
+              ← 全部动态
+            </button>
           </div>
         </div>
       </div>

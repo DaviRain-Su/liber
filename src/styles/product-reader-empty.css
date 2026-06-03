@@ -1,19 +1,42 @@
 /* Reader empty state — shown when a book has no readable text yet (no seed
    content and nothing ingested into D1), instead of dangling on a bare line. */
-.rd-empty{
+.rd-empty {
   max-width: 46ch;
   margin: 8vh auto;
   padding: 0 20px;
   text-align: center;
   color: var(--ink, #27221c);
 }
-.rd-empty-seal{
-  width: 60px; height: 60px; margin: 0 auto 22px;
-  border-radius: 8px; display: grid; place-items: center;
-  font-family: var(--display, serif); font-size: 30px;
-  color: #fff; background: var(--accent, #c0432b);
+.rd-empty-seal {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 22px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-family: var(--display, serif);
+  font-size: 30px;
+  color: #fff;
+  background: var(--accent, #c0432b);
 }
-.rd-empty-h{ font-family: var(--display, serif); font-size: 26px; margin: 0 0 14px; }
-.rd-empty-p{ font-size: 16px; line-height: 1.85; color: var(--muted, #6d6255); margin: 0 0 12px; }
-.rd-empty-sub{ font-size: 14px; }
-.rd-empty-actions{ display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
+.rd-empty-h {
+  font-family: var(--display, serif);
+  font-size: 26px;
+  margin: 0 0 14px;
+}
+.rd-empty-p {
+  font-size: 16px;
+  line-height: 1.85;
+  color: var(--muted, #6d6255);
+  margin: 0 0 12px;
+}
+.rd-empty-sub {
+  font-size: 14px;
+}
+.rd-empty-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}

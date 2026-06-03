@@ -79,26 +79,28 @@ function storedZip(entries) {
       body,
     ]);
     localParts.push(local);
-    centralParts.push(Buffer.concat([
-      u32(0x02014b50),
-      u16(20),
-      u16(20),
-      u16(0),
-      u16(0),
-      u16(0),
-      u16(0),
-      u32(crc),
-      u32(body.length),
-      u32(body.length),
-      u16(name.length),
-      u16(0),
-      u16(0),
-      u16(0),
-      u16(0),
-      u32(0),
-      u32(offset),
-      name,
-    ]));
+    centralParts.push(
+      Buffer.concat([
+        u32(0x02014b50),
+        u16(20),
+        u16(20),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(crc),
+        u32(body.length),
+        u32(body.length),
+        u16(name.length),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(0),
+        u32(offset),
+        name,
+      ]),
+    );
     offset += local.length;
   }
 
@@ -117,16 +119,21 @@ function storedZip(entries) {
   ]);
 }
 
-async function writeEpub(rights = "CC0-1.0", chapterBodies = ["The way that can be spoken."], options = {}) {
+async function writeEpub(
+  rights = "CC0-1.0",
+  chapterBodies = ["The way that can be spoken."],
+  options = {},
+) {
   const dir = await mkdtemp(path.join(tmpdir(), "liber-cli-"));
   const epubPath = path.join(dir, "book.epub");
   const manifestItems = [
-    ...chapterBodies.map((_, i) => `    <item id="c${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`),
+    ...chapterBodies.map(
+      (_, i) =>
+        `    <item id="c${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`,
+    ),
     ...(options.manifestItems || []),
   ].join("\n");
-  const spineItems = chapterBodies
-    .map((_, i) => `    <itemref idref="c${i + 1}"/>`)
-    .join("\n");
+  const spineItems = chapterBodies.map((_, i) => `    <itemref idref="c${i + 1}"/>`).join("\n");
   const opf = `<?xml version="1.0" encoding="utf-8"?>
 <package xmlns:dc="http://purl.org/dc/elements/1.1/" unique-identifier="bookid" version="3.0">
   <metadata>
@@ -145,20 +152,22 @@ ${spineItems}
 </package>`;
   const zip = storedZip([
     { name: "mimetype", body: "application/epub+zip" },
-    { name: "META-INF/container.xml", body: `<?xml version="1.0"?>
+    {
+      name: "META-INF/container.xml",
+      body: `<?xml version="1.0"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>` },
+</container>`,
+    },
     { name: "OEBPS/content.opf", body: opf },
     ...chapterBodies.map((body, i) => {
       const title = typeof body === "object" ? body.title : `Chapter ${i + 1}`;
       const content = typeof body === "object" ? body.body : body;
       const headTitle = typeof body === "object" && body.headTitle ? body.headTitle : "Ignored";
-      const raw = typeof body === "object" && body.raw
-        ? body.raw
-        : `<h1>${title}</h1><p>${content}</p>`;
+      const raw =
+        typeof body === "object" && body.raw ? body.raw : `<h1>${title}</h1><p>${content}</p>`;
       return {
         name: `OEBPS/chapter${i + 1}.xhtml`,
         body: `<html><head><title>${headTitle}</title><style>.x{}</style></head><body><nav>Skip me</nav>${raw}</body></html>`,
@@ -189,8 +198,17 @@ test("verifyPublishLicense accepts explicit CC0 and public domain", async () => 
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice");
   const info = await inspectEpub(epubPath);
 
-  assert.equal(verifyPublishLicense(info, { source: "https://www.gutenberg.org/ebooks/216", license: "CC0-1.0" }).accepted, true);
-  const pd = verifyPublishLicense(info, { source: "https://www.gutenberg.org/ebooks/216", license: "PUBLIC-DOMAIN" });
+  assert.equal(
+    verifyPublishLicense(info, {
+      source: "https://www.gutenberg.org/ebooks/216",
+      license: "CC0-1.0",
+    }).accepted,
+    true,
+  );
+  const pd = verifyPublishLicense(info, {
+    source: "https://www.gutenberg.org/ebooks/216",
+    license: "PUBLIC-DOMAIN",
+  });
   assert.equal(pd.accepted, true);
   assert.equal(pd.license, "PUBLIC-DOMAIN");
 });
@@ -199,11 +217,26 @@ test("verifyPublishLicense rejects non-commercial and unknown licenses", async (
   const { epubPath } = await writeEpub("Creative Commons Attribution-NonCommercial 4.0");
   const info = await inspectEpub(epubPath);
 
-  assert.equal(verifyPublishLicense(info, { source: "https://example.com/book", license: "CC0-1.0" }).accepted, false);
-  assert.equal(verifyPublishLicense({ ...info, metadata: { ...info.metadata, rights: ["custom license"] } }, { source: "https://example.com/book" }).accepted, false);
+  assert.equal(
+    verifyPublishLicense(info, { source: "https://example.com/book", license: "CC0-1.0" }).accepted,
+    false,
+  );
+  assert.equal(
+    verifyPublishLicense(
+      { ...info, metadata: { ...info.metadata, rights: ["custom license"] } },
+      { source: "https://example.com/book" },
+    ).accepted,
+    false,
+  );
 
   const copyrighted = verifyPublishLicense(
-    { ...info, metadata: { ...info.metadata, rights: ["Copyrighted. Read the copyright notice inside this book for details."] } },
+    {
+      ...info,
+      metadata: {
+        ...info.metadata,
+        rights: ["Copyrighted. Read the copyright notice inside this book for details."],
+      },
+    },
     { source: "https://www.gutenberg.org/ebooks/5739", license: "PUBLIC-DOMAIN" },
   );
   assert.equal(copyrighted.accepted, false);
@@ -265,10 +298,12 @@ A real second paragraph remains separate.`,
 });
 
 test("extractEpubChapters rejects garbled Chinese text", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "Chapter 1",
-      body: `頦菜鈭亦剝剖亙蝎寧 銋拙嗆
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "Chapter 1",
+        body: `頦菜鈭亦剝剖亙蝎寧 銋拙嗆
 
 寡詨粹剔瞍脣寡璆詨粹剔瞍脣 格閰冽頦砌剛急唳剛
 
@@ -303,13 +338,12 @@ test("extractEpubChapters rejects garbled Chinese text", async () => {
 剔踹賊啣喃⊥喳輻∠菟剜曇文寡
 
 獢鞈芸鞈芾瞏砍寞蔬瞏璇 桃抽芾菔瞏剖兩芾菔瞉鈭銋`,
-    },
-  ], { title: "Bad Chinese Source" });
-
-  await assert.rejects(
-    () => extractEpubChapters(epubPath),
-    /EPUB extracted text looks garbled/,
+      },
+    ],
+    { title: "Bad Chinese Source" },
   );
+
+  await assert.rejects(() => extractEpubChapters(epubPath), /EPUB extracted text looks garbled/);
 });
 
 test("garbledTextWarnings allows readable classical Chinese", () => {
@@ -396,7 +430,8 @@ test("extractEpubChapters skips standalone Gutenberg license chapters", async ()
 test("extractEpubChapters falls back from prose-shaped heading titles", async () => {
   const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
     {
-      title: "This is not a chapter title but an entire paragraph that should never be shown in the table of contents because it is extracted from body prose and runs far too long.",
+      title:
+        "This is not a chapter title but an entire paragraph that should never be shown in the table of contents because it is extracted from body prose and runs far too long.",
       body: "Actual paragraph starts here.",
     },
   ]);
@@ -427,7 +462,10 @@ Conticuere omnes.`,
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["LIBER I", "LIBER II"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["LIBER I", "LIBER II"],
+  );
   assert.match(chapters[1].text, /Conticuere/);
 });
 
@@ -463,14 +501,19 @@ Jo tuli sanoma uusi.`,
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["Ensimmäinen runo", "Viides runo"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["Ensimmäinen runo", "Viides runo"],
+  );
 });
 
 test("extractEpubChapters skips title pages and finds delayed roman chapter headings", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "C. COLLODI",
-      body: `Le Avventure di Pinocchio
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "C. COLLODI",
+        body: `Le Avventure di Pinocchio
 
 Storia di un burattino
 
@@ -482,10 +525,10 @@ FIRENZE
 R. Bemporad & Figlio — Editori.
 
 PROPRIETÀ LETTERARIA`,
-    },
-    {
-      title: "Le avventure di Pinocchio: Storia di un burattino",
-      body: `Le Avventure di Pinocchio
+      },
+      {
+        title: "Le avventure di Pinocchio: Storia di un burattino",
+        body: `Le Avventure di Pinocchio
 
 Storia di un burattino
 
@@ -499,12 +542,17 @@ R. Bemporad & Figlio — Editori.
 I. Come andò che Maestro Ciliegia, falegname trovò un pezzo di legno.
 
 — C'era una volta....`,
-    },
-  ], { title: "Le avventure di Pinocchio: Storia di un burattino" });
+      },
+    ],
+    { title: "Le avventure di Pinocchio: Storia di un burattino" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 1);
-  assert.equal(chapters[0].title, "I. Come andò che Maestro Ciliegia, falegname trovò un pezzo di legno.");
+  assert.equal(
+    chapters[0].title,
+    "I. Come andò che Maestro Ciliegia, falegname trovò un pezzo di legno.",
+  );
   assert.doesNotMatch(chapters[0].text, /^I\. Come/u);
   assert.doesNotMatch(chapters[0].text, /PROPRIETÀ LETTERARIA/);
 });
@@ -535,7 +583,10 @@ test("extractEpubChapters splits Chinese Gutenberg spine files by internal title
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["親士", "修身", "所染"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["親士", "修身", "所染"],
+  );
   assert.match(chapters[0].text, /入國而不存其士/);
   assert.doesNotMatch(chapters[0].text, /Produced by/);
   assert.doesNotMatch(chapters[0].text, /墨子 - Mozi/);
@@ -561,7 +612,10 @@ test("extractEpubChapters recognizes Chinese 篇五 style headings", async () =>
   ]);
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), ["捭闔第一", "反應第二", "內揵第三", "抵巇第四", "飛箝篇五", "忤合第六"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["捭闔第一", "反應第二", "內揵第三", "抵巇第四", "飛箝篇五", "忤合第六"],
+  );
   assert.match(chapters[4].text, /飛箝正文/);
 });
 
@@ -579,7 +633,10 @@ test("extractEpubChapters splits Chinese headings stuck to the previous paragrap
   ]);
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), ["任賢第三", "求諫第四", "納諫第五", "誠信第十七"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["任賢第三", "求諫第四", "納諫第五", "誠信第十七"],
+  );
   assert.match(chapters[0].text, /任賢正文/);
   assert.match(chapters[1].text, /求諫正文/);
   assert.match(chapters[3].text, /誠信正文/);
@@ -679,7 +736,10 @@ test("extractEpubChapters separates Mozi canon/commentary chapters", async () =>
   ]);
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), ["經上", "經說上", "經下", "經說下"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["經上", "經說上", "經下", "經說下"],
+  );
   assert.match(chapters[0].text, /1\. 故，所得而後成也。/);
   assert.match(chapters[0].text, /2\. 體，分於兼也。/);
   assert.doesNotMatch(chapters[0].text, /小故/);
@@ -691,10 +751,12 @@ test("extractEpubChapters separates Mozi canon/commentary chapters", async () =>
 });
 
 test("extractEpubChapters prefers EPUB NCX anchors over spine files", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "Pride and Prejudice",
-      raw: `<h1 id="title">PRIDE and PREJUDICE</h1>
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "Pride and Prejudice",
+        raw: `<h1 id="title">PRIDE and PREJUDICE</h1>
 <p>Front matter should not become a chapter.</p>
 <h2 id="c1">Chapter I.</h2>
 <p>It is a truth universally acknowledged.</p>
@@ -702,25 +764,32 @@ test("extractEpubChapters prefers EPUB NCX anchors over spine files", async () =
 <p>Mr. Bennet was among the earliest.</p>
 <h2 id="license">THE FULL PROJECT GUTENBERG LICENSE</h2>
 <p>License text.</p>`,
-    },
-  ], {
-    manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
-    spineAttrs: `toc="ncx"`,
-    extraEntries: [{
-      name: "OEBPS/toc.ncx",
-      body: `<?xml version="1.0" encoding="UTF-8"?>
+      },
+    ],
+    {
+      manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
+      spineAttrs: `toc="ncx"`,
+      extraEntries: [
+        {
+          name: "OEBPS/toc.ncx",
+          body: `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>
   <navPoint id="n1" playOrder="1"><navLabel><text>PRIDE and PREJUDICE</text></navLabel><content src="chapter1.xhtml#title"/></navPoint>
   <navPoint id="n2" playOrder="2"><navLabel><text>Chapter I.</text></navLabel><content src="chapter1.xhtml#c1"/></navPoint>
   <navPoint id="n3" playOrder="3"><navLabel><text>I hope Mr. Bingley will like it. CHAPTER II.</text></navLabel><content src="chapter1.xhtml#c2"/></navPoint>
   <navPoint id="n4" playOrder="4"><navLabel><text>THE FULL PROJECT GUTENBERG LICENSE</text></navLabel><content src="chapter1.xhtml#license"/></navPoint>
 </navMap></ncx>`,
-    }],
-  });
+        },
+      ],
+    },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["Chapter I.", "CHAPTER II."]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["Chapter I.", "CHAPTER II."],
+  );
   assert.match(chapters[0].text, /truth universally acknowledged/);
   assert.doesNotMatch(chapters[0].text, /Front matter/);
   assert.doesNotMatch(chapters[1].text, /I hope Mr\. Bingley/);
@@ -743,7 +812,10 @@ Body two.`,
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["CHAPTER I. First Chapter", "CHAPTER II."]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["CHAPTER I. First Chapter", "CHAPTER II."],
+  );
   assert.match(chapters[1].text, /Body two/);
 });
 
@@ -777,72 +849,88 @@ Jo was the first to wake.`,
   ]);
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "PREFACE",
-    "STAVE ONE.",
-    "CHAPTER ONE PLAYING PILGRIMS",
-    "CHAPTER TWO A MERRY CHRISTMAS",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["PREFACE", "STAVE ONE.", "CHAPTER ONE PLAYING PILGRIMS", "CHAPTER TWO A MERRY CHRISTMAS"],
+  );
 });
 
 test("extractEpubChapters reads nested NCX chapter points", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "Le rouge et le noir",
-      raw: `<h1 id="vol">VOLUME PREMIER</h1>
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "Le rouge et le noir",
+        raw: `<h1 id="vol">VOLUME PREMIER</h1>
 <h2 id="c1">CHAPITRE PREMIER UNE PETITE VILLE</h2>
 <p>La petite ville de Verrières.</p>
 <h2 id="c2">CHAPITRE II UN MAIRE</h2>
 <p>L'importance.</p>`,
-    },
-  ], {
-    manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
-    spineAttrs: `toc="ncx"`,
-    extraEntries: [{
-      name: "OEBPS/toc.ncx",
-      body: `<?xml version="1.0" encoding="UTF-8"?>
+      },
+    ],
+    {
+      manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
+      spineAttrs: `toc="ncx"`,
+      extraEntries: [
+        {
+          name: "OEBPS/toc.ncx",
+          body: `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>
   <navPoint id="v" playOrder="1"><navLabel><text>VOLUME PREMIER</text></navLabel><content src="chapter1.xhtml#vol"/>
     <navPoint id="c1" playOrder="2"><navLabel><text>CHAPITRE PREMIER UNE PETITE VILLE</text></navLabel><content src="chapter1.xhtml#c1"/></navPoint>
     <navPoint id="c2" playOrder="3"><navLabel><text>CHAPITRE II UN MAIRE</text></navLabel><content src="chapter1.xhtml#c2"/></navPoint>
   </navPoint>
 </navMap></ncx>`,
-    }],
-  });
+        },
+      ],
+    },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["CHAPITRE PREMIER UNE PETITE VILLE", "CHAPITRE II UN MAIRE"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["CHAPITRE PREMIER UNE PETITE VILLE", "CHAPITRE II UN MAIRE"],
+  );
 });
 
 test("extractEpubChapters filters Gutenberg edition notices from navigation", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "The Adventures of Sherlock Holmes",
-      raw: `<h1 id="notice">THERE IS AN ILLUSTRATED EDITION OF THIS TITLE WHICH MAY VIEWED AT EBOOK #48320</h1>
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "The Adventures of Sherlock Holmes",
+        raw: `<h1 id="notice">THERE IS AN ILLUSTRATED EDITION OF THIS TITLE WHICH MAY VIEWED AT EBOOK #48320</h1>
 <p>Not a chapter.</p>
 <h2 id="c1">I. A SCANDAL IN BOHEMIA</h2>
 <p>To Sherlock Holmes she is always the woman.</p>
 <h2 id="c2">II. THE RED-HEADED LEAGUE</h2>
 <p>I had called upon my friend.</p>`,
-    },
-  ], {
-    manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
-    spineAttrs: `toc="ncx"`,
-    extraEntries: [{
-      name: "OEBPS/toc.ncx",
-      body: `<?xml version="1.0" encoding="UTF-8"?>
+      },
+    ],
+    {
+      manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
+      spineAttrs: `toc="ncx"`,
+      extraEntries: [
+        {
+          name: "OEBPS/toc.ncx",
+          body: `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>
   <navPoint id="n" playOrder="1"><navLabel><text>THERE IS AN ILLUSTRATED EDITION OF THIS TITLE WHICH MAY VIEWED AT EBOOK #48320</text></navLabel><content src="chapter1.xhtml#notice"/></navPoint>
   <navPoint id="c1" playOrder="2"><navLabel><text>I. A SCANDAL IN BOHEMIA</text></navLabel><content src="chapter1.xhtml#c1"/></navPoint>
   <navPoint id="c2" playOrder="3"><navLabel><text>II. THE RED-HEADED LEAGUE</text></navLabel><content src="chapter1.xhtml#c2"/></navPoint>
 </navMap></ncx>`,
-    }],
-  });
+        },
+      ],
+    },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["I. A SCANDAL IN BOHEMIA", "II. THE RED-HEADED LEAGUE"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["I. A SCANDAL IN BOHEMIA", "II. THE RED-HEADED LEAGUE"],
+  );
   assert.doesNotMatch(chapters[0].text, /ILLUSTRATED EDITION/);
 });
 
@@ -862,75 +950,106 @@ test("extractEpubChapters splits Chinese numbered classic headings", async () =>
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["學而第一", "為政第二"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["學而第一", "為政第二"],
+  );
   assert.match(chapters[1].text, /為政以德/);
 });
 
 test("extractEpubChapters splits Chinese book-prefixed history chapter titles", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "史記",
-      raw: `<p>史記 五帝本紀</p>
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "史記",
+        raw: `<p>史記 五帝本紀</p>
 <p>黃帝者，少典之子。</p>
 <p>史記 夏本紀</p>
 <p>夏禹，名曰文命。</p>
 <p>史記 項羽本紀</p>
 <p>項籍者，下相人也。</p>`,
-    },
-  ], { title: "史記" });
+      },
+    ],
+    { title: "史記" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["五帝本紀", "夏本紀", "項羽本紀"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["五帝本紀", "夏本紀", "項羽本紀"],
+  );
   assert.match(chapters[2].text, /項籍者/);
 });
 
 test("extractEpubChapters splits Chinese middle-dot book-prefixed section titles", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "抱朴子",
-      raw: `<p>《抱朴子‧塞難》</p><p>按仙經以為諸得仙者。</p>
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "抱朴子",
+        raw: `<p>《抱朴子‧塞難》</p><p>按仙經以為諸得仙者。</p>
 <p>《抱朴子·辯問》</p><p>按易內戒皆云。</p>`,
-    },
-  ], { title: "抱朴子" });
+      },
+    ],
+    { title: "抱朴子" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), ["塞難", "辯問"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["塞難", "辯問"],
+  );
   assert.match(chapters[1].text, /易內戒/);
 });
 
 test("extractEpubChapters splits Chinese full-width bracket history titles", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "漢書",
-      raw: `<p>漢書 卷一</p>
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "漢書",
+        raw: `<p>漢書 卷一</p>
 <p>【高帝紀第一】</p><p>高祖，沛豐邑中陽裏人也。</p>
 <p>【惠帝紀第二】</p><p>孝惠皇帝，高祖太子也。</p>`,
-    },
-  ], { title: "漢書" });
+      },
+    ],
+    { title: "漢書" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), ["高帝紀第一", "惠帝紀第二"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["高帝紀第一", "惠帝紀第二"],
+  );
   assert.match(chapters[0].text, /高祖/);
 });
 
 test("extractEpubChapters scans same-title Chinese spine continuations before skipping noise titles", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "史記",
-      headTitle: "史記",
-      raw: `<p>史記 五帝本紀</p><p>黃帝者，少典之子。</p>`,
-    },
-    {
-      title: "史記",
-      headTitle: "史記",
-      raw: `<p>前篇餘文。</p><p>史記 秦本紀</p><p>秦之先，帝顓頊之苗裔孫。</p>`,
-    },
-  ], { title: "史記" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "史記",
+        headTitle: "史記",
+        raw: `<p>史記 五帝本紀</p><p>黃帝者，少典之子。</p>`,
+      },
+      {
+        title: "史記",
+        headTitle: "史記",
+        raw: `<p>前篇餘文。</p><p>史記 秦本紀</p><p>秦之先，帝顓頊之苗裔孫。</p>`,
+      },
+    ],
+    { title: "史記" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["五帝本紀", "秦本紀"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["五帝本紀", "秦本紀"],
+  );
   assert.match(chapters[1].text, /帝顓頊/);
   assert.doesNotMatch(chapters[1].text, /前篇餘文/);
 });
@@ -950,7 +1069,10 @@ test("extractEpubChapters splits inline Chinese chapter headings in one paragrap
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["第一章", "第二章", "第三章"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第一章", "第二章", "第三章"],
+  );
   assert.match(chapters[1].text, /^天下皆知美/);
 });
 
@@ -968,11 +1090,10 @@ test("extractEpubChapters splits Chinese chapter headings after prose punctuatio
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第一回 紂王女媧宮進香",
-    "第二回 冀州侯蘇護反商",
-    "第三回 姬昌解圍進妲己",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第一回 紂王女媧宮進香", "第二回 冀州侯蘇護反商", "第三回 姬昌解圍進妲己"],
+  );
   assert.match(chapters[1].text, /眾諸侯進殿/);
 });
 
@@ -987,10 +1108,10 @@ test("extractEpubChapters splits Chinese hui headings without spacing before tit
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第一回靈根育孕源流出",
-    "第二回悟徹菩提真妙理",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第一回靈根育孕源流出", "第二回悟徹菩提真妙理"],
+  );
   assert.match(chapters[0].text, /^詩曰/u);
   assert.match(chapters[1].text, /美猴王/);
 });
@@ -1007,7 +1128,10 @@ test("extractEpubChapters splits Chinese hui headings with white-circle zero num
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["第十九回 巧斷金釵案", "第二○回 夜審群盜", "第二十一回 水落石出"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第十九回 巧斷金釵案", "第二○回 夜審群盜", "第二十一回 水落石出"],
+  );
   assert.match(chapters[1].text, /眾人齊聲稱冤/);
 });
 
@@ -1023,131 +1147,181 @@ test("extractEpubChapters splits Chinese shorthand and full-width numbered headi
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["第廿回 霜夜訊案", "第２１回 雨夜再審", "第卅回 結案還鄉"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第廿回 霜夜訊案", "第２１回 雨夜再審", "第卅回 結案還鄉"],
+  );
   assert.match(chapters[1].text, /眾人各供其詞/);
 });
 
 test("extractEpubChapters merges Chinese prose-fragment and duplicate spine titles", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    { title: "封禪書", raw: "<h1>封禪書</h1><p>自古受命帝王，未有睹符瑞見而不臻乎泰山者也。</p>" },
-    { title: "可。", raw: "<h1>可。</h1><p>其後十八年，孝文帝即位。</p>" },
-    { title: "河渠書", raw: "<h1>河渠書</h1><p>夏書曰：禹抑洪水十三年。</p>" },
-    { title: "故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。", raw: "<h1>故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。</h1><p>《抱朴子‧極言》抱朴子曰：天地之大德曰生。</p>" },
-    { title: "高祖本紀", raw: "<h1>高祖本紀</h1><p>高祖，沛豐邑中陽里人。</p>" },
-    { title: "高祖本紀", raw: "<h1>高祖本紀</h1><p>漢元年十月，沛公兵遂先諸侯至霸上。</p>" },
-  ], { title: "史記" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "封禪書",
+        raw: "<h1>封禪書</h1><p>自古受命帝王，未有睹符瑞見而不臻乎泰山者也。</p>",
+      },
+      { title: "可。", raw: "<h1>可。</h1><p>其後十八年，孝文帝即位。</p>" },
+      { title: "河渠書", raw: "<h1>河渠書</h1><p>夏書曰：禹抑洪水十三年。</p>" },
+      {
+        title: "故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。",
+        raw: "<h1>故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。</h1><p>《抱朴子‧極言》抱朴子曰：天地之大德曰生。</p>",
+      },
+      { title: "高祖本紀", raw: "<h1>高祖本紀</h1><p>高祖，沛豐邑中陽里人。</p>" },
+      { title: "高祖本紀", raw: "<h1>高祖本紀</h1><p>漢元年十月，沛公兵遂先諸侯至霸上。</p>" },
+    ],
+    { title: "史記" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), ["封禪書", "河渠書", "高祖本紀"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["封禪書", "河渠書", "高祖本紀"],
+  );
   assert.match(chapters[0].text, /其後十八年/);
   assert.match(chapters[1].text, /抱朴子/);
   assert.match(chapters[2].text, /漢元年十月/);
 });
 
 test("extractEpubChapters merges leading Chinese prose-fragment titles into the next chapter", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "抱朴子",
-      raw: `<h1>故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。</h1>
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "抱朴子",
+        raw: `<h1>故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。</h1>
 <p>抱朴子曰：天地之大德曰生。</p>`,
-    },
-    { title: "玉鈐經‧中篇", raw: "<h1>玉鈐經‧中篇</h1><p>立功為上，除過次之。</p>" },
-  ], { title: "抱朴子" });
+      },
+      { title: "玉鈐經‧中篇", raw: "<h1>玉鈐經‧中篇</h1><p>立功為上，除過次之。</p>" },
+    ],
+    { title: "抱朴子" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), ["玉鈐經‧中篇"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["玉鈐經‧中篇"],
+  );
   assert.match(chapters[0].text, /天地之大德/);
 });
 
 test("extractEpubChapters carries terminal Chinese chapter headings to the next spine file", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "花月痕",
-      headTitle: "花月痕",
-      raw: `<p>第五十回 一戰平江</p><p>欲知後事如何，且聽下回分解。</p><p>第五十一回 無人無我一衲西歸</p>`,
-    },
-    {
-      title: "花月痕",
-      headTitle: "花月痕",
-      raw: `<p>話說荷生班師，與小珠一路同行。</p><p>第五十二回 秋心院遺跡話故人</p><p>故人重逢，話及舊事。</p>`,
-    },
-  ], { title: "花月痕" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "花月痕",
+        headTitle: "花月痕",
+        raw: `<p>第五十回 一戰平江</p><p>欲知後事如何，且聽下回分解。</p><p>第五十一回 無人無我一衲西歸</p>`,
+      },
+      {
+        title: "花月痕",
+        headTitle: "花月痕",
+        raw: `<p>話說荷生班師，與小珠一路同行。</p><p>第五十二回 秋心院遺跡話故人</p><p>故人重逢，話及舊事。</p>`,
+      },
+    ],
+    { title: "花月痕" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["第五十回 一戰平江", "第五十一回 無人無我一衲西歸", "第五十二回 秋心院遺跡話故人"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第五十回 一戰平江", "第五十一回 無人無我一衲西歸", "第五十二回 秋心院遺跡話故人"],
+  );
   assert.match(chapters[1].text, /荷生班師/);
   assert.match(chapters[2].text, /故人重逢/);
 });
 
 test("extractEpubChapters carries terminal Chinese volume markers to the next spine file", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "國色天香",
-      headTitle: "國色天香",
-      raw: `<p>第四卷</p><p>尋芳雅集</p><p>第四卷正文。</p><p>第五卷</p>`,
-    },
-    {
-      title: "國色天香",
-      headTitle: "國色天香",
-      raw: `<p>雙卿筆記<br/>第五卷正文。</p><p>第六卷</p><p>花神三妙傳<br/>第六卷正文。</p>`,
-    },
-  ], { title: "國色天香" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "國色天香",
+        headTitle: "國色天香",
+        raw: `<p>第四卷</p><p>尋芳雅集</p><p>第四卷正文。</p><p>第五卷</p>`,
+      },
+      {
+        title: "國色天香",
+        headTitle: "國色天香",
+        raw: `<p>雙卿筆記<br/>第五卷正文。</p><p>第六卷</p><p>花神三妙傳<br/>第六卷正文。</p>`,
+      },
+    ],
+    { title: "國色天香" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["第四卷", "第五卷", "第六卷"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第四卷", "第五卷", "第六卷"],
+  );
   assert.match(chapters[1].text, /雙卿筆記/);
   assert.match(chapters[1].text, /第五卷正文/);
   assert.match(chapters[2].text, /花神三妙傳/);
 });
 
 test("extractEpubChapters splits Chinese volume markers stuck to a previous poem line", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "卷六",
-      headTitle: "卷六",
-      raw: `<p>卷六</p>
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "卷六",
+        headTitle: "卷六",
+        raw: `<p>卷六</p>
 <p>作者：徐陵</p>
 <p>無由一共語，暫看日昇霞。卷七</p>
 <p>作者：徐陵</p>
 <p>卷七正文。</p>`,
-    },
-  ], { title: "玉台新詠" });
+      },
+    ],
+    { title: "玉台新詠" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["卷六", "卷七"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["卷六", "卷七"],
+  );
   assert.match(chapters[0].text, /暫看日昇霞。/);
   assert.doesNotMatch(chapters[0].text, /卷七/);
   assert.match(chapters[1].text, /卷七正文/);
 });
 
 test("extractEpubChapters trims trailing Chinese verse from chapter headings", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "第九回 前情未了 後事重開",
-      raw: "<h1>第九回 前情未了 後事重開</h1><p>正文九。</p>",
-    },
-    {
-      title: "第十回 從左道一時失足 納忠言立刻回頭 神器難僥倖，奸雄漫起爭。",
-      raw: "<h1>第十回 從左道一時失足 納忠言立刻回頭 神器難僥倖，奸雄漫起爭。</h1><p>正文十。</p>",
-    },
-  ], { title: "醒夢駢言" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "第九回 前情未了 後事重開",
+        raw: "<h1>第九回 前情未了 後事重開</h1><p>正文九。</p>",
+      },
+      {
+        title: "第十回 從左道一時失足 納忠言立刻回頭 神器難僥倖，奸雄漫起爭。",
+        raw: "<h1>第十回 從左道一時失足 納忠言立刻回頭 神器難僥倖，奸雄漫起爭。</h1><p>正文十。</p>",
+      },
+    ],
+    { title: "醒夢駢言" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第九回 前情未了 後事重開",
-    "第十回 從左道一時失足 納忠言立刻回頭",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第九回 前情未了 後事重開", "第十回 從左道一時失足 納忠言立刻回頭"],
+  );
   assert.match(chapters[1].text, /正文十/);
 });
 
 test("extractEpubChapters trims Chinese recitation text from chapter headings", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "海遊記",
-      raw: `<p>第四回     活佛慈悲在於擊棒　神仙手段那用栽贓
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "海遊記",
+        raw: `<p>第四回     活佛慈悲在於擊棒　神仙手段那用栽贓
 　　詩曰：
 　　前頭走的小娃娃，後面相隨母夜叉。</p>
 <p>正文四。</p>
@@ -1155,127 +1329,154 @@ test("extractEpubChapters trims Chinese recitation text from chapter headings", 
 詩曰：
 　　只因扛了善招牌，沾著些兒便降災。</p>
 <p>正文五。</p>`,
-    },
-  ], { title: "海遊記" });
+      },
+    ],
+    { title: "海遊記" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第四回 活佛慈悲在於擊棒 神仙手段那用栽贓",
-    "第五回 慧眼放光謾藏成自盜 耗星照命餘燼被瓜分",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第四回 活佛慈悲在於擊棒 神仙手段那用栽贓", "第五回 慧眼放光謾藏成自盜 耗星照命餘燼被瓜分"],
+  );
   assert.match(chapters[0].text, /^詩曰/u);
   assert.match(chapters[1].text, /^詩曰/u);
 });
 
 test("extractEpubChapters merges short Chinese review chapters into previous chapter", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "第一回 丑郎君怕嬌偏得艷",
-      raw: "<h1>第一回 丑郎君怕嬌偏得艷</h1><p>正文一。</p>",
-    },
-    {
-      title: "評",
-      raw: "<h1>評</h1><p>此回短評。</p>",
-    },
-    {
-      title: "第二回 美男子避惑反生疑",
-      raw: "<h1>第二回 美男子避惑反生疑</h1><p>正文二。</p>",
-    },
-  ], { title: "無聲戲" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "第一回 丑郎君怕嬌偏得艷",
+        raw: "<h1>第一回 丑郎君怕嬌偏得艷</h1><p>正文一。</p>",
+      },
+      {
+        title: "評",
+        raw: "<h1>評</h1><p>此回短評。</p>",
+      },
+      {
+        title: "第二回 美男子避惑反生疑",
+        raw: "<h1>第二回 美男子避惑反生疑</h1><p>正文二。</p>",
+      },
+    ],
+    { title: "無聲戲" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第一回 丑郎君怕嬌偏得艷",
-    "第二回 美男子避惑反生疑",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第一回 丑郎君怕嬌偏得艷", "第二回 美男子避惑反生疑"],
+  );
   assert.match(chapters[0].text, /此回短評/);
 });
 
 test("extractEpubChapters merges Chinese interlude titles inside chapter runs", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "第一回 才子佳人初相會",
-      raw: "<h1>第一回 才子佳人初相會</h1><p>正文一。</p>",
-    },
-    {
-      title: "蝶戀花",
-      raw: "<h1>蝶戀花</h1><p>詞牌後正文一。</p>",
-    },
-    {
-      title: "第二回 花前月下訂終身",
-      raw: "<h1>第二回 花前月下訂終身</h1><p>正文二。</p>",
-    },
-    {
-      title: "第三回 風波忽起",
-      raw: "<h1>第三回 風波忽起</h1><p>正文三。</p>",
-    },
-    {
-      title: "南鄉子",
-      raw: "<h1>南鄉子</h1><p>詞牌後正文三。</p>",
-    },
-    {
-      title: "第四回 雲開月明",
-      raw: "<h1>第四回 雲開月明</h1><p>正文四。</p>",
-    },
-    {
-      title: "第五回 團圓",
-      raw: "<h1>第五回 團圓</h1><p>正文五。</p>",
-    },
-  ], { title: "夢中緣" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "第一回 才子佳人初相會",
+        raw: "<h1>第一回 才子佳人初相會</h1><p>正文一。</p>",
+      },
+      {
+        title: "蝶戀花",
+        raw: "<h1>蝶戀花</h1><p>詞牌後正文一。</p>",
+      },
+      {
+        title: "第二回 花前月下訂終身",
+        raw: "<h1>第二回 花前月下訂終身</h1><p>正文二。</p>",
+      },
+      {
+        title: "第三回 風波忽起",
+        raw: "<h1>第三回 風波忽起</h1><p>正文三。</p>",
+      },
+      {
+        title: "南鄉子",
+        raw: "<h1>南鄉子</h1><p>詞牌後正文三。</p>",
+      },
+      {
+        title: "第四回 雲開月明",
+        raw: "<h1>第四回 雲開月明</h1><p>正文四。</p>",
+      },
+      {
+        title: "第五回 團圓",
+        raw: "<h1>第五回 團圓</h1><p>正文五。</p>",
+      },
+    ],
+    { title: "夢中緣" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第一回 才子佳人初相會",
-    "第二回 花前月下訂終身",
-    "第三回 風波忽起",
-    "第四回 雲開月明",
-    "第五回 團圓",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    [
+      "第一回 才子佳人初相會",
+      "第二回 花前月下訂終身",
+      "第三回 風波忽起",
+      "第四回 雲開月明",
+      "第五回 團圓",
+    ],
+  );
   assert.match(chapters[0].text, /蝶戀花/);
   assert.match(chapters[2].text, /南鄉子/);
 });
 
 test("extractEpubChapters merges a single Chinese interlude title in a strong chapter run", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    { title: "第一回 土不制水歷年成患", raw: "<h1>第一回 土不制水歷年成患</h1><p>正文一。</p>" },
-    { title: "第二回 歷山山下古帝遺蹤", raw: "<h1>第二回 歷山山下古帝遺蹤</h1><p>正文二。</p>" },
-    { title: "第三回 金線東來尋黑虎", raw: "<h1>第三回 金線東來尋黑虎</h1><p>正文三。</p>" },
-    { title: "第四回 宮保愛才求賢若渴", raw: "<h1>第四回 宮保愛才求賢若渴</h1><p>正文四。</p>" },
-    { title: "第五回 烈婦有心殉節", raw: "<h1>第五回 烈婦有心殉節</h1><p>正文五。</p>" },
-    { title: "銀鼠諺", raw: "<h1>銀鼠諺</h1><p>短題後正文。</p>" },
-  ], { title: "老殘遊記" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      { title: "第一回 土不制水歷年成患", raw: "<h1>第一回 土不制水歷年成患</h1><p>正文一。</p>" },
+      { title: "第二回 歷山山下古帝遺蹤", raw: "<h1>第二回 歷山山下古帝遺蹤</h1><p>正文二。</p>" },
+      { title: "第三回 金線東來尋黑虎", raw: "<h1>第三回 金線東來尋黑虎</h1><p>正文三。</p>" },
+      { title: "第四回 宮保愛才求賢若渴", raw: "<h1>第四回 宮保愛才求賢若渴</h1><p>正文四。</p>" },
+      { title: "第五回 烈婦有心殉節", raw: "<h1>第五回 烈婦有心殉節</h1><p>正文五。</p>" },
+      { title: "銀鼠諺", raw: "<h1>銀鼠諺</h1><p>短題後正文。</p>" },
+    ],
+    { title: "老殘遊記" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第一回 土不制水歷年成患",
-    "第二回 歷山山下古帝遺蹤",
-    "第三回 金線東來尋黑虎",
-    "第四回 宮保愛才求賢若渴",
-    "第五回 烈婦有心殉節",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    [
+      "第一回 土不制水歷年成患",
+      "第二回 歷山山下古帝遺蹤",
+      "第三回 金線東來尋黑虎",
+      "第四回 宮保愛才求賢若渴",
+      "第五回 烈婦有心殉節",
+    ],
+  );
   assert.match(chapters[4].text, /銀鼠諺/);
 });
 
 test("extractEpubChapters merges non-ordinal Chinese titles inside consecutive chapter runs", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    { title: "第一回 開宗明義", raw: "<h1>第一回 開宗明義</h1><p>正文一。</p>" },
-    { title: "第二回 初入城中", raw: "<h1>第二回 初入城中</h1><p>正文二。</p>" },
-    { title: "第三回 風波又起", raw: "<h1>第三回 風波又起</h1><p>正文三。</p>" },
-    { title: "第四回 親友相逢", raw: "<h1>第四回 親友相逢</h1><p>正文四。</p>" },
-    { title: "第五回 債務未清", raw: "<h1>第五回 債務未清</h1><p>正文五。</p>" },
-    { title: "對門王詮進了第二", raw: "<h1>對門王詮進了第二</h1><p>續頁正文。</p>" },
-    { title: "第六回 真相大白", raw: "<h1>第六回 真相大白</h1><p>正文六。</p>" },
-  ], { title: "幻中游" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      { title: "第一回 開宗明義", raw: "<h1>第一回 開宗明義</h1><p>正文一。</p>" },
+      { title: "第二回 初入城中", raw: "<h1>第二回 初入城中</h1><p>正文二。</p>" },
+      { title: "第三回 風波又起", raw: "<h1>第三回 風波又起</h1><p>正文三。</p>" },
+      { title: "第四回 親友相逢", raw: "<h1>第四回 親友相逢</h1><p>正文四。</p>" },
+      { title: "第五回 債務未清", raw: "<h1>第五回 債務未清</h1><p>正文五。</p>" },
+      { title: "對門王詮進了第二", raw: "<h1>對門王詮進了第二</h1><p>續頁正文。</p>" },
+      { title: "第六回 真相大白", raw: "<h1>第六回 真相大白</h1><p>正文六。</p>" },
+    ],
+    { title: "幻中游" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第一回 開宗明義",
-    "第二回 初入城中",
-    "第三回 風波又起",
-    "第四回 親友相逢",
-    "第五回 債務未清",
-    "第六回 真相大白",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    [
+      "第一回 開宗明義",
+      "第二回 初入城中",
+      "第三回 風波又起",
+      "第四回 親友相逢",
+      "第五回 債務未清",
+      "第六回 真相大白",
+    ],
+  );
   assert.match(chapters[4].text, /對門王詮進了第二/);
   assert.match(chapters[4].text, /續頁正文/);
 });
@@ -1285,27 +1486,40 @@ test("extractEpubChapters prefers spine parsing when Chinese NCX misses chapters
   const raw = numerals
     .map((n, index) => `<h2 id="c${index + 1}">第${n}回 章目${n}</h2><p>正文${n}。</p>`)
     .join("\n");
-  const navPoints = numerals.slice(0, 8)
-    .map((n, index) => `<navPoint id="n${index + 1}" playOrder="${index + 1}"><navLabel><text>第${n}回 章目${n}</text></navLabel><content src="chapter1.xhtml#c${index + 1}"/></navPoint>`)
+  const navPoints = numerals
+    .slice(0, 8)
+    .map(
+      (n, index) =>
+        `<navPoint id="n${index + 1}" playOrder="${index + 1}"><navLabel><text>第${n}回 章目${n}</text></navLabel><content src="chapter1.xhtml#c${index + 1}"/></navPoint>`,
+    )
     .join("\n");
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "花月痕",
+        raw,
+      },
+    ],
     {
-      title: "花月痕",
-      raw,
-    },
-  ], {
-    manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
-    spineAttrs: `toc="ncx"`,
-    extraEntries: [{
-      name: "OEBPS/toc.ncx",
-      body: `<?xml version="1.0" encoding="UTF-8"?>
+      manifestItems: [`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`],
+      spineAttrs: `toc="ncx"`,
+      extraEntries: [
+        {
+          name: "OEBPS/toc.ncx",
+          body: `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap>${navPoints}</navMap></ncx>`,
-    }],
-  });
+        },
+      ],
+    },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 9);
-  assert.deepEqual(chapters.map((ch) => ch.title), numerals.map((n) => `第${n}回 章目${n}`));
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    numerals.map((n) => `第${n}回 章目${n}`),
+  );
 });
 
 test("extractEpubChapters splits Chinese angle-bracket story titles", async () => {
@@ -1322,52 +1536,69 @@ test("extractEpubChapters splits Chinese angle-bracket story titles", async () =
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["考城隍", "耳中人"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["考城隍", "耳中人"],
+  );
   assert.match(chapters[0].text, /宋公/);
 });
 
 test("extractEpubChapters splits Chinese headings inside same-title spine continuations", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "三國志演義",
-      headTitle: "三國志演義",
-      raw: `<p>第一回：宴桃園豪傑三結義</p><p>話說天下大勢，分久必合。</p>`,
-    },
-    {
-      title: "三國志演義",
-      headTitle: "三國志演義",
-      raw: `<p>前文續段。</p><p>第二回：張翼德怒鞭督郵</p><p>且說董卓字仲穎。</p>`,
-    },
-  ], { title: "三國志演義" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "三國志演義",
+        headTitle: "三國志演義",
+        raw: `<p>第一回：宴桃園豪傑三結義</p><p>話說天下大勢，分久必合。</p>`,
+      },
+      {
+        title: "三國志演義",
+        headTitle: "三國志演義",
+        raw: `<p>前文續段。</p><p>第二回：張翼德怒鞭督郵</p><p>且說董卓字仲穎。</p>`,
+      },
+    ],
+    { title: "三國志演義" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["第一回：宴桃園豪傑三結義", "第二回：張翼德怒鞭督郵"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["第一回：宴桃園豪傑三結義", "第二回：張翼德怒鞭督郵"],
+  );
   assert.match(chapters[1].text, /董卓字仲穎/);
 });
 
 test("extractEpubChapters merges prose-title continuations into the previous Chinese chapter", async () => {
-  const { epubPath } = await writeEpub("Project Gutenberg public domain notice", [
-    {
-      title: "第二十三回 訊奸情臬司惹笑柄 造假信觀察賺優差",
-      body: "卻說賈臬司聽了相士當面罵他的話，憤憤而歸。",
-    },
-    {
-      title: "河南賈臬台：弟與某素無往來，前荐某丞未收。工程浩大，恐非某能勝任。",
-      body: "下面注著一個「隱」字，賈臬台父子便知是周中堂的別號了。",
-    },
-    {
-      title: "第二十四回 擺花酒大鬧喜春堂 撞木鐘初訪文殊院",
-      body: "話說賈臬台的大少爺，自從造了一封周中堂的假信。",
-    },
-  ], { title: "官場現形記" });
+  const { epubPath } = await writeEpub(
+    "Project Gutenberg public domain notice",
+    [
+      {
+        title: "第二十三回 訊奸情臬司惹笑柄 造假信觀察賺優差",
+        body: "卻說賈臬司聽了相士當面罵他的話，憤憤而歸。",
+      },
+      {
+        title: "河南賈臬台：弟與某素無往來，前荐某丞未收。工程浩大，恐非某能勝任。",
+        body: "下面注著一個「隱」字，賈臬台父子便知是周中堂的別號了。",
+      },
+      {
+        title: "第二十四回 擺花酒大鬧喜春堂 撞木鐘初訪文殊院",
+        body: "話說賈臬台的大少爺，自從造了一封周中堂的假信。",
+      },
+    ],
+    { title: "官場現形記" },
+  );
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), [
-    "第二十三回 訊奸情臬司惹笑柄 造假信觀察賺優差",
-    "第二十四回 擺花酒大鬧喜春堂 撞木鐘初訪文殊院",
-  ]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    [
+      "第二十三回 訊奸情臬司惹笑柄 造假信觀察賺優差",
+      "第二十四回 擺花酒大鬧喜春堂 撞木鐘初訪文殊院",
+    ],
+  );
   assert.match(chapters[0].text, /河南賈臬台/);
   assert.match(chapters[0].text, /下面注著/);
 });
@@ -1406,7 +1637,10 @@ test("extractEpubChapters splits chapter headings that share a paragraph with bo
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["三守", "備內", "南面"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["三守", "備內", "南面"],
+  );
   assert.match(chapters[2].text, /人主之過/);
 });
 
@@ -1430,7 +1664,10 @@ test("extractEpubChapters splits numbered poem anthologies", async () => {
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 2);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["001 感遇（四首之一） · 張九齡", "002 感遇（四首之二） · 張九齡"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["001 感遇（四首之一） · 張九齡", "002 感遇（四首之二） · 張九齡"],
+  );
   assert.match(chapters[1].text, /蘭葉春葳蕤/);
 });
 
@@ -1452,7 +1689,10 @@ test("extractEpubChapters splits numbered poems without author markers", async (
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["1. 關睢", "2. 葛覃", "257. 桑柔"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["1. 關睢", "2. 葛覃", "257. 桑柔"],
+  );
   assert.match(chapters[0].text, /關關雎鳩/);
 });
 
@@ -1489,7 +1729,10 @@ test("extractEpubChapters splits inline volume titles", async () => {
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["卷之一梁惠王上", "卷之一梁惠王下", "卷之二公孫丑上"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["卷之一梁惠王上", "卷之一梁惠王下", "卷之二公孫丑上"],
+  );
   assert.match(chapters[2].text, /公孫丑問曰/);
 });
 
@@ -1505,7 +1748,10 @@ test("extractEpubChapters uses bare Chinese volume markers when no finer chapter
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["卷之一", "卷之二", "卷六補遺"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["卷之一", "卷之二", "卷六補遺"],
+  );
   assert.match(chapters[0].text, /梁惠王/);
   assert.match(chapters[1].text, /公孫丑/);
   assert.match(chapters[2].text, /補遺正文/);
@@ -1523,7 +1769,10 @@ test("extractEpubChapters uses shorthand Chinese volume markers", async () => {
   const chapters = await extractEpubChapters(epubPath);
 
   assert.equal(chapters.length, 3);
-  assert.deepEqual(chapters.map((ch) => ch.title), ["卷之廿", "卷之廿一", "卷之卅上"]);
+  assert.deepEqual(
+    chapters.map((ch) => ch.title),
+    ["卷之廿", "卷之廿一", "卷之卅上"],
+  );
   assert.match(chapters[2].text, /海路紀程/);
 });
 
@@ -1541,7 +1790,10 @@ test("createIngestPayload builds backend ingest payload from a manifest", async 
   assert.equal(payload.license, "CC0-1.0");
   assert.equal(payload.epubSha256, manifest.assets.epub.sha256);
   assert.equal(payload.epubMediaType, "application/epub+zip");
-  assert.equal(Buffer.from(payload.epubBase64, "base64").toString("utf8").includes("application/epub+zip"), true);
+  assert.equal(
+    Buffer.from(payload.epubBase64, "base64").toString("utf8").includes("application/epub+zip"),
+    true,
+  );
   assert.equal(payload.chapters.length, 1);
   assert.match(payload.chapters[0].text, /First paragraph\./);
 });
@@ -1569,10 +1821,7 @@ test("createIngestPayload rejects an EPUB that no longer matches the manifest ha
   });
   await writeFile(epubPath, "not the packaged epub anymore");
 
-  await assert.rejects(
-    () => createIngestPayload(manifest),
-    /EPUB file no longer matches/,
-  );
+  await assert.rejects(() => createIngestPayload(manifest), /EPUB file no longer matches/);
 });
 
 test("publishBookManifest posts ingest payload with admin authorization", async () => {
@@ -1589,10 +1838,17 @@ test("publishBookManifest posts ingest payload with admin authorization", async 
     id: "dao",
     fetchImpl: async (url, init) => {
       requests.push({ url, init, body: JSON.parse(init.body) });
-      return new Response(JSON.stringify({ ok: true, book: { id: "dao" }, chapters: requests[0].body.chapters.length }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          book: { id: "dao" },
+          chapters: requests[0].body.chapters.length,
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
     },
   });
 
@@ -1620,7 +1876,12 @@ test("publishBookManifestChunked posts source, chapters, and finalize requests",
       const body = JSON.parse(init.body);
       requests.push({ url, init, body });
       const response = url.endsWith("/finalize")
-        ? { ok: true, book: { id: "dao" }, chapters: body.chapterNumbers.length, manifest: { key: "book/dao/manifest" } }
+        ? {
+            ok: true,
+            book: { id: "dao" },
+            chapters: body.chapterNumbers.length,
+            manifest: { key: "book/dao/manifest" },
+          }
         : { ok: true };
       return new Response(JSON.stringify(response), {
         status: 200,
@@ -1644,8 +1905,24 @@ test("CLI auth login/status/logout persists config without leaking the token", a
   const configPath = path.join(dir, "config.json");
   const env = { ...process.env, LIBER_CONFIG: configPath };
 
-  await execFileAsync(process.execPath, [CLI_PATH, "auth", "login", "--api-url", "https://liber.example", "--admin-token", "secret-token", "--wallet", "0xabc"], { env });
-  const status = await execFileAsync(process.execPath, [CLI_PATH, "auth", "status", "--json"], { env });
+  await execFileAsync(
+    process.execPath,
+    [
+      CLI_PATH,
+      "auth",
+      "login",
+      "--api-url",
+      "https://liber.example",
+      "--admin-token",
+      "secret-token",
+      "--wallet",
+      "0xabc",
+    ],
+    { env },
+  );
+  const status = await execFileAsync(process.execPath, [CLI_PATH, "auth", "status", "--json"], {
+    env,
+  });
   const parsed = JSON.parse(status.stdout);
 
   assert.equal(parsed.apiUrl, "https://liber.example");
@@ -1660,7 +1937,17 @@ test("CLI auth login/status/logout persists config without leaking the token", a
 
 test("CLI auth browser accepts --no-open as a boolean flag", async () => {
   await assert.rejects(
-    () => execFileAsync(process.execPath, [CLI_PATH, "auth", "browser", "--no-open", "--timeout", "0", "--api-url", "not-a-url"]),
+    () =>
+      execFileAsync(process.execPath, [
+        CLI_PATH,
+        "auth",
+        "browser",
+        "--no-open",
+        "--timeout",
+        "0",
+        "--api-url",
+        "not-a-url",
+      ]),
     (error) => {
       assert.doesNotMatch(error.stderr, /Missing value for --no-open/);
       return true;
@@ -1672,7 +1959,10 @@ test("core auth config helpers persist and clear config", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "liber-core-config-"));
   const configPath = path.join(dir, "config.json");
 
-  await saveCliConfig({ apiUrl: "https://liber.example", adminToken: "secret-token" }, { configPath });
+  await saveCliConfig(
+    { apiUrl: "https://liber.example", adminToken: "secret-token" },
+    { configPath },
+  );
   const loaded = await loadCliConfig({ configPath });
   assert.equal(loaded.apiUrl, "https://liber.example");
   assert.equal(loaded.adminToken, "secret-token");
@@ -1687,12 +1977,15 @@ test("browser auth flow starts, polls, and returns a publish token", async () =>
     apiUrl: "https://liber.example",
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
-      return new Response(JSON.stringify({
-        deviceCode: "device-1",
-        userCode: "ABC123",
-        authorizeUrl: "https://liber.example/?cli_auth=device-1",
-        interval: 1,
-      }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          deviceCode: "device-1",
+          userCode: "ABC123",
+          authorizeUrl: "https://liber.example/?cli_auth=device-1",
+          interval: 1,
+        }),
+        { status: 200 },
+      );
     },
   });
   assert.equal(start.apiUrl, "https://liber.example");
@@ -1706,7 +1999,14 @@ test("browser auth flow starts, polls, and returns a publish token", async () =>
     fetchImpl: async (url) => {
       polls += 1;
       assert.equal(url, "https://liber.example/api/auth/cli/poll/device-1");
-      return new Response(JSON.stringify(polls === 1 ? { status: "pending" } : { status: "approved", token: "cli-token", user: { wallet: "0xabc" } }), { status: 200 });
+      return new Response(
+        JSON.stringify(
+          polls === 1
+            ? { status: "pending" }
+            : { status: "approved", token: "cli-token", user: { wallet: "0xabc" } },
+        ),
+        { status: 200 },
+      );
     },
   });
   assert.equal(approved.token, "cli-token");
@@ -1727,17 +2027,24 @@ test("private-key auth signs a nonce and exchanges the session for a publish tok
     fetchImpl: async (url, init = {}) => {
       requests.push({ url, init });
       if (url.endsWith("/api/auth/nonce")) {
-        return new Response(JSON.stringify({ nonce: "n1", message: "Liber 登录\nnonce: n1" }), { status: 200 });
+        return new Response(JSON.stringify({ nonce: "n1", message: "Liber 登录\nnonce: n1" }), {
+          status: 200,
+        });
       }
       if (url.endsWith("/api/auth/verify")) {
         const body = JSON.parse(init.body);
         assert.equal(body.address, "0xabc");
         assert.equal(body.signature, "signed-message");
-        return new Response(JSON.stringify({ token: "session-token", user: { wallet: "0xabc" } }), { status: 200 });
+        return new Response(JSON.stringify({ token: "session-token", user: { wallet: "0xabc" } }), {
+          status: 200,
+        });
       }
       if (url.endsWith("/api/auth/cli/token")) {
         assert.equal(init.headers.authorization, "Bearer session-token");
-        return new Response(JSON.stringify({ token: "publish-token", wallet: "0xabc", expiresIn: 30 }), { status: 200 });
+        return new Response(
+          JSON.stringify({ token: "publish-token", wallet: "0xabc", expiresIn: 30 }),
+          { status: 200 },
+        );
       }
       throw new Error(`Unexpected URL ${url}`);
     },
@@ -1745,11 +2052,14 @@ test("private-key auth signs a nonce and exchanges the session for a publish tok
 
   assert.equal(approved.token, "publish-token");
   assert.equal(approved.wallet, "0xabc");
-  assert.deepEqual(requests.map((r) => r.url), [
-    "https://liber.example/api/auth/nonce",
-    "https://liber.example/api/auth/verify",
-    "https://liber.example/api/auth/cli/token",
-  ]);
+  assert.deepEqual(
+    requests.map((r) => r.url),
+    [
+      "https://liber.example/api/auth/nonce",
+      "https://liber.example/api/auth/verify",
+      "https://liber.example/api/auth/cli/token",
+    ],
+  );
 });
 
 test("private-key auth requires a scheme for raw hex keys", async () => {
@@ -1774,7 +2084,11 @@ test("CLI publish supports dry-run and requires a token for real publish", async
   const manifestPath = path.join(dir, "manifest.json");
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-  const result = await execFileAsync(process.execPath, [CLI_PATH, "book", "publish", manifestPath, "--dry-run"], { env });
+  const result = await execFileAsync(
+    process.execPath,
+    [CLI_PATH, "book", "publish", manifestPath, "--dry-run"],
+    { env },
+  );
   assert.match(result.stdout, /Dry-run publish plan/);
 
   await assert.rejects(

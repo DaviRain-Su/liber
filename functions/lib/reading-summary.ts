@@ -22,7 +22,11 @@ function startOfUtcYear(ms: number): number {
 
 function streakDays(times: number[], nowMs = Date.now()): number {
   const days = new Set(times.filter(Boolean).map(dayKey));
-  let cursor = Date.UTC(new Date(nowMs).getUTCFullYear(), new Date(nowMs).getUTCMonth(), new Date(nowMs).getUTCDate());
+  let cursor = Date.UTC(
+    new Date(nowMs).getUTCFullYear(),
+    new Date(nowMs).getUTCMonth(),
+    new Date(nowMs).getUTCDate(),
+  );
   let streak = 0;
   while (days.has(dayKey(cursor))) {
     streak += 1;
@@ -61,31 +65,41 @@ export async function readingStats(env: Env, userId?: string | null) {
   // is never pulled into memory — this also runs per-reader on /readers.
   const recentSince = nowMs - 400 * DAY;
   const res = await env.DB.batch([
-    env.DB.prepare(liveOnly
-      ? `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
+    env.DB.prepare(
+      liveOnly
+        ? `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
          FROM progress p JOIN library_books lb ON lb.id = p.book_id WHERE p.user_id = ?`
-      : `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
-         FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id WHERE p.user_id = ?`).bind(userId),
-    env.DB.prepare(liveOnly
-      ? `SELECT COUNT(*) AS n FROM highlights h JOIN library_books lb ON lb.id = h.book_id WHERE h.user_id = ?`
-      : `SELECT COUNT(*) AS n FROM highlights WHERE user_id = ?`).bind(userId),
-    env.DB.prepare(liveOnly
-      ? `SELECT h.created_at FROM highlights h JOIN library_books lb ON lb.id = h.book_id WHERE h.user_id = ? AND h.created_at >= ?`
-      : `SELECT created_at FROM highlights WHERE user_id = ? AND created_at >= ?`).bind(userId, recentSince),
-    env.DB.prepare(liveOnly
-      ? `SELECT COUNT(*) AS n FROM notes n JOIN library_books lb ON lb.id = n.book_id WHERE n.user_id = ?`
-      : `SELECT COUNT(*) AS n FROM notes WHERE user_id = ?`).bind(userId),
-    env.DB.prepare(liveOnly
-      ? `SELECT n.created_at FROM notes n JOIN library_books lb ON lb.id = n.book_id WHERE n.user_id = ? AND n.created_at >= ?`
-      : `SELECT created_at FROM notes WHERE user_id = ? AND created_at >= ?`).bind(userId, recentSince),
+        : `SELECT p.book_id, p.chapter_n, p.percent, p.updated_at, lb.pages
+         FROM progress p LEFT JOIN library_books lb ON lb.id = p.book_id WHERE p.user_id = ?`,
+    ).bind(userId),
+    env.DB.prepare(
+      liveOnly
+        ? `SELECT COUNT(*) AS n FROM highlights h JOIN library_books lb ON lb.id = h.book_id WHERE h.user_id = ?`
+        : `SELECT COUNT(*) AS n FROM highlights WHERE user_id = ?`,
+    ).bind(userId),
+    env.DB.prepare(
+      liveOnly
+        ? `SELECT h.created_at FROM highlights h JOIN library_books lb ON lb.id = h.book_id WHERE h.user_id = ? AND h.created_at >= ?`
+        : `SELECT created_at FROM highlights WHERE user_id = ? AND created_at >= ?`,
+    ).bind(userId, recentSince),
+    env.DB.prepare(
+      liveOnly
+        ? `SELECT COUNT(*) AS n FROM notes n JOIN library_books lb ON lb.id = n.book_id WHERE n.user_id = ?`
+        : `SELECT COUNT(*) AS n FROM notes WHERE user_id = ?`,
+    ).bind(userId),
+    env.DB.prepare(
+      liveOnly
+        ? `SELECT n.created_at FROM notes n JOIN library_books lb ON lb.id = n.book_id WHERE n.user_id = ? AND n.created_at >= ?`
+        : `SELECT created_at FROM notes WHERE user_id = ? AND created_at >= ?`,
+    ).bind(userId, recentSince),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM votes WHERE user_id = ?`).bind(userId),
   ]);
-  const progress = (((res[0] as any).results || []) as any[]);
-  const lines = Number((((res[1] as any).results || [])[0])?.n || 0);
-  const hlTimes = (((res[2] as any).results || []) as any[]);
-  const noteCount = Number((((res[3] as any).results || [])[0])?.n || 0);
-  const noteTimes = (((res[4] as any).results || []) as any[]);
-  const agreed = Number((((res[5] as any).results || [])[0])?.n || 0);
+  const progress = ((res[0] as any).results || []) as any[];
+  const lines = Number(((res[1] as any).results || [])[0]?.n || 0);
+  const hlTimes = ((res[2] as any).results || []) as any[];
+  const noteCount = Number(((res[3] as any).results || [])[0]?.n || 0);
+  const noteTimes = ((res[4] as any).results || []) as any[];
+  const agreed = Number(((res[5] as any).results || [])[0]?.n || 0);
   const activityTimes = [
     ...progress.map((r) => Number(r.updated_at || 0)),
     ...hlTimes.map((r) => Number(r.created_at || 0)),
@@ -96,7 +110,9 @@ export async function readingStats(env: Env, userId?: string | null) {
     const pages = Number(p.pages || 0);
     const chapter = Number(p.chapter_n || 0);
     const percent = Number(p.percent || 0);
-    return Number(p.updated_at || 0) >= yearStart && (percent >= 100 || (pages > 0 && chapter >= pages));
+    return (
+      Number(p.updated_at || 0) >= yearStart && (percent >= 100 || (pages > 0 && chapter >= pages))
+    );
   }).length;
   return {
     read: progress.length,
@@ -160,10 +176,13 @@ export async function readingSummary(env: Env, userId?: string | null) {
     if (!n) return { text: sid, chap: "" };
     const key = `${bookId}:${n}`;
     if (!chapterCache.has(key)) {
-      chapterCache.set(key, (async () => {
-        const content = await getChapterText(env, bookId, n);
-        return content ? textToChapter(bookId, content.n, content.title, content.text) : null;
-      })());
+      chapterCache.set(
+        key,
+        (async () => {
+          const content = await getChapterText(env, bookId, n);
+          return content ? textToChapter(bookId, content.n, content.title, content.text) : null;
+        })(),
+      );
     }
     const ch = await chapterCache.get(key);
     const sentence = ch?.paras?.flat?.().find((s: any) => s.id === sid);
@@ -216,7 +235,9 @@ export async function readingSummary(env: Env, userId?: string | null) {
 
   const reading = progressRows.map((p) => ({
     id: p.book_id,
-    at: p.chapter_n ? `第 ${p.chapter_n} 章 · ${Math.round(Number(p.percent || 0))}%` : `${Math.round(Number(p.percent || 0))}%`,
+    at: p.chapter_n
+      ? `第 ${p.chapter_n} 章 · ${Math.round(Number(p.percent || 0))}%`
+      : `${Math.round(Number(p.percent || 0))}%`,
     chapter: p.chapter_n,
     percent: Number(p.percent || 0),
     updatedAt: p.updated_at,

@@ -62,7 +62,10 @@ test("ownerAddress unwraps the Sui owner shapes", () => {
 
 test("sameSuiAddress normalizes before comparing", () => {
   assert.equal(sameSuiAddress("0x1", "0x01"), true); // normalize pads to 32 bytes
-  assert.equal(sameSuiAddress("0x1", "0x0000000000000000000000000000000000000000000000000000000000000001"), true);
+  assert.equal(
+    sameSuiAddress("0x1", "0x0000000000000000000000000000000000000000000000000000000000000001"),
+    true,
+  );
   assert.equal(sameSuiAddress("0x1", "0x2"), false);
   assert.equal(sameSuiAddress(null, "0x1"), false);
   assert.equal(sameSuiAddress("0x1", undefined), false);
@@ -87,7 +90,10 @@ test("paymentReceived requires the right coin, treasury, and at least the amount
   // right amount but to a different address → rejected
   assert.equal(paymentReceived(credit({ owner: { AddressOwner: "0x1" } }), cfg), false);
   // a debit (negative) on the payer is not a credit to treasury
-  assert.equal(paymentReceived([{ coinType, owner: { AddressOwner: "0x1" }, amount: "-1000000" }], cfg), false);
+  assert.equal(
+    paymentReceived([{ coinType, owner: { AddressOwner: "0x1" }, amount: "-1000000" }], cfg),
+    false,
+  );
   // empty / missing balance changes → rejected
   assert.equal(paymentReceived([], cfg), false);
   assert.equal(paymentReceived(null, cfg), false);

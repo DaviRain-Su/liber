@@ -11,7 +11,10 @@ const b64url = (buf) => {
 };
 
 export function passkeySupported() {
-  return typeof window !== "undefined" && !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
+  return (
+    typeof window !== "undefined" &&
+    !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create)
+  );
 }
 
 // Create a wallet passkey and return { challenge, attestation } for the enroll endpoint.
@@ -24,8 +27,15 @@ export async function createWalletPasskey({ userId, userName }) {
     publicKey: {
       challenge,
       rp: { id: rpId, name: "Liber" },
-      user: { id: userHandle, name: userName || "Liber 读者", displayName: userName || "Liber 读者" },
-      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      user: {
+        id: userHandle,
+        name: userName || "Liber 读者",
+        displayName: userName || "Liber 读者",
+      },
+      pubKeyCredParams: [
+        { type: "public-key", alg: -7 },
+        { type: "public-key", alg: -257 },
+      ],
       authenticatorSelection: { residentKey: "preferred", userVerification: "preferred" },
       timeout: 60000,
       attestation: "none",
@@ -57,10 +67,18 @@ export async function createWalletPasskey({ userId, userName }) {
    value is the stamp JSON itself (not base64url-wrapped, unlike the API-key stamp). */
 async function turnkeyWebauthnStamp(payloadStr, rpId) {
   const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payloadStr));
-  const hex = Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hex = Array.from(new Uint8Array(hashBuf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   const challenge = new TextEncoder().encode(hex);
   const assertion = await navigator.credentials.get({
-    publicKey: { challenge, rpId, userVerification: "preferred", timeout: 60000, allowCredentials: [] },
+    publicKey: {
+      challenge,
+      rpId,
+      userVerification: "preferred",
+      timeout: 60000,
+      allowCredentials: [],
+    },
   });
   if (!assertion) throw new Error("通行密钥签名被取消");
   const r = assertion.response;
@@ -76,13 +94,23 @@ async function turnkeyWebauthnStamp(payloadStr, rpId) {
 // Turnkey. Returns the Turnkey activityId for the server to read + broadcast.
 // hashFunction: ed25519 chains (Sui/Solana) pass NOT_APPLICABLE over the raw digest;
 // secp256k1 chains (Ethereum) pass NO_OP over the keccak digest.
-export async function passkeySignDigest({ organizationId, signWith, digestHex, hashFunction = "HASH_FUNCTION_NOT_APPLICABLE" }) {
+export async function passkeySignDigest({
+  organizationId,
+  signWith,
+  digestHex,
+  hashFunction = "HASH_FUNCTION_NOT_APPLICABLE",
+}) {
   const rpId = window.location.hostname;
   const activity = {
     type: "ACTIVITY_TYPE_SIGN_RAW_PAYLOAD_V2",
     timestampMs: String(Date.now()),
     organizationId,
-    parameters: { signWith, payload: digestHex, encoding: "PAYLOAD_ENCODING_HEXADECIMAL", hashFunction },
+    parameters: {
+      signWith,
+      payload: digestHex,
+      encoding: "PAYLOAD_ENCODING_HEXADECIMAL",
+      hashFunction,
+    },
   };
   const bodyStr = JSON.stringify(activity);
   const stamp = await turnkeyWebauthnStamp(bodyStr, rpId);

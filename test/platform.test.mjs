@@ -3,17 +3,38 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const wrangler = await readFile(new URL("../wrangler.toml", import.meta.url), "utf8");
-const platformWrangler = await readFile(new URL("../wrangler.platform.toml", import.meta.url), "utf8");
-const migration = await readFile(new URL("../migrations/0010_platform_ops.sql", import.meta.url), "utf8");
+const platformWrangler = await readFile(
+  new URL("../wrangler.platform.toml", import.meta.url),
+  "utf8",
+);
+const migration = await readFile(
+  new URL("../migrations/0010_platform_ops.sql", import.meta.url),
+  "utf8",
+);
 const types = await readFile(new URL("../functions/lib/types.ts", import.meta.url), "utf8");
 const apiRoute = await readFile(new URL("../functions/api/[[route]].ts", import.meta.url), "utf8");
-const platformLib = await readFile(new URL("../functions/lib/platform.ts", import.meta.url), "utf8");
-const platformRoute = await readFile(new URL("../functions/routes/platform.ts", import.meta.url), "utf8");
+const platformLib = await readFile(
+  new URL("../functions/lib/platform.ts", import.meta.url),
+  "utf8",
+);
+const platformRoute = await readFile(
+  new URL("../functions/routes/platform.ts", import.meta.url),
+  "utf8",
+);
 const booksRoute = await readFile(new URL("../functions/routes/books.ts", import.meta.url), "utf8");
-const platformWorker = await readFile(new URL("../workers/platform-worker.ts", import.meta.url), "utf8");
+const platformWorker = await readFile(
+  new URL("../workers/platform-worker.ts", import.meta.url),
+  "utf8",
+);
 const apiClient = await readFile(new URL("../src/lib/api.js", import.meta.url), "utf8");
-const searchSource = await readFile(new URL("../src/components/product-search.jsx", import.meta.url), "utf8");
-const agentView = await readFile(new URL("../src/components/product-agentview.jsx", import.meta.url), "utf8");
+const searchSource = await readFile(
+  new URL("../src/components/product-search.jsx", import.meta.url),
+  "utf8",
+);
+const agentView = await readFile(
+  new URL("../src/components/product-agentview.jsx", import.meta.url),
+  "utf8",
+);
 const backendDoc = await readFile(new URL("../BACKEND.md", import.meta.url), "utf8");
 
 test("Cloudflare paid bindings are declared for Pages and the platform worker", () => {
@@ -61,7 +82,7 @@ test("book ingest lets allow-listed platform admins rebuild catalog rows", () =>
 
 test("frontend surfaces semantic search and platform capability state", () => {
   assert.match(apiClient, /semanticSearch: \(q, limit = 8\)/);
-  assert.match(searchSource, /platform\.semanticSearch\(t, 6\)/);
+  assert.match(searchSource, /platform\s*\.semanticSearch\(t, 6\)/);
   assert.match(searchSource, /语义回声/);
   assert.match(agentView, /Cloudflare 平台能力/);
   assert.match(agentView, /Vectorize/);

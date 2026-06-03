@@ -18,7 +18,9 @@ const QUARANTINED_LIBRARY_BOOK_IDS = [
 ] as const;
 
 const QUARANTINED_LIBRARY_BOOK_SET = new Set<string>(QUARANTINED_LIBRARY_BOOK_IDS);
-const QUARANTINED_LIBRARY_BOOK_SQL = QUARANTINED_LIBRARY_BOOK_IDS.map((value) => `'${value}'`).join(",");
+const QUARANTINED_LIBRARY_BOOK_SQL = QUARANTINED_LIBRARY_BOOK_IDS.map((value) => `'${value}'`).join(
+  ",",
+);
 
 function isQuarantinedLibraryBook(bookId: string): boolean {
   return QUARANTINED_LIBRARY_BOOK_SET.has(bookId);
@@ -76,7 +78,10 @@ export function sqlLikeSearchTerm(term: string): string {
 }
 
 export function searchQueryTokens(term: string): string[] {
-  return compact(term).split(/\s+/u).map((token) => token.trim()).filter(Boolean);
+  return compact(term)
+    .split(/\s+/u)
+    .map((token) => token.trim())
+    .filter(Boolean);
 }
 
 export function sqlLikeSearchTerms(term: string): string[] {
@@ -136,7 +141,10 @@ function safeId(raw: string | undefined, title: string): string {
   // same row — idempotent re-publish — instead of a random UUID that would
   // duplicate the book and all its chapter blobs every time.
   let h = 0x811c9dc5;
-  for (let i = 0; i < base.length; i++) { h ^= base.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  for (let i = 0; i < base.length; i++) {
+    h ^= base.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
   // Underscore prefix keeps this OUT of the slug namespace (the slug pass only
   // emits [a-z0-9-], never "_"), so a crafted ascii title can never collide with
   // a hashed CJK id.
@@ -164,7 +172,8 @@ function isEnglishSentenceDot(text: string, i: number): boolean {
   const before = text.slice(Math.max(0, i - 18), i + 1);
   const after = text.slice(i + 1);
   if (/\d\.\d/.test(text.slice(Math.max(0, i - 1), i + 2))) return false;
-  if (/\b(?:Mr|Mrs|Ms|Dr|Prof|Capt|Col|Gen|St|Mt|No|Vol|Fig|cf|etc|vs)\.$/i.test(before)) return false;
+  if (/\b(?:Mr|Mrs|Ms|Dr|Prof|Capt|Col|Gen|St|Mt|No|Vol|Fig|cf|etc|vs)\.$/i.test(before))
+    return false;
   if (/\b(?:i\.e|e\.g|A\.D|B\.C|U\.S|U\.K)\.$/i.test(before)) return false;
   if (/\b[A-Z](?:\.[A-Z])+\.$/.test(before)) return false;
   if (/\b[A-Z]\.$/.test(before) && /^\s*[A-Z]\./.test(after)) return false;
@@ -224,7 +233,8 @@ function reflowWrappedBlocks(blocks: string[]): string[] {
   for (const block of blocks) {
     const line = block.replace(/\s+/g, " ").trim();
     if (!line) continue;
-    const startsStructure = /^\d+[\.\)]\s+/.test(line) || /^\[[^\]]/.test(line) || lineLooksHeading(line);
+    const startsStructure =
+      /^\d+[\.\)]\s+/.test(line) || /^\[[^\]]/.test(line) || lineLooksHeading(line);
     const prevComplete = /[\.\?!。！？\]"”’)]$/.test(prev);
     if (acc && (startsStructure || prevComplete)) flush();
     if (lineLooksHeading(line)) {
@@ -243,7 +253,13 @@ function normalizeTextBlocks(text: string, title: string): string[] {
   const blocks = splitInlineChineseClassicSections(text, title)
     .replace(/\r\n/g, "\n")
     .split(/\n{2,}/)
-    .map((block) => block.split("\n").map((line) => line.replace(/[ \t\f\v]+/g, " ").trim()).filter(Boolean).join("\n"))
+    .map((block) =>
+      block
+        .split("\n")
+        .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
+        .filter(Boolean)
+        .join("\n"),
+    )
     .filter(Boolean);
   const normalizedTitle = title.replace(/\s+/g, " ").trim().toLowerCase();
   if (blocks[0]?.replace(/\s+/g, " ").trim().toLowerCase() === normalizedTitle) blocks.shift();
@@ -267,12 +283,29 @@ export function textToChapter(bookId: string, n: number, title: string, text: st
     .map((p) => splitSentences(p))
     .filter((p) => p.length)
     .map((p) => p.map((t) => ({ id: `${bookId}-c${n}-s${sid++}`, t })));
-  return { n, title: title || `第 ${n} 章`, paras: paras.length ? paras : [[{ id: `${bookId}-c${n}-s1`, t: text.trim() }]] };
+  return {
+    n,
+    title: title || `第 ${n} 章`,
+    paras: paras.length ? paras : [[{ id: `${bookId}-c${n}-s1`, t: text.trim() }]],
+  };
 }
 
 function chineseNumber(s: string): number | null {
   if (/^\d+$/.test(s)) return Number(s);
-  const digits: Record<string, number> = { 零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+  const digits: Record<string, number> = {
+    零: 0,
+    〇: 0,
+    一: 1,
+    二: 2,
+    两: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+  };
   if (s === "十") return 10;
   const ten = s.indexOf("十");
   if (ten >= 0) {
@@ -294,7 +327,9 @@ export function parseTextChapters(text: string): IngestChapterInput[] {
   };
   for (const raw of lines) {
     const line = raw.trim();
-    const m = line.match(/^(?:第\s*([一二两三四五六七八九十百〇零\d]+)\s*[章节回篇卷]|chapter\s+(\d+)|(\d+)[.、]\s+)(.*)$/i);
+    const m = line.match(
+      /^(?:第\s*([一二两三四五六七八九十百〇零\d]+)\s*[章节回篇卷]|chapter\s+(\d+)|(\d+)[.、]\s+)(.*)$/i,
+    );
     if (m && (current.lines.length || !sawHeading)) {
       if (current.lines.length) push();
       sawHeading = true;
@@ -311,7 +346,15 @@ export function parseTextChapters(text: string): IngestChapterInput[] {
 
 function chapterText(ch: IngestChapterInput): string {
   if (typeof ch.text === "string") return ch.text.trim();
-  if (Array.isArray(ch.paras)) return ch.paras.map((p) => p.map((s) => compact(s.t || s.text)).filter(Boolean).join("")).join("\n\n");
+  if (Array.isArray(ch.paras))
+    return ch.paras
+      .map((p) =>
+        p
+          .map((s) => compact(s.t || s.text))
+          .filter(Boolean)
+          .join(""),
+      )
+      .join("\n\n");
   return "";
 }
 
@@ -335,7 +378,9 @@ function normalizeIngestMeta(input: IngestBookInput) {
 async function assertBookWritable(env: Env, bookId: string, actorId?: string | null) {
   if (!actorId) return;
   const existing = await first<{ created_by: string | null }>(
-    env.DB, `SELECT created_by FROM library_books WHERE id = ?`, bookId,
+    env.DB,
+    `SELECT created_by FROM library_books WHERE id = ?`,
+    bookId,
   );
   if (existing && existing.created_by && existing.created_by !== actorId) {
     throw new Error("该书 id 已由其他发布者占用，无法覆盖");
@@ -349,7 +394,12 @@ async function storeEpubSource(env: Env, bookId: string, input: IngestBookInput)
   if (input.epubSha256 && actualHash !== input.epubSha256.toLowerCase()) {
     throw new Error("EPUB 哈希与 manifest 不一致");
   }
-  return putBlob(env, `book/${bookId}/source.epub`, epubBytes, input.epubMediaType || "application/epub+zip");
+  return putBlob(
+    env,
+    `book/${bookId}/source.epub`,
+    epubBytes,
+    input.epubMediaType || "application/epub+zip",
+  );
 }
 
 async function storedBlobRef(env: Env, key: string) {
@@ -360,7 +410,11 @@ async function storedBlobRef(env: Env, key: string) {
   );
 }
 
-async function storeChapter(env: Env, bookId: string, ch: { n: number; title: string; text: string }) {
+async function storeChapter(
+  env: Env,
+  bookId: string,
+  ch: { n: number; title: string; text: string },
+) {
   if (!ch.text) throw new Error("章节正文为空");
   await env.R2.delete(`book/${bookId}/reader.epub`).catch(() => {});
   const ref = await putBlob(env, `book/${bookId}/ch/${ch.n}`, ch.text, "text/plain; charset=utf-8");
@@ -372,8 +426,16 @@ async function storeChapter(env: Env, bookId: string, ch: { n: number; title: st
        title = excluded.title, blob_key = excluded.blob_key, walrus = excluded.walrus,
        arweave = excluded.arweave, sui_index = excluded.sui_index, text_preview = excluded.text_preview,
        text_size = excluded.text_size, created_at = excluded.created_at`,
-    bookId, ch.n, ch.title, ref.key, ref.walrus, ref.arweave, ref.sui_index,
-    ch.text.slice(0, 5000), ch.text.length, now(),
+    bookId,
+    ch.n,
+    ch.title,
+    ref.key,
+    ref.walrus,
+    ref.arweave,
+    ref.sui_index,
+    ch.text.slice(0, 5000),
+    ch.text.length,
+    now(),
   );
   // feed the knowledge graph: enqueue this chapter's sentences (inline text, so
   // the consumer needn't re-load). No-op unless GRAPH_ENABLED + queue bound.
@@ -386,10 +448,16 @@ async function storeChapter(env: Env, bookId: string, ch: { n: number; title: st
 }
 
 async function deleteStaleChapters(env: Env, bookId: string, keepNumbers: number[]) {
-  const requestedNumbers = [...new Set(keepNumbers.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0))];
+  const requestedNumbers = [
+    ...new Set(keepNumbers.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0)),
+  ];
   if (!requestedNumbers.length) return;
   const keep = new Set(requestedNumbers);
-  const existing = await all<any>(env.DB, `SELECT n, blob_key FROM library_chapters WHERE book_id = ?`, bookId);
+  const existing = await all<any>(
+    env.DB,
+    `SELECT n, blob_key FROM library_chapters WHERE book_id = ?`,
+    bookId,
+  );
   const staleRows = existing.filter((r) => !keep.has(Number(r.n)));
   const stale = staleRows.map((r) => Number(r.n));
   for (let i = 0; i < stale.length; i += 80) {
@@ -397,7 +465,8 @@ async function deleteStaleChapters(env: Env, bookId: string, keepNumbers: number
     await run(
       env.DB,
       `DELETE FROM library_chapters WHERE book_id = ? AND n IN (${batch.map(() => "?").join(",")})`,
-      bookId, ...batch,
+      bookId,
+      ...batch,
     );
   }
   // Also drop the orphaned chapter blobs (R2 object + blobs registry row) for
@@ -434,24 +503,43 @@ async function finalizeStoredBook(
     author: compact(input.author) || "佚名",
     license: meta.license,
     sourceUrl: input.sourceUrl || null,
-    epub: epubRef ? {
-      key: epubRef.key,
-      walrus: epubRef.walrus,
-      arweave: epubRef.arweave,
-      sui_index: epubRef.sui_index,
-      size: epubRef.size,
-      sha256: input.epubSha256 || null,
-      mediaType: epubRef.content_type,
-    } : input.epubSha256 ? {
-      sha256: input.epubSha256,
-      mediaType: input.epubMediaType || "application/epub+zip",
-    } : null,
-    chapters: rows.map((r) => ({ n: Number(r.n), title: r.title, walrus: r.walrus, size: Number(r.text_size || 0) })),
+    epub: epubRef
+      ? {
+          key: epubRef.key,
+          walrus: epubRef.walrus,
+          arweave: epubRef.arweave,
+          sui_index: epubRef.sui_index,
+          size: epubRef.size,
+          sha256: input.epubSha256 || null,
+          mediaType: epubRef.content_type,
+        }
+      : input.epubSha256
+        ? {
+            sha256: input.epubSha256,
+            mediaType: input.epubMediaType || "application/epub+zip",
+          }
+        : null,
+    chapters: rows.map((r) => ({
+      n: Number(r.n),
+      title: r.title,
+      walrus: r.walrus,
+      size: Number(r.text_size || 0),
+    })),
   };
-  const manifestRef = await putBlob(env, `book/${meta.bookId}/manifest`, JSON.stringify(manifest), "application/json");
-  const chainRef = await chain(env).registerObject(env, { contentId: manifestRef.walrus, kind: "book", license: meta.license });
+  const manifestRef = await putBlob(
+    env,
+    `book/${meta.bookId}/manifest`,
+    JSON.stringify(manifest),
+    "application/json",
+  );
+  const chainRef = await chain(env).registerObject(env, {
+    contentId: manifestRef.walrus,
+    kind: "book",
+    license: meta.license,
+  });
   const suiIndex = chainRef?.objectId || chainRef?.digest || manifestRef.sui_index;
-  if (chainRef) await run(env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, suiIndex, manifestRef.key);
+  if (chainRef)
+    await run(env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, suiIndex, manifestRef.key);
 
   const words = Number(input.words) || rows.reduce((sum, r) => sum + Number(r.text_size || 0), 0);
   await run(
@@ -469,14 +557,38 @@ async function finalizeStoredBook(
        license = excluded.license, source_url = excluded.source_url, featured = excluded.featured,
        manifest_key = excluded.manifest_key, walrus = excluded.walrus, arweave = excluded.arweave,
        sui_index = excluded.sui_index, updated_at = excluded.updated_at`,
-    meta.bookId, meta.title, input.subtitle || "", input.author || "佚名", input.category || "文学 · 诗",
-    input.lang || "中文", input.year || "", rows.length, words, coverClassFor(meta.bookId), meta.title[0] || "书",
-    input.blurb || rows[0]?.text_preview?.slice(0, 90) || "", input.description || "", meta.license,
-    input.sourceUrl || null, input.featured ? 1 : 0, manifestRef.key, manifestRef.walrus, manifestRef.arweave,
-    suiIndex, createdBy || null, now(), now(),
+    meta.bookId,
+    meta.title,
+    input.subtitle || "",
+    input.author || "佚名",
+    input.category || "文学 · 诗",
+    input.lang || "中文",
+    input.year || "",
+    rows.length,
+    words,
+    coverClassFor(meta.bookId),
+    meta.title[0] || "书",
+    input.blurb || rows[0]?.text_preview?.slice(0, 90) || "",
+    input.description || "",
+    meta.license,
+    input.sourceUrl || null,
+    input.featured ? 1 : 0,
+    manifestRef.key,
+    manifestRef.walrus,
+    manifestRef.arweave,
+    suiIndex,
+    createdBy || null,
+    now(),
+    now(),
   );
 
-  return { book: await getBook(env, meta.bookId), manifest: manifestRef, epub: epubRef, chapters: rows.length, sui: chainRef };
+  return {
+    book: await getBook(env, meta.bookId),
+    manifest: manifestRef,
+    epub: epubRef,
+    chapters: rows.length,
+    sui: chainRef,
+  };
 }
 
 export function normalizeBook(row: any) {
@@ -512,11 +624,13 @@ export function normalizeBook(row: any) {
     license: row.license ?? "CC0-1.0",
     sourceUrl: row.source_url ?? row.sourceUrl ?? "",
     hasEpub: Boolean(
-      row.id
-      || row.has_epub
-      || row.hasEpub
-      || /^https:\/\/www\.gutenberg\.org\/ebooks\/\d+$/i.test(row.source_url ?? row.sourceUrl ?? "")
-      || /^https:\/\/.+\.epub(?:\?.*)?$/i.test(row.source_url ?? row.sourceUrl ?? ""),
+      row.id ||
+        row.has_epub ||
+        row.hasEpub ||
+        /^https:\/\/www\.gutenberg\.org\/ebooks\/\d+$/i.test(
+          row.source_url ?? row.sourceUrl ?? "",
+        ) ||
+        /^https:\/\/.+\.epub(?:\?.*)?$/i.test(row.source_url ?? row.sourceUrl ?? ""),
     ),
   };
 }
@@ -546,15 +660,20 @@ export async function countBooks(env: Env, opts: { cat?: string } = {}) {
   return cat ? seed.filter((b) => b.cat === cat).length : seed.length;
 }
 
-export async function listBooks(env: Env, opts: { cat?: string; sort?: string; limit?: number } = {}) {
+export async function listBooks(
+  env: Env,
+  opts: { cat?: string; sort?: string; limit?: number } = {},
+) {
   const cat = scopedCategory(opts.cat);
   const limit = Math.max(1, Math.min(Number(opts.limit) || 1000, 2000));
   // Sort in SQL on real metrics so the ranking is correct even with a LIMIT.
   // readsN = distinct readers (progress), liners = total highlights.
   const sort = opts.sort || "reads";
   const order =
-    sort === "lines" || sort === "划线最多" ? "liners DESC, lb.created_at DESC"
-      : sort === "recent" || sort === "new" || sort === "最近上链" ? "lb.created_at DESC"
+    sort === "lines" || sort === "划线最多"
+      ? "liners DESC, lb.created_at DESC"
+      : sort === "recent" || sort === "new" || sort === "最近上链"
+        ? "lb.created_at DESC"
         : "readsN DESC, lb.created_at DESC";
   const sql = `SELECT lb.id, lb.title, lb.subtitle, lb.author, lb.category, lb.lang, lb.year, lb.pages,
                       lb.words AS words_count, lb.cover_class, lb.seal, lb.blurb, lb.description,
@@ -575,8 +694,10 @@ export async function listBooks(env: Env, opts: { cat?: string; sort?: string; l
   // seed fallback (no live catalog yet)
   let list = S.BOOKS.map((b) => ({ ...b, dynamic: false }));
   if (cat) list = list.filter((b) => b.cat === cat);
-  if (sort === "lines" || sort === "划线最多") list = [...list].sort((a, b) => (b.liners || 0) - (a.liners || 0));
-  else if (!(sort === "recent" || sort === "new" || sort === "最近上链")) list = [...list].sort((a, b) => (b.readsN || 0) - (a.readsN || 0));
+  if (sort === "lines" || sort === "划线最多")
+    list = [...list].sort((a, b) => (b.liners || 0) - (a.liners || 0));
+  else if (!(sort === "recent" || sort === "new" || sort === "最近上链"))
+    list = [...list].sort((a, b) => (b.readsN || 0) - (a.readsN || 0));
   return list;
 }
 
@@ -598,7 +719,11 @@ export async function getBook(env: Env, bookId: string) {
 
 export async function getToc(env: Env, bookId: string) {
   if (isQuarantinedLibraryBook(bookId)) return [];
-  const rows = await all<any>(env.DB, `SELECT n, title FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
+  const rows = await all<any>(
+    env.DB,
+    `SELECT n, title FROM library_chapters WHERE book_id = ? ORDER BY n ASC`,
+    bookId,
+  );
   if (rows.length) return rows.map((r) => ({ n: r.n, title: r.title, has: true }));
   if (await hasLibraryBooks(env)) return [];
   return S.BOOK_CONTENT[bookId]?.toc || [];
@@ -606,26 +731,38 @@ export async function getToc(env: Env, bookId: string) {
 
 export async function getChapters(env: Env, bookId: string) {
   if (isQuarantinedLibraryBook(bookId)) return [];
-  const rows = await all<any>(env.DB, `SELECT n, title, blob_key, text_preview, text_size FROM library_chapters WHERE book_id = ? ORDER BY n ASC`, bookId);
-  if (!rows.length) return !(await hasLibraryBooks(env)) ? (S.BOOK_CONTENT[bookId]?.chapters || []) : [];
+  const rows = await all<any>(
+    env.DB,
+    `SELECT n, title, blob_key, text_preview, text_size FROM library_chapters WHERE book_id = ? ORDER BY n ASC`,
+    bookId,
+  );
+  if (!rows.length)
+    return !(await hasLibraryBooks(env)) ? S.BOOK_CONTENT[bookId]?.chapters || [] : [];
   // Fetch every chapter blob in PARALLEL — this was a serial N+1 that made the
   // reader wait on (slowest R2 read × N chapters). Promise.all preserves order.
-  return Promise.all(rows.map(async (r) => {
-    const buf = await getBlob(env, r.blob_key);
-    const text = buf ? new TextDecoder().decode(buf) : (r.text_preview || "");
-    // R2 miss → only the stored preview is available; flag it so the reader can
-    // tell the user this chapter is partial instead of silently showing 5000 chars.
-    const truncated = !buf && !!text && Number(r.text_size || 0) > text.length;
-    return { ...textToChapter(bookId, r.n, r.title, text), truncated };
-  }));
+  return Promise.all(
+    rows.map(async (r) => {
+      const buf = await getBlob(env, r.blob_key);
+      const text = buf ? new TextDecoder().decode(buf) : r.text_preview || "";
+      // R2 miss → only the stored preview is available; flag it so the reader can
+      // tell the user this chapter is partial instead of silently showing 5000 chars.
+      const truncated = !buf && !!text && Number(r.text_size || 0) > text.length;
+      return { ...textToChapter(bookId, r.n, r.title, text), truncated };
+    }),
+  );
 }
 
 export async function getChapterText(env: Env, bookId: string, n: number) {
   if (isQuarantinedLibraryBook(bookId)) return null;
-  const row = await first<any>(env.DB, `SELECT title, blob_key, text_preview, text_size FROM library_chapters WHERE book_id = ? AND n = ?`, bookId, n);
+  const row = await first<any>(
+    env.DB,
+    `SELECT title, blob_key, text_preview, text_size FROM library_chapters WHERE book_id = ? AND n = ?`,
+    bookId,
+    n,
+  );
   if (row) {
     const buf = await getBlob(env, row.blob_key);
-    const text = buf ? new TextDecoder().decode(buf) : (row.text_preview || "");
+    const text = buf ? new TextDecoder().decode(buf) : row.text_preview || "";
     // R2 miss → we only have the stored preview; flag the partial read so callers
     // don't present a truncated chapter as the whole text. `!!text` guards the
     // (can't-happen-via-ingest) empty-preview row so we never warn over nothing.
@@ -636,7 +773,17 @@ export async function getChapterText(env: Env, bookId: string, n: number) {
   const seedChapters = S.BOOK_CONTENT[bookId]?.chapters;
   if (seedChapters) {
     const ch = seedChapters.find((x: any) => x.n === n);
-    if (ch) return { source: "seed", n, title: ch.title, text: ch.paras.flat().map((s: any) => s.t).join("\n"), truncated: false };
+    if (ch)
+      return {
+        source: "seed",
+        n,
+        title: ch.title,
+        text: ch.paras
+          .flat()
+          .map((s: any) => s.t)
+          .join("\n"),
+        truncated: false,
+      };
   }
   return null;
 }
@@ -651,14 +798,25 @@ function xmlEscape(value: string): string {
 
 function xhtmlParagraph(block: string): string {
   const raw = String(block || "").trim();
-  const html = raw.split("\n").map((line) => xmlEscape(line.trim())).filter(Boolean).join("<br/>");
-  const klass = /^\d{1,3}[.、]\s+.{1,16}\s*[:：]\s*(?:原錯|原错|舊脫|旧脱|刪除|删除|自|由|孫|孙|清|吳|吴|王校)/u.test(raw)
-    ? ` class="footnote"`
-    : "";
+  const html = raw
+    .split("\n")
+    .map((line) => xmlEscape(line.trim()))
+    .filter(Boolean)
+    .join("<br/>");
+  const klass =
+    /^\d{1,3}[.、]\s+.{1,16}\s*[:：]\s*(?:原錯|原错|舊脫|旧脱|刪除|删除|自|由|孫|孙|清|吳|吴|王校)/u.test(
+      raw,
+    )
+      ? ` class="footnote"`
+      : "";
   return html ? `<p${klass}>${html}</p>` : "";
 }
 
-function chapterXhtml(bookTitle: string, lang: string, ch: { n: number; title: string; text: string }): string {
+function chapterXhtml(
+  bookTitle: string,
+  lang: string,
+  ch: { n: number; title: string; text: string },
+): string {
   const blocks = normalizeTextBlocks(ch.text, ch.title || `第 ${ch.n} 章`);
   const body = blocks.map(xhtmlParagraph).filter(Boolean).join("\n");
   return `<?xml version="1.0" encoding="utf-8"?>
@@ -677,33 +835,55 @@ function chapterXhtml(bookTitle: string, lang: string, ch: { n: number; title: s
 </html>`;
 }
 
-function readerEpubFiles(book: { id: string; title: string; author: string; lang: string }, chapters: Array<{ n: number; title: string; text: string }>) {
+function readerEpubFiles(
+  book: { id: string; title: string; author: string; lang: string },
+  chapters: Array<{ n: number; title: string; text: string }>,
+) {
   const id = `liber-${book.id}`;
   const title = xmlEscape(book.title);
   const author = xmlEscape(book.author || "佚名");
   const lang = xmlEscape(book.lang || "zh");
-  const chapterItems = chapters.map((ch, i) => ({ id: `c${i + 1}`, href: `chapter-${ch.n}.xhtml`, ch }));
-  const manifestItems = chapterItems.map((item) =>
-    `    <item id="${item.id}" href="${item.href}" media-type="application/xhtml+xml"/>`,
-  ).join("\n");
+  const chapterItems = chapters.map((ch, i) => ({
+    id: `c${i + 1}`,
+    href: `chapter-${ch.n}.xhtml`,
+    ch,
+  }));
+  const manifestItems = chapterItems
+    .map(
+      (item) =>
+        `    <item id="${item.id}" href="${item.href}" media-type="application/xhtml+xml"/>`,
+    )
+    .join("\n");
   const spineItems = chapterItems.map((item) => `    <itemref idref="${item.id}"/>`).join("\n");
-  const navItems = chapterItems.map((item) =>
-    `      <li><a href="${item.href}">${xmlEscape(item.ch.title || `第 ${item.ch.n} 章`)}</a></li>`,
-  ).join("\n");
-  const ncxItems = chapterItems.map((item, i) => `    <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">
+  const navItems = chapterItems
+    .map(
+      (item) =>
+        `      <li><a href="${item.href}">${xmlEscape(item.ch.title || `第 ${item.ch.n} 章`)}</a></li>`,
+    )
+    .join("\n");
+  const ncxItems = chapterItems
+    .map(
+      (item, i) => `    <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">
       <navLabel><text>${xmlEscape(item.ch.title || `第 ${item.ch.n} 章`)}</text></navLabel>
       <content src="${item.href}"/>
-    </navPoint>`).join("\n");
+    </navPoint>`,
+    )
+    .join("\n");
 
   return [
     { name: "mimetype", data: "application/epub+zip" },
-    { name: "META-INF/container.xml", data: `<?xml version="1.0" encoding="utf-8"?>
+    {
+      name: "META-INF/container.xml",
+      data: `<?xml version="1.0" encoding="utf-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>` },
-    { name: "OEBPS/styles.css", data: `body {
+</container>`,
+    },
+    {
+      name: "OEBPS/styles.css",
+      data: `body {
   color: #2d261f;
   font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
   line-height: 1.85;
@@ -727,8 +907,11 @@ p.footnote {
   font-size: .86em;
   padding-left: .8em;
   text-indent: 0;
-}` },
-    { name: "OEBPS/nav.xhtml", data: `<?xml version="1.0" encoding="utf-8"?>
+}`,
+    },
+    {
+      name: "OEBPS/nav.xhtml",
+      data: `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${lang}">
 <head>
@@ -743,8 +926,11 @@ ${navItems}
     </ol>
   </nav>
 </body>
-</html>` },
-    { name: "OEBPS/toc.ncx", data: `<?xml version="1.0" encoding="utf-8"?>
+</html>`,
+    },
+    {
+      name: "OEBPS/toc.ncx",
+      data: `<?xml version="1.0" encoding="utf-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="${lang}">
   <head>
     <meta name="dtb:uid" content="${xmlEscape(id)}"/>
@@ -756,8 +942,11 @@ ${navItems}
   <navMap>
 ${ncxItems}
   </navMap>
-</ncx>` },
-    { name: "OEBPS/content.opf", data: `<?xml version="1.0" encoding="utf-8"?>
+</ncx>`,
+    },
+    {
+      name: "OEBPS/content.opf",
+      data: `<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="bookid">${xmlEscape(id)}</dc:identifier>
@@ -775,7 +964,8 @@ ${manifestItems}
   <spine toc="ncx">
 ${spineItems}
   </spine>
-</package>` },
+</package>`,
+    },
     ...chapterItems.map((item) => ({
       name: `OEBPS/${item.href}`,
       data: chapterXhtml(book.title, lang, item.ch),
@@ -790,7 +980,7 @@ function crc32(data: Uint8Array): number {
     crcTable = new Uint32Array(256);
     for (let n = 0; n < 256; n += 1) {
       let c = n;
-      for (let k = 0; k < 8; k += 1) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
       crcTable[n] = c >>> 0;
     }
   }
@@ -890,23 +1080,34 @@ export async function getReaderEpub(env: Env, bookId: string): Promise<Uint8Arra
     bookId,
   );
   if (!rows.length) return null;
-  const chapters = (await Promise.all(rows.map(async (row) => {
-    const buf = await getBlob(env, row.blob_key);
-    const text = (buf ? new TextDecoder().decode(buf) : row.text_preview || "").trim();
-    if (!text) return null;
-    // Don't bake a truncated chapter (R2 miss → preview only) into a downloadable
-    // EPUB: a permanent artifact must not silently drop the bulk of the chapter.
-    if (!buf && Number(row.text_size || 0) > text.length) return null;
-    return { n: Number(row.n), title: row.title || `第 ${row.n} 章`, text };
-  }))).filter(Boolean) as Array<{ n: number; title: string; text: string }>;
+  const chapters = (
+    await Promise.all(
+      rows.map(async (row) => {
+        const buf = await getBlob(env, row.blob_key);
+        const text = (buf ? new TextDecoder().decode(buf) : row.text_preview || "").trim();
+        if (!text) return null;
+        // Don't bake a truncated chapter (R2 miss → preview only) into a downloadable
+        // EPUB: a permanent artifact must not silently drop the bulk of the chapter.
+        if (!buf && Number(row.text_size || 0) > text.length) return null;
+        return { n: Number(row.n), title: row.title || `第 ${row.n} 章`, text };
+      }),
+    )
+  ).filter(Boolean) as Array<{ n: number; title: string; text: string }>;
   if (!chapters.length) return null;
-  const epub = zipStore(readerEpubFiles({
-    id: book.id,
-    title: book.t || bookId,
-    author: book.a || "佚名",
-    lang: book.lang || "zh",
-  }, chapters));
-  await env.R2.put(cacheKey, epub, { httpMetadata: { contentType: "application/epub+zip" } }).catch(() => {});
+  const epub = zipStore(
+    readerEpubFiles(
+      {
+        id: book.id,
+        title: book.t || bookId,
+        author: book.a || "佚名",
+        lang: book.lang || "zh",
+      },
+      chapters,
+    ),
+  );
+  await env.R2.put(cacheKey, epub, { httpMetadata: { contentType: "application/epub+zip" } }).catch(
+    () => {},
+  );
   return epub;
 }
 
@@ -914,9 +1115,15 @@ export async function searchDynamic(env: Env, term: string) {
   if (!term) return { books: [], sentences: [] };
   const tokens = searchQueryTokens(term);
   const sqlTerms = sqlLikeSearchTerms(term);
-  const bookWhere = sqlTerms.map(() => "(title LIKE ? OR subtitle LIKE ? OR author LIKE ? OR category LIKE ? OR blurb LIKE ?)").join(" OR ");
+  const bookWhere = sqlTerms
+    .map(
+      () => "(title LIKE ? OR subtitle LIKE ? OR author LIKE ? OR category LIKE ? OR blurb LIKE ?)",
+    )
+    .join(" OR ");
   const bookParams = sqlTerms.flatMap((sqlTerm) => Array(5).fill(`%${sqlTerm}%`));
-  const sentenceWhere = sqlTerms.map(() => "(lc.title LIKE ? OR lc.text_preview LIKE ?)").join(" OR ");
+  const sentenceWhere = sqlTerms
+    .map(() => "(lc.title LIKE ? OR lc.text_preview LIKE ?)")
+    .join(" OR ");
   const sentenceParams = sqlTerms.flatMap((sqlTerm) => Array(2).fill(`%${sqlTerm}%`));
   const candidateLimit = tokens.length > 1 ? 100 : 20;
   const rows = await all<any>(
@@ -928,7 +1135,8 @@ export async function searchDynamic(env: Env, term: string) {
      WHERE ${visibleLibraryBookWhere("library_books")}
        AND (${bookWhere})
      ORDER BY created_at DESC LIMIT ?`,
-    ...bookParams, candidateLimit,
+    ...bookParams,
+    candidateLimit,
   );
   const hitRows = await all<any>(
     env.DB,
@@ -945,10 +1153,21 @@ export async function searchDynamic(env: Env, term: string) {
     // per-match index like `s1`/`s2` that wouldn't resolve in the reader. Only the
     // preview is stored, so anchors exist for matches within the preview window.
     const flat = textToChapter(r.book_id, r.n, r.title, r.text_preview || "").paras.flat();
-    return flat.filter((s) => s.t && s.t.includes(term)).slice(0, 2)
-      .map((s) => ({ sid: s.id, t: s.t, book: r.book_title, bookId: r.book_id, chap: `第${r.n}章` }));
+    return flat
+      .filter((s) => s.t && s.t.includes(term))
+      .slice(0, 2)
+      .map((s) => ({
+        sid: s.id,
+        t: s.t,
+        book: r.book_title,
+        bookId: r.book_id,
+        chap: `第${r.n}章`,
+      }));
   });
-  const books = filterTokenBookMatches(prioritizeFullTermBookMatches(rows.map(normalizeBook), term, sqlTerms[0] || term), tokens).slice(0, 20);
+  const books = filterTokenBookMatches(
+    prioritizeFullTermBookMatches(rows.map(normalizeBook), term, sqlTerms[0] || term),
+    tokens,
+  ).slice(0, 20);
   return { books, sentences };
 }
 
@@ -976,24 +1195,38 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
     author: compact(input.author) || "佚名",
     license: meta.license,
     sourceUrl: input.sourceUrl || null,
-    epub: epubRef ? {
-      key: epubRef.key,
-      walrus: epubRef.walrus,
-      arweave: epubRef.arweave,
-      sui_index: epubRef.sui_index,
-      size: epubRef.size,
-      sha256: input.epubSha256 || null,
-      mediaType: epubRef.content_type,
-    } : input.epubSha256 ? {
-      sha256: input.epubSha256,
-      mediaType: input.epubMediaType || "application/epub+zip",
-    } : null,
+    epub: epubRef
+      ? {
+          key: epubRef.key,
+          walrus: epubRef.walrus,
+          arweave: epubRef.arweave,
+          sui_index: epubRef.sui_index,
+          size: epubRef.size,
+          sha256: input.epubSha256 || null,
+          mediaType: epubRef.content_type,
+        }
+      : input.epubSha256
+        ? {
+            sha256: input.epubSha256,
+            mediaType: input.epubMediaType || "application/epub+zip",
+          }
+        : null,
     chapters: refs.map((r) => ({ n: r.n, title: r.title, walrus: r.ref.walrus, size: r.ref.size })),
   };
-  const manifestRef = await putBlob(env, `book/${meta.bookId}/manifest`, JSON.stringify(manifest), "application/json");
-  const chainRef = await chain(env).registerObject(env, { contentId: manifestRef.walrus, kind: "book", license: meta.license });
+  const manifestRef = await putBlob(
+    env,
+    `book/${meta.bookId}/manifest`,
+    JSON.stringify(manifest),
+    "application/json",
+  );
+  const chainRef = await chain(env).registerObject(env, {
+    contentId: manifestRef.walrus,
+    kind: "book",
+    license: meta.license,
+  });
   const suiIndex = chainRef?.objectId || chainRef?.digest || manifestRef.sui_index;
-  if (chainRef) await run(env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, suiIndex, manifestRef.key);
+  if (chainRef)
+    await run(env.DB, `UPDATE blobs SET sui_index = ? WHERE key = ?`, suiIndex, manifestRef.key);
 
   await run(
     env.DB,
@@ -1010,31 +1243,69 @@ export async function ingestBook(env: Env, input: IngestBookInput, createdBy?: s
        license = excluded.license, source_url = excluded.source_url, featured = excluded.featured,
        manifest_key = excluded.manifest_key, walrus = excluded.walrus, arweave = excluded.arweave,
        sui_index = excluded.sui_index, updated_at = excluded.updated_at`,
-    meta.bookId, meta.title, input.subtitle || "", input.author || "佚名", input.category || "文学 · 诗",
-    input.lang || "中文", input.year || "", chapters.length, words, coverClassFor(meta.bookId), meta.title[0] || "书",
-    input.blurb || chapters[0].text.slice(0, 90), input.description || "", meta.license,
-    input.sourceUrl || null, input.featured ? 1 : 0, manifestRef.key, manifestRef.walrus, manifestRef.arweave,
-    suiIndex, createdBy || null, now(), now(),
+    meta.bookId,
+    meta.title,
+    input.subtitle || "",
+    input.author || "佚名",
+    input.category || "文学 · 诗",
+    input.lang || "中文",
+    input.year || "",
+    chapters.length,
+    words,
+    coverClassFor(meta.bookId),
+    meta.title[0] || "书",
+    input.blurb || chapters[0].text.slice(0, 90),
+    input.description || "",
+    meta.license,
+    input.sourceUrl || null,
+    input.featured ? 1 : 0,
+    manifestRef.key,
+    manifestRef.walrus,
+    manifestRef.arweave,
+    suiIndex,
+    createdBy || null,
+    now(),
+    now(),
   );
 
-  return { book: await getBook(env, meta.bookId), manifest: manifestRef, epub: epubRef, chapters: refs.length, sui: chainRef };
+  return {
+    book: await getBook(env, meta.bookId),
+    manifest: manifestRef,
+    epub: epubRef,
+    chapters: refs.length,
+    sui: chainRef,
+  };
 }
 
-export async function beginChunkedBookIngest(env: Env, input: IngestBookInput, createdBy?: string | null) {
+export async function beginChunkedBookIngest(
+  env: Env,
+  input: IngestBookInput,
+  createdBy?: string | null,
+) {
   const meta = normalizeIngestMeta(input);
   await assertBookWritable(env, meta.bookId, createdBy);
   const epub = await storeEpubSource(env, meta.bookId, input);
   return { id: meta.bookId, title: meta.title, license: meta.license, epub };
 }
 
-export async function ingestBookChapter(env: Env, input: IngestBookInput, chapter: IngestChapterInput, idx = 0, createdBy?: string | null) {
+export async function ingestBookChapter(
+  env: Env,
+  input: IngestBookInput,
+  chapter: IngestChapterInput,
+  idx = 0,
+  createdBy?: string | null,
+) {
   const meta = normalizeIngestMeta(input);
   await assertBookWritable(env, meta.bookId, createdBy);
   const normalized = normalizeIngestChapter(chapter, idx);
   return storeChapter(env, meta.bookId, normalized);
 }
 
-export async function finalizeChunkedBookIngest(env: Env, input: ChunkedIngestFinalizeInput, createdBy?: string | null) {
+export async function finalizeChunkedBookIngest(
+  env: Env,
+  input: ChunkedIngestFinalizeInput,
+  createdBy?: string | null,
+) {
   const meta = normalizeIngestMeta(input);
   await assertBookWritable(env, meta.bookId, createdBy);
   return finalizeStoredBook(env, input, meta, createdBy);

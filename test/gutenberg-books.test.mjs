@@ -21,17 +21,39 @@ test("Gutenberg import candidates are uniquely keyed and classified by language"
   const audit = auditBookCatalog(BOOKS);
   assert.equal(audit.ok, true, audit.errors.join("\n"));
   assert.equal(audit.total >= 600, true, "candidate list should keep broad multilingual coverage");
-  assert.equal(Object.keys(audit.byLang).length >= 20, true, "candidate list should remain multilingual");
+  assert.equal(
+    Object.keys(audit.byLang).length >= 20,
+    true,
+    "candidate list should remain multilingual",
+  );
   for (const lang of ["zh", "en", "ja", "sa", "ar", "fa", "fr", "de", "pt", "la"]) {
     assert.equal(audit.byLang[lang] > 0, true, `expected ${lang} catalog entries`);
   }
-  assert.equal(audit.byLang.ko || 0, 0, "known Gutenberg Korean entry is copyrighted, so it must stay excluded");
+  assert.equal(
+    audit.byLang.ko || 0,
+    0,
+    "known Gutenberg Korean entry is copyrighted, so it must stay excluded",
+  );
 });
 
 test("Gutenberg import catalog audit rejects duplicate sources and bad language categories", () => {
   const fixture = [
-    { id: "one-gutenberg-en", pg: 1, lang: "en", title: "One", category: "English · Fiction", expect: "One" },
-    { id: "two-gutenberg-en", pg: 1, lang: "zh", title: "Two", category: "English · Fiction", expect: "Two" },
+    {
+      id: "one-gutenberg-en",
+      pg: 1,
+      lang: "en",
+      title: "One",
+      category: "English · Fiction",
+      expect: "One",
+    },
+    {
+      id: "two-gutenberg-en",
+      pg: 1,
+      lang: "zh",
+      title: "Two",
+      category: "English · Fiction",
+      expect: "Two",
+    },
   ];
   const audit = auditBookCatalog(fixture);
   assert.equal(audit.ok, false);
@@ -64,27 +86,45 @@ test("Gutenberg import batches can be selected by language before network work",
   assert.deepEqual(DEFAULT_IMPORT_LANGS, ["zh"]);
   const zhCount = BOOKS.filter((book) => book.lang === "zh").length;
   assert.equal(selectBooks({ defaultLangs: DEFAULT_IMPORT_LANGS }, BOOKS).length, zhCount);
-  assert.equal(selectBooks({ defaultLangs: DEFAULT_IMPORT_LANGS, allLangs: true }, BOOKS).length, BOOKS.length);
+  assert.equal(
+    selectBooks({ defaultLangs: DEFAULT_IMPORT_LANGS, allLangs: true }, BOOKS).length,
+    BOOKS.length,
+  );
 
   const zh = selectBooks({ langs: ["zh"] }, BOOKS);
   assert.equal(zh.length, zhCount);
-  assert.equal(zh.every((book) => book.lang === "zh"), true);
+  assert.equal(
+    zh.every((book) => book.lang === "zh"),
+    true,
+  );
 
   const zhPage = selectBooks({ langs: ["zh"], limit: 5, offset: 10 }, BOOKS);
   assert.equal(zhPage.length, 5);
   assert.deepEqual(zhPage, zh.slice(10, 15));
 
   const jaSample = selectBooks({ langs: ["ja"], ids: ["rashomon-gutenberg-ja"] }, BOOKS);
-  assert.deepEqual(jaSample.map((book) => book.id), ["rashomon-gutenberg-ja"]);
+  assert.deepEqual(
+    jaSample.map((book) => book.id),
+    ["rashomon-gutenberg-ja"],
+  );
 
   const sanskrit = selectBooks({ langs: ["梵文"] }, BOOKS);
-  assert.deepEqual(sanskrit.map((book) => book.id), ["sri-vishnu-sahasranaamam-gutenberg-sa"]);
+  assert.deepEqual(
+    sanskrit.map((book) => book.id),
+    ["sri-vishnu-sahasranaamam-gutenberg-sa"],
+  );
 
-  const explicitIdBypassesDefaultZh = selectBooks({
-    defaultLangs: DEFAULT_IMPORT_LANGS,
-    ids: ["frankenstein-gutenberg-en"],
-  }, BOOKS);
-  assert.deepEqual(explicitIdBypassesDefaultZh.map((book) => book.id), ["frankenstein-gutenberg-en"]);
+  const explicitIdBypassesDefaultZh = selectBooks(
+    {
+      defaultLangs: DEFAULT_IMPORT_LANGS,
+      ids: ["frankenstein-gutenberg-en"],
+    },
+    BOOKS,
+  );
+  assert.deepEqual(
+    explicitIdBypassesDefaultZh.map((book) => book.id),
+    ["frankenstein-gutenberg-en"],
+  );
 
   const summary = summarizeCatalogAudit(auditBookCatalog(zh), zh);
   assert.deepEqual(summary.byLang, { zh: zh.length });
@@ -98,7 +138,10 @@ test("Gutenberg importer parses bounded concurrency options", () => {
   assert.equal(options.concurrency, 3);
   assert.equal(options.chapterConcurrency, 4);
   assert.throws(() => parseArgs(["--concurrency", "0"]), /--concurrency must be positive/);
-  assert.throws(() => parseArgs(["--chapter-concurrency", "0"]), /--chapter-concurrency must be positive/);
+  assert.throws(
+    () => parseArgs(["--chapter-concurrency", "0"]),
+    /--chapter-concurrency must be positive/,
+  );
 });
 
 test("Gutenberg quality checks reject suspicious Chinese chapter numbering gaps", () => {
@@ -124,7 +167,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 正文二
 *** END OF THE PROJECT GUTENBERG EBOOK 恨海 ***`,
   );
-  assert.deepEqual(hui.map((chapter) => chapter.title), ["第一回 訂婚姻掌判代通詞", "第二回 遇離亂荒村"]);
+  assert.deepEqual(
+    hui.map((chapter) => chapter.title),
+    ["第一回 訂婚姻掌判代通詞", "第二回 遇離亂荒村"],
+  );
 
   const pathHui = parseGutenbergPlainTextChapters(
     { title: "老殘遊記續集", textSource: { kind: "hui" } },
@@ -133,7 +179,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 老殘遊記續集/第02回
 正文二`,
   );
-  assert.deepEqual(pathHui.map((chapter) => chapter.title), ["第01回", "第02回"]);
+  assert.deepEqual(
+    pathHui.map((chapter) => chapter.title),
+    ["第01回", "第02回"],
+  );
 
   const nextLineHui = parseGutenbergPlainTextChapters(
     { title: "常言道", textSource: { kind: "hui-next-title-line" } },
@@ -146,7 +195,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 怎肯低頭
 正文二`,
   );
-  assert.deepEqual(nextLineHui.map((chapter) => chapter.title), ["第一回 論人我當思人即我我即人 得是失失是得", "第二回 怎肯低頭"]);
+  assert.deepEqual(
+    nextLineHui.map((chapter) => chapter.title),
+    ["第一回 論人我當思人即我我即人 得是失失是得", "第二回 怎肯低頭"],
+  );
   assert.equal(nextLineHui[0].text.trim(), "正文一");
 
   const play = parseGutenbergPlainTextChapters(
@@ -155,7 +207,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 正文一 接上一段《第二出　定情》
 正文二`,
   );
-  assert.deepEqual(play.map((chapter) => chapter.title), ["第一出 傳概", "第二出 定情"]);
+  assert.deepEqual(
+    play.map((chapter) => chapter.title),
+    ["第一出 傳概", "第二出 定情"],
+  );
 
   const numericPlay = parseGutenbergPlainTextChapters(
     { title: "牡丹亭", textSource: { kind: "play-act" } },
@@ -164,7 +219,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 第02齣 言懷
 正文二`,
   );
-  assert.deepEqual(numericPlay.map((chapter) => chapter.title), ["第一出 標目", "第二出 言懷"]);
+  assert.deepEqual(
+    numericPlay.map((chapter) => chapter.title),
+    ["第一出 標目", "第二出 言懷"],
+  );
 
   const barePlay = parseGutenbergPlainTextChapters(
     { title: "白兔記", textSource: { kind: "play-act" } },
@@ -173,7 +231,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 第二出 訪友
 正文二`,
   );
-  assert.deepEqual(barePlay.map((chapter) => chapter.title), ["第一出 開宗", "第二出 訪友"]);
+  assert.deepEqual(
+    barePlay.map((chapter) => chapter.title),
+    ["第一出 開宗", "第二出 訪友"],
+  );
 
   const zaju = parseGutenbergPlainTextChapters(
     { title: "竇娥寃", textSource: { kind: "zaju-fold" } },
@@ -184,7 +245,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 ●第二折
 第二折正文`,
   );
-  assert.deepEqual(zaju.map((chapter) => chapter.title), ["楔子", "第一折", "第二折"]);
+  assert.deepEqual(
+    zaju.map((chapter) => chapter.title),
+    ["楔子", "第一折", "第二折"],
+  );
 
   const markedChapters = parseGutenbergPlainTextChapters(
     { title: "天妃顯聖錄", textSource: { kind: "zh-chapter" } },
@@ -193,10 +257,16 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 ●第二章聞異香我後降世
 正文二`,
   );
-  assert.deepEqual(markedChapters.map((chapter) => chapter.title), ["第一章 求佳兒大士賜丸", "第二章 聞異香我後降世"]);
+  assert.deepEqual(
+    markedChapters.map((chapter) => chapter.title),
+    ["第一章 求佳兒大士賜丸", "第二章 聞異香我後降世"],
+  );
 
   const classic = parseGutenbergPlainTextChapters(
-    { title: "春秋繁露", textSource: { kind: "classic-ordinal", startPattern: "春秋繁露\\s+卷第一\\s+楚莊王第一" } },
+    {
+      title: "春秋繁露",
+      textSource: { kind: "classic-ordinal", startPattern: "春秋繁露\\s+卷第一\\s+楚莊王第一" },
+    },
     `目錄
 楚莊王第一
 春秋繁露
@@ -209,7 +279,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 精華第四
 正文四`,
   );
-  assert.deepEqual(classic.map((chapter) => chapter.title), ["楚莊王第一", "玉杯第二", "闕文第三", "精華第四"]);
+  assert.deepEqual(
+    classic.map((chapter) => chapter.title),
+    ["楚莊王第一", "玉杯第二", "闕文第三", "精華第四"],
+  );
   assert.match(classic[2].text, /原文标为/);
 
   const shangzi = parseGutenbergPlainTextChapters(
@@ -225,7 +298,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 外內第二十二
 正文二十二`,
   );
-  assert.deepEqual(shangzi.map((chapter) => chapter.title), ["更法第一", "墾令第二", "刑約第十六（缺）", "賞刑第十七", "闕文第二十一", "外內第二十二"]);
+  assert.deepEqual(
+    shangzi.map((chapter) => chapter.title),
+    ["更法第一", "墾令第二", "刑約第十六（缺）", "賞刑第十七", "闕文第二十一", "外內第二十二"],
+  );
   assert.match(shangzi[2].text, /原文标为/);
   assert.match(shangzi[4].text, /原文标为/);
 
@@ -237,7 +313,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 言語第二
 正文二`,
   );
-  assert.deepEqual(shishuo.map((chapter) => chapter.title), ["德行第一", "言語第二"]);
+  assert.deepEqual(
+    shishuo.map((chapter) => chapter.title),
+    ["德行第一", "言語第二"],
+  );
 
   const wuyue = parseGutenbergPlainTextChapters(
     { title: "吳越春秋", textSource: { kind: "spaced-classic-ordinal" } },
@@ -246,7 +325,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 吳 越 春 秋 吳 王 壽 夢 傳 第 二
 正文二`,
   );
-  assert.deepEqual(wuyue.map((chapter) => chapter.title), ["吳越春秋吳太伯傳第一", "吳越春秋吳王壽夢傳第二"]);
+  assert.deepEqual(
+    wuyue.map((chapter) => chapter.title),
+    ["吳越春秋吳太伯傳第一", "吳越春秋吳王壽夢傳第二"],
+  );
 
   const quoted = parseGutenbergPlainTextChapters(
     { title: "隨園詩話", textSource: { kind: "quoted-volume" } },
@@ -257,7 +339,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 《補遺卷一O》
 補遺十`,
   );
-  assert.deepEqual(quoted.map((chapter) => chapter.title), ["卷十", "卷十一", "補遺卷十"]);
+  assert.deepEqual(
+    quoted.map((chapter) => chapter.title),
+    ["卷十", "卷十一", "補遺卷十"],
+  );
 
   const shanhaijing = parseGutenbergPlainTextChapters(
     { title: "山海經", textSource: { kind: "known-title-list", titles: ["南山經", "西山經"] } },
@@ -267,17 +352,26 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 西山經
 正文二`,
   );
-  assert.deepEqual(shanhaijing.map((chapter) => chapter.title), ["南山經", "西山經"]);
+  assert.deepEqual(
+    shanhaijing.map((chapter) => chapter.title),
+    ["南山經", "西山經"],
+  );
 
   const bencao = parseGutenbergPlainTextChapters(
-    { title: "本草備要", textSource: { kind: "known-title-list", titles: ["穀菜部", "金石水土部"] } },
+    {
+      title: "本草備要",
+      textSource: { kind: "known-title-list", titles: ["穀菜部", "金石水土部"] },
+    },
     `本草備要
 穀菜部
 正文一
 金石水土部
 正文二`,
   );
-  assert.deepEqual(bencao.map((chapter) => chapter.title), ["穀菜部", "金石水土部"]);
+  assert.deepEqual(
+    bencao.map((chapter) => chapter.title),
+    ["穀菜部", "金石水土部"],
+  );
 
   const noisyVolume = parseGutenbergPlainTextChapters(
     { title: "清代野记", textSource: { kind: "numbered-volume" } },
@@ -286,16 +380,29 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 第二卷????卷上二
 正文二`,
   );
-  assert.deepEqual(noisyVolume.map((chapter) => chapter.title), ["第一卷 卷上一", "第二卷 卷上二"]);
+  assert.deepEqual(
+    noisyVolume.map((chapter) => chapter.title),
+    ["第一卷 卷上一", "第二卷 卷上二"],
+  );
 
   const mappedTitles = parseGutenbergPlainTextChapters(
-    { title: "徬徨", textSource: { kind: "known-title-list", titles: ["傷逝【1】 ──涓生的手記", "高老夫子〔１〕"], titleMap: { "傷逝【1】 ──涓生的手記": "傷逝", "高老夫子〔１〕": "高老夫子" } } },
+    {
+      title: "徬徨",
+      textSource: {
+        kind: "known-title-list",
+        titles: ["傷逝【1】 ──涓生的手記", "高老夫子〔１〕"],
+        titleMap: { "傷逝【1】 ──涓生的手記": "傷逝", "高老夫子〔１〕": "高老夫子" },
+      },
+    },
     `傷逝【1】 ──涓生的手記
 正文一
 高老夫子〔１〕
 正文二`,
   );
-  assert.deepEqual(mappedTitles.map((chapter) => chapter.title), ["傷逝", "高老夫子"]);
+  assert.deepEqual(
+    mappedTitles.map((chapter) => chapter.title),
+    ["傷逝", "高老夫子"],
+  );
 
   const xiaoshuo = parseGutenbergPlainTextChapters(
     { title: "中國小說史略", textSource: { kind: "zh-piece" } },
@@ -306,11 +413,10 @@ test("Gutenberg plain-text fallback splits Chinese chapter shapes", () => {
 第二篇　神話与傳說
 正文二`,
   );
-  assert.deepEqual(xiaoshuo.map((chapter) => chapter.title), [
-    "題記",
-    "第一篇 史家對于小說之著錄及論述",
-    "第二篇 神話与傳說",
-  ]);
+  assert.deepEqual(
+    xiaoshuo.map((chapter) => chapter.title),
+    ["題記", "第一篇 史家對于小說之著錄及論述", "第二篇 神話与傳說"],
+  );
 });
 
 test("Gutenberg plain-text fallback splits bracketed Chinese volumes", () => {
@@ -322,7 +428,10 @@ test("Gutenberg plain-text fallback splits bracketed Chinese volumes", () => {
 【卷二】 五十首 頁二十
 正文二`,
   );
-  assert.deepEqual(chapters.map((chapter) => chapter.title), ["卷一 五十首", "卷二 五十首"]);
+  assert.deepEqual(
+    chapters.map((chapter) => chapter.title),
+    ["卷一 五十首", "卷二 五十首"],
+  );
 });
 
 test("Gutenberg plain-text fallback splits Chinese source-specific headings", () => {
@@ -334,7 +443,10 @@ test("Gutenberg plain-text fallback splits Chinese source-specific headings", ()
 二之具
 正文二`,
   );
-  assert.deepEqual(chajing.map((chapter) => chapter.title), ["一之源", "二之具"]);
+  assert.deepEqual(
+    chajing.map((chapter) => chapter.title),
+    ["一之源", "二之具"],
+  );
 
   const jinsi = parseGutenbergPlainTextChapters(
     { title: "近思錄", textSource: { kind: "book-prefixed-volume" } },
@@ -344,7 +456,10 @@ test("Gutenberg plain-text fallback splits Chinese source-specific headings", ()
 《近思錄》卷二 為學
 正文二`,
   );
-  assert.deepEqual(jinsi.map((chapter) => chapter.title), ["卷一 道體", "卷二 為學"]);
+  assert.deepEqual(
+    jinsi.map((chapter) => chapter.title),
+    ["卷一 道體", "卷二 為學"],
+  );
 
   const soushen = parseGutenbergPlainTextChapters(
     { title: "搜神記", textSource: { kind: "numbered-volume" } },
@@ -354,7 +469,10 @@ test("Gutenberg plain-text fallback splits Chinese source-specific headings", ()
 第二卷
 正文二`,
   );
-  assert.deepEqual(soushen.map((chapter) => chapter.title), ["第一卷", "第二卷"]);
+  assert.deepEqual(
+    soushen.map((chapter) => chapter.title),
+    ["第一卷", "第二卷"],
+  );
 
   const places = parseGutenbergPlainTextChapters(
     { title: "瀛涯勝覽", textSource: { kind: "short-place" } },
@@ -367,7 +485,10 @@ test("Gutenberg plain-text fallback splits Chinese source-specific headings", ()
 後序
 跋文`,
   );
-  assert.deepEqual(places.map((chapter) => chapter.title), ["馬敬序", "占城國", "爪哇國", "後序"]);
+  assert.deepEqual(
+    places.map((chapter) => chapter.title),
+    ["馬敬序", "占城國", "爪哇國", "後序"],
+  );
 
   const diary = parseGutenbergPlainTextChapters(
     { title: "狂人日記", textSource: { kind: "bare-han-section" } },
@@ -378,10 +499,16 @@ test("Gutenberg plain-text fallback splits Chinese source-specific headings", ()
 十三
 正文十三`,
   );
-  assert.deepEqual(diary.map((chapter) => chapter.title), ["一", "二", "十三"]);
+  assert.deepEqual(
+    diary.map((chapter) => chapter.title),
+    ["一", "二", "十三"],
+  );
 
   const chenlun = parseGutenbergPlainTextChapters(
-    { title: "沉沦", textSource: { kind: "bare-han-section", startPattern: "正文一", initialTitle: "一" } },
+    {
+      title: "沉沦",
+      textSource: { kind: "bare-han-section", startPattern: "正文一", initialTitle: "一" },
+    },
     `书名: 沉沦
 正文一
 二
@@ -389,7 +516,10 @@ test("Gutenberg plain-text fallback splits Chinese source-specific headings", ()
 三
 正文三`,
   );
-  assert.deepEqual(chenlun.map((chapter) => chapter.title), ["一", "二", "三"]);
+  assert.deepEqual(
+    chenlun.map((chapter) => chapter.title),
+    ["一", "二", "三"],
+  );
   assert.match(chenlun[0].text, /正文一/);
   assert.doesNotMatch(chenlun[0].text, /书名/);
 
@@ -403,11 +533,22 @@ test("Gutenberg plain-text fallback splits Chinese source-specific headings", ()
 開闢紀
 正文一`,
   );
-  assert.deepEqual(taiwan.map((chapter) => chapter.title), ["序", "捲一 開闢紀"]);
+  assert.deepEqual(
+    taiwan.map((chapter) => chapter.title),
+    ["序", "捲一 開闢紀"],
+  );
   assert.match(taiwan[1].text, /開闢紀/);
 
   const single = parseGutenbergPlainTextChapters(
-    { title: "大英國人事略說", textSource: { kind: "single-heading", startPattern: "英吉利國人品國事略說", endPattern: "大英國人事略說終", title: "英吉利國人品國事略說" } },
+    {
+      title: "大英國人事略說",
+      textSource: {
+        kind: "single-heading",
+        startPattern: "英吉利國人品國事略說",
+        endPattern: "大英國人事略說終",
+        title: "英吉利國人品國事略說",
+      },
+    },
     `英文導言
 英吉利國人品國事略說
 英國人原活之地，距中華有七萬里之遠。
@@ -427,7 +568,10 @@ page image caption`,
 第二章　優　勝　記　略
 正文二`,
   );
-  assert.deepEqual(zhChapter.map((chapter) => chapter.title), ["第一章 序", "第二章 優勝記略"]);
+  assert.deepEqual(
+    zhChapter.map((chapter) => chapter.title),
+    ["第一章 序", "第二章 優勝記略"],
+  );
 
   const cleanHui = parseGutenbergPlainTextChapters(
     { title: "紅樓夢", textSource: { kind: "hui-clean" } },
@@ -438,10 +582,10 @@ page image caption`,
 第二回 賈夫人仙逝揚州城　冷子興演說榮國府　話 說賈夫人
 正文二`,
   );
-  assert.deepEqual(cleanHui.map((chapter) => chapter.title), [
-    "第一回 甄士隱夢幻識通靈 賈雨村風塵怀閨秀",
-    "第二回 賈夫人仙逝揚州城 冷子興演說榮國府",
-  ]);
+  assert.deepEqual(
+    cleanHui.map((chapter) => chapter.title),
+    ["第一回 甄士隱夢幻識通靈 賈雨村風塵怀閨秀", "第二回 賈夫人仙逝揚州城 冷子興演說榮國府"],
+  );
   assert.match(cleanHui[0].text, /正文續/);
 
   const huyu = parseGutenbergPlainTextChapters(
@@ -458,11 +602,21 @@ Exercise 2.
 Based on Lesson 5.
 續文。`,
   );
-  assert.deepEqual(huyu.map((chapter) => chapter.title), ["练习一", "练习二"]);
+  assert.deepEqual(
+    huyu.map((chapter) => chapter.title),
+    ["练习一", "练习二"],
+  );
   assert.match(huyu[1].text, /續文/);
 
   const knownTitles = parseGutenbergPlainTextChapters(
-    { title: "吶喊", textSource: { kind: "known-title-list", titles: ["《吶喊》自序", "狂人日記", "藥", "阿Q正傳"], titleMap: { "阿Q正傳": "阿Ｑ正傳" } } },
+    {
+      title: "吶喊",
+      textSource: {
+        kind: "known-title-list",
+        titles: ["《吶喊》自序", "狂人日記", "藥", "阿Q正傳"],
+        titleMap: { 阿Q正傳: "阿Ｑ正傳" },
+      },
+    },
     `《吶喊》自序
 《吶喊》自序
 序文
@@ -478,22 +632,40 @@ Based on Lesson 5.
 第一章序
 正文四`,
   );
-  assert.deepEqual(knownTitles.map((chapter) => chapter.title), ["《吶喊》自序", "狂人日記", "藥", "阿Ｑ正傳"]);
+  assert.deepEqual(
+    knownTitles.map((chapter) => chapter.title),
+    ["《吶喊》自序", "狂人日記", "藥", "阿Ｑ正傳"],
+  );
   assert.match(knownTitles[1].text, /^一\n正文一/u);
   assert.match(knownTitles[3].text, /第一章序/);
 
   const duplicateBookTitle = parseGutenbergPlainTextChapters(
-    { title: "公墓", textSource: { kind: "known-title-list", titles: ["公墓", "自序", "被當作消遣品的男子"] } },
+    {
+      title: "公墓",
+      textSource: { kind: "known-title-list", titles: ["公墓", "自序", "被當作消遣品的男子"] },
+    },
     `公墓
 自序
 序文
 被當作消遣品的男子
 正文`,
   );
-  assert.deepEqual(duplicateBookTitle.map((chapter) => chapter.title), ["自序", "被當作消遣品的男子"]);
+  assert.deepEqual(
+    duplicateBookTitle.map((chapter) => chapter.title),
+    ["自序", "被當作消遣品的男子"],
+  );
 
   const nanqiang = parseGutenbergPlainTextChapters(
-    { title: "南腔北調集", textSource: { kind: "known-title-list", titles: ["“非所計也”", "題記", "作文秘訣"], ignoreRepeatedTitle: true, skipLinePattern: "^BB$", trimLineSuffixPattern: "\\s*BB$" } },
+    {
+      title: "南腔北調集",
+      textSource: {
+        kind: "known-title-list",
+        titles: ["“非所計也”", "題記", "作文秘訣"],
+        ignoreRepeatedTitle: true,
+        skipLinePattern: "^BB$",
+        trimLineSuffixPattern: "\\s*BB$",
+      },
+    },
     `“非所計也”
 正文一。BB
 BB
@@ -505,13 +677,19 @@ BB
 作文秘訣
 正文三。`,
   );
-  assert.deepEqual(nanqiang.map((chapter) => chapter.title), ["“非所計也”", "題記", "作文秘訣"]);
+  assert.deepEqual(
+    nanqiang.map((chapter) => chapter.title),
+    ["“非所計也”", "題記", "作文秘訣"],
+  );
   assert.doesNotMatch(nanqiang[0].text, /BB/);
   assert.match(nanqiang[1].text, /雜文五十一篇。/);
   assert.match(nanqiang[1].text, /正文二。/);
 
   const sanzang = parseGutenbergPlainTextChapters(
-    { title: "大唐三藏取經詩話", textSource: { kind: "sanzang-shihua", startPattern: "\\n口口口口口口第一\\n" } },
+    {
+      title: "大唐三藏取經詩話",
+      textSource: { kind: "sanzang-shihua", startPattern: "\\n口口口口口口第一\\n" },
+    },
     `目錄
 1 口口口口口口第一
 口口口口口口第一
@@ -521,7 +699,10 @@ BB
 （題原缺）第八
 正文八`,
   );
-  assert.deepEqual(sanzang.map((chapter) => chapter.title), ["闕文第一（缺）", "行程遇猴行者處第二", "題原缺第八"]);
+  assert.deepEqual(
+    sanzang.map((chapter) => chapter.title),
+    ["闕文第一（缺）", "行程遇猴行者處第二", "題原缺第八"],
+  );
   assert.match(sanzang[0].text, /文原缺/);
 
   const lingli = parseGutenbergPlainTextChapters(
@@ -540,13 +721,16 @@ BB
 第五 章神独自引领(1934-1940)
 正文五`,
   );
-  assert.deepEqual(lingli.map((chapter) => chapter.title), [
-    "滕序",
-    "前言",
-    "致谢",
-    "第一章 从出生到赴美留学之前(1901-1920)",
-    "第五章 神独自引领(1934-1940)",
-  ]);
+  assert.deepEqual(
+    lingli.map((chapter) => chapter.title),
+    [
+      "滕序",
+      "前言",
+      "致谢",
+      "第一章 从出生到赴美留学之前(1901-1920)",
+      "第五章 神独自引领(1934-1940)",
+    ],
+  );
   assert.match(lingli[3].text, /续正文/);
 
   const xianqing = parseGutenbergPlainTextChapters(
@@ -567,15 +751,10 @@ BB
 调饮啜第三
 正文五`,
   );
-  assert.deepEqual(xianqing.map((chapter) => chapter.title), [
-    "词曲部",
-    "结构第一",
-    "词采第二",
-    "格局第六",
-    "演习部",
-    "选剧第一",
-    "调饮啜第三",
-  ]);
+  assert.deepEqual(
+    xianqing.map((chapter) => chapter.title),
+    ["词曲部", "结构第一", "词采第二", "格局第六", "演习部", "选剧第一", "调饮啜第三"],
+  );
   assert.match(xianqing[4].text, /分部标题/);
   assert.doesNotMatch(xianqing[6].text, /重复片段/);
 
@@ -589,7 +768,10 @@ BB
 十三日
 正文續。`,
   );
-  assert.deepEqual(shortHanTitles.map((chapter) => chapter.title), ["諫聽諫與貞觀初不同", "太宗臨朝詔群臣"]);
+  assert.deepEqual(
+    shortHanTitles.map((chapter) => chapter.title),
+    ["諫聽諫與貞觀初不同", "太宗臨朝詔群臣"],
+  );
   assert.match(shortHanTitles[1].text, /十三日/);
 
   const spacedShortHanTitles = parseGutenbergPlainTextChapters(
@@ -602,7 +784,10 @@ BB
 棄 母 姜 嫄
 正文二。`,
   );
-  assert.deepEqual(spacedShortHanTitles.map((chapter) => chapter.title), ["有虞二妃", "棄母姜嫄"]);
+  assert.deepEqual(
+    spacedShortHanTitles.map((chapter) => chapter.title),
+    ["有虞二妃", "棄母姜嫄"],
+  );
 
   const leadingTitleChapter = cleanGutenbergPayload(
     {
@@ -622,13 +807,24 @@ BB
       ),
     },
   );
-  assert.deepEqual(leadingTitleChapter.chapters.map((chapter) => chapter.title), ["古詩十九首之一《行行重行行》", "古詩十九首之二《青青河畔草》"]);
+  assert.deepEqual(
+    leadingTitleChapter.chapters.map((chapter) => chapter.title),
+    ["古詩十九首之一《行行重行行》", "古詩十九首之二《青青河畔草》"],
+  );
 
   const wrappedShortTitles = cleanGutenbergPayload(
     { id: "gongsunlongzi-gutenberg-zh", lang: "zh", title: "公孫龍子" },
-    { chapters: [{ n: 1, title: "〔白馬論〕", text: "正文" }, { n: 2, title: "《廣詁》", text: "正文" }] },
+    {
+      chapters: [
+        { n: 1, title: "〔白馬論〕", text: "正文" },
+        { n: 2, title: "《廣詁》", text: "正文" },
+      ],
+    },
   );
-  assert.deepEqual(wrappedShortTitles.chapters.map((chapter) => chapter.title), ["白馬論", "廣詁"]);
+  assert.deepEqual(
+    wrappedShortTitles.chapters.map((chapter) => chapter.title),
+    ["白馬論", "廣詁"],
+  );
 
   const yescao = parseGutenbergPlainTextChapters(
     { title: "野草", textSource: { kind: "known-title-list", titles: ["希望", "雪", "風箏"] } },
@@ -641,7 +837,10 @@ BB
 風箏
 正文三`,
   );
-  assert.deepEqual(yescao.map((chapter) => chapter.title), ["希望", "雪", "風箏"]);
+  assert.deepEqual(
+    yescao.map((chapter) => chapter.title),
+    ["希望", "雪", "風箏"],
+  );
   assert.match(yescao[0].text, /犧牲了極多/);
 
   const shenyin = parseGutenbergPlainTextChapters(
@@ -655,11 +854,17 @@ BB
 養生
 正文三`,
   );
-  assert.deepEqual(shenyin.map((chapter) => chapter.title), ["問學", "應務", "養生"]);
+  assert.deepEqual(
+    shenyin.map((chapter) => chapter.title),
+    ["問學", "應務", "養生"],
+  );
   assert.match(shenyin[0].text, /若乎日不/);
 
   const startedShortHanTitles = parseGutenbergPlainTextChapters(
-    { title: "明夷待訪錄", textSource: { kind: "short-han-title", startPattern: "題辭", maxChars: 12 } },
+    {
+      title: "明夷待訪錄",
+      textSource: { kind: "short-han-title", startPattern: "題辭", maxChars: 12 },
+    },
     `置相
 目錄碎片
 題辭
@@ -669,7 +874,10 @@ BB
 原臣
 正文三，足以形成正文。`,
   );
-  assert.deepEqual(startedShortHanTitles.map((chapter) => chapter.title), ["題辭", "原君", "原臣"]);
+  assert.deepEqual(
+    startedShortHanTitles.map((chapter) => chapter.title),
+    ["題辭", "原君", "原臣"],
+  );
   assert.doesNotMatch(startedShortHanTitles[0].text, /目錄碎片/);
 
   const bareHanSections = parseGutenbergPlainTextChapters(
@@ -684,11 +892,21 @@ BB
 三
 正文三`,
   );
-  assert.deepEqual(bareHanSections.map((chapter) => chapter.title), ["一", "二", "三"]);
+  assert.deepEqual(
+    bareHanSections.map((chapter) => chapter.title),
+    ["一", "二", "三"],
+  );
   assert.doesNotMatch(bareHanSections[0].text, /目錄碎片/);
 
   const heavenlyStemSections = parseGutenbergPlainTextChapters(
-    { title: "南部新書", textSource: { kind: "known-title-list", startPattern: "\\n甲\\n", titles: ["甲", "乙", "丙"] } },
+    {
+      title: "南部新書",
+      textSource: {
+        kind: "known-title-list",
+        startPattern: "\\n甲\\n",
+        titles: ["甲", "乙", "丙"],
+      },
+    },
     `南部新書
 序文碎片
 甲
@@ -698,11 +916,21 @@ BB
 丙
 正文丙`,
   );
-  assert.deepEqual(heavenlyStemSections.map((chapter) => chapter.title), ["甲", "乙", "丙"]);
+  assert.deepEqual(
+    heavenlyStemSections.map((chapter) => chapter.title),
+    ["甲", "乙", "丙"],
+  );
   assert.doesNotMatch(heavenlyStemSections[0].text, /序文碎片/);
 
   const repeatedKnownVolumes = parseGutenbergPlainTextChapters(
-    { title: "安樂集", textSource: { kind: "known-title-list", titles: ["安樂集卷上", "安樂集卷下"], ignoreRepeatedTitle: true } },
+    {
+      title: "安樂集",
+      textSource: {
+        kind: "known-title-list",
+        titles: ["安樂集卷上", "安樂集卷下"],
+        ignoreRepeatedTitle: true,
+      },
+    },
     `安樂集卷上
 正文上
 安樂集卷上
@@ -710,7 +938,10 @@ BB
 安樂集卷下
 正文下`,
   );
-  assert.deepEqual(repeatedKnownVolumes.map((chapter) => chapter.title), ["安樂集卷上", "安樂集卷下"]);
+  assert.deepEqual(
+    repeatedKnownVolumes.map((chapter) => chapter.title),
+    ["安樂集卷上", "安樂集卷下"],
+  );
   assert.match(repeatedKnownVolumes[0].text, /重複卷名不另起章/);
 
   const bracketVolumes = parseGutenbergPlainTextChapters(
@@ -721,7 +952,10 @@ BB
 【卷二】
 正文二`,
   );
-  assert.deepEqual(bracketVolumes.map((chapter) => chapter.title), ["卷一", "卷二"]);
+  assert.deepEqual(
+    bracketVolumes.map((chapter) => chapter.title),
+    ["卷一", "卷二"],
+  );
   assert.doesNotMatch(bracketVolumes[0].text, /目錄碎片/);
 
   const travelDiary = parseGutenbergPlainTextChapters(
@@ -739,7 +973,10 @@ BB
 近騰諸彝說略
 正文四`,
   );
-  assert.deepEqual(travelDiary.map((chapter) => chapter.title), ["游天台山日記", "後游黃山日記", "滇游日記十二", "近騰諸彝說略"]);
+  assert.deepEqual(
+    travelDiary.map((chapter) => chapter.title),
+    ["游天台山日記", "後游黃山日記", "滇游日記十二", "近騰諸彝說略"],
+  );
   assert.match(travelDiary[1].text, /余追憶日記/);
 
   const sishierTeachings = Array.from({ length: 42 }, (_, index) => `佛言：第${index + 1}段正文。`);
@@ -758,12 +995,18 @@ ${sishierTeachings.join("\n\n")}
 ${sishierTeachings.slice(20).join("\n\n")}`,
   );
   assert.equal(sishier.length, 43);
-  assert.deepEqual(sishier.slice(0, 4).map((chapter) => chapter.title), ["緣起", "第一章", "第二章", "第三章"]);
+  assert.deepEqual(
+    sishier.slice(0, 4).map((chapter) => chapter.title),
+    ["緣起", "第一章", "第二章", "第三章"],
+  );
   assert.equal(sishier[42].title, "第四十二章");
   assert.equal(sishier.filter((chapter) => chapter.title === "第二十一章").length, 1);
 
   const paragraphs = parseGutenbergPlainTextChapters(
-    { title: "菜根譚", textSource: { kind: "paragraph-sections", startPattern: "第一則正文", titleSuffix: "則" } },
+    {
+      title: "菜根譚",
+      textSource: { kind: "paragraph-sections", startPattern: "第一則正文", titleSuffix: "則" },
+    },
     `菜根譚
 
 明 洪自誠 著
@@ -772,27 +1015,42 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 
 第二則正文。`,
   );
-  assert.deepEqual(paragraphs.map((chapter) => chapter.title), ["第1則", "第2則"]);
+  assert.deepEqual(
+    paragraphs.map((chapter) => chapter.title),
+    ["第1則", "第2則"],
+  );
   assert.match(paragraphs[0].text, /第一則正文/);
 
   const lineSections = parseGutenbergPlainTextChapters(
-    { title: "幽夢影", textSource: { kind: "line-sections", startPattern: "讀經宜冬", titleSuffix: "則" } },
+    {
+      title: "幽夢影",
+      textSource: { kind: "line-sections", startPattern: "讀經宜冬", titleSuffix: "則" },
+    },
     `幽夢影
 
 讀經宜冬，其神專也。
 經傳宜獨坐讀；史鑑宜與友共讀。`,
   );
-  assert.deepEqual(lineSections.map((chapter) => chapter.title), ["第1則", "第2則"]);
+  assert.deepEqual(
+    lineSections.map((chapter) => chapter.title),
+    ["第1則", "第2則"],
+  );
   assert.match(lineSections[1].text, /史鑑宜/);
 
   const titledLineSections = parseGutenbergPlainTextChapters(
-    { title: "千字文", textSource: { kind: "line-sections", startPattern: "天地玄黃", titleFromLineChars: 8 } },
+    {
+      title: "千字文",
+      textSource: { kind: "line-sections", startPattern: "天地玄黃", titleFromLineChars: 8 },
+    },
     `千字文
 
 天地玄黃 宇宙洪荒
 日月盈昃 辰宿列張`,
   );
-  assert.deepEqual(titledLineSections.map((chapter) => chapter.title), ["天地玄黃宇宙洪荒", "日月盈昃辰宿列張"]);
+  assert.deepEqual(
+    titledLineSections.map((chapter) => chapter.title),
+    ["天地玄黃宇宙洪荒", "日月盈昃辰宿列張"],
+  );
 
   const markedLineSections = parseGutenbergPlainTextChapters(
     {
@@ -811,7 +1069,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 ▲李白十八歲。在大匡山。
 訪戴天山道士不遇正文。`,
   );
-  assert.deepEqual(markedLineSections.map((chapter) => chapter.title), ["李白十五歲", "李白十八歲"]);
+  assert.deepEqual(
+    markedLineSections.map((chapter) => chapter.title),
+    ["李白十五歲", "李白十八歲"],
+  );
   assert.match(markedLineSections[0].text, /明堂賦正文/);
 
   const repeatedMarkedLineSections = parseGutenbergPlainTextChapters(
@@ -832,7 +1093,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 苏轼蘇軾
 昵昵兒女語，燈火夜微明。`,
   );
-  assert.deepEqual(repeatedMarkedLineSections.map((chapter) => chapter.title), ["明月幾時有，把酒", "昵昵兒女語，燈火"]);
+  assert.deepEqual(
+    repeatedMarkedLineSections.map((chapter) => chapter.title),
+    ["明月幾時有，把酒", "昵昵兒女語，燈火"],
+  );
   assert.doesNotMatch(repeatedMarkedLineSections[0].text, /水調歌頭|苏轼/);
 
   const biographies = parseGutenbergPlainTextChapters(
@@ -843,7 +1107,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 
 王倪　　王倪者，齧缺之師也。`,
   );
-  assert.deepEqual(biographies.map((chapter) => chapter.title), ["被衣", "王倪"]);
+  assert.deepEqual(
+    biographies.map((chapter) => chapter.title),
+    ["被衣", "王倪"],
+  );
   assert.match(biographies[1].text, /齧缺之師/);
 
   const pairedParagraphs = parseGutenbergPlainTextChapters(
@@ -865,7 +1132,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 
 凡日月運行。`,
   );
-  assert.deepEqual(pairedParagraphs.map((chapter) => chapter.title), ["周髀算經卷上之一", "周髀算經卷上之二"]);
+  assert.deepEqual(
+    pairedParagraphs.map((chapter) => chapter.title),
+    ["周髀算經卷上之一", "周髀算經卷上之二"],
+  );
   assert.match(pairedParagraphs[0].text, /周公問/);
 
   const inlineActs = cleanGutenbergPayload(
@@ -889,12 +1159,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
       ),
     },
   );
-  assert.deepEqual(inlineActs.chapters.map((chapter) => chapter.title), [
-    "第一出 開場始末",
-    "第二出 書幃自歎",
-    "第三出 書幃自歎",
-    "第四出 罔害皤良",
-  ]);
+  assert.deepEqual(
+    inlineActs.chapters.map((chapter) => chapter.title),
+    ["第一出 開場始末", "第二出 書幃自歎", "第三出 書幃自歎", "第四出 罔害皤良"],
+  );
 
   const emptyInlineAct = parseGutenbergPlainTextChapters(
     { title: "幽閨記", textSource: { kind: "inline-play-act", includeEmptyActs: true } },
@@ -923,11 +1191,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 
 問：見法頓了者，見祖師意否？師云：祖師出虛空外。`,
   );
-  assert.deepEqual(questionAnswer.map((chapter) => chapter.title), [
-    "傳法心要",
-    "問：如何是道，如何修...",
-    "問：見法頓了者，見祖...",
-  ]);
+  assert.deepEqual(
+    questionAnswer.map((chapter) => chapter.title),
+    ["傳法心要", "問：如何是道，如何修...", "問：見法頓了者，見祖..."],
+  );
   assert.match(questionAnswer[1].text, /道即心/);
 
   const rightMarked = parseGutenbergPlainTextChapters(
@@ -948,11 +1215,17 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 第二章正文。
 右第二章。`,
   );
-  assert.deepEqual(rightMarked.map((chapter) => chapter.title), ["中庸章句序", "第一章", "第二章"]);
+  assert.deepEqual(
+    rightMarked.map((chapter) => chapter.title),
+    ["中庸章句序", "第一章", "第二章"],
+  );
   assert.match(rightMarked[1].text, /第一章正文/);
 
   const numberedPoems = parseGutenbergPlainTextChapters(
-    { title: "李義山詩集", textSource: { kind: "numbered-quoted-poems", startPattern: "1「錦瑟」" } },
+    {
+      title: "李義山詩集",
+      textSource: { kind: "numbered-quoted-poems", startPattern: "1「錦瑟」" },
+    },
     `李義山詩集
 
 序文不入章。
@@ -965,7 +1238,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 
 白石岩扉碧蘚滋。`,
   );
-  assert.deepEqual(numberedPoems.map((chapter) => chapter.title), ["錦瑟", "重過聖女祠"]);
+  assert.deepEqual(
+    numberedPoems.map((chapter) => chapter.title),
+    ["錦瑟", "重過聖女祠"],
+  );
   assert.match(numberedPoems[0].text, /五十弦/);
 
   const lunheng = parseGutenbergPlainTextChapters(
@@ -976,7 +1252,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 累害篇第二
 凡人操行。`,
   );
-  assert.deepEqual(lunheng.map((chapter) => chapter.title), ["逢遇篇第一", "累害篇第二"]);
+  assert.deepEqual(
+    lunheng.map((chapter) => chapter.title),
+    ["逢遇篇第一", "累害篇第二"],
+  );
 
   const sanguozhi = parseGutenbergPlainTextChapters(
     { title: "三國志", textSource: { kind: "three-kingdoms-history" } },
@@ -985,7 +1264,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 魏書二　　文帝紀第二
 文皇帝諱丕。`,
   );
-  assert.deepEqual(sanguozhi.map((chapter) => chapter.title), ["魏書一 武帝紀第一", "魏書二 文帝紀第二"]);
+  assert.deepEqual(
+    sanguozhi.map((chapter) => chapter.title),
+    ["魏書一 武帝紀第一", "魏書二 文帝紀第二"],
+  );
 
   const dynastyChronicle = parseGutenbergPlainTextChapters(
     { title: "竹書紀年", textSource: { kind: "dynasty-chronicle" } },
@@ -994,7 +1276,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 殷　　　紀
 湯滅夏。`,
   );
-  assert.deepEqual(dynastyChronicle.map((chapter) => chapter.title), ["夏紀", "殷紀"]);
+  assert.deepEqual(
+    dynastyChronicle.map((chapter) => chapter.title),
+    ["夏紀", "殷紀"],
+  );
 
   const zhangzai = parseGutenbergPlainTextChapters(
     { title: "張載集", textSource: { kind: "zhangzai-headings", startPattern: "正蒙蘇昺序" } },
@@ -1009,7 +1294,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 系辭上
 大易不言有無。`,
   );
-  assert.deepEqual(zhangzai.map((chapter) => chapter.title), ["正蒙蘇昺序", "太和篇第一", "系辭上"]);
+  assert.deepEqual(
+    zhangzai.map((chapter) => chapter.title),
+    ["正蒙蘇昺序", "太和篇第一", "系辭上"],
+  );
 
   const stageScenes = parseGutenbergPlainTextChapters(
     { title: "西廂記", textSource: { kind: "inline-stage-scene" } },
@@ -1022,7 +1310,10 @@ ${sishierTeachings.slice(20).join("\n\n")}`,
 [杜將軍引卒子上開]林下曬衣。
 曲文三。`,
   );
-  assert.deepEqual(stageScenes.map((chapter) => chapter.title), ["第1段 老夫人", "第2段 張生", "第3段 杜將軍"]);
+  assert.deepEqual(
+    stageScenes.map((chapter) => chapter.title),
+    ["第1段 老夫人", "第2段 張生", "第3段 杜將軍"],
+  );
   assert.match(stageScenes[0].text, /老身姓鄭/);
 });
 
@@ -1041,7 +1332,19 @@ test("Gutenberg quality checks allow contiguous Chinese chapter numbering", () =
 });
 
 test("Gutenberg quality checks parse Chinese white-circle zero numerals", () => {
-  const titles = ["第一回", "第二回", "第三回", "第四回", "第五回", "第六回", "第七回", "第八回", "第九回", "第一○回", "第一一回"];
+  const titles = [
+    "第一回",
+    "第二回",
+    "第三回",
+    "第四回",
+    "第五回",
+    "第六回",
+    "第七回",
+    "第八回",
+    "第九回",
+    "第一○回",
+    "第一一回",
+  ];
   const warnings = chapterQualityWarnings(titles.map((title) => ({ title, text: "正文" })));
   assert.doesNotMatch(warnings.join("\n"), /numbering gaps/);
 });
@@ -1067,17 +1370,19 @@ test("Gutenberg quality checks parse Chinese shorthand and full-width numerals",
 });
 
 test("Gutenberg quality checks catch gaps in 卷之 volume runs", () => {
-  const warnings = chapterQualityWarnings([
-    "卷之一",
-    "卷之二",
-    "卷之三",
-    "卷之七",
-    "卷之八",
-    "卷之九",
-    "卷之十",
-    "卷之十一",
-    "卷之十二",
-  ].map((title) => ({ title, text: "正文" })));
+  const warnings = chapterQualityWarnings(
+    [
+      "卷之一",
+      "卷之二",
+      "卷之三",
+      "卷之七",
+      "卷之八",
+      "卷之九",
+      "卷之十",
+      "卷之十一",
+      "卷之十二",
+    ].map((title) => ({ title, text: "正文" })),
+  );
   assert.match(warnings.join("\n"), /Chinese 卷 headings have numbering gaps/);
 });
 
@@ -1086,19 +1391,20 @@ test("Gutenberg quality checks catch single gaps in long Chinese volume runs", (
     const n = index + 1;
     if (n === 26) return null;
     const digits = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
-    const han = n <= 10
-      ? digits[n]
-      : n < 20
-        ? `十${digits[n - 10]}`
-        : n === 20
-          ? "二十"
-          : n < 30
-            ? `二十${digits[n - 20]}`
-            : n === 30
-              ? "三十"
-              : n < 40
-                ? `三十${digits[n - 30]}`
-                : "四十";
+    const han =
+      n <= 10
+        ? digits[n]
+        : n < 20
+          ? `十${digits[n - 10]}`
+          : n === 20
+            ? "二十"
+            : n < 30
+              ? `二十${digits[n - 20]}`
+              : n === 30
+                ? "三十"
+                : n < 40
+                  ? `三十${digits[n - 30]}`
+                  : "四十";
     return `第${han}卷`;
   }).filter(Boolean);
   const warnings = chapterQualityWarnings(titles.map((title) => ({ title, text: "正文" })));
@@ -1119,7 +1425,10 @@ test("Gutenberg quality override allows known source volume gaps", () => {
   };
   const chapters = [
     ...Array.from({ length: 25 }, (_, index) => ({ title: `第${han(index + 1)}卷`, text: "正文" })),
-    ...Array.from({ length: 14 }, (_, index) => ({ title: `第${han(index + 27)}卷`, text: "正文" })),
+    ...Array.from({ length: 14 }, (_, index) => ({
+      title: `第${han(index + 27)}卷`,
+      text: "正文",
+    })),
   ];
   const warnings = chapterQualityWarnings(chapters, { lang: "zh" });
   assert.match(warnings.join("\n"), /Chinese 卷 headings have numbering gaps/);
@@ -1127,10 +1436,13 @@ test("Gutenberg quality override allows known source volume gaps", () => {
 });
 
 test("Gutenberg quality checks reject Chinese recitation text inside headings", () => {
-  const warnings = chapterQualityWarnings([
-    { title: "第四回 活佛慈悲在於擊棒 神仙手段那用栽贓 詩曰： 前頭走的小娃娃", text: "正文" },
-    { title: "第五回 正常章名", text: "正文" },
-  ], { lang: "zh" });
+  const warnings = chapterQualityWarnings(
+    [
+      { title: "第四回 活佛慈悲在於擊棒 神仙手段那用栽贓 詩曰： 前頭走的小娃娃", text: "正文" },
+      { title: "第五回 正常章名", text: "正文" },
+    ],
+    { lang: "zh" },
+  );
   assert.match(warnings.join("\n"), /recitation-marker headings/);
 });
 
@@ -1143,110 +1455,106 @@ test("Gutenberg quality checks reject Chinese placeholder headings", () => {
 });
 
 test("Gutenberg quality checks catch trailing Chinese ordinal gaps", () => {
-  const warnings = chapterQualityWarnings([
-    "學而第一",
-    "為政第二",
-    "八佾第三",
-    "公冶長第五",
-    "雍也第六",
-    "述而第七",
-    "泰伯第八",
-    "子罕第九",
-    "鄉黨第十",
-    "先進第十一",
-  ].map((title) => ({ title, text: "正文" })));
+  const warnings = chapterQualityWarnings(
+    [
+      "學而第一",
+      "為政第二",
+      "八佾第三",
+      "公冶長第五",
+      "雍也第六",
+      "述而第七",
+      "泰伯第八",
+      "子罕第九",
+      "鄉黨第十",
+      "先進第十一",
+    ].map((title) => ({ title, text: "正文" })),
+  );
   assert.match(warnings.join("\n"), /Chinese 篇尾第 headings have numbering gaps/);
   assert.match(warnings.join("\n"), /missing 4/);
 });
 
 test("Gutenberg quality checks catch short Chinese chapter gaps and missing first chapter", () => {
-  const shortGap = chapterQualityWarnings([
-    "第一章",
-    "第二章",
-    "第三章",
-    "第四章",
-    "第六章",
-  ].map((title) => ({ title, text: "正文" })));
+  const shortGap = chapterQualityWarnings(
+    ["第一章", "第二章", "第三章", "第四章", "第六章"].map((title) => ({ title, text: "正文" })),
+  );
   assert.match(shortGap.join("\n"), /Chinese 章 headings have numbering gaps/);
   assert.match(shortGap.join("\n"), /missing 5/);
 
-  const missingFirst = chapterQualityWarnings([
-    "第二回",
-    "第三回",
-    "第四回",
-    "第五回",
-    "第六回",
-  ].map((title) => ({ title, text: "正文" })));
+  const missingFirst = chapterQualityWarnings(
+    ["第二回", "第三回", "第四回", "第五回", "第六回"].map((title) => ({ title, text: "正文" })),
+  );
   assert.match(missingFirst.join("\n"), /missing 1/);
 });
 
 test("Gutenberg quality checks segment reset Chinese trailing ordinal runs", () => {
-  const warnings = chapterQualityWarnings([
-    "捭闔第一",
-    "反應第二",
-    "內揵第三",
-    "抵巇第四",
-    "忤合第六",
-    "揣篇第七",
-    "摩篇第八",
-    "權篇第九",
-    "謀篇第十",
-    "決篇第十一",
-    "符言第十二",
-    "天官第一",
-    "兵談第二",
-    "制談第三",
-    "戰威第四",
-    "攻權第五",
-    "守權第六",
-    "十二陵第七",
-    "武議第八",
-  ].map((title) => ({ title, text: "正文" })));
+  const warnings = chapterQualityWarnings(
+    [
+      "捭闔第一",
+      "反應第二",
+      "內揵第三",
+      "抵巇第四",
+      "忤合第六",
+      "揣篇第七",
+      "摩篇第八",
+      "權篇第九",
+      "謀篇第十",
+      "決篇第十一",
+      "符言第十二",
+      "天官第一",
+      "兵談第二",
+      "制談第三",
+      "戰威第四",
+      "攻權第五",
+      "守權第六",
+      "十二陵第七",
+      "武議第八",
+    ].map((title) => ({ title, text: "正文" })),
+  );
   assert.match(warnings.join("\n"), /Chinese 篇尾第 headings have numbering gaps/);
   assert.match(warnings.join("\n"), /missing 5/);
 });
 
 test("Gutenberg quality checks parse Chinese 篇五 style trailing ordinals", () => {
-  const warnings = chapterQualityWarnings([
-    "捭闔第一",
-    "反應第二",
-    "內揵第三",
-    "抵巇第四",
-    "飛箝篇五",
-    "忤合第六",
-    "揣篇第七",
-    "摩篇第八",
-    "權篇第九",
-  ].map((title) => ({ title, text: "正文" })));
+  const warnings = chapterQualityWarnings(
+    [
+      "捭闔第一",
+      "反應第二",
+      "內揵第三",
+      "抵巇第四",
+      "飛箝篇五",
+      "忤合第六",
+      "揣篇第七",
+      "摩篇第八",
+      "權篇第九",
+    ].map((title) => ({ title, text: "正文" })),
+  );
   assert.doesNotMatch(warnings.join("\n"), /numbering gaps/);
 });
 
 test("Gutenberg quality checks reject missing Chinese volume numbers", () => {
-  const warnings = chapterQualityWarnings([
-    "第一卷",
-    "第二卷",
-    "第三卷",
-    "第四卷",
-    "第六卷",
-    "第七卷",
-    "第八卷",
-    "第九卷",
-    "第十卷",
-  ].map((title) => ({ title, text: "正文" })), { lang: "zh" });
+  const warnings = chapterQualityWarnings(
+    ["第一卷", "第二卷", "第三卷", "第四卷", "第六卷", "第七卷", "第八卷", "第九卷", "第十卷"].map(
+      (title) => ({ title, text: "正文" }),
+    ),
+    { lang: "zh" },
+  );
   assert.match(warnings.join("\n"), /Chinese 卷 headings have numbering gaps/);
   assert.match(warnings.join("\n"), /missing 5/);
 });
 
 test("Gutenberg quality checks reject non-ordinal interruptions in Chinese chapter runs", () => {
-  const warnings = chapterQualityWarnings([
-    "第一回 開宗明義",
-    "第二回 初入城中",
-    "第三回 風波又起",
-    "第四回 親友相逢",
-    "第五回 債務未清",
-    "對門王詮進了第二",
-    "第六回 真相大白",
-  ].map((title) => ({ title, text: "正文" })), { lang: "zh" });
+  const warnings = chapterQualityWarnings(
+    [
+      "第一回 開宗明義",
+      "第二回 初入城中",
+      "第三回 風波又起",
+      "第四回 親友相逢",
+      "第五回 債務未清",
+      "對門王詮進了第二",
+      "第六回 真相大白",
+    ].map((title) => ({ title, text: "正文" })),
+    { lang: "zh" },
+  );
   assert.match(warnings.join("\n"), /non-ordinal interruption headings/);
 });
 
@@ -1268,26 +1576,33 @@ test("Gutenberg quality override allows selected sparse trailing Chinese ordinal
 });
 
 test("Gutenberg quality checks reject Latin noise headings in Chinese books", () => {
-  const warnings = chapterQualityWarnings([
-    { title: "南腔北調集", text: "正文" },
-    { title: "BB", text: "正文續頁" },
-  ], { lang: "zh" });
+  const warnings = chapterQualityWarnings(
+    [
+      { title: "南腔北調集", text: "正文" },
+      { title: "BB", text: "正文續頁" },
+    ],
+    { lang: "zh" },
+  );
   assert.match(warnings.join("\n"), /Latin-noise headings/);
 });
 
 test("Gutenberg quality checks reject embedded Latin noise in Chinese headings", () => {
-  const warnings = chapterQualityWarnings([
-    { title: "第五回 甘心受百忙堬r棄生死 捨不得一家人哭斷肝腸", text: "正文" },
-  ], { lang: "zh" });
+  const warnings = chapterQualityWarnings(
+    [{ title: "第五回 甘心受百忙堬r棄生死 捨不得一家人哭斷肝腸", text: "正文" }],
+    { lang: "zh" },
+  );
   assert.match(warnings.join("\n"), /Latin-noise headings/);
 });
 
 test("Gutenberg quality checks reject garbled symbols in Chinese headings", () => {
-  const warnings = chapterQualityWarnings([
-    { title: "第七十二回 破長安媕野~合 入皇宮訴屈伸冤", text: "正文" },
-    { title: "第一回???? 靈隱寺禪僧貽寶倡", text: "正文二" },
-    { title: "第一零二回 宁國府骨肉病災襟腹@大觀園符水驅妖孽", text: "正文三" },
-  ], { lang: "zh" });
+  const warnings = chapterQualityWarnings(
+    [
+      { title: "第七十二回 破長安媕野~合 入皇宮訴屈伸冤", text: "正文" },
+      { title: "第一回???? 靈隱寺禪僧貽寶倡", text: "正文二" },
+      { title: "第一零二回 宁國府骨肉病災襟腹@大觀園符水驅妖孽", text: "正文三" },
+    ],
+    { lang: "zh" },
+  );
   assert.match(warnings.join("\n"), /garbled-symbol headings/);
 });
 
@@ -1305,7 +1620,10 @@ test("Gutenberg quality checks reject short Chinese prose sentence headings", ()
     { title: "可。", text: "正文續頁" },
     { title: "仲尼弟子列傳", text: "正文" },
     { title: "過猶不及。", text: "正文續頁" },
-    { title: "故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。", text: "正文續頁" },
+    {
+      title: "故曰非長生難也，聞道難也；非聞道難也，行之難也；非行之難也，終之難也。",
+      text: "正文續頁",
+    },
   ]);
   assert.match(warnings.join("\n"), /prose-fragment-looking headings/);
 });
@@ -1490,7 +1808,7 @@ test("Gutenberg quality checks reject mixed generated Chapter N headings", () =>
 
 test("Gutenberg quality checks reject malformed roman fragment headings", () => {
   const warnings = chapterQualityWarnings([
-    { title: "III \" Suomessa.", text: "Text" },
+    { title: 'III " Suomessa.', text: "Text" },
     { title: "KOLMAS NÄYTÖS.", text: "Text" },
   ]);
   assert.match(warnings.join("\n"), /malformed roman-fragment headings/);
@@ -1667,13 +1985,17 @@ test("Gutenberg cleanup trims trailing Chinese verse from chapter titles", () =>
     blurb: "",
     chapters: [
       { n: 1, title: "第九回 倩明媒但求一美 央冥判竟得雙姝", text: "第九回正文" },
-      { n: 2, title: "第十回 從左道一時失足 納忠言立刻回頭 神器難僥倖，奸雄漫起爭。", text: "第十回正文" },
+      {
+        n: 2,
+        title: "第十回 從左道一時失足 納忠言立刻回頭 神器難僥倖，奸雄漫起爭。",
+        text: "第十回正文",
+      },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第九回 倩明媒但求一美 央冥判竟得雙姝",
-    "第十回 從左道一時失足 納忠言立刻回頭",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["第九回 倩明媒但求一美 央冥判竟得雙姝", "第十回 從左道一時失足 納忠言立刻回頭"],
+  );
 });
 
 test("Gutenberg cleanup merges short Chinese review chapters", () => {
@@ -1687,10 +2009,10 @@ test("Gutenberg cleanup merges short Chinese review chapters", () => {
       { n: 4, title: "評", text: "短評二" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第一回 丑郎君怕嬌偏得艷",
-    "第二回 美男子避惑反生疑",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["第一回 丑郎君怕嬌偏得艷", "第二回 美男子避惑反生疑"],
+  );
   assert.match(payload.chapters[0].text, /短評一/);
   assert.match(payload.chapters[1].text, /短評二/);
 });
@@ -1709,13 +2031,16 @@ test("Gutenberg cleanup merges short Chinese interlude titles inside chapter run
       { n: 7, title: "第五回 團圓", text: "正文五" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第一回 才子佳人初相會",
-    "第二回 花前月下訂終身",
-    "第三回 風波忽起",
-    "第四回 雲開月明",
-    "第五回 團圓",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    [
+      "第一回 才子佳人初相會",
+      "第二回 花前月下訂終身",
+      "第三回 風波忽起",
+      "第四回 雲開月明",
+      "第五回 團圓",
+    ],
+  );
   assert.match(payload.chapters[0].text, /蝶戀花/);
   assert.match(payload.chapters[2].text, /南鄉子/);
 });
@@ -1733,13 +2058,16 @@ test("Gutenberg cleanup merges a single short Chinese interlude in a strong chap
       { n: 6, title: "銀鼠諺", text: "短題後正文" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第一回 土不制水歷年成患",
-    "第二回 歷山山下古帝遺蹤",
-    "第三回 金線東來尋黑虎",
-    "第四回 宮保愛才求賢若渴",
-    "第五回 烈婦有心殉節",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    [
+      "第一回 土不制水歷年成患",
+      "第二回 歷山山下古帝遺蹤",
+      "第三回 金線東來尋黑虎",
+      "第四回 宮保愛才求賢若渴",
+      "第五回 烈婦有心殉節",
+    ],
+  );
   assert.match(payload.chapters[4].text, /銀鼠諺/);
 });
 
@@ -1752,11 +2080,10 @@ test("Gutenberg cleanup restores Tiangong Kaiwu's missing sixth title marker", (
       { n: 2, title: "陶埏第七", text: "陶埏正文" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "作咸第五",
-    "甘嗜第六",
-    "陶埏第七",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["作咸第五", "甘嗜第六", "陶埏第七"],
+  );
   assert.match(payload.chapters[0].text, /作咸正文/);
   assert.doesNotMatch(payload.chapters[0].text, /甘嗜正文/);
   assert.match(payload.chapters[1].text, /^甘嗜正文$/u);
@@ -1775,11 +2102,14 @@ test("Gutenberg cleanup can split a missing leading Chinese first chapter from b
       { n: 2, title: "第三回 接京函陳大人賣關節 除孝服凌貴興考鄉科", text: "第三回正文。" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第一回 亂哄哄強盜作先聲 慢悠悠閒文標引首",
-    "第二回 廣源店股東拆股 馬鞍街星士談星",
-    "第三回 接京函陳大人賣關節 除孝服凌貴興考鄉科",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    [
+      "第一回 亂哄哄強盜作先聲 慢悠悠閒文標引首",
+      "第二回 廣源店股東拆股 馬鞍街星士談星",
+      "第三回 接京函陳大人賣關節 除孝服凌貴興考鄉科",
+    ],
+  );
   assert.match(payload.chapters[0].text, /第一回正文/);
   assert.match(payload.chapters[1].text, /^卻說廣東/u);
 });
@@ -1797,17 +2127,20 @@ test("Gutenberg cleanup replaces configured Chinese title mojibake", () => {
 });
 
 test("Gutenberg cleanup trims Chinese recitation markers from chapter titles", () => {
-  const payload = cleanGutenbergPayload({ title: "癡人福", lang: "zh", skipTitles: [] }, {
-    blurb: "",
-    chapters: [
-      { n: 1, title: "第三回醜媳婦隱妒侍夫 詞曰：", text: "正文" },
-      { n: 2, title: "第五回唐夫人背夫遣妾 詩曰：", text: "正文二" },
-    ],
-  });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第三回醜媳婦隱妒侍夫",
-    "第五回唐夫人背夫遣妾",
-  ]);
+  const payload = cleanGutenbergPayload(
+    { title: "癡人福", lang: "zh", skipTitles: [] },
+    {
+      blurb: "",
+      chapters: [
+        { n: 1, title: "第三回醜媳婦隱妒侍夫 詞曰：", text: "正文" },
+        { n: 2, title: "第五回唐夫人背夫遣妾 詩曰：", text: "正文二" },
+      ],
+    },
+  );
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["第三回醜媳婦隱妒侍夫", "第五回唐夫人背夫遣妾"],
+  );
 });
 
 test("Gutenberg cleanup normalizes Chinese book and appendix display titles", () => {
@@ -1822,11 +2155,10 @@ test("Gutenberg cleanup normalizes Chinese book and appendix display titles", ()
     ],
   });
   assert.equal(payload.title, "古文觀止");
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "古文觀止",
-    "附錄甲‧蓼莪 詩經",
-    "附錄乙‧尚志齋說 虞集",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["古文觀止", "附錄甲‧蓼莪 詩經", "附錄乙‧尚志齋說 虞集"],
+  );
 });
 
 test("Gutenberg cleanup repairs Chuke Paian Jingqi split volume titles", () => {
@@ -1846,10 +2178,10 @@ test("Gutenberg cleanup repairs Chuke Paian Jingqi split volume titles", () => {
       },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第七卷唐明皇好道集奇人 武惠妃崇禪鬥異法",
-    "第十九卷李公佐巧解夢中言 謝小娥智擒船上盜",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["第七卷唐明皇好道集奇人 武惠妃崇禪鬥異法", "第十九卷李公佐巧解夢中言 謝小娥智擒船上盜"],
+  );
   assert.match(payload.chapters[0].text, /^詩曰/u);
   assert.match(payload.chapters[1].text, /^贊云/u);
 });
@@ -1873,7 +2205,10 @@ test("Gutenberg cleanup removes Shenlou Zhi's early duplicate final volume", () 
       { n: 5, title: "第十二卷", text: "正文十二。" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), ["第一卷", "第二卷", "第三卷", "第十二卷"]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["第一卷", "第二卷", "第三卷", "第十二卷"],
+  );
   assert.doesNotMatch(payload.chapters.map((chapter) => chapter.text).join("\n"), /提前重複/);
 });
 
@@ -1884,7 +2219,11 @@ test("Gutenberg cleanup removes Kuoyi Zhi duplicate volume summary run", () => {
     blurb: "",
     chapters: [
       ...numerals.map((n, index) => ({ n: index + 1, title: `卷${n}`, text: "目錄摘要" })),
-      ...numerals.map((n, index) => ({ n: index + 11, title: `卷${n}`, text: `正文第${index + 1}卷。`.repeat(80) })),
+      ...numerals.map((n, index) => ({
+        n: index + 11,
+        title: `卷${n}`,
+        text: `正文第${index + 1}卷。`.repeat(80),
+      })),
     ],
   });
 
@@ -1905,11 +2244,10 @@ test("Gutenberg cleanup removes exact duplicate Chinese source chapters", () => 
       { n: 4, title: "第三篇 《漢書》《藝文志》所載小說", text: "正文三" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第一篇 史家對于小說之著錄及論述",
-    "第二篇 神話与傳說",
-    "第三篇 《漢書》《藝文志》所載小說",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["第一篇 史家對于小說之著錄及論述", "第二篇 神話与傳說", "第三篇 《漢書》《藝文志》所載小說"],
+  );
   assert.deepEqual(assertImportQuality({ ...book, minChapters: 3 }, payload.chapters), []);
 });
 
@@ -1928,7 +2266,10 @@ test("Gutenberg cleanup merges Shanghan Lun section split back into volume", () 
   });
 
   assert.equal(payload.chapters.length, 5);
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), ["傷寒例第三", "捲第三", "捲第四", "捲第五", "捲第六"]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["傷寒例第三", "捲第三", "捲第四", "捲第五", "捲第六"],
+  );
   assert.match(payload.chapters[3].text, /辨少陽病脈證並治第九/);
   assert.deepEqual(assertImportQuality(book, payload.chapters), []);
 });
@@ -1958,7 +2299,10 @@ test("Gutenberg catalog keeps Fenzhuang Lou split volumes chaptered", () => {
   ];
   const books = ids.map((id) => BOOKS.find((row) => row.id === id));
 
-  assert.deepEqual(books.map((book) => book?.pg), [4572, 4573, 4574, 4575, 4576, 4577, 4578, 4579]);
+  assert.deepEqual(
+    books.map((book) => book?.pg),
+    [4572, 4573, 4574, 4575, 4576, 4577, 4578, 4579],
+  );
   for (const book of books) {
     assert.equal(book.lang, "zh");
     assert.equal(book.minChapters, 10);
@@ -2017,10 +2361,13 @@ test("Gutenberg cleanup replaces Hongloumeng source title garble", () => {
       { n: 2, title: "第一零二回 宁國府骨肉病災襟腹@大觀園符水驅妖孽", text: "正文二" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第六十二回 憨湘云醉眠芍藥裀 呆香菱情解石榴裙",
-    "第一零二回 宁國府骨肉病災襟腹 大觀園符水驅妖孽",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    [
+      "第六十二回 憨湘云醉眠芍藥裀 呆香菱情解石榴裙",
+      "第一零二回 宁國府骨肉病災襟腹 大觀園符水驅妖孽",
+    ],
+  );
 });
 
 test("Gutenberg cleanup repairs Mudanting source scene order and titles", () => {
@@ -2034,12 +2381,10 @@ test("Gutenberg cleanup repairs Mudanting source scene order and titles", () => 
       { n: 4, title: "第四出 腐歡", text: "正文四" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第一出 標目",
-    "第二出 言懷",
-    "第三出 訓女",
-    "第四出 腐歡",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["第一出 標目", "第二出 言懷", "第三出 訓女", "第四出 腐歡"],
+  );
 
   const titlePayload = cleanGutenbergPayload(book, {
     blurb: "",
@@ -2048,7 +2393,10 @@ test("Gutenberg cleanup repairs Mudanting source scene order and titles", () => 
       { n: 2, title: "第五十二出 榜下", text: "正文五十二" },
     ],
   });
-  assert.deepEqual(titlePayload.chapters.map((chapter) => chapter.title), ["第三十四出 詗藥", "第五十二出 索元"]);
+  assert.deepEqual(
+    titlePayload.chapters.map((chapter) => chapter.title),
+    ["第三十四出 詗藥", "第五十二出 索元"],
+  );
 });
 
 test("Gutenberg cleanup removes repeated question marks after Chinese ordinals", () => {
@@ -2060,10 +2408,10 @@ test("Gutenberg cleanup removes repeated question marks after Chinese ordinals",
       { n: 2, title: "第二回???? 華柔玉命題親考試", text: "正文二" },
     ],
   });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "第一回 靈隱寺禪僧貽寶倡",
-    "第二回 華柔玉命題親考試",
-  ]);
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["第一回 靈隱寺禪僧貽寶倡", "第二回 華柔玉命題親考試"],
+  );
   assert.deepEqual(assertImportQuality(book, payload.chapters), []);
 });
 
@@ -2099,7 +2447,12 @@ test("Gutenberg cleanup merges Viagens into one chapter", () => {
 });
 
 test("Gutenberg cleanup merges known weak Dutch TOCs into one chapter", () => {
-  for (const id of ["max-havelaar-gutenberg-nl", "onder-moeders-vleugels-gutenberg-nl", "prometheus-geboeid-gutenberg-nl", "noli-me-tangere-gutenberg-nl"]) {
+  for (const id of [
+    "max-havelaar-gutenberg-nl",
+    "onder-moeders-vleugels-gutenberg-nl",
+    "prometheus-geboeid-gutenberg-nl",
+    "noli-me-tangere-gutenberg-nl",
+  ]) {
     const book = BOOKS.find((row) => row.id === id);
     const payload = cleanGutenbergPayload(book, {
       blurb: "",
@@ -2116,7 +2469,14 @@ test("Gutenberg cleanup merges known weak Dutch TOCs into one chapter", () => {
 });
 
 test("Gutenberg cleanup merges known weak Swedish TOCs into one chapter", () => {
-  for (const id of ["roda-rummet-gutenberg-sv", "hemsoborna-gutenberg-sv", "kalevala-sv-gutenberg-sv", "teckningar-drommar-gutenberg-sv", "katornas-folk-gutenberg-sv", "moloks-leende-gutenberg-sv"]) {
+  for (const id of [
+    "roda-rummet-gutenberg-sv",
+    "hemsoborna-gutenberg-sv",
+    "kalevala-sv-gutenberg-sv",
+    "teckningar-drommar-gutenberg-sv",
+    "katornas-folk-gutenberg-sv",
+    "moloks-leende-gutenberg-sv",
+  ]) {
     const book = BOOKS.find((row) => row.id === id);
     const payload = cleanGutenbergPayload(book, {
       blurb: "",
@@ -2133,7 +2493,12 @@ test("Gutenberg cleanup merges known weak Swedish TOCs into one chapter", () => 
 });
 
 test("Gutenberg cleanup merges known weak Finnish TOCs into one chapter", () => {
-  for (const id of ["agamemnon-gutenberg-fi", "kavaluus-rakkaus-gutenberg-fi", "rautakorko-gutenberg-fi", "sointula-gutenberg-fi"]) {
+  for (const id of [
+    "agamemnon-gutenberg-fi",
+    "kavaluus-rakkaus-gutenberg-fi",
+    "rautakorko-gutenberg-fi",
+    "sointula-gutenberg-fi",
+  ]) {
     const book = BOOKS.find((row) => row.id === id);
     const payload = cleanGutenbergPayload(book, {
       blurb: "",
@@ -2150,7 +2515,11 @@ test("Gutenberg cleanup merges known weak Finnish TOCs into one chapter", () => 
 });
 
 test("Gutenberg cleanup merges known weak Danish TOCs into one chapter", () => {
-  for (const id of ["pelle-erobreren-1-gutenberg-da", "tine-gutenberg-da", "kongens-fald-gutenberg-da"]) {
+  for (const id of [
+    "pelle-erobreren-1-gutenberg-da",
+    "tine-gutenberg-da",
+    "kongens-fald-gutenberg-da",
+  ]) {
     const book = BOOKS.find((row) => row.id === id);
     const payload = cleanGutenbergPayload(book, {
       blurb: "",
@@ -2332,7 +2701,12 @@ test("Gutenberg cleanup merges known weak Russian, Romanian, and Hebrew TOCs int
 });
 
 test("Gutenberg cleanup merges known weak Italian TOCs into one chapter", () => {
-  for (const id of ["divina-dottrina-gutenberg-it", "demagoghi-gutenberg-it", "carita-prossimo-gutenberg-it", "favorita-mahdi-gutenberg-it"]) {
+  for (const id of [
+    "divina-dottrina-gutenberg-it",
+    "demagoghi-gutenberg-it",
+    "carita-prossimo-gutenberg-it",
+    "favorita-mahdi-gutenberg-it",
+  ]) {
     const book = BOOKS.find((row) => row.id === id);
     const payload = cleanGutenbergPayload(book, {
       blurb: "",
@@ -2349,26 +2723,36 @@ test("Gutenberg cleanup merges known weak Italian TOCs into one chapter", () => 
 });
 
 test("Gutenberg cleanup removes short standalone part marker chapters", () => {
-  const payload = cleanGutenbergPayload({ title: "Notre-Dame", skipTitles: [] }, {
-    blurb: "",
-    chapters: [
-      { n: 1, title: "LIVRE PREMIER", text: "I" },
-      { n: 2, title: "I LA GRAND’SALLE", text: "long texte" },
-      { n: 3, title: "LIVRE SIXIÈME", text: "VI" },
-      { n: 4, title: "II LE TROU AUX RATS", text: "suite" },
-    ],
-  });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), ["I LA GRAND’SALLE", "II LE TROU AUX RATS"]);
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.n), [1, 2]);
+  const payload = cleanGutenbergPayload(
+    { title: "Notre-Dame", skipTitles: [] },
+    {
+      blurb: "",
+      chapters: [
+        { n: 1, title: "LIVRE PREMIER", text: "I" },
+        { n: 2, title: "I LA GRAND’SALLE", text: "long texte" },
+        { n: 3, title: "LIVRE SIXIÈME", text: "VI" },
+        { n: 4, title: "II LE TROU AUX RATS", text: "suite" },
+      ],
+    },
+  );
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["I LA GRAND’SALLE", "II LE TROU AUX RATS"],
+  );
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.n),
+    [1, 2],
+  );
 });
 
 test("Gutenberg cleanup names single-chapter Chinese books after the book", () => {
-  const payload = cleanGutenbergPayload({ title: "公孫龍子", lang: "zh", skipTitles: [] }, {
-    blurb: "",
-    chapters: [
-      { n: 1, title: "羊有角、牛有角。牛之而羊也；羊之而牛也，未可。", text: "正文" },
-    ],
-  });
+  const payload = cleanGutenbergPayload(
+    { title: "公孫龍子", lang: "zh", skipTitles: [] },
+    {
+      blurb: "",
+      chapters: [{ n: 1, title: "羊有角、牛有角。牛之而羊也；羊之而牛也，未可。", text: "正文" }],
+    },
+  );
   assert.equal(payload.chapters[0].title, "公孫龍子");
 });
 
@@ -2397,31 +2781,34 @@ test("Gutenberg cleanup inserts configured Chinese missing chapter placeholders"
 });
 
 test("Gutenberg cleanup repairs Kongcongzi Xiaoeerya subheadings", () => {
-  const payload = cleanGutenbergPayload({ id: "kongcongzi-gutenberg-zh", lang: "zh", title: "孔叢子" }, {
-    blurb: "",
-    chapters: [
-      { n: 1, title: "孔叢卷上", text: "漢．魯人孔鮒著" },
-      { n: 2, title: "〈嘉言〉第一", text: "正文一" },
-      { n: 3, title: "〈抗志〉第十", text: "正文十" },
-      { n: 4, title: "〈廣詁〉第一", text: "廣詁正文" },
-      { n: 5, title: "〈廣言〉第二", text: "廣言正文" },
-      { n: 6, title: "〈廣獸〉第十", text: "廣獸正文" },
-      { n: 7, title: "〈公孫龍〉第十二", text: "正文十二" },
-    ],
-  });
-  assert.deepEqual(payload.chapters.map((chapter) => chapter.title), [
-    "孔叢卷上",
-    "〈嘉言〉第一",
-    "〈抗志〉第十",
-    "〈小爾雅〉第十一",
-    "〈公孫龍〉第十二",
-  ]);
+  const payload = cleanGutenbergPayload(
+    { id: "kongcongzi-gutenberg-zh", lang: "zh", title: "孔叢子" },
+    {
+      blurb: "",
+      chapters: [
+        { n: 1, title: "孔叢卷上", text: "漢．魯人孔鮒著" },
+        { n: 2, title: "〈嘉言〉第一", text: "正文一" },
+        { n: 3, title: "〈抗志〉第十", text: "正文十" },
+        { n: 4, title: "〈廣詁〉第一", text: "廣詁正文" },
+        { n: 5, title: "〈廣言〉第二", text: "廣言正文" },
+        { n: 6, title: "〈廣獸〉第十", text: "廣獸正文" },
+        { n: 7, title: "〈公孫龍〉第十二", text: "正文十二" },
+      ],
+    },
+  );
+  assert.deepEqual(
+    payload.chapters.map((chapter) => chapter.title),
+    ["孔叢卷上", "〈嘉言〉第一", "〈抗志〉第十", "〈小爾雅〉第十一", "〈公孫龍〉第十二"],
+  );
   assert.match(payload.chapters[3].text, /〈廣詁〉第一/);
   assert.match(payload.chapters[3].text, /廣獸正文/);
 });
 
 test("Gutenberg importer verifies public-domain rights before publishing candidates", async () => {
-  const source = await readFile(new URL("../scripts/import-gutenberg-classics.mjs", import.meta.url), "utf8");
+  const source = await readFile(
+    new URL("../scripts/import-gutenberg-classics.mjs", import.meta.url),
+    "utf8",
+  );
   const importOneStart = source.indexOf("async function importOne");
   const importOneEnd = source.indexOf("function summarizeOutput");
   assert.notEqual(importOneStart, -1);
@@ -2429,14 +2816,18 @@ test("Gutenberg importer verifies public-domain rights before publishing candida
   const importOne = source.slice(importOneStart, importOneEnd);
 
   assert.ok(
-    importOne.indexOf("verifyGutenbergPublicDomain(book, metadata)") < importOne.indexOf("downloadEpub(book, filePath)"),
+    importOne.indexOf("verifyGutenbergPublicDomain(book, metadata)") <
+      importOne.indexOf("downloadEpub(book, filePath)"),
     "RDF rights check should happen before downloading and publishing",
   );
   assert.match(
     importOne,
-    /verifyPublishLicense\(info, \{ source: sourceUrl\(book\), license: metadataLicense\.license, evidence: metadata\.rights\.join/,
+    /verifyPublishLicense\(info,\s*\{\s*source: sourceUrl\(book\),\s*license: metadataLicense\.license,\s*evidence: metadata\.rights\.join/,
   );
-  assert.match(importOne, /createBookManifest\(filePath, \{ source: sourceUrl\(book\), license: metadataLicense\.license/);
+  assert.match(
+    importOne,
+    /createBookManifest\(filePath,\s*\{\s*source: sourceUrl\(book\),\s*license: metadataLicense\.license/,
+  );
 });
 
 test("Gutenberg summary keeps language counts and rejected books visible", () => {

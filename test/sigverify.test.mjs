@@ -14,7 +14,11 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from "@noble/hashes/utils.js";
 import { base58 } from "@scure/base";
-import { recoverEvmAddress, verifySolanaAddress, walletAddressesMatch } from "../functions/lib/chains/sigverify.mjs";
+import {
+  recoverEvmAddress,
+  verifySolanaAddress,
+  walletAddressesMatch,
+} from "../functions/lib/chains/sigverify.mjs";
 
 // ---- helpers that mimic a real wallet producing a personal_sign signature ----
 const KNOWN_PRIV = hexToBytes("0000000000000000000000000000000000000000000000000000000000000001");
@@ -26,7 +30,9 @@ function evmAddrFromPriv(priv) {
 }
 function personalSign(message, priv) {
   const msg = utf8ToBytes(message);
-  const digest = keccak_256(concatBytes(utf8ToBytes("\x19Ethereum Signed Message:\n" + msg.length), msg));
+  const digest = keccak_256(
+    concatBytes(utf8ToBytes("\x19Ethereum Signed Message:\n" + msg.length), msg),
+  );
   const recovered = secp256k1.sign(digest, priv, { prehash: false, format: "recovered" }); // [rec, r, s]
   const rec = recovered[0];
   const r = recovered.slice(1, 33);
@@ -52,7 +58,7 @@ test("EVM: a tampered message recovers a DIFFERENT address (forgery rejected)", 
 });
 
 test("EVM: malformed signatures return null, never throw", () => {
-  assert.equal(recoverEvmAddress("m", "0xdeadbeef"), null);      // too short
+  assert.equal(recoverEvmAddress("m", "0xdeadbeef"), null); // too short
   assert.equal(recoverEvmAddress("m", "not-hex"), null);
   assert.equal(recoverEvmAddress("m", ""), null);
   assert.equal(recoverEvmAddress(null, "0x" + "00".repeat(65)), null);
@@ -73,7 +79,7 @@ test("Solana: a signature from a different key is rejected (null)", () => {
   const addrB = base58.encode(ed25519.getPublicKey(skB));
   const message = "login";
   const sig = base58.encode(ed25519.sign(utf8ToBytes(message), skA)); // signed by A
-  assert.equal(verifySolanaAddress(message, sig, addrB), null);        // claims B
+  assert.equal(verifySolanaAddress(message, sig, addrB), null); // claims B
 });
 
 test("Solana: tampered message and malformed inputs return null", () => {

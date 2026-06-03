@@ -62,7 +62,11 @@ async function putChallenge(env: Env, kind: "reg" | "auth", challenge: string, d
   await env.KV.put(`pk-${kind}:${challenge}`, data, { expirationTtl: CHALLENGE_TTL });
 }
 // Single-use: reading a challenge also burns it, so a ceremony can't be replayed.
-async function takeChallenge(env: Env, kind: "reg" | "auth", challenge: string): Promise<string | null> {
+async function takeChallenge(
+  env: Env,
+  kind: "reg" | "auth",
+  challenge: string,
+): Promise<string | null> {
   const key = `pk-${kind}:${challenge}`;
   const data = await env.KV.get(key);
   if (data) await env.KV.delete(key);
@@ -74,7 +78,9 @@ async function takeChallenge(env: Env, kind: "reg" | "auth", challenge: string):
 // separate client-supplied field.
 function challengeOf(response: any): string | null {
   try {
-    const data = JSON.parse(new TextDecoder().decode(b64urlToBuf(response?.response?.clientDataJSON)));
+    const data = JSON.parse(
+      new TextDecoder().decode(b64urlToBuf(response?.response?.clientDataJSON)),
+    );
     return typeof data?.challenge === "string" ? data.challenge : null;
   } catch {
     return null;
@@ -104,7 +110,10 @@ export async function passkeyRegisterOptions(c: Ctx) {
 }
 
 // 1b) registration verify — create the account + store the credential, mint a session.
-export async function passkeyRegisterVerify(c: Ctx, response: any): Promise<{ token: string; user: UserRow }> {
+export async function passkeyRegisterVerify(
+  c: Ctx,
+  response: any,
+): Promise<{ token: string; user: UserRow }> {
   const challenge = challengeOf(response);
   if (!challenge) throw new HTTPException(400, { message: "通行密钥响应无效" });
   const userId = await takeChallenge(c.env, "reg", challenge);
@@ -149,11 +158,26 @@ export async function passkeyRegisterVerify(c: Ctx, response: any): Promise<{ to
   // Insert the user and its credential ATOMICALLY — a duplicate credential id
   // (re-registration) or a D1 error must not leave a committed orphan user row.
   await batch(c.env.DB, [
-    [`INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
-      userId, null, `@${userId.slice(0, 8)}`, `读者 ${userId.slice(2, 6).toUpperCase()}`, "#3a4fb0", "钥", "", now()],
-    [`INSERT INTO passkeys (id, user_id, public_key, counter, transports, created_at) VALUES (?,?,?,?,?,?)`,
-      cred.id, userId, bufToB64url(cred.publicKey), cred.counter ?? 0,
-      cred.transports ? JSON.stringify(cred.transports) : null, now()],
+    [
+      `INSERT INTO users (id, sui_address, handle, name, color, seal, bio, is_guest, created_at) VALUES (?,?,?,?,?,?,?,0,?)`,
+      userId,
+      null,
+      `@${userId.slice(0, 8)}`,
+      `读者 ${userId.slice(2, 6).toUpperCase()}`,
+      "#3a4fb0",
+      "钥",
+      "",
+      now(),
+    ],
+    [
+      `INSERT INTO passkeys (id, user_id, public_key, counter, transports, created_at) VALUES (?,?,?,?,?,?)`,
+      cred.id,
+      userId,
+      bufToB64url(cred.publicKey),
+      cred.counter ?? 0,
+      cred.transports ? JSON.stringify(cred.transports) : null,
+      now(),
+    ],
   ]);
   // Unify login + wallet: register this same passkey with Turnkey so it is also the
   // wallet's signer — no separate "set up a wallet passkey" step. Best-effort; never
@@ -167,17 +191,27 @@ export async function passkeyRegisterVerify(c: Ctx, response: any): Promise<{ to
           credentialId: response.id,
           clientDataJson: response.response.clientDataJSON,
           attestationObject: response.response.attestationObject,
-          transports: (response.response.transports || []).map((t: string) => "AUTHENTICATOR_TRANSPORT_" + String(t).toUpperCase()),
+          transports: (response.response.transports || []).map(
+            (t: string) => "AUTHENTICATOR_TRANSPORT_" + String(t).toUpperCase(),
+          ),
         },
       });
       if (p.subOrgId) {
         await run(
           c.env.DB,
           `UPDATE users SET turnkey_sub_org_id = ?, turnkey_wallet_id = ?, turnkey_root_user_id = ?, turnkey_sui_address = ?, turnkey_addresses = ?, turnkey_passkey_at = ? WHERE id = ?`,
-          p.subOrgId, p.walletId, p.rootUserId, p.addresses.sui, JSON.stringify(p.addresses), now(), userId,
+          p.subOrgId,
+          p.walletId,
+          p.rootUserId,
+          p.addresses.sui,
+          JSON.stringify(p.addresses),
+          now(),
+          userId,
         );
       }
-    } catch { /* Turnkey down or attestation format mismatch — login still succeeds */ }
+    } catch {
+      /* Turnkey down or attestation format mismatch — login still succeeds */
+    }
   }
   const user = (await getUser(c.env, userId))!;
   const token = await createSession(c.env, user.id);
@@ -194,7 +228,10 @@ export async function passkeyLoginOptions(c: Ctx) {
 }
 
 // 2b) login verify — match the asserted credential, check the signature + counter, mint a session.
-export async function passkeyLoginVerify(c: Ctx, response: any): Promise<{ token: string; user: UserRow }> {
+export async function passkeyLoginVerify(
+  c: Ctx,
+  response: any,
+): Promise<{ token: string; user: UserRow }> {
   const challenge = challengeOf(response);
   if (!challenge) throw new HTTPException(400, { message: "通行密钥响应无效" });
   if (!(await takeChallenge(c.env, "auth", challenge))) {
@@ -224,7 +261,12 @@ export async function passkeyLoginVerify(c: Ctx, response: any): Promise<{ token
   }
   if (!verification.verified) throw new HTTPException(401, { message: "通行密钥验证失败" });
 
-  await run(c.env.DB, `UPDATE passkeys SET counter = ? WHERE id = ?`, verification.authenticationInfo.newCounter, credential.id);
+  await run(
+    c.env.DB,
+    `UPDATE passkeys SET counter = ? WHERE id = ?`,
+    verification.authenticationInfo.newCounter,
+    credential.id,
+  );
   const user = await getUser(c.env, credential.user_id);
   if (!user) throw new HTTPException(404, { message: "账户不存在" });
   const token = await createSession(c.env, user.id);

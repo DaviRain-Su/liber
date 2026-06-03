@@ -39,7 +39,11 @@ function json(value: unknown): string {
 function parsePayload(value: unknown): Record<string, unknown> {
   if (!value) return {};
   if (typeof value === "object") return value as Record<string, unknown>;
-  try { return JSON.parse(String(value)); } catch { return {}; }
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return {};
+  }
 }
 
 function gatewayOptions(env: Env, cache = true): Record<string, unknown> | undefined {
@@ -60,7 +64,11 @@ function escapeHtml(value: unknown): string {
 }
 
 function chunkText(text: string, maxChars = 1800): string[] {
-  const blocks = text.replace(/\r\n/g, "\n").split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+  const blocks = text
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/)
+    .map((x) => x.trim())
+    .filter(Boolean);
   const chunks: string[] = [];
   let acc = "";
   const push = () => {
@@ -68,9 +76,10 @@ function chunkText(text: string, maxChars = 1800): string[] {
     acc = "";
   };
   for (const block of blocks.length ? blocks : [text]) {
-    const piece = block.length > maxChars
-      ? block.match(new RegExp(`.{1,${maxChars}}`, "gs")) || [block]
-      : [block];
+    const piece =
+      block.length > maxChars
+        ? block.match(new RegExp(`.{1,${maxChars}}`, "gs")) || [block]
+        : [block];
     for (const part of piece) {
       if ((acc + "\n\n" + part).length > maxChars) push();
       acc = acc ? `${acc}\n\n${part}` : part;
@@ -88,8 +97,13 @@ async function embedTexts(env: Env, texts: string[]): Promise<number[][]> {
     { text: texts.length === 1 ? texts[0] : texts },
     gatewayOptions(env, true),
   );
-  const data = Array.isArray(res?.data) ? res.data : Array.isArray(res?.result?.data) ? res.result.data : null;
-  if (!Array.isArray(data) || !Array.isArray(data[0])) throw new Error("Workers AI embedding 返回为空");
+  const data = Array.isArray(res?.data)
+    ? res.data
+    : Array.isArray(res?.result?.data)
+      ? res.result.data
+      : null;
+  if (!Array.isArray(data) || !Array.isArray(data[0]))
+    throw new Error("Workers AI embedding 返回为空");
   return data as number[][];
 }
 
@@ -122,7 +136,11 @@ async function upsertSemanticDocument(env: Env, doc: SemanticDoc, indexedAt: num
   );
 }
 
-export async function enqueuePlatformJob(env: Env, input: PlatformJobInput, userId?: string | null) {
+export async function enqueuePlatformJob(
+  env: Env,
+  input: PlatformJobInput,
+  userId?: string | null,
+) {
   const jobId = id("job_");
   const createdAt = now();
   await run(
@@ -152,9 +170,21 @@ export async function enqueuePlatformJob(env: Env, input: PlatformJobInput, user
   };
   if (env.PLATFORM_QUEUE && env.PLATFORM_QUEUE_ENABLED !== "false") {
     const sent = await env.PLATFORM_QUEUE.send(message);
-    await run(env.DB, `UPDATE platform_jobs SET result = ?, updated_at = ? WHERE id = ?`, json({ queue: sent.metadata?.metrics || true }), now(), jobId);
+    await run(
+      env.DB,
+      `UPDATE platform_jobs SET result = ?, updated_at = ? WHERE id = ?`,
+      json({ queue: sent.metadata?.metrics || true }),
+      now(),
+      jobId,
+    );
   } else {
-    await run(env.DB, `UPDATE platform_jobs SET result = ?, updated_at = ? WHERE id = ?`, json({ queue: false, reason: "PLATFORM_QUEUE 未绑定" }), now(), jobId);
+    await run(
+      env.DB,
+      `UPDATE platform_jobs SET result = ?, updated_at = ? WHERE id = ?`,
+      json({ queue: false, reason: "PLATFORM_QUEUE 未绑定" }),
+      now(),
+      jobId,
+    );
   }
   return { ...message, status: "queued" };
 }
@@ -169,16 +199,23 @@ export async function platformStatus(env: Env) {
     }
   };
   const safe = async <T>(fn: () => Promise<T>) => {
-    try { return { ok: true, data: await fn() }; }
-    catch (err) { return { ok: false, error: String(err instanceof Error ? err.message : err) }; }
+    try {
+      return { ok: true, data: await fn() };
+    } catch (err) {
+      return { ok: false, error: String(err instanceof Error ? err.message : err) };
+    }
   };
   const [jobs, pendingJobs, semanticDocs, shareAssets, vectorize, queue] = await Promise.all([
     count(`SELECT COUNT(*) AS n FROM platform_jobs`),
     count(`SELECT COUNT(*) AS n FROM platform_jobs WHERE status IN ('queued','running')`),
     count(`SELECT COUNT(*) AS n FROM semantic_documents WHERE indexed_at IS NOT NULL`),
     count(`SELECT COUNT(*) AS n FROM share_assets`),
-    env.VECTORIZE ? safe(() => env.VECTORIZE!.describe()) : Promise.resolve({ ok: false, error: "未绑定" }),
-    env.PLATFORM_QUEUE ? safe(() => env.PLATFORM_QUEUE!.metrics()) : Promise.resolve({ ok: false, error: "未绑定" }),
+    env.VECTORIZE
+      ? safe(() => env.VECTORIZE!.describe())
+      : Promise.resolve({ ok: false, error: "未绑定" }),
+    env.PLATFORM_QUEUE
+      ? safe(() => env.PLATFORM_QUEUE!.metrics())
+      : Promise.resolve({ ok: false, error: "未绑定" }),
   ]);
   return {
     ok: true,
@@ -200,7 +237,13 @@ export async function platformStatus(env: Env) {
   };
 }
 
-export async function recordPlatformMetric(env: Env, kind: string, scope: string | null, value: number | null, meta?: unknown) {
+export async function recordPlatformMetric(
+  env: Env,
+  kind: string,
+  scope: string | null,
+  value: number | null,
+  meta?: unknown,
+) {
   await run(
     env.DB,
     `INSERT INTO platform_metrics (id, kind, scope, value, meta, created_at) VALUES (?,?,?,?,?,?)`,
@@ -222,12 +265,19 @@ export async function indexBookSemantics(env: Env, bookId: string) {
     bookId,
   );
   const chapters = rows.length
-    ? (await Promise.all(rows.map((r) => getChapterText(env, bookId, Number(r.n))))).filter(Boolean) as Array<{ n: number; title: string; text: string }>
-    : (await getChapters(env, bookId)).map((ch: any) => ({
-        n: Number(ch.n),
-        title: ch.title || `第 ${ch.n} 章`,
-        text: (ch.paras || []).flat().map((s: any) => s.t).join("\n"),
-      })).filter((ch: any) => ch.text);
+    ? ((await Promise.all(rows.map((r) => getChapterText(env, bookId, Number(r.n))))).filter(
+        Boolean,
+      ) as Array<{ n: number; title: string; text: string }>)
+    : (await getChapters(env, bookId))
+        .map((ch: any) => ({
+          n: Number(ch.n),
+          title: ch.title || `第 ${ch.n} 章`,
+          text: (ch.paras || [])
+            .flat()
+            .map((s: any) => s.t)
+            .join("\n"),
+        }))
+        .filter((ch: any) => ch.text);
 
   const docs: SemanticDoc[] = [];
   for (const ch of chapters) {
@@ -249,29 +299,37 @@ export async function indexBookSemantics(env: Env, bookId: string) {
   if (!docs.length) throw new Error("没有可索引的章节正文");
 
   for (const doc of docs) await upsertSemanticDocument(env, doc, null);
-  if (!env.VECTORIZE) return { bookId, documents: docs.length, vectorized: false, reason: "VECTORIZE 未绑定" };
+  if (!env.VECTORIZE)
+    return { bookId, documents: docs.length, vectorized: false, reason: "VECTORIZE 未绑定" };
 
   let vectorized = 0;
   for (let i = 0; i < docs.length; i += 16) {
     const batch = docs.slice(i, i + 16);
-    const embeddings = await embedTexts(env, batch.map((doc) => doc.text));
-    await env.VECTORIZE.upsert(batch.map((doc, idx) => ({
-      id: doc.vectorId,
-      values: embeddings[idx],
-      namespace: "books",
-      metadata: {
-        bookId: doc.bookId,
-        chapterN: doc.chapterN || 0,
-        title: doc.title.slice(0, 120),
-        lang: doc.lang,
-        excerpt: doc.text.slice(0, 500),
-      },
-    })));
+    const embeddings = await embedTexts(
+      env,
+      batch.map((doc) => doc.text),
+    );
+    await env.VECTORIZE.upsert(
+      batch.map((doc, idx) => ({
+        id: doc.vectorId,
+        values: embeddings[idx],
+        namespace: "books",
+        metadata: {
+          bookId: doc.bookId,
+          chapterN: doc.chapterN || 0,
+          title: doc.title.slice(0, 120),
+          lang: doc.lang,
+          excerpt: doc.text.slice(0, 500),
+        },
+      })),
+    );
     const indexedAt = now();
     for (const doc of batch) await upsertSemanticDocument(env, doc, indexedAt);
     vectorized += batch.length;
   }
-  await recordPlatformMetric(env, "semantic_indexed", bookId, vectorized, { documents: docs.length });
+  await recordPlatformMetric(env, "semantic_indexed", bookId, vectorized, {
+    documents: docs.length,
+  });
   return { bookId, documents: docs.length, vectorized };
 }
 
@@ -374,7 +432,9 @@ export async function renderShareCard(env: Env, payload: Record<string, unknown>
     now(),
     now(),
   );
-  await recordPlatformMetric(env, "share_card_rendered", String(payload.shareId || "manual"), 1, { key });
+  await recordPlatformMetric(env, "share_card_rendered", String(payload.shareId || "manual"), 1, {
+    key,
+  });
   return { id: assetId, key, contentType: "image/png", width: 1200, height: 630 };
 }
 
@@ -397,15 +457,20 @@ export async function runPlatformJob(env: Env, input: string | PlatformQueueMess
   const claim = await run(
     env.DB,
     `UPDATE platform_jobs SET status = 'running', attempts = attempts + 1, started_at = ?, updated_at = ? WHERE id = ? AND status != 'done' AND (status != 'running' OR started_at < ?)`,
-    now(), now(), jobId, now() - PLATFORM_JOB_STALE_MS,
+    now(),
+    now(),
+    jobId,
+    now() - PLATFORM_JOB_STALE_MS,
   );
-  if (!claim.meta?.changes) return { id: jobId, status: row.status, skipped: true, reason: "任务已完成或正在执行" };
+  if (!claim.meta?.changes)
+    return { id: jobId, status: row.status, skipped: true, reason: "任务已完成或正在执行" };
   try {
-    const result = row.type === "index-book"
-      ? await indexBookSemantics(env, String(row.target_id || payload.bookId || ""))
-      : row.type === "render-share-card"
-        ? await renderShareCard(env, payload)
-        : { skipped: true, reason: `${row.type} 尚未实现执行器` };
+    const result =
+      row.type === "index-book"
+        ? await indexBookSemantics(env, String(row.target_id || payload.bookId || ""))
+        : row.type === "render-share-card"
+          ? await renderShareCard(env, payload)
+          : { skipped: true, reason: `${row.type} 尚未实现执行器` };
     await run(
       env.DB,
       `UPDATE platform_jobs SET status = 'done', result = ?, error = NULL, finished_at = ?, updated_at = ? WHERE id = ?`,
@@ -444,8 +509,15 @@ export async function runDuePlatformJobs(env: Env, limit = 5) {
   );
   const results: any[] = [];
   for (const row of rows) {
-    try { results.push(await runPlatformJob(env, row.id)); }
-    catch (err) { results.push({ id: row.id, status: "failed", error: String(err instanceof Error ? err.message : err) }); }
+    try {
+      results.push(await runPlatformJob(env, row.id));
+    } catch (err) {
+      results.push({
+        id: row.id,
+        status: "failed",
+        error: String(err instanceof Error ? err.message : err),
+      });
+    }
   }
   return results;
 }

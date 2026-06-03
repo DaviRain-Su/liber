@@ -7,10 +7,18 @@ const BASE = "/api";
 const TOKEN_KEY = "liber.token";
 
 export function getToken() {
-  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
 }
 export function setToken(t) {
-  try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+  try {
+    t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function ensureGuestSession() {
@@ -30,7 +38,11 @@ async function req(method, path, body) {
   });
   if (!res.ok) {
     let msg = res.statusText;
-    try { msg = (await res.json()).error || msg; } catch { /* non-JSON */ }
+    try {
+      msg = (await res.json()).error || msg;
+    } catch {
+      /* non-JSON */
+    }
     const err = new Error(msg);
     err.status = res.status;
     throw err;
@@ -44,13 +56,26 @@ const put = (p, b) => req("PUT", p, b);
 const del = (p) => req("DELETE", p);
 
 export const api = {
-  get, post, put, del,
+  get,
+  post,
+  put,
+  del,
   health: () => get("/health"),
 
   auth: {
-    guest: async () => { const r = await post("/auth/guest"); if (r?.token) setToken(r.token); return r; },
+    guest: async () => {
+      const r = await post("/auth/guest");
+      if (r?.token) setToken(r.token);
+      return r;
+    },
     me: () => get("/auth/me"),
-    logout: async () => { try { await post("/auth/logout"); } finally { setToken(null); } },
+    logout: async () => {
+      try {
+        await post("/auth/logout");
+      } finally {
+        setToken(null);
+      }
+    },
     nonce: () => post("/auth/nonce"),
     verify: (payload) => post("/auth/verify", payload),
     googleConfig: () => get("/auth/google/config"),
@@ -117,8 +142,10 @@ export const api = {
     summary: () => get("/reading/summary"),
     get: (bookId) => get(`/reading/${bookId}`),
     highlight: (bookId, sid, color) => put(`/reading/${bookId}/highlight`, { sid, color }),
-    note: (bookId, sid, text, isPublic = true) => post(`/reading/${bookId}/note`, { sid, text, public: isPublic }),
-    progress: (bookId, chapterN, percent) => put(`/reading/${bookId}/progress`, { chapter_n: chapterN, percent }),
+    note: (bookId, sid, text, isPublic = true) =>
+      post(`/reading/${bookId}/note`, { sid, text, public: isPublic }),
+    progress: (bookId, chapterN, percent) =>
+      put(`/reading/${bookId}/progress`, { chapter_n: chapterN, percent }),
   },
 
   // 书单 (booklists): user-curated, D1-backed, shareable + forkable.
@@ -171,7 +198,8 @@ export const api = {
     threads: () => get("/messages/threads"),
     unread: () => get("/messages/unread"),
     with: (userId) => get(`/messages/with/${encodeURIComponent(userId)}`),
-    send: (userId, text, quote) => post(`/messages/with/${encodeURIComponent(userId)}`, { text, quote }),
+    send: (userId, text, quote) =>
+      post(`/messages/with/${encodeURIComponent(userId)}`, { text, quote }),
   },
   // 通知 (notifications feed)
   notifications: {
@@ -190,13 +218,16 @@ export const api = {
     usage: () => get("/ai/usage"),
     conversations: () => get("/ai/conversations"),
     conversation: (id) => get(`/ai/conversations/${id}`),
-    correctTranslation: (cacheKey, translatedText) => put(`/ai/translations/${encodeURIComponent(cacheKey)}`, { translatedText }),
+    correctTranslation: (cacheKey, translatedText) =>
+      put(`/ai/translations/${encodeURIComponent(cacheKey)}`, { translatedText }),
   },
 
   platform: {
     status: () => get("/platform/status"),
-    semanticSearch: (q, limit = 8) => get(`/platform/search?q=${encodeURIComponent(q)}&limit=${encodeURIComponent(limit)}`),
-    jobs: (status = "") => get("/platform/jobs" + (status ? `?status=${encodeURIComponent(status)}` : "")),
+    semanticSearch: (q, limit = 8) =>
+      get(`/platform/search?q=${encodeURIComponent(q)}&limit=${encodeURIComponent(limit)}`),
+    jobs: (status = "") =>
+      get("/platform/jobs" + (status ? `?status=${encodeURIComponent(status)}` : "")),
     enqueue: (payload) => post("/platform/jobs", payload),
     drain: (limit = 5) => post("/platform/jobs/drain", { limit }),
     indexBook: (id) => post(`/platform/index/book/${encodeURIComponent(id)}`),

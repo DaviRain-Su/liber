@@ -17,8 +17,12 @@ import { useQuery } from "@tanstack/react-query";
 
 // cover-class → swatch color (mirrors .cover.* in liber.css)
 const CLS_COLOR = {
-  ink: "#211b15", cinnabar: "#b0553a", cream: "#caa96a",
-  jade: "#20402f", indigo: "#1f2747", slate: "#2c2b2f",
+  ink: "#211b15",
+  cinnabar: "#b0553a",
+  cream: "#caa96a",
+  jade: "#20402f",
+  indigo: "#1f2747",
+  slate: "#2c2b2f",
 };
 const colorFor = (cls) => CLS_COLOR[cls] || CLS_COLOR.ink;
 
@@ -35,13 +39,23 @@ function seedMap() {
     hits.set(y, (hits.get(y) || 0) + 1);
   };
   for (const data of Object.values(SEED_ECHOES || {})) {
-    for (const it of data.items || []) { if (it.bookId) bump("daodejing", it.bookId); }
+    for (const it of data.items || []) {
+      if (it.bookId) bump("daodejing", it.bookId);
+    }
   }
-  const meta = (id) => { const b = findCatalogBook(id) || {}; return { t: b.t || id, seal: b.seal || "·", cls: b.cls || "ink" }; };
+  const meta = (id) => {
+    const b = findCatalogBook(id) || {};
+    return { t: b.t || id, seal: b.seal || "·", cls: b.cls || "ink" };
+  };
   return {
     source: "seed",
     nodes: [...hits.entries()].map(([id, w]) => ({ id, ...meta(id), weight: w })),
-    edges: [...pair.values()].map((p) => ({ source: p.a, target: p.b, weight: p.weight, score: 0.9 })),
+    edges: [...pair.values()].map((p) => ({
+      source: p.a,
+      target: p.b,
+      weight: p.weight,
+      score: 0.9,
+    })),
   };
 }
 
@@ -49,15 +63,17 @@ function GraphView({ onClose, onOpenBook }) {
   const mapQ = useQuery({ queryKey: ["graph", "map"], queryFn: () => api.graph.map(400) });
   const state = mapQ.isPending
     ? { loading: true, source: null, nodes: [], edges: [], error: null }
-    : (mapQ.data && mapQ.data.nodes && mapQ.data.nodes.length)
+    : mapQ.data && mapQ.data.nodes && mapQ.data.nodes.length
       ? { loading: false, ...mapQ.data, error: null }
       : { loading: false, ...seedMap(), error: mapQ.isError ? "offline" : null };
   const [hover, setHover] = useGs(null);
   const wrapRef = useGr(null);
-  const W = 560, H = 440;
+  const W = 560,
+    H = 440;
 
   const { pts, links } = React.useMemo(
-    () => (state.nodes.length ? layoutForce(state.nodes, state.edges, W, H) : { pts: [], links: [] }),
+    () =>
+      state.nodes.length ? layoutForce(state.nodes, state.edges, W, H) : { pts: [], links: [] },
     [state.nodes, state.edges],
   );
   const maxW = Math.max(1, ...state.nodes.map((n) => n.weight || 1));
@@ -70,7 +86,20 @@ function GraphView({ onClose, onOpenBook }) {
         <div className="graph-head">
           <div>
             <div className="graph-kick">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="12" cy="11" r="2.4"/><path d="M6.7 6.6 9.8 9.8M17.2 7.6 14.1 10.2M12 13.4V16"/></svg>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+              >
+                <circle cx="5" cy="6" r="2" />
+                <circle cx="19" cy="7" r="2" />
+                <circle cx="12" cy="18" r="2" />
+                <circle cx="12" cy="11" r="2.4" />
+                <path d="M6.7 6.6 9.8 9.8M17.2 7.6 14.1 10.2M12 13.4V16" />
+              </svg>
               思维链接 · 全馆呼应图谱
             </div>
             <div className="graph-theme">
@@ -81,7 +110,9 @@ function GraphView({ onClose, onOpenBook }) {
                   : "加载中…"}
             </div>
           </div>
-          <span className="x" onClick={onClose}>{I.x}</span>
+          <span className="x" onClick={onClose}>
+            {I.x}
+          </span>
         </div>
 
         <div className="graph-canvas" ref={wrapRef}>
@@ -94,23 +125,69 @@ function GraphView({ onClose, onOpenBook }) {
               {links.map((l, i) => {
                 const active = hover && (l.s.id === hover || l.t.id === hover);
                 return (
-                  <line key={"e" + i} x1={l.s.x} y1={l.s.y} x2={l.t.x} y2={l.t.y}
+                  <line
+                    key={"e" + i}
+                    x1={l.s.x}
+                    y1={l.s.y}
+                    x2={l.t.x}
+                    y2={l.t.y}
                     stroke={active ? "var(--accent)" : "var(--accent-line)"}
                     strokeWidth={active ? 2 : 1 + Math.min(l.w, 5) * 0.5}
                     strokeOpacity={hover && !active ? 0.18 : 0.6}
-                    strokeDasharray={l.w > 1 ? "0" : "3 3"} />
+                    strokeDasharray={l.w > 1 ? "0" : "3 3"}
+                  />
                 );
               })}
               {pts.map((p) => {
                 const r = radius(p.weight);
-                const dim = hover && hover !== p.id && !links.some((l) => (l.s.id === hover && l.t.id === p.id) || (l.t.id === hover && l.s.id === p.id));
+                const dim =
+                  hover &&
+                  hover !== p.id &&
+                  !links.some(
+                    (l) =>
+                      (l.s.id === hover && l.t.id === p.id) ||
+                      (l.t.id === hover && l.s.id === p.id),
+                  );
                 return (
-                  <g key={p.id} style={{ cursor: "pointer", opacity: dim ? 0.32 : 1, transition: "opacity .15s" }}
-                    onMouseEnter={() => setHover(p.id)} onMouseLeave={() => setHover(null)}
-                    onClick={() => onOpenBook && onOpenBook(p.id)}>
-                    <circle cx={p.x} cy={p.y} r={r} fill={colorFor(p.cls)} stroke="var(--paper-2)" strokeWidth="2" />
-                    <text x={p.x} y={p.y + 5} textAnchor="middle" fontFamily="var(--display)" fontSize={Math.round(r * 0.78)} fill="#fff">{p.seal}</text>
-                    <text x={p.x} y={p.y + r + 14} textAnchor="middle" fontFamily="var(--display)" fontSize="12" fill="var(--ink)">{p.t}</text>
+                  <g
+                    key={p.id}
+                    style={{
+                      cursor: "pointer",
+                      opacity: dim ? 0.32 : 1,
+                      transition: "opacity .15s",
+                    }}
+                    onMouseEnter={() => setHover(p.id)}
+                    onMouseLeave={() => setHover(null)}
+                    onClick={() => onOpenBook && onOpenBook(p.id)}
+                  >
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={r}
+                      fill={colorFor(p.cls)}
+                      stroke="var(--paper-2)"
+                      strokeWidth="2"
+                    />
+                    <text
+                      x={p.x}
+                      y={p.y + 5}
+                      textAnchor="middle"
+                      fontFamily="var(--display)"
+                      fontSize={Math.round(r * 0.78)}
+                      fill="#fff"
+                    >
+                      {p.seal}
+                    </text>
+                    <text
+                      x={p.x}
+                      y={p.y + r + 14}
+                      textAnchor="middle"
+                      fontFamily="var(--display)"
+                      fontSize="12"
+                      fill="var(--ink)"
+                    >
+                      {p.t}
+                    </text>
                   </g>
                 );
               })}
@@ -119,14 +196,25 @@ function GraphView({ onClose, onOpenBook }) {
         </div>
 
         <div className="graph-legend">
-          <span><i className="gl-dot" /> 圆点 = 一本书，越大 = 被越多呼应触及</span>
-          <span><i className="gl-line" /> 连线 = 跨书呼应，越粗 = 链接越密</span>
+          <span>
+            <i className="gl-dot" /> 圆点 = 一本书，越大 = 被越多呼应触及
+          </span>
+          <span>
+            <i className="gl-line" /> 连线 = 跨书呼应，越粗 = 链接越密
+          </span>
         </div>
         <div className="graph-foot">
-          {state.source === "live"
-            ? <>这张图谱是<b>活的</b> · 每一次划线与提问都在为它添一条线</>
-            : <>这是<b>示意图谱</b> · 部署知识图谱（<code>GRAPH_ENABLED</code>）后，它将随真实阅读生长</>}
-          {" · "}<b>每条呼应本身都是可被引用的 CC0 对象</b>
+          {state.source === "live" ? (
+            <>
+              这张图谱是<b>活的</b> · 每一次划线与提问都在为它添一条线
+            </>
+          ) : (
+            <>
+              这是<b>示意图谱</b> · 部署知识图谱（<code>GRAPH_ENABLED</code>）后，它将随真实阅读生长
+            </>
+          )}
+          {" · "}
+          <b>每条呼应本身都是可被引用的 CC0 对象</b>
         </div>
       </div>
     </>

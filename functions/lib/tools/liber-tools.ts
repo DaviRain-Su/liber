@@ -27,12 +27,24 @@ export const TOOLS: LiberTool[] = [
       required: ["query"],
     },
     execute: async (env, args) => {
-      const t = String(args?.query || "").trim().slice(0, 128); // clamp model/client-supplied term
+      const t = String(args?.query || "")
+        .trim()
+        .slice(0, 128); // clamp model/client-supplied term
       if (await hasLibraryBooks(env)) {
         const dynamic = await searchDynamic(env, t);
-        return dynamic.books.map((b: any) => ({ id: b.id, title: b.t, author: b.a, addr: `liber://${b.id}` }));
+        return dynamic.books.map((b: any) => ({
+          id: b.id,
+          title: b.t,
+          author: b.a,
+          addr: `liber://${b.id}`,
+        }));
       }
-      const hits = S.BOOKS.filter((b) => b.t.includes(t) || b.a.includes(t) || (b.sub || "").toLowerCase().includes(t.toLowerCase()));
+      const hits = S.BOOKS.filter(
+        (b) =>
+          b.t.includes(t) ||
+          b.a.includes(t) ||
+          (b.sub || "").toLowerCase().includes(t.toLowerCase()),
+      );
       return hits.map((b) => ({ id: b.id, title: b.t, author: b.a, addr: `liber://${b.id}` }));
     },
   },
@@ -54,7 +66,10 @@ export const TOOLS: LiberTool[] = [
       // no chapter is given, fall back to the book's first chapter (some books
       // aren't 1-indexed) rather than assuming n=1.
       let n = Number(args?.chapter) || 0;
-      if (!n) { const toc = await getToc(env, b.id); n = toc[0]?.n || 1; }
+      if (!n) {
+        const toc = await getToc(env, b.id);
+        n = toc[0]?.n || 1;
+      }
       const ch = await getChapterText(env, b.id, n);
       if (!ch) return { error: "未找到该章" };
       return { book: b.t, chapter: ch.n, title: ch.title, text: ch.text };
@@ -96,7 +111,11 @@ export const TOOLS: LiberTool[] = [
       const win = args?.window || "today";
       const metric = args?.metric || "reads";
       const chart = await getCharts(env, win);
-      const rows = chart.rows.map((r: any) => ({ id: r.id, title: r.title || S.bookById(r.id)?.t, value: metric === "surge" ? (chart.surge?.[r.id] ?? 0) : r[metric] }));
+      const rows = chart.rows.map((r: any) => ({
+        id: r.id,
+        title: r.title || S.bookById(r.id)?.t,
+        value: metric === "surge" ? (chart.surge?.[r.id] ?? 0) : r[metric],
+      }));
       rows.sort((a: any, b: any) => b.value - a.value);
       return rows.slice(0, 8);
     },
@@ -105,11 +124,18 @@ export const TOOLS: LiberTool[] = [
     name: "get_conversations",
     description: "公开的读者×AI 对话(对话卡/金句卡)。",
     parameters: { type: "object", properties: { book: { type: "string" } }, required: [] },
-    execute: async (_env, _args) => S.SHARED_CONVOS.map((x: any) => ({ id: x.id, title: x.title || x.insight, book: x.bookT, forks: x.forks })),
+    execute: async (_env, _args) =>
+      S.SHARED_CONVOS.map((x: any) => ({
+        id: x.id,
+        title: x.title || x.insight,
+        book: x.bookT,
+        forks: x.forks,
+      })),
   },
   {
     name: "get_graph",
-    description: "全馆「思维链接」图谱:书与书之间的跨书呼应网络(节点=书,边=呼应强度)。Liber 最独特的连接层,内容即接口。",
+    description:
+      "全馆「思维链接」图谱:书与书之间的跨书呼应网络(节点=书,边=呼应强度)。Liber 最独特的连接层,内容即接口。",
     parameters: {
       type: "object",
       properties: { limit: { type: "number", description: "最多返回的边数,默认 200" } },
@@ -141,10 +167,17 @@ export async function runTool(env: Env, name: string, args: any): Promise<any> {
 
 // OpenAI / DeepSeek function-calling schema for the agent loop.
 export function openaiTools(): any[] {
-  return TOOLS.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
+  return TOOLS.map((t) => ({
+    type: "function",
+    function: { name: t.name, description: t.description, parameters: t.parameters },
+  }));
 }
 
 // Manifest for the MCP route (human/agent-readable).
 export function manifest(): any[] {
-  return TOOLS.map((t) => ({ name: `liber.${t.name}`, desc: t.description, parameters: t.parameters }));
+  return TOOLS.map((t) => ({
+    name: `liber.${t.name}`,
+    desc: t.description,
+    parameters: t.parameters,
+  }));
 }

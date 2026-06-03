@@ -7,8 +7,15 @@ import type { Env } from "./types";
 import { aiChatRaw, supportsTools } from "./aiProvider";
 import { openaiTools, runTool } from "./tools/liber-tools";
 
-export interface AgentStep { tool: string; args: any; ok: boolean }
-export interface AgentResult { text: string; steps: AgentStep[] }
+export interface AgentStep {
+  tool: string;
+  args: any;
+  ok: boolean;
+}
+export interface AgentResult {
+  text: string;
+  steps: AgentStep[];
+}
 
 export function agentEnabled(env: Env): boolean {
   return env.AGENT_ENABLED === "true" && supportsTools(env);
@@ -46,16 +53,26 @@ export async function runCompanionAgent(
       role: "assistant",
       content: reply.content || null,
       tool_calls: reply.toolCalls.map((tc) => ({
-        id: tc.id, type: "function",
+        id: tc.id,
+        type: "function",
         function: { name: tc.name, arguments: JSON.stringify(tc.args) },
       })),
     });
     for (const tc of reply.toolCalls) {
-      let result: any, ok = true;
-      try { result = await runTool(env, tc.name, tc.args); }
-      catch (e) { ok = false; result = { error: String(e) }; }
+      let result: any,
+        ok = true;
+      try {
+        result = await runTool(env, tc.name, tc.args);
+      } catch (e) {
+        ok = false;
+        result = { error: String(e) };
+      }
       steps.push({ tool: tc.name, args: tc.args, ok });
-      messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 4000) });
+      messages.push({
+        role: "tool",
+        tool_call_id: tc.id,
+        content: JSON.stringify(result).slice(0, 4000),
+      });
     }
   }
 

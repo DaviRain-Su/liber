@@ -32,7 +32,12 @@ export async function getCachedTranslation(env: Env, cacheKey: string) {
       cacheKey,
     );
     if (!row) return null;
-    await run(env.DB, `UPDATE ai_translation_cache SET hits = hits + 1, updated_at = ? WHERE cache_key = ?`, now(), cacheKey);
+    await run(
+      env.DB,
+      `UPDATE ai_translation_cache SET hits = hits + 1, updated_at = ? WHERE cache_key = ?`,
+      now(),
+      cacheKey,
+    );
     return {
       text: row.translated_text,
       ref: row.corrected_by ? "古文今译 · D1 纠错缓存" : "古文今译 · D1 缓存",
@@ -47,15 +52,18 @@ export async function getCachedTranslation(env: Env, cacheKey: string) {
   }
 }
 
-export async function putCachedTranslation(env: Env, input: {
-  cacheKey: string;
-  bookId?: string | null;
-  chapterN?: number | null;
-  sourceText: string;
-  translatedText: string;
-  model?: string | null;
-  provider?: string | null;
-}) {
+export async function putCachedTranslation(
+  env: Env,
+  input: {
+    cacheKey: string;
+    bookId?: string | null;
+    chapterN?: number | null;
+    sourceText: string;
+    translatedText: string;
+    model?: string | null;
+    provider?: string | null;
+  },
+) {
   const provider = activeProvider(env);
   try {
     await run(
@@ -83,11 +91,14 @@ export async function putCachedTranslation(env: Env, input: {
   }
 }
 
-export async function correctCachedTranslation(env: Env, input: {
-  cacheKey: string;
-  translatedText: string;
-  userId: string;
-}) {
+export async function correctCachedTranslation(
+  env: Env,
+  input: {
+    cacheKey: string;
+    translatedText: string;
+    userId: string;
+  },
+) {
   await run(
     env.DB,
     `UPDATE ai_translation_cache

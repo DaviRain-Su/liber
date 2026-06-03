@@ -49,7 +49,11 @@ function serializeList(r: ListRow, items: ItemRow[]) {
     forkedFrom: r.parent_id || null,
     count: items.length,
     books: items.map((it) => it.book_id),
-    items: items.map((it) => ({ bookId: it.book_id, note: it.note || "", title: it.title || null })),
+    items: items.map((it) => ({
+      bookId: it.book_id,
+      note: it.note || "",
+      title: it.title || null,
+    })),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -101,7 +105,7 @@ booklists.get("/", async (c) => {
 // POST /booklists — create a new list (optionally with an initial book).
 booklists.post("/", async (c) => {
   const uid = requireUser(c);
-  const b = await c.req.json().catch(() => ({} as any));
+  const b = await c.req.json().catch(() => ({}) as any);
   const name = String(b.name || "").trim();
   if (!name) return c.json({ error: "请填写书单名称" }, 400);
   const blid = id("bl_");
@@ -110,14 +114,25 @@ booklists.post("/", async (c) => {
     c.env.DB,
     `INSERT INTO booklists (id, user_id, name, description, color, visibility, parent_id, created_at, updated_at)
      VALUES (?,?,?,?,?,?,?,?,?)`,
-    blid, uid, name.slice(0, 60), desc ? desc.slice(0, 200) : null,
-    String(b.color || "ink"), b.visibility === "private" ? "private" : "public", null, now(), now(),
+    blid,
+    uid,
+    name.slice(0, 60),
+    desc ? desc.slice(0, 200) : null,
+    String(b.color || "ink"),
+    b.visibility === "private" ? "private" : "public",
+    null,
+    now(),
+    now(),
   );
   if (b.bookId) {
     await run(
       c.env.DB,
       `INSERT OR IGNORE INTO booklist_items (booklist_id, book_id, note, sort, created_at) VALUES (?,?,?,?,?)`,
-      blid, String(b.bookId), b.note ? String(b.note) : null, 0, now(),
+      blid,
+      String(b.bookId),
+      b.note ? String(b.note) : null,
+      0,
+      now(),
     );
   }
   const row = await first<ListRow>(
@@ -147,7 +162,12 @@ booklists.get("/:id", async (c) => {
   const [list] = await withItems(c.env, [row]);
   let saved = false;
   if (uid) {
-    saved = !!(await first(c.env.DB, `SELECT 1 AS x FROM booklist_saves WHERE user_id = ? AND booklist_id = ?`, uid, row.id));
+    saved = !!(await first(
+      c.env.DB,
+      `SELECT 1 AS x FROM booklist_saves WHERE user_id = ? AND booklist_id = ?`,
+      uid,
+      row.id,
+    ));
   }
   return c.json({ booklist: { ...list, mine: isOwner, saved } });
 });
@@ -155,20 +175,31 @@ booklists.get("/:id", async (c) => {
 // PUT /booklists/:id — rename / edit (owner only).
 booklists.put("/:id", async (c) => {
   const row = await ownedList(c, c.req.param("id"));
-  const b = await c.req.json().catch(() => ({} as any));
+  const b = await c.req.json().catch(() => ({}) as any);
   const name = b.name != null ? String(b.name).trim().slice(0, 60) : row.name;
   if (!name) return c.json({ error: "请填写书单名称" }, 400);
-  const desc = b.desc != null || b.description != null
-    ? String(b.desc ?? b.description).trim().slice(0, 200)
-    : row.description || "";
+  const desc =
+    b.desc != null || b.description != null
+      ? String(b.desc ?? b.description)
+          .trim()
+          .slice(0, 200)
+      : row.description || "";
   const color = b.color != null ? String(b.color) : row.color || "ink";
-  const visibility = b.visibility != null
-    ? (b.visibility === "private" ? "private" : "public")
-    : row.visibility || "public";
+  const visibility =
+    b.visibility != null
+      ? b.visibility === "private"
+        ? "private"
+        : "public"
+      : row.visibility || "public";
   await run(
     c.env.DB,
     `UPDATE booklists SET name = ?, description = ?, color = ?, visibility = ?, updated_at = ? WHERE id = ?`,
-    name, desc || null, color, visibility, now(), row.id,
+    name,
+    desc || null,
+    color,
+    visibility,
+    now(),
+    row.id,
   );
   return c.json({ ok: true });
 });
@@ -185,15 +216,23 @@ booklists.delete("/:id", async (c) => {
 // POST /booklists/:id/items — add a book to a list (owner only). Idempotent.
 booklists.post("/:id/items", async (c) => {
   const row = await ownedList(c, c.req.param("id"));
-  const b = await c.req.json().catch(() => ({} as any));
+  const b = await c.req.json().catch(() => ({}) as any);
   const bookId = String(b.bookId || "").trim();
   if (!bookId) return c.json({ error: "缺少 bookId" }, 400);
-  const max = await first<{ m: number }>(c.env.DB, `SELECT MAX(sort) AS m FROM booklist_items WHERE booklist_id = ?`, row.id);
+  const max = await first<{ m: number }>(
+    c.env.DB,
+    `SELECT MAX(sort) AS m FROM booklist_items WHERE booklist_id = ?`,
+    row.id,
+  );
   await run(
     c.env.DB,
     `INSERT INTO booklist_items (booklist_id, book_id, note, sort, created_at) VALUES (?,?,?,?,?)
      ON CONFLICT(booklist_id, book_id) DO UPDATE SET note = COALESCE(excluded.note, booklist_items.note)`,
-    row.id, bookId, b.note ? String(b.note) : null, Number(max?.m || 0) + 1, now(),
+    row.id,
+    bookId,
+    b.note ? String(b.note) : null,
+    Number(max?.m || 0) + 1,
+    now(),
   );
   await run(c.env.DB, `UPDATE booklists SET updated_at = ? WHERE id = ?`, now(), row.id);
   return c.json({ ok: true });
@@ -202,7 +241,12 @@ booklists.post("/:id/items", async (c) => {
 // DELETE /booklists/:id/items/:bookId — remove a book from a list (owner only).
 booklists.delete("/:id/items/:bookId", async (c) => {
   const row = await ownedList(c, c.req.param("id"));
-  await run(c.env.DB, `DELETE FROM booklist_items WHERE booklist_id = ? AND book_id = ?`, row.id, c.req.param("bookId"));
+  await run(
+    c.env.DB,
+    `DELETE FROM booklist_items WHERE booklist_id = ? AND book_id = ?`,
+    row.id,
+    c.req.param("bookId"),
+  );
   await run(c.env.DB, `UPDATE booklists SET updated_at = ? WHERE id = ?`, now(), row.id);
   return c.json({ ok: true });
 });
@@ -221,7 +265,15 @@ booklists.post("/:id/fork", async (c) => {
     c.env.DB,
     `INSERT INTO booklists (id, user_id, name, description, color, visibility, parent_id, created_at, updated_at)
      VALUES (?,?,?,?,?,?,?,?,?)`,
-    newId, uid, src.name, src.description, src.color || "ink", "public", srcId, now(), now(),
+    newId,
+    uid,
+    src.name,
+    src.description,
+    src.color || "ink",
+    "public",
+    srcId,
+    now(),
+    now(),
   );
   const items = await all<ItemRow & { sort: number }>(
     c.env.DB,
@@ -232,7 +284,11 @@ booklists.post("/:id/fork", async (c) => {
     await run(
       c.env.DB,
       `INSERT OR IGNORE INTO booklist_items (booklist_id, book_id, note, sort, created_at) VALUES (?,?,?,?,?)`,
-      newId, it.book_id, it.note, it.sort, now(),
+      newId,
+      it.book_id,
+      it.note,
+      it.sort,
+      now(),
     );
   }
   return c.json({ ok: true, id: newId });
@@ -242,12 +298,28 @@ booklists.post("/:id/fork", async (c) => {
 booklists.post("/:id/save", async (c) => {
   const uid = requireUser(c);
   const blid = c.req.param("id");
-  const exists = await first(c.env.DB, `SELECT 1 AS x FROM booklist_saves WHERE user_id = ? AND booklist_id = ?`, uid, blid);
+  const exists = await first(
+    c.env.DB,
+    `SELECT 1 AS x FROM booklist_saves WHERE user_id = ? AND booklist_id = ?`,
+    uid,
+    blid,
+  );
   if (exists) {
-    await run(c.env.DB, `DELETE FROM booklist_saves WHERE user_id = ? AND booklist_id = ?`, uid, blid);
+    await run(
+      c.env.DB,
+      `DELETE FROM booklist_saves WHERE user_id = ? AND booklist_id = ?`,
+      uid,
+      blid,
+    );
     return c.json({ saved: false });
   }
-  await run(c.env.DB, `INSERT INTO booklist_saves (user_id, booklist_id, created_at) VALUES (?,?,?)`, uid, blid, now());
+  await run(
+    c.env.DB,
+    `INSERT INTO booklist_saves (user_id, booklist_id, created_at) VALUES (?,?,?)`,
+    uid,
+    blid,
+    now(),
+  );
   return c.json({ saved: true });
 });
 

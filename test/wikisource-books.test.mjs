@@ -18,9 +18,15 @@ import {
 
 test("Wikisource importer catalog is Chinese public-domain curated", () => {
   assert.equal(BOOKS.length >= 9610, true);
-  assert.equal(BOOKS.every((book) => book.lang === "zh"), true);
+  assert.equal(
+    BOOKS.every((book) => book.lang === "zh"),
+    true,
+  );
   assert.equal(new Set(BOOKS.map((book) => book.id)).size, BOOKS.length);
-  assert.equal(BOOKS.every((book) => book.category.startsWith("中文 · ")), true);
+  assert.equal(
+    BOOKS.every((book) => book.category.startsWith("中文 · ")),
+    true,
+  );
   assert.equal(sourceUrl(BOOKS[0]).startsWith("https://zh.wikisource.org/wiki/"), true);
   assert.equal(rawUrl(BOOKS[0]).includes("action=raw"), true);
 });
@@ -159,20 +165,38 @@ test("Wikisource importer includes expanded Chinese history series with source v
   assert.equal(byId.get("shipin-003-wikisource-zh").sourceTitle, "詩品/卷下");
   assert.equal(byId.get("tangshi-sanbaishou-001-wikisource-zh").sourceTitle, "賊退示官吏");
   assert.equal(byId.get("tangshi-sanbaishou-037-wikisource-zh").sourceTitle, "長恨歌");
-  assert.equal(byId.get("tangshi-sanbaishou-320-wikisource-zh").sourceTitle, "宮詞 (玉樓天半起笙歌)");
+  assert.equal(
+    byId.get("tangshi-sanbaishou-320-wikisource-zh").sourceTitle,
+    "宮詞 (玉樓天半起笙歌)",
+  );
   assert.equal(byId.get("gushi-shijiushou-001-wikisource-zh").sourceTitle, "行行重行行");
   assert.equal(byId.get("gushi-shijiushou-019-wikisource-zh").sourceTitle, "明月何皎皎");
   assert.equal(byId.get("songci-sanbaishou-001-wikisource-zh").sourceTitle, "宋詞三百首");
   assert.equal(byId.get("songci-sanbaishou-001-wikisource-zh").author, "趙佶");
-  assert.equal(byId.get("songci-sanbaishou-001-wikisource-zh").sourceSection, "'''宴山亭·北行見杏花'''（[[Author:趙佶|趙佶]]）");
+  assert.equal(
+    byId.get("songci-sanbaishou-001-wikisource-zh").sourceSection,
+    "'''宴山亭·北行見杏花'''（[[Author:趙佶|趙佶]]）",
+  );
   assert.equal(byId.get("songci-sanbaishou-012-wikisource-zh").author, "晏殊");
-  assert.equal(byId.get("songci-sanbaishou-012-wikisource-zh").sourceSection, "'''浣溪沙'''（[[Author:晏殊|晏殊]]）");
+  assert.equal(
+    byId.get("songci-sanbaishou-012-wikisource-zh").sourceSection,
+    "'''浣溪沙'''（[[Author:晏殊|晏殊]]）",
+  );
   assert.equal(byId.get("songci-sanbaishou-012-wikisource-zh").sourceSectionOccurrence, 2);
-  assert.equal(byId.get("songci-sanbaishou-179-wikisource-zh").title, "宋詞三百首·青玉案（辛棄疾）");
+  assert.equal(
+    byId.get("songci-sanbaishou-179-wikisource-zh").title,
+    "宋詞三百首·青玉案（辛棄疾）",
+  );
   assert.equal(byId.get("songci-sanbaishou-179-wikisource-zh").author, "辛棄疾");
-  assert.equal(byId.get("songci-sanbaishou-179-wikisource-zh").sourceSection, "[[青玉案 (辛棄疾)]]");
+  assert.equal(
+    byId.get("songci-sanbaishou-179-wikisource-zh").sourceSection,
+    "[[青玉案 (辛棄疾)]]",
+  );
   assert.equal(byId.get("songci-sanbaishou-283-wikisource-zh").author, "李清照");
-  assert.equal(byId.get("songci-sanbaishou-283-wikisource-zh").sourceSection, "'''永遇樂'''（[[Author:李清照|李清照]]）");
+  assert.equal(
+    byId.get("songci-sanbaishou-283-wikisource-zh").sourceSection,
+    "'''永遇樂'''（[[Author:李清照|李清照]]）",
+  );
   assert.equal(byId.get("qianjiashi-001-wikisource-zh").title, "千家詩·春曉");
   assert.equal(byId.get("qianjiashi-001-wikisource-zh").author, "孟浩然");
   assert.equal(byId.get("qianjiashi-001-wikisource-zh").sourceTitle, "千家詩/卷一");
@@ -203,7 +227,10 @@ test("Wikisource importer includes expanded Chinese history series with source v
   assert.equal(byId.get("taoyuanmingji-001-wikisource-zh").title, "陶淵明集·停雲");
   assert.equal(byId.get("taoyuanmingji-001-wikisource-zh").sourceTitle, "陶淵明集/卷一");
   assert.equal(byId.get("taoyuanmingji-001-wikisource-zh").author, "陶淵明");
-  assert.equal(byId.get("taoyuanmingji-041-wikisource-zh").title, "陶淵明集·示周續之祖企謝景夷三郎·其二");
+  assert.equal(
+    byId.get("taoyuanmingji-041-wikisource-zh").title,
+    "陶淵明集·示周續之祖企謝景夷三郎·其二",
+  );
   assert.equal(byId.get("taoyuanmingji-041-wikisource-zh").sourceTitle, "陶淵明集/卷三");
   assert.equal(byId.get("taoyuanmingji-063-wikisource-zh").title, "陶淵明集·歸去來辭並序");
   assert.equal(byId.get("taoyuanmingji-064-wikisource-zh").title, "陶淵明集·桃花源記");
@@ -223,7 +250,10 @@ test("Wikisource importer includes expanded Chinese history series with source v
   assert.equal(byId.get("luoyang-qielanji-006-wikisource-zh").sourceTitle, "洛陽伽藍記/卷五");
   assert.equal(byId.get("soushenji-020-wikisource-zh").title, "搜神記·卷二十");
   assert.equal(byId.get("soushenji-020-wikisource-zh").category, "中文 · 志怪小說");
-  assert.equal(byId.get("gulie-nvzhuan-008-wikisource-zh").sourceTitle, "古列女傳 (四庫全書本)/卷8");
+  assert.equal(
+    byId.get("gulie-nvzhuan-008-wikisource-zh").sourceTitle,
+    "古列女傳 (四庫全書本)/卷8",
+  );
   assert.equal(byId.get("tang-caizi-zhuan-010-wikisource-zh").author, "辛文房");
   assert.equal(byId.get("chajing-003-wikisource-zh").sourceTitle, "茶經/卷下");
   assert.equal(byId.get("liuzu-tanjing-011-wikisource-zh").title, "六祖壇經·跋");
@@ -310,7 +340,10 @@ test("Wikisource cleaner drops nested Chinese annotation templates", () => {
 test("Wikisource cleaner drops orphan closing template braces in Chinese prose", () => {
   const text = cleanWikisourceWikitext(`{{Header|title=國語}}
 日月會于龍{{!|𧱓|⿰豕尨}}，{{*|{{!|𧱓|⿰豕尨}}，龍尾也。}}謂周十二月、夏十月，日月合辰於尾上。月令：「孟冬，日在尾。」}}土氣含收。`);
-  assert.equal(text, "日月會于龍，謂周十二月、夏十月，日月合辰於尾上。月令：「孟冬，日在尾。」土氣含收。");
+  assert.equal(
+    text,
+    "日月會于龍，謂周十二月、夏十月，日月合辰於尾上。月令：「孟冬，日在尾。」土氣含收。",
+  );
 });
 
 test("Wikisource cleaner keeps nested variant text inside proper nouns", () => {
@@ -390,7 +423,10 @@ test("Wikisource cleaner keeps HTML paragraph bodies and drops collation notes",
 test("Wikisource cleaner strips header2 templates before same-line history body", () => {
   const raw = `{{header2| title = [[../]]| section = '''卷十一'''<ref name="缺" /><br>補列傳第三| notes ={{textquality|25%}}}} ==河南康献王 ==
 河南康献王孝瑜，字正德，文襄長子也。`;
-  const chapters = parseWikisourceChapters({ id: "beiqi-header2-test", category: "中文 · 史書" }, raw);
+  const chapters = parseWikisourceChapters(
+    { id: "beiqi-header2-test", category: "中文 · 史書" },
+    raw,
+  );
   assert.equal(chapters.length, 1);
   assert.equal(chapters[0].text, "河南康献王孝瑜，字正德，文襄長子也。");
 });
@@ -410,7 +446,10 @@ test("Wikisource importer can isolate collection page sections", () => {
   assert.equal(section.includes("周鄭交質"), false);
 
   const book = BOOKS.find((item) => item.id === "guwen-guanzhi-001-wikisource-zh");
-  assert.equal(sourceUrl(book), "https://zh.wikisource.org/wiki/%E5%8F%A4%E6%96%87%E8%A7%80%E6%AD%A2/%E5%8D%B71#%E9%84%AD%E4%BC%AF%E5%85%8B%E6%AE%B5%E4%BA%8E%E9%84%A2");
+  assert.equal(
+    sourceUrl(book),
+    "https://zh.wikisource.org/wiki/%E5%8F%A4%E6%96%87%E8%A7%80%E6%AD%A2/%E5%8D%B71#%E9%84%AD%E4%BC%AF%E5%85%8B%E6%AE%B5%E4%BA%8E%E9%84%A2",
+  );
   assert.equal(rawUrl(book).includes(encodeURIComponent("古文觀止/卷1")), true);
 });
 
@@ -453,7 +492,10 @@ test("Wikisource importer parses paragraphs into reader chapters", () => {
 
 客有吹洞簫者，倚歌而和之。</onlyinclude>`,
   );
-  assert.deepEqual(chapters.map((chapter) => chapter.title), ["第一段", "第二段"]);
+  assert.deepEqual(
+    chapters.map((chapter) => chapter.title),
+    ["第一段", "第二段"],
+  );
   assert.equal(chapters[0].text, "清風徐來，水波不興。");
   assert.equal(chapters[1].n, 2);
 });
@@ -475,7 +517,12 @@ test("Wikisource importer keeps Chinese history volumes as one reader chapter", 
 
 test("Wikisource importer keeps marked Chinese volume series as one reader chapter", () => {
   const chapters = parseWikisourceChapters(
-    { id: "tongdian-sample", title: "通典·卷一", category: "中文 · 政書", singleVolumeChapter: true },
+    {
+      id: "tongdian-sample",
+      title: "通典·卷一",
+      category: "中文 · 政書",
+      singleVolumeChapter: true,
+    },
     `<onlyinclude>食貨一
 
 田制上
@@ -518,10 +565,10 @@ test("Wikisource importer removes source div ordinal markers from classical chap
 
 <div id="二之二">子曰：「詩三百，一言以蔽之，曰思無邪。」</div></onlyinclude>`,
   );
-  assert.deepEqual(chapters.map((chapter) => chapter.text), [
-    "子曰：「爲政以德，譬如北辰。」",
-    "子曰：「詩三百，一言以蔽之，曰思無邪。」",
-  ]);
+  assert.deepEqual(
+    chapters.map((chapter) => chapter.text),
+    ["子曰：「爲政以德，譬如北辰。」", "子曰：「詩三百，一言以蔽之，曰思無邪。」"],
+  );
 });
 
 test("Wikisource importer starts at section markers when onlyinclude is absent", () => {
@@ -534,10 +581,10 @@ test("Wikisource importer starts at section markers when onlyinclude is absent",
 時維九月，序屬三秋。
 <section end=p1 />`,
   );
-  assert.deepEqual(chapters.map((chapter) => chapter.text), [
-    "豫章故郡，洪都新府。",
-    "時維九月，序屬三秋。",
-  ]);
+  assert.deepEqual(
+    chapters.map((chapter) => chapter.text),
+    ["豫章故郡，洪都新府。", "時維九月，序屬三秋。"],
+  );
 });
 
 test("Wikisource importer keeps poem text before trailing note sections", () => {
@@ -551,11 +598,28 @@ test("Wikisource importer keeps poem text before trailing note sections", () => 
 ===註釋===
 <references/>`,
   );
-  assert.equal(chapters[0].text, "一封朝奏九重天，夕貶潮州路八千。欲為聖明除弊事，肯將衰朽惜殘年？");
+  assert.equal(
+    chapters[0].text,
+    "一封朝奏九重天，夕貶潮州路八千。欲為聖明除弊事，肯將衰朽惜殘年？",
+  );
 });
 
 test("Wikisource importer parses bounded concurrency options", () => {
-  const options = parseArgs(["--publish", "--concurrency", "5", "--chapter-concurrency", "7", "--publish-attempts", "9", "--publish-timeout-ms", "45000", "--summary", "--json", "--quiet", "--no-live-probe"]);
+  const options = parseArgs([
+    "--publish",
+    "--concurrency",
+    "5",
+    "--chapter-concurrency",
+    "7",
+    "--publish-attempts",
+    "9",
+    "--publish-timeout-ms",
+    "45000",
+    "--summary",
+    "--json",
+    "--quiet",
+    "--no-live-probe",
+  ]);
   assert.equal(options.publish, true);
   assert.equal(options.concurrency, 5);
   assert.equal(options.chapterConcurrency, 7);
@@ -571,8 +635,14 @@ test("Wikisource importer parses bounded concurrency options", () => {
   assert.equal(parseArgs([]).publishAttempts, 8);
   assert.equal(parseArgs([]).liveProbe, true);
   assert.throws(() => parseArgs(["--concurrency", "0"]), /--concurrency must be positive/);
-  assert.throws(() => parseArgs(["--chapter-concurrency", "0"]), /--chapter-concurrency must be positive/);
-  assert.throws(() => parseArgs(["--publish-attempts", "0"]), /--publish-attempts must be positive/);
+  assert.throws(
+    () => parseArgs(["--chapter-concurrency", "0"]),
+    /--chapter-concurrency must be positive/,
+  );
+  assert.throws(
+    () => parseArgs(["--publish-attempts", "0"]),
+    /--publish-attempts must be positive/,
+  );
 });
 
 test("Wikisource summary reports failures and language buckets", () => {
@@ -580,8 +650,23 @@ test("Wikisource summary reports failures and language buckets", () => {
     mode: "dry-run",
     apiUrl: "https://example.test",
     results: [
-      { id: "ok", title: "好", lang: "zh", category: "中文 · 古文", accepted: true, license: "PUBLIC-DOMAIN", chapters: 2 },
-      { id: "bad", title: "壞", lang: "zh", category: "中文 · 古文", accepted: false, error: "boom" },
+      {
+        id: "ok",
+        title: "好",
+        lang: "zh",
+        category: "中文 · 古文",
+        accepted: true,
+        license: "PUBLIC-DOMAIN",
+        chapters: 2,
+      },
+      {
+        id: "bad",
+        title: "壞",
+        lang: "zh",
+        category: "中文 · 古文",
+        accepted: false,
+        error: "boom",
+      },
     ],
   });
   assert.equal(summary.total, 2);
