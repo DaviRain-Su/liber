@@ -17,5 +17,11 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      # Biome lint/format is advisory for now (the codebase predates it). Surfaces
+      # findings without failing the build; ratchet to a blocking gate once the
+      # one-time format pass + correctness fixes land. See biome.json.
+      - name: Biome (advisory)
+        run: npm run lint
+        continue-on-error: true
       - run: npm test
       - run: npm run build
